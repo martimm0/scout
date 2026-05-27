@@ -1,0 +1,81 @@
+.shell {
+  position: relative;
+  min-height: calc(100vh - 73px);
+  background: #c7dfb2;
+}
+
+.canvasWrap {
+  height: calc(100vh - 73px);
+  min-height: 620px;
+  width: 100%;
+}
+
+.canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.debugPanel {
+  position: absolute;
+  left: 24px;
+  top: 24px;
+  width: min(320px, calc(100% - 48px));
+  border: 1px solid rgba(30, 44, 26, 0.18);
+  border-radius: 8px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--foreground);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(16px);
+}
+
+.debugLabel {
+  margin-bottom: 12px;
+  color: var(--primary-dark);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.debugPanel dl {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.debugPanel div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.debugPanel dt {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.debugPanel dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 800;
+}
+
+@media (max-width: 720px) {
+  .shell {
+    min-height: 720px;
+  }
+
+  .canvasWrap {
+    height: 720px;
+    min-height: 720px;
+  }
+
+  .debugPanel {
+    left: 16px;
+    top: 16px;
+  }
+}
