@@ -132,6 +132,31 @@ textarea:focus-visible {
   margin-bottom: 32px;
 }
 
+.home-hero,
+.placeholder-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 440px);
+  gap: 40px;
+  align-items: center;
+  margin-bottom: 40px;
+}
+
+.home-hero .page-header,
+.placeholder-hero .page-header {
+  margin-bottom: 0;
+}
+
+.home-hero__image,
+.placeholder-hero__image {
+  width: 100%;
+  max-height: 440px;
+  object-fit: contain;
+}
+
+.placeholder-hero__image {
+  max-height: 320px;
+}
+
 .eyebrow {
   margin: 0 0 10px;
   color: var(--primary-dark);
@@ -222,5 +247,16 @@ p {
 
   .page-container {
     padding: 40px 0;
+  }
+
+  .home-hero,
+  .placeholder-hero {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .home-hero__image,
+  .placeholder-hero__image {
+    max-height: 280px;
   }
 }
