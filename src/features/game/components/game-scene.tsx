@@ -2,7 +2,7 @@
 
 import { Sky, Text } from "@react-three/drei";
 import { createRoot, extend, useFrame } from "@react-three/fiber";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import type { Group } from "three";
 import { Vector3 } from "three";
@@ -13,6 +13,9 @@ extend(THREE as unknown as Parameters<typeof extend>[0]);
 type DebugState = {
   area: string;
   altitude: number;
+  heading: number;
+  movement: string;
+  speed: number;
   x: number;
   z: number;
 };
@@ -86,6 +89,22 @@ const FLOWER_POSITIONS: [number, number, number][] = [
   [15, 0.25, 9],
 ];
 
+const MAP_BOUNDS = {
+  minX: -21,
+  maxX: 24,
+  minZ: -18,
+  maxZ: 16,
+  minY: 1.1,
+  maxY: 7.2,
+};
+
+const BASE_SPEED = 8.2;
+const BOOST_MULTIPLIER = 1.75;
+const ALTITUDE_SPEED = 4.4;
+const MOUSE_SENSITIVITY = 0.0024;
+const CAMERA_DISTANCE = 7.8;
+const CAMERA_HEIGHT = 2.7;
+
 function getCurrentArea(position: Vector3) {
   const match = MAP_AREAS.find((area) => {
     const [x, , z] = area.position;
@@ -100,6 +119,10 @@ function getCurrentArea(position: Vector3) {
   });
 
   return match?.label ?? "Open Trail";
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function R3FViewport({
@@ -164,17 +187,149 @@ function R3FViewport({
   return <canvas className={styles.canvas} ref={canvasRef} />;
 }
 
+function PollinatorModel() {
+  return (
+    <>
+      <mesh castShadow>
+        <sphereGeometry args={[0.34, 24, 16]} />
+        <meshStandardMaterial color="#f2bb42" roughness={0.55} />
+      </mesh>
+      <mesh castShadow position={[0, 0, 0.36]}>
+        <sphereGeometry args={[0.25, 20, 12]} />
+        <meshStandardMaterial color="#322b21" roughness={0.6} />
+      </mesh>
+      <mesh position={[-0.32, 0.16, -0.08]} rotation={[0.5, -0.15, -0.55]}>
+        <sphereGeometry args={[0.2, 16, 10]} />
+        <meshStandardMaterial color="#dcefff" opacity={0.66} transparent />
+      </mesh>
+      <mesh position={[0.32, 0.16, -0.08]} rotation={[0.5, 0.15, 0.55]}>
+        <sphereGeometry args={[0.2, 16, 10]} />
+        <meshStandardMaterial color="#dcefff" opacity={0.66} transparent />
+      </mesh>
+      <mesh position={[0, -0.04, -0.38]}>
+        <sphereGeometry args={[0.13, 16, 10]} />
+        <meshStandardMaterial color="#2d251b" roughness={0.6} />
+      </mesh>
+      <mesh position={[-0.12, 0.1, -0.28]}>
+        <sphereGeometry args={[0.045, 10, 8]} />
+        <meshStandardMaterial color="#191510" roughness={0.45} />
+      </mesh>
+      <mesh position={[0.12, 0.1, -0.28]}>
+        <sphereGeometry args={[0.045, 10, 8]} />
+        <meshStandardMaterial color="#191510" roughness={0.45} />
+      </mesh>
+    </>
+  );
+}
+
 function ScoutScene({
   onDebugChange,
 }: {
   onDebugChange: (state: DebugState) => void;
 }) {
   const pollinatorRef = useRef<Group>(null);
+  const keysRef = useRef(new Set<string>());
   const lastDebugUpdate = useRef(0);
-  const cameraTarget = useMemo(() => new Vector3(), []);
-  const cameraPosition = useMemo(() => new Vector3(), []);
+  const movementState = useRef("Hovering");
+  const mouseDownRef = useRef(false);
+  const pollinatorYawRef = useRef(0);
+  const scrollAltitudeRef = useRef(0);
+  const yawRef = useRef(0);
+  const pitchRef = useRef(0.18);
+  const cameraTargetRef = useRef(new Vector3());
+  const cameraPositionRef = useRef(new Vector3());
+  const directionRef = useRef(new Vector3());
+  const forwardRef = useRef(new Vector3());
+  const renderPositionRef = useRef(new Vector3());
+  const rightRef = useRef(new Vector3());
+  const targetPositionRef = useRef(new Vector3(0, 2.15, 0));
+  const velocityRef = useRef(new Vector3());
 
-  useFrame(({ camera, clock }) => {
+  useEffect(() => {
+    const normalizeKey = (key: string) => key.toLowerCase();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const key = normalizeKey(event.key);
+
+      if (
+        [
+          " ",
+          "arrowup",
+          "arrowdown",
+          "arrowleft",
+          "arrowright",
+          "w",
+          "a",
+          "s",
+          "d",
+          "e",
+          "q",
+          "shift",
+        ].includes(key)
+      ) {
+        event.preventDefault();
+      }
+
+      keysRef.current.add(key);
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      keysRef.current.delete(normalizeKey(event.key));
+    };
+
+    const handleMouseDown = () => {
+      mouseDownRef.current = true;
+    };
+
+    const handleMouseUp = () => {
+      mouseDownRef.current = false;
+    };
+
+    const handleMouseMove = (event: MouseEvent) => {
+      if (!mouseDownRef.current && document.pointerLockElement === null) {
+        return;
+      }
+
+      yawRef.current -= event.movementX * MOUSE_SENSITIVITY;
+      pitchRef.current = clamp(
+        pitchRef.current - event.movementY * MOUSE_SENSITIVITY,
+        -0.35,
+        0.72,
+      );
+    };
+
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      scrollAltitudeRef.current += clamp(-event.deltaY * 0.006, -1, 1);
+    };
+
+    const canvas = document.querySelector("canvas");
+    const handleCanvasClick = () => {
+      if (document.pointerLockElement === null) {
+        void canvas?.requestPointerLock();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("mousedown", handleMouseDown);
+    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("wheel", handleWheel, { passive: false });
+    canvas?.addEventListener("click", handleCanvasClick);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("mousedown", handleMouseDown);
+      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("wheel", handleWheel);
+      canvas?.removeEventListener("click", handleCanvasClick);
+    };
+  }, []);
+
+  useFrame(({ camera, clock }, delta) => {
     const pollinator = pollinatorRef.current;
 
     if (!pollinator) {
@@ -182,16 +337,93 @@ function ScoutScene({
     }
 
     const elapsed = clock.getElapsedTime();
-    const x = Math.sin(elapsed * 0.32) * 3.2;
-    const z = Math.cos(elapsed * 0.32) * 2.4;
-    const y = 2.15 + Math.sin(elapsed * 3) * 0.13;
+    const keys = keysRef.current;
+    const cameraTarget = cameraTargetRef.current;
+    const cameraPosition = cameraPositionRef.current;
+    const direction = directionRef.current.set(0, 0, 0);
+    const forward = forwardRef.current;
+    const renderPosition = renderPositionRef.current;
+    const right = rightRef.current;
+    const targetPosition = targetPositionRef.current;
+    const velocity = velocityRef.current;
+    const yaw = yawRef.current;
 
-    pollinator.position.set(x, y, z);
-    pollinator.rotation.y = Math.sin(elapsed * 0.32) * 0.2;
-    pollinator.rotation.z = Math.sin(elapsed * 5.4) * 0.06;
+    forward.set(Math.sin(yaw), 0, Math.cos(yaw) * -1).normalize();
+    right.set(Math.cos(yaw), 0, Math.sin(yaw)).normalize();
+
+    if (keys.has("w") || keys.has("arrowup")) {
+      direction.add(forward);
+    }
+
+    if (keys.has("s") || keys.has("arrowdown")) {
+      direction.sub(forward);
+    }
+
+    if (keys.has("d") || keys.has("arrowright")) {
+      direction.add(right);
+    }
+
+    if (keys.has("a") || keys.has("arrowleft")) {
+      direction.sub(right);
+    }
+
+    const hasMovementInput = direction.lengthSq() > 0;
+    const isBoosting = keys.has("shift") && hasMovementInput;
+    const speed = BASE_SPEED * (isBoosting ? BOOST_MULTIPLIER : 1);
+    const altitudeInput =
+      (keys.has("e") ? 1 : 0) -
+      (keys.has("q") ? 1 : 0) +
+      scrollAltitudeRef.current;
+
+    scrollAltitudeRef.current *= 0.82;
+
+    if (hasMovementInput) {
+      direction.normalize().multiplyScalar(speed);
+    }
+
+    velocity.lerp(direction, 1 - Math.exp(-delta * 8));
+    targetPosition.addScaledVector(velocity, delta);
+    targetPosition.y += altitudeInput * ALTITUDE_SPEED * delta;
+
+    targetPosition.x = clamp(targetPosition.x, MAP_BOUNDS.minX, MAP_BOUNDS.maxX);
+    targetPosition.y = clamp(targetPosition.y, MAP_BOUNDS.minY, MAP_BOUNDS.maxY);
+    targetPosition.z = clamp(targetPosition.z, MAP_BOUNDS.minZ, MAP_BOUNDS.maxZ);
+
+    const bob = Math.sin(elapsed * (hasMovementInput ? 9 : 3.2)) * 0.08;
+    renderPosition.set(targetPosition.x, targetPosition.y + bob, targetPosition.z);
+    pollinator.position.lerp(
+      renderPosition,
+      1 - Math.exp(-delta * 12),
+    );
+
+    const horizontalSpeed = Math.hypot(velocity.x, velocity.z);
+
+    if (horizontalSpeed > 0.18) {
+      const desiredYaw = Math.atan2(velocity.x, -velocity.z);
+      const turnDelta = Math.atan2(
+        Math.sin(desiredYaw - pollinatorYawRef.current),
+        Math.cos(desiredYaw - pollinatorYawRef.current),
+      );
+      pollinatorYawRef.current += turnDelta * (1 - Math.exp(-delta * 10));
+    }
+
+    pollinator.rotation.y = pollinatorYawRef.current;
+    pollinator.rotation.z = hasMovementInput
+      ? clamp(-velocity.x * 0.018, -0.22, 0.22)
+      : Math.sin(elapsed * 3) * 0.035;
+
+    movementState.current = isBoosting
+      ? "Boosting"
+      : hasMovementInput
+        ? "Flying"
+        : "Hovering";
 
     cameraTarget.copy(pollinator.position);
-    cameraPosition.set(x, y + 2.5, z + 7.5);
+    cameraPosition.set(
+      pollinator.position.x - Math.sin(yaw) * CAMERA_DISTANCE,
+      pollinator.position.y + CAMERA_HEIGHT + pitchRef.current * 4,
+      pollinator.position.z + Math.cos(yaw) * CAMERA_DISTANCE,
+    );
     camera.position.lerp(cameraPosition, 0.08);
     camera.lookAt(cameraTarget);
 
@@ -199,9 +431,12 @@ function ScoutScene({
       lastDebugUpdate.current = elapsed;
       onDebugChange({
         area: getCurrentArea(pollinator.position),
-        altitude: Number(y.toFixed(1)),
-        x: Number(x.toFixed(1)),
-        z: Number(z.toFixed(1)),
+        altitude: Number(pollinator.position.y.toFixed(1)),
+        heading: Number(((yawRef.current * 180) / Math.PI).toFixed(0)),
+        movement: movementState.current,
+        speed: Number(velocity.length().toFixed(1)),
+        x: Number(pollinator.position.x.toFixed(1)),
+        z: Number(pollinator.position.z.toFixed(1)),
       });
     }
   });
@@ -289,43 +524,108 @@ function ScoutScene({
       ))}
 
       <group ref={pollinatorRef} position={[0, 2.15, 0]}>
-        <mesh castShadow>
-          <sphereGeometry args={[0.34, 24, 16]} />
-          <meshStandardMaterial color="#f2bb42" roughness={0.55} />
-        </mesh>
-        <mesh castShadow position={[0, 0, -0.36]}>
-          <sphereGeometry args={[0.25, 20, 12]} />
-          <meshStandardMaterial color="#322b21" roughness={0.6} />
-        </mesh>
-        <mesh position={[-0.32, 0.16, 0.08]} rotation={[0.5, 0.15, -0.55]}>
-          <sphereGeometry args={[0.2, 16, 10]} />
-          <meshStandardMaterial
-            color="#dcefff"
-            opacity={0.66}
-            transparent
-          />
-        </mesh>
-        <mesh position={[0.32, 0.16, 0.08]} rotation={[0.5, -0.15, 0.55]}>
-          <sphereGeometry args={[0.2, 16, 10]} />
-          <meshStandardMaterial
-            color="#dcefff"
-            opacity={0.66}
-            transparent
-          />
-        </mesh>
-        <mesh position={[0, -0.04, 0.38]}>
-          <sphereGeometry args={[0.13, 16, 10]} />
-          <meshStandardMaterial color="#2d251b" roughness={0.6} />
-        </mesh>
+        <PollinatorModel />
       </group>
     </>
   );
 }
 
+function PollinatorPreviewScene() {
+  const pollinatorRef = useRef<Group>(null);
+
+  useFrame(({ camera, clock }) => {
+    const pollinator = pollinatorRef.current;
+
+    if (!pollinator) {
+      return;
+    }
+
+    const elapsed = clock.getElapsedTime();
+    pollinator.rotation.y = Math.sin(elapsed * 0.7) * 0.18;
+    pollinator.rotation.x = Math.sin(elapsed * 1.1) * 0.04;
+    pollinator.position.y = Math.sin(elapsed * 1.8) * 0.08;
+    camera.position.set(0, 0.45, -2.65);
+    camera.lookAt(0, 0.05, 0);
+  });
+
+  return (
+    <>
+      <color attach="background" args={["#fff4ce"]} />
+      <ambientLight intensity={1.8} />
+      <directionalLight intensity={2.2} position={[-2, 3, -4]} />
+      <hemisphereLight args={["#eaf6ff", "#f0d58e", 1.2]} />
+      <group ref={pollinatorRef} scale={2.35}>
+        <PollinatorModel />
+      </group>
+    </>
+  );
+}
+
+function PollinatorPreviewViewport() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    const container = canvas?.parentElement;
+
+    if (!canvas || !container) {
+      return;
+    }
+
+    const root = createRoot(canvas);
+    let mounted = true;
+
+    const configure = async () => {
+      const rect = container.getBoundingClientRect();
+
+      if (!mounted || rect.width <= 0 || rect.height <= 0) {
+        return;
+      }
+
+      canvas.width = Math.round(rect.width);
+      canvas.height = Math.round(rect.height);
+
+      await root.configure({
+        camera: { fov: 42, position: [0, 0.45, -2.65] },
+        gl: { antialias: true, alpha: false, preserveDrawingBuffer: true },
+        size: {
+          height: rect.height,
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+        },
+      });
+
+      if (mounted) {
+        root.render(<PollinatorPreviewScene />);
+      }
+    };
+
+    void configure();
+
+    const observer = new ResizeObserver(() => {
+      void configure();
+    });
+    observer.observe(container);
+
+    return () => {
+      mounted = false;
+      observer.disconnect();
+      root.unmount();
+    };
+  }, []);
+
+  return <canvas className={styles.previewCanvas} ref={canvasRef} />;
+}
+
 export function GameScene() {
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [debugState, setDebugState] = useState<DebugState>({
     area: "Environmental Center",
     altitude: 2.1,
+    heading: 0,
+    movement: "Hovering",
+    speed: 0,
     x: 0,
     z: 0,
   });
@@ -353,8 +653,66 @@ export function GameScene() {
             <dt>Altitude</dt>
             <dd>{debugState.altitude}</dd>
           </div>
+          <div>
+            <dt>Heading</dt>
+            <dd>{debugState.heading} deg</dd>
+          </div>
+          <div>
+            <dt>Movement</dt>
+            <dd>{debugState.movement}</dd>
+          </div>
+          <div>
+            <dt>Speed</dt>
+            <dd>{debugState.speed}</dd>
+          </div>
         </dl>
       </aside>
+
+      <aside className={styles.controlsPanel} aria-label="Flight controls">
+        <p className={styles.debugLabel}>Controls</p>
+        <ul>
+          <li>WASD / Arrows move</li>
+          <li>Mouse drag or click to look</li>
+          <li>E / Q or scroll changes altitude</li>
+          <li>Shift boosts</li>
+        </ul>
+        <button
+          className={styles.previewButton}
+          onClick={() => setIsPreviewOpen(true)}
+          type="button"
+        >
+          View pollinator
+        </button>
+      </aside>
+
+      {isPreviewOpen ? (
+        <div className={styles.modalBackdrop} role="presentation">
+          <section
+            aria-label="Pollinator face-on preview"
+            aria-modal="true"
+            className={styles.previewModal}
+            role="dialog"
+          >
+            <div className={styles.previewHeader}>
+              <div>
+                <p className={styles.debugLabel}>Character Preview</p>
+                <h2>Your Pollinator</h2>
+              </div>
+              <button
+                aria-label="Close pollinator preview"
+                className={styles.closeButton}
+                onClick={() => setIsPreviewOpen(false)}
+                type="button"
+              >
+                Close
+              </button>
+            </div>
+            <div className={styles.previewStage}>
+              <PollinatorPreviewViewport />
+            </div>
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 }
