@@ -17,7 +17,8 @@
 }
 
 .debugPanel,
-.controlsPanel {
+.controlsPanel,
+.statePanel {
   position: absolute;
   width: min(320px, calc(100% - 48px));
   border: 1px solid rgba(30, 44, 26, 0.18);
@@ -39,6 +40,11 @@
   bottom: 24px;
 }
 
+.statePanel {
+  left: 24px;
+  bottom: 24px;
+}
+
 .debugLabel {
   margin-bottom: 12px;
   color: var(--primary-dark);
@@ -49,25 +55,29 @@
   text-transform: uppercase;
 }
 
-.debugPanel dl {
+.debugPanel dl,
+.statePanel dl {
   display: grid;
   gap: 10px;
   margin: 0;
 }
 
-.debugPanel div {
+.debugPanel div,
+.statePanel div {
   display: flex;
   justify-content: space-between;
   gap: 16px;
 }
 
-.debugPanel dt {
+.debugPanel dt,
+.statePanel dt {
   color: var(--muted);
   font-size: 0.88rem;
   font-weight: 700;
 }
 
-.debugPanel dd {
+.debugPanel dd,
+.statePanel dd {
   margin: 0;
   text-align: right;
   font-weight: 800;
@@ -167,6 +177,27 @@
   height: 100% !important;
 }
 
+.stateActions {
+  display: grid !important;
+  gap: 8px !important;
+  margin-top: 14px;
+}
+
+.stateActions button {
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--foreground);
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.stateActions button:hover {
+  background: var(--accent-soft);
+}
+
 @media (max-width: 720px) {
   .shell {
     min-height: 720px;
@@ -178,7 +209,8 @@
   }
 
   .debugPanel,
-  .controlsPanel {
+  .controlsPanel,
+  .statePanel {
     left: 16px;
     right: auto;
   }
@@ -189,6 +221,10 @@
 
   .controlsPanel {
     bottom: 16px;
+  }
+
+  .statePanel {
+    display: none;
   }
 
   .previewModal {

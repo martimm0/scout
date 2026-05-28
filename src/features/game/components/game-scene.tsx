@@ -6,15 +6,21 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import type { Group } from "three";
 import { Vector3 } from "three";
+import {
+  countUnlocked,
+  useGameStore,
+  type PlayerMovementState,
+} from "@/features/game/state/game-store";
 import styles from "./game-scene.module.css";
 
 extend(THREE as unknown as Parameters<typeof extend>[0]);
 
 type DebugState = {
+  areaId: string;
   area: string;
   altitude: number;
   heading: number;
-  movement: string;
+  movement: PlayerMovementState;
   speed: number;
   x: number;
   z: number;
@@ -119,6 +125,22 @@ function getCurrentArea(position: Vector3) {
   });
 
   return match?.label ?? "Open Trail";
+}
+
+function getCurrentAreaId(position: Vector3) {
+  const match = MAP_AREAS.find((area) => {
+    const [x, , z] = area.position;
+    const [width, , depth] = area.size;
+
+    return (
+      position.x >= x - width / 2 &&
+      position.x <= x + width / 2 &&
+      position.z >= z - depth / 2 &&
+      position.z <= z + depth / 2
+    );
+  });
+
+  return match?.id ?? "open-trail";
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -230,7 +252,7 @@ function ScoutScene({
   const pollinatorRef = useRef<Group>(null);
   const keysRef = useRef(new Set<string>());
   const lastDebugUpdate = useRef(0);
-  const movementState = useRef("Hovering");
+  const movementState = useRef<PlayerMovementState>("Hovering");
   const mouseDownRef = useRef(false);
   const pollinatorYawRef = useRef(0);
   const scrollAltitudeRef = useRef(0);
@@ -429,14 +451,32 @@ function ScoutScene({
 
     if (elapsed - lastDebugUpdate.current > 0.2) {
       lastDebugUpdate.current = elapsed;
-      onDebugChange({
-        area: getCurrentArea(pollinator.position),
+      const areaId = getCurrentAreaId(pollinator.position);
+      const nextPlayerState = {
+        areaId,
         altitude: Number(pollinator.position.y.toFixed(1)),
         heading: Number(((yawRef.current * 180) / Math.PI).toFixed(0)),
         movement: movementState.current,
+        position: {
+          x: Number(pollinator.position.x.toFixed(1)),
+          z: Number(pollinator.position.z.toFixed(1)),
+        },
         speed: Number(velocity.length().toFixed(1)),
-        x: Number(pollinator.position.x.toFixed(1)),
-        z: Number(pollinator.position.z.toFixed(1)),
+      };
+
+      const store = useGameStore.getState();
+      store.setPlayerFlightState(nextPlayerState);
+      store.unlockMapArea(areaId);
+
+      onDebugChange({
+        areaId,
+        area: getCurrentArea(pollinator.position),
+        altitude: nextPlayerState.altitude,
+        heading: nextPlayerState.heading,
+        movement: nextPlayerState.movement,
+        speed: nextPlayerState.speed,
+        x: nextPlayerState.position.x,
+        z: nextPlayerState.position.z,
       });
     }
   });
@@ -619,8 +659,32 @@ function PollinatorPreviewViewport() {
 }
 
 export function GameScene() {
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const discoveredPlantCount = useGameStore((state) =>
+    countUnlocked(state.discoveredPlants),
+  );
+  const pollinatedPlantCount = useGameStore((state) =>
+    countUnlocked(state.pollinatedPlants),
+  );
+  const unlockedAreaCount = useGameStore((state) =>
+    countUnlocked(state.unlockedMapAreas),
+  );
+  const unlockedBadgeCount = useGameStore((state) =>
+    countUnlocked(state.unlockedBadges),
+  );
+  const unlockedJournalCount = useGameStore((state) =>
+    countUnlocked(state.unlockedJournalEntries),
+  );
+  const isPreviewOpen = useGameStore(
+    (state) => state.ui.pollinatorPreviewOpen,
+  );
+  const discoverPlant = useGameStore((state) => state.discoverPlant);
+  const pollinatePlant = useGameStore((state) => state.pollinatePlant);
+  const unlockBadge = useGameStore((state) => state.unlockBadge);
+  const resetOfflineRun = useGameStore((state) => state.resetOfflineRun);
+  const openModal = useGameStore((state) => state.openModal);
+  const closeModal = useGameStore((state) => state.closeModal);
   const [debugState, setDebugState] = useState<DebugState>({
+    areaId: "environmental-center",
     area: "Environmental Center",
     altitude: 2.1,
     heading: 0,
@@ -678,11 +742,49 @@ export function GameScene() {
         </ul>
         <button
           className={styles.previewButton}
-          onClick={() => setIsPreviewOpen(true)}
+          onClick={() => openModal("pollinatorPreviewOpen")}
           type="button"
         >
           View pollinator
         </button>
+      </aside>
+
+      <aside className={styles.statePanel} aria-label="Game state debug">
+        <p className={styles.debugLabel}>Game State</p>
+        <dl>
+          <div>
+            <dt>Areas</dt>
+            <dd>{unlockedAreaCount}</dd>
+          </div>
+          <div>
+            <dt>Plants</dt>
+            <dd>
+              {discoveredPlantCount} / {pollinatedPlantCount}
+            </dd>
+          </div>
+          <div>
+            <dt>Badges</dt>
+            <dd>{unlockedBadgeCount}</dd>
+          </div>
+          <div>
+            <dt>Journal</dt>
+            <dd>{unlockedJournalCount}</dd>
+          </div>
+        </dl>
+        <div className={styles.stateActions}>
+          <button onClick={() => discoverPlant("mock-goldenrod")} type="button">
+            Discover mock plant
+          </button>
+          <button onClick={() => pollinatePlant("mock-goldenrod")} type="button">
+            Pollinate mock plant
+          </button>
+          <button onClick={() => unlockBadge("first-flight")} type="button">
+            Unlock mock badge
+          </button>
+          <button onClick={resetOfflineRun} type="button">
+            Reset offline state
+          </button>
+        </div>
       </aside>
 
       {isPreviewOpen ? (
@@ -701,7 +803,7 @@ export function GameScene() {
               <button
                 aria-label="Close pollinator preview"
                 className={styles.closeButton}
-                onClick={() => setIsPreviewOpen(false)}
+                onClick={() => closeModal("pollinatorPreviewOpen")}
                 type="button"
               >
                 Close
