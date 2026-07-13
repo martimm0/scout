@@ -41,7 +41,7 @@ export const BASE_FAILURE_RATE = 0.2;
  */
 export const FAILURE_MESSAGES = [
   "Too windy this time. The pollen blew right off you.",
-  "This flower was already visited — its pollen is spent.",
+  "This flower was already visited. Its pollen is spent.",
   "You missed the pollen window. Some flowers only release for an hour a day.",
   "Wrong angle. Try hovering closer to the centre.",
   "The anthers hadn't opened yet. Come back when the sun's higher.",

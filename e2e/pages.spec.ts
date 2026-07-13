@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
 
+import { FUNGUS_PHOTOS } from "../src/features/game/data/fungus-photos";
+import { PLANT_PHOTOS } from "../src/features/game/data/plant-photos";
+
 /** The pages around the game: landing, customize, journal, credits, offline. */
 
 test("landing sells the game, not the build status", async ({ page }) => {
@@ -86,13 +89,23 @@ test("credits page names every photographer and links every licence", async ({
 }) => {
   await page.goto("/credits");
 
+  // Sixteen plants and eight fungi. Every fungus photograph in the set requires
+  // attribution, so a missing fungus row is a licence breach, not a typo.
   const rows = page.locator("tbody tr");
-  await expect(rows).toHaveCount(16);
+  await expect(rows).toHaveCount(24);
 
-  // Every row must carry a licence link. This is a licence obligation, and a
-  // silently-missing credit is a breach, not a cosmetic bug.
+  // Named, not just counted: assert the actual photographers are on the page.
+  for (const photo of [
+    ...Object.values(PLANT_PHOTOS),
+    ...Object.values(FUNGUS_PHOTOS),
+  ]) {
+    await expect(page.getByText(photo.author, { exact: false }).first()).toBeVisible();
+  }
+
+  // Every row must carry a licence link and a source link. A silently-missing
+  // credit is a breach, not a cosmetic bug.
   const licenceLinks = page.locator("tbody tr td a");
-  expect(await licenceLinks.count()).toBeGreaterThanOrEqual(32);
+  expect(await licenceLinks.count()).toBeGreaterThanOrEqual(48);
 });
 
 test("offline mode frames the run and starts a clock", async ({ page }) => {

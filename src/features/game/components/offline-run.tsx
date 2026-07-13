@@ -125,15 +125,14 @@ export function OfflineRun() {
 
         <p className={styles.pitch}>
           {pollinated === 0
-            ? "Not a single flower took. That happens — most visits come to nothing, and a bee just flies to the next one."
+            ? "Not a single flower took. That happens. Most visits come to nothing, and a bee just flies to the next one."
             : pollinated === 1
               ? "One flower will set seed because of you. That is not nothing. That is the entire mechanism."
               : `${pollinated} flowers will set seed because of you. A meadow is built out of exactly that, one visit at a time.`}
         </p>
 
         <p className={styles.note}>
-          Nothing here was saved. Sign in — when sign-in exists — and the park
-          will remember you.
+          Nothing here was saved. Sign in and the park will remember you.
         </p>
 
         <div className={styles.actions}>

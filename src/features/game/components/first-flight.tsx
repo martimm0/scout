@@ -15,18 +15,18 @@ const STEPS = [
   },
   {
     title: "Fly.",
-    body: "Move the mouse to look — your nose follows the view, and that is also the way you fly. Up and Down for forward and back. Left and Right to turn. E and Q for altitude. Shift to hurry.",
+    body: "Move the mouse to look. Your nose follows the view, and that is also the way you fly. Up and Down for forward and back. Left and Right to turn. E and Q for altitude. Shift to hurry. Trees and rocks are solid, so mind the oaks.",
     keys: ["↑ ↓", "← →", "E / Q", "Shift"],
   },
   {
-    title: "Find the flowers.",
-    body: "Pollen motes drift over every plant you haven't met yet. Follow one down, get close, and the plant introduces itself.",
+    title: "Find the flowers. And the fungi.",
+    body: "Pollen motes drift over everything you haven't met yet. The park runs on Pittsburgh time: flowers shut at dusk, some close by lunchtime, and the fungi keep their own hours. Come back at a different hour and you will find different things.",
     keys: null,
   },
   {
-    title: "Pollinate.",
-    body: "Space to work a flower. About one visit in five comes to nothing — wind, timing, or somebody got there first. That's not you failing. That's the job. Fly to the next one.",
-    keys: ["Space", "R to read"],
+    title: "Land on it.",
+    body: "Space sets you down. From there you can pollinate the flower, or let it quiz you on what you just read. About one visit in five comes to nothing: wind, timing, or somebody got there first. That's not you failing. That's the job. Fly to the next one. Nothing pollinates a mushroom, but a mushroom will still test you.",
+    keys: ["Space to land", "R to read"],
   },
 ];
 

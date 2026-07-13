@@ -11,7 +11,7 @@ const LABEL: Record<CloudStatus, string> = {
   loading: "Loading your progress…",
   synced: "Progress saved",
   saving: "Saving…",
-  error: "Couldn't save — progress is safe on this device",
+  error: "Couldn't save. Progress is safe on this device.",
 };
 
 /**

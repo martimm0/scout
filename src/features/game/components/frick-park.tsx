@@ -1,15 +1,11 @@
 "use client";
 
-import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { Color, InstancedMesh, Object3D, type BufferGeometry } from "three";
+import { InstancedMesh, Object3D, type BufferGeometry } from "three";
 
 import { buildFoliageGeometry, type FoliageKind } from "../models/foliage";
 import { buildLandmarkGeometry, type LandmarkKind } from "../models/landmarks";
-import { buildMoteGeometry, buildPlantGeometry } from "../models/flora";
-import { useGameStore } from "../state/game-store";
 import { scatterFoliage, scatterGrass, type Placement } from "../world/scatter";
-import type { PlantInstance } from "../world/plant-scatter";
 import { buildTerrainGeometry } from "../world/terrain-mesh";
 import { LANDMARKS, terrainHeight, WATER_LEVEL, WORLD } from "../world/terrain";
 
@@ -194,119 +190,6 @@ export function Landmarks() {
       {at("steppingStone", [-6, 40], 0.3, 2)}
       {at("steppingStone", [14, 44], -0.2, 2)}
       {at("steppingStone", [34, 48], 0.5, 2)}
-    </>
-  );
-}
-
-/**
- * A bobbing pollen mote over every plant the player hasn't found yet. This is
- * what turns the map from scenery into a set of destinations — without it you
- * cannot pick a flower out of the undergrowth from flight height.
- */
-function Motes({ instances }: { instances: PlantInstance[] }) {
-  const discoveredPlants = useGameStore((state) => state.discoveredPlants);
-  const geometry = useMemo(() => buildMoteGeometry(), []);
-  const meshRef = useRef<InstancedMesh>(null);
-
-  const pending = useMemo(
-    () => instances.filter((instance) => !discoveredPlants[instance.plant.id]),
-    [instances, discoveredPlants],
-  );
-
-  useEffect(() => () => geometry.dispose(), [geometry]);
-
-  useFrame(({ clock }) => {
-    const mesh = meshRef.current;
-
-    if (!mesh) {
-      return;
-    }
-
-    const elapsed = clock.getElapsedTime();
-    const dummy = new Object3D();
-
-    pending.forEach((instance, index) => {
-      const [x, y, z] = instance.position;
-      // Offset each mote's phase by its index so they don't pulse in unison.
-      const bob = Math.sin(elapsed * 1.8 + index * 1.7) * 1.6;
-
-      dummy.position.set(x, y + instance.plant.height * instance.scale + 7 + bob, z);
-      dummy.rotation.set(elapsed * 0.6, elapsed * 0.9, 0);
-      dummy.scale.setScalar(9);
-      dummy.updateMatrix();
-      mesh.setMatrixAt(index, dummy.matrix);
-    });
-
-    mesh.instanceMatrix.needsUpdate = true;
-  });
-
-  if (pending.length === 0) {
-    return null;
-  }
-
-  return (
-    <instancedMesh
-      args={[geometry, undefined, pending.length]}
-      key={pending.length}
-      ref={meshRef}
-    >
-      <meshBasicMaterial toneMapped={false} vertexColors />
-    </instancedMesh>
-  );
-}
-
-export function PlantField({ instances }: { instances: PlantInstance[] }) {
-  const nearbyPlantId = useGameStore((state) => state.ui.nearbyPlantId);
-
-  // One geometry per species, shared across all its placements.
-  const geometry = useMemo(() => {
-    const map = new Map<string, BufferGeometry>();
-
-    for (const instance of instances) {
-      if (!map.has(instance.plant.id)) {
-        map.set(instance.plant.id, buildPlantGeometry(instance.plant));
-      }
-    }
-
-    return map;
-  }, [instances]);
-
-  useEffect(
-    () => () => {
-      for (const part of geometry.values()) {
-        part.dispose();
-      }
-    },
-    [geometry],
-  );
-
-  const highlight = useMemo(() => new Color("#fff6c9"), []);
-
-  return (
-    <>
-      {instances.map((instance) => {
-        const isNearby = nearbyPlantId === instance.plant.id;
-
-        return (
-          <group
-            key={instance.key}
-            position={instance.position}
-            rotation={[0, instance.rotation, 0]}
-            scale={instance.scale}
-          >
-            <mesh castShadow geometry={geometry.get(instance.plant.id)}>
-              <meshLambertMaterial
-                // Brighten whatever the bee is hovering next to, so the HUD
-                // prompt is unambiguous about which plant it means.
-                emissive={isNearby ? highlight : undefined}
-                emissiveIntensity={isNearby ? 0.3 : 0}
-                vertexColors
-              />
-            </mesh>
-          </group>
-        );
-      })}
-      <Motes instances={instances} />
     </>
   );
 }

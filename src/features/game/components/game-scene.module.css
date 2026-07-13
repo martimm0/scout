@@ -417,3 +417,16 @@
 @media (prefers-reduced-motion: reduce) {
   .loadingBee { animation: none; }
 }
+
+/* The park's clock. Pittsburgh time, not yours. */
+.clock {
+  display: grid;
+  justify-items: end;
+  line-height: 1.2;
+}
+
+.clock span {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--muted);
+}

@@ -46,13 +46,13 @@ export default function HomePage() {
         <div className="grid">
           <Card title="Find sixteen native plants">
             Milkweed, wild bergamot, trout lily, cardinal flower. Real species,
-            in the habitats where they actually grow — spring ephemerals under
+            in the habitats where they actually grow: spring ephemerals under
             the ravine, jewelweed down by the creek, goldenrod in the rough.
           </Card>
           <Card title="Pollinate them, mostly">
             About one flower visit in five comes to nothing. Wind, timing, or
-            somebody got there first. That isn&apos;t you failing — that&apos;s
-            the arithmetic the whole system runs on.
+            somebody got there first. That isn&apos;t you failing. It is the
+            arithmetic the whole system runs on.
           </Card>
           <Card title="Learn why it matters">
             Goldenrod doesn&apos;t cause your hay fever. Milkweed hands you pollen

@@ -1,4 +1,5 @@
 import type { GameState } from "../state/game-store";
+import { FUNGI } from "./fungi";
 import { PLANTS } from "./plants";
 
 /**
@@ -112,6 +113,62 @@ export const BADGES: Badge[] = [
     earned: (state) => count(state.unlockedJournalEntries) >= 15,
   },
   {
+    id: "first-fungus",
+    name: "First Fungus",
+    description: "You found something that is not a plant and not an animal.",
+    hint: "Not everything in the wood is a flower.",
+    earned: (state) => count(state.discoveredFungi) >= 1,
+  },
+  {
+    id: "mycologist",
+    name: "Mycologist",
+    description: "Every fungus in the park, found.",
+    hint: "All eight of them. Some only come out at night.",
+    earned: (state) => count(state.discoveredFungi) >= FUNGI.length,
+  },
+  {
+    id: "night-shift",
+    name: "Night Shift",
+    description: "You came to the park after dark, when the flowers were shut.",
+    hint: "The park does not close.",
+    earned: (state) => Boolean(state.seenPhases.night),
+  },
+  {
+    id: "glow",
+    name: "Something Glowing",
+    description: "You found the jack-o'-lantern, and it was lit.",
+    hint: "There is one thing in this wood that makes its own light.",
+    earned: (state) => Boolean(state.discoveredFungi["jack-o-lantern"]),
+  },
+  {
+    id: "dawn-chorus",
+    name: "Dawn Chorus",
+    description: "You were out at first light, when the ephemerals open.",
+    hint: "Some flowers are shut by lunchtime.",
+    earned: (state) => Boolean(state.seenPhases.dawn),
+  },
+  {
+    id: "all-hours",
+    name: "All Hours",
+    description: "Dawn, morning, midday, afternoon, dusk and night. The whole clock.",
+    hint: "The park is a different place at every hour. See them all.",
+    earned: (state) => count(state.seenPhases) >= 6,
+  },
+  {
+    id: "quick-study",
+    name: "Quick Study",
+    description: "You passed your first quiz.",
+    hint: "Land on something and let it test you.",
+    earned: (state) => state.stats.quizzesPassed >= 1,
+  },
+  {
+    id: "top-of-the-class",
+    name: "Top of the Class",
+    description: "Ten quizzes passed. You have actually been reading.",
+    hint: "Keep landing, keep reading.",
+    earned: (state) => state.stats.quizzesPassed >= 10,
+  },
+  {
     id: "ecologist",
     name: "Ecologist",
     description: "You unlocked every ecology concept.",
@@ -119,7 +176,7 @@ export const BADGES: Badge[] = [
     earned: (state) =>
       Object.keys(state.unlockedJournalEntries).filter(
         (key) => key.startsWith("concept:") && state.unlockedJournalEntries[key],
-      ).length >= 7,
+      ).length >= 9,
   },
 ];
 

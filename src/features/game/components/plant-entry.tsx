@@ -3,6 +3,8 @@
 import Image from "next/image";
 import { useEffect, useRef } from "react";
 
+import { EDIBILITY_LABEL, FUNGI_BY_ID } from "../data/fungi";
+import { FUNGUS_PHOTOS } from "../data/fungus-photos";
 import { PLANT_PHOTOS } from "../data/plant-photos";
 import { PLANTS_BY_ID } from "../data/plants";
 import { useGameStore } from "../state/game-store";
@@ -14,39 +16,32 @@ const AREA_LABEL = new Map(
 );
 
 /**
- * What you get for finding a plant.
+ * The full entry, for a plant or a fungus.
  *
  * Deliberately not the shared Modal primitive. That gives a stark white card, a
- * hard-edged Close button and a black scrim — the rhythm of an error dialog,
- * which is the wrong note entirely for a bee finding a flower. This eases in,
- * leaves the park visible behind it, and reads like a page from a naturalist's
- * journal rather than a record being filed.
+ * hard-edged Close button and a black scrim, which is the rhythm of an error
+ * dialog. This eases in, leaves the park visible behind it, and reads like a page
+ * from a naturalist's journal rather than a record being filed.
  */
 export function PlantEntry() {
-  const activePlantId = useGameStore((state) => state.ui.activePlantId);
-  const closePlantEntry = useGameStore((state) => state.closePlantEntry);
+  const activeEntry = useGameStore((state) => state.ui.activeEntry);
+  const closeEntry = useGameStore((state) => state.closeEntry);
   const pollinatedPlants = useGameStore((state) => state.pollinatedPlants);
+  const quizPassed = useGameStore((state) => state.quizPassed);
 
   const cardRef = useRef<HTMLElement>(null);
-  const plant = activePlantId ? PLANTS_BY_ID.get(activePlantId) : undefined;
 
   useEffect(() => {
-    if (plant) {
+    if (activeEntry) {
       cardRef.current?.focus();
     }
-  }, [plant]);
+  }, [activeEntry]);
 
-  // Space also dismisses, so you can carry on without reaching for the mouse.
-  // Escape is handled in the scene, alongside releasing the pointer.
   useEffect(() => {
-    if (!plant) {
+    if (!activeEntry) {
       return;
     }
 
-    // The card is opened by a Space keydown. Dismissing on keyup would let that
-    // very same press close it again the moment the player lifted their finger —
-    // the card would flash up and vanish. So: dismiss on the NEXT keydown, and
-    // hold a short grace window in case the events arrive out of order.
     const openedAt = performance.now();
 
     const onKey = (event: KeyboardEvent) => {
@@ -54,38 +49,62 @@ export function PlantEntry() {
         return;
       }
 
+      // The entry can be opened by a Space keydown. Dismissing on keyup would let
+      // that same press close it again the instant the player lifted a finger.
       if (performance.now() - openedAt < 250) {
         return;
       }
 
       event.preventDefault();
-      closePlantEntry();
+      closeEntry();
     };
 
     window.addEventListener("keydown", onKey);
 
     return () => window.removeEventListener("keydown", onKey);
-  }, [plant, closePlantEntry]);
+  }, [activeEntry, closeEntry]);
 
-  if (!plant) {
+  if (!activeEntry) {
     return null;
   }
 
-  const photo = PLANT_PHOTOS[plant.id];
-  const pollinated = Boolean(pollinatedPlants[plant.id]);
-  const where = AREA_LABEL.get(plant.area) ?? "Frick Park";
+  const plant =
+    activeEntry.kind === "plant" ? PLANTS_BY_ID.get(activeEntry.id) : undefined;
+  const fungus =
+    activeEntry.kind === "fungus" ? FUNGI_BY_ID.get(activeEntry.id) : undefined;
+
+  if (!plant && !fungus) {
+    return null;
+  }
+
+  const photo = plant
+    ? PLANT_PHOTOS[plant.id]
+    : FUNGUS_PHOTOS[fungus!.id];
+
+  const name = plant?.commonName ?? fungus!.commonName;
+  const scientific = plant?.scientificName ?? fungus!.scientificName;
+  const area = plant?.area ?? fungus!.area;
+  const fact = plant?.fact ?? fungus!.fact;
+  const note = plant?.pollinatorNote ?? fungus!.roleNote;
+  const wikipedia = plant?.wikipedia ?? fungus!.wikipedia;
+  const window_ = plant?.window ?? fungus!.window;
+
+  const pollinated = plant ? Boolean(pollinatedPlants[plant.id]) : false;
+  const learned = Boolean(quizPassed[activeEntry.id]);
+  const where = AREA_LABEL.get(area) ?? "Frick Park";
+
+  const status = plant
+    ? pollinated
+      ? "Pollinated"
+      : "Found"
+    : "Found";
 
   return (
-    <div
-      className={styles.scrim}
-      onClick={closePlantEntry}
-      role="presentation"
-    >
+    <div className={styles.scrim} onClick={closeEntry} role="presentation">
       <section
         aria-labelledby="plant-entry-name"
         aria-modal="true"
         className={styles.card}
-        // The card itself shouldn't dismiss when clicked — only the park around it.
         onClick={(event) => event.stopPropagation()}
         ref={cardRef}
         role="dialog"
@@ -93,22 +112,20 @@ export function PlantEntry() {
       >
         <header className={styles.header}>
           <p className={styles.eyebrow}>
-            {pollinated ? "Pollinated" : "Found"} in the {where}
+            {status} in the {where}
+            {learned ? " · Quiz passed" : ""}
           </p>
           <h2 className={styles.name} id="plant-entry-name">
-            {plant.commonName}
+            {name}
           </h2>
-          <p className={styles.scientific}>{plant.scientificName}</p>
+          <p className={styles.scientific}>{scientific}</p>
         </header>
 
-        {/* Photograph beside the text, not stacked above it. Stacked, the card
-            outgrew the viewport and the reader was left scrolling a dialogue
-            mid-flight. Side by side it simply fits. */}
         <div className={styles.columns}>
           {photo ? (
             <figure className={styles.figure}>
               <Image
-                alt={`${plant.commonName} (${plant.scientificName}) in flower`}
+                alt={`${name} (${scientific})`}
                 className={styles.photo}
                 height={520}
                 sizes="(max-width: 760px) 90vw, 300px"
@@ -128,31 +145,42 @@ export function PlantEntry() {
           ) : null}
 
           <div className={styles.text}>
-            <p className={styles.bloom}>
-              Blooms <strong>{plant.bloom}</strong>
-            </p>
+            {plant ? (
+              <p className={styles.bloom}>
+                Blooms <strong>{plant.bloom}</strong>
+              </p>
+            ) : (
+              <p className={styles.bloom}>
+                Fruits <strong>{fungus!.season}</strong>
+                {" · "}
+                <strong
+                  className={styles.edibility}
+                  data-risk={fungus!.edibility}
+                >
+                  {EDIBILITY_LABEL[fungus!.edibility]}
+                </strong>
+              </p>
+            )}
 
-            <p className={styles.fact}>{plant.fact}</p>
+            <p className={styles.when}>{window_.note}</p>
 
-            <p className={styles.note}>{plant.pollinatorNote}</p>
+            <p className={styles.fact}>{fact}</p>
+
+            <p className={styles.note}>{note}</p>
           </div>
         </div>
 
         <footer className={styles.footer}>
-          {/* No autoFocus: it stamps a hard blue focus ring on the button the
-              instant the card appears, which is exactly the jolt we're avoiding.
-              The card itself takes focus instead, so keyboard users land here
-              and Esc still works. */}
-          <button className={styles.dismiss} onClick={closePlantEntry} type="button">
+          <button className={styles.dismiss} onClick={closeEntry} type="button">
             Keep flying
           </button>
           <a
             className={styles.wiki}
-            href={plant.wikipedia}
+            href={wikipedia}
             rel="noreferrer"
             target="_blank"
           >
-            Read on Wikipedia ↗
+            Read on Wikipedia
           </a>
           <span className={styles.hint}>
             <kbd>Esc</kbd>

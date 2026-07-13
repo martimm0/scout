@@ -87,7 +87,7 @@ export default function RootLayout({
         </AuthProvider>
         {/* Vercel Analytics: first-party, no third-party script, no cookies, and
             therefore no consent banner. It counts page views and Web Vitals and
-            nothing else — it cannot follow anybody around the internet, which is
+            nothing else. It cannot follow anybody around the internet, which is
             the right amount of tracking for a game about bees. */}
         <Analytics />
         <SpeedInsights />

@@ -98,7 +98,7 @@ export function Profile({ authConfigured }: { authConfigured: boolean }) {
           </div>
           <div>
             <dt>Visits that took</dt>
-            <dd>{successRate === null ? "—" : `${successRate}%`}</dd>
+            <dd>{successRate === null ? "Not yet" : `${successRate}%`}</dd>
           </div>
           <div>
             <dt>Best streak</dt>
@@ -114,7 +114,7 @@ export function Profile({ authConfigured }: { authConfigured: boolean }) {
 
         {earned.length === 0 ? (
           <p className={styles.empty}>
-            None yet. Go and leave the lawn — that&apos;s the first one.
+            None yet. Go and leave the lawn. That&apos;s the first one.
           </p>
         ) : (
           <ul className={styles.badges}>

@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 
-import { scatterPlants } from "../src/features/game/world/plant-scatter";
+import { isActive } from "../src/features/game/world/daylight";
+import { scatterSpecies } from "../src/features/game/world/species-scatter";
 import { START_POSITION } from "../src/features/game/world/terrain";
 
 /**
@@ -59,9 +60,19 @@ function heading(state: Readout) {
 }
 
 /** Load /play with a clean slate and get past the first-flight tutorial. */
-export async function enterGame(page: Page) {
+/**
+ * The hour the suite flies at.
+ *
+ * Midday, pinned with `?hour=`. The park runs on Pittsburgh time and half of it
+ * is shut after dark, so a suite that used the real clock would pass in the
+ * afternoon and fail at midnight. Noon is inside every plant's window, including
+ * the spring ephemerals that close by two.
+ */
+export const TEST_HOUR = 12;
+
+export async function enterGame(page: Page, hour: number = TEST_HOUR) {
   await page.addInitScript(() => window.localStorage.clear());
-  await page.goto("/play?debug=1");
+  await page.goto(`/play?debug=1&hour=${hour}`);
   await page.waitForTimeout(2500);
 
   const skip = page.getByRole("button", { name: "Skip", exact: true });
@@ -84,7 +95,15 @@ export async function enterGame(page: Page) {
 export function nearestPlantToSpawn() {
   const [sx, , sz] = START_POSITION;
 
-  return scatterPlants()
+  // A PLANT specifically, and one that is actually open at the hour the suite
+  // flies at. Reaching a shut flower would find a card that says "come back at
+  // dawn" and no way in.
+  return scatterSpecies()
+    .filter(
+      (instance) =>
+        instance.species.kind === "plant" &&
+        isActive(instance.window, TEST_HOUR),
+    )
     .map((instance) => ({
       instance,
       distance: Math.hypot(
@@ -136,14 +155,14 @@ export async function flyTo(page: Page, target: { x: number; z: number }) {
   return false;
 }
 
-/** Fly to the plant nearest spawn and confirm it's in interaction range. */
+/** Fly to the plant nearest spawn and confirm it is in interaction range. */
 export async function findPlant(page: Page) {
   const plant = nearestPlantToSpawn();
 
   await flyTo(page, { x: plant.position[0], z: plant.position[2] });
 
   // Settle: the tag appears once the bee is inside the discovery radius.
-  const tag = page.getByRole("button", { name: /Read more/ });
+  const tag = page.getByRole("button", { name: /^Land/ });
 
   for (let i = 0; i < 8 && !(await tag.count()); i += 1) {
     await hold(page, "KeyE", 300);

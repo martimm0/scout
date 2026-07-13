@@ -16,20 +16,31 @@ import { trackEvent } from "@/lib/analytics";
 import { playSound, setAreaAmbience } from "../audio/sound";
 import { speciesFor } from "../models/pollinators";
 import { PollinatorModel } from "./pollinator-model";
-import { Creek, Foliage, Landmarks, PlantField, Terrain } from "./frick-park";
+import { Creek, Foliage, Landmarks, Terrain } from "./frick-park";
+import { SpeciesField } from "./species-field";
+import { LandingMenu } from "./landing-menu";
+import { Quiz } from "./quiz";
+import { SpeciesTag } from "./species-tag";
 import { FirstFlight } from "./first-flight";
 import { PlantEntry } from "./plant-entry";
-import { PlantTag } from "./plant-tag";
 import { PollinationMinigame } from "./pollination-minigame";
 import { ProgressionWatcher } from "./progression-watcher";
 import { SoundToggle } from "./sound-toggle";
 import { CloudSyncBadge } from "./cloud-sync-badge";
 import { PLANTS } from "../data/plants";
 import {
-  scatterPlants,
+  scatterSpecies,
+  landingHeight,
   DISCOVERY_RADIUS,
-  type PlantInstance,
-} from "../world/plant-scatter";
+  type SpeciesInstance,
+} from "../world/species-scatter";
+import { resolveCollision } from "../world/collision";
+import {
+  daylightAt,
+  daylightForHour,
+  isActive,
+  type Daylight,
+} from "../world/daylight";
 import {
   areaAt,
   terrainHeight,
@@ -137,11 +148,20 @@ function axis(keys: Set<string>, negative: string[], positive: string[]) {
 }
 
 function R3FViewport({
+  daylight,
   onDebugChange,
 }: {
+  daylight: Daylight;
   onDebugChange: (state: DebugState) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  /**
+   * The scene lives in an imperative R3F root, so it does not re-render when the
+   * outer component does. When the hour ticks over, the new daylight has to be
+   * pushed into the tree by hand, or the sun would be frozen at whatever time
+   * the page happened to load.
+   */
+  const rootRef = useRef<ReturnType<typeof createRoot> | null>(null);
 
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
@@ -152,6 +172,7 @@ function R3FViewport({
     }
 
     const root = createRoot(canvas);
+    rootRef.current = root;
     let mounted = true;
 
     const configure = async () => {
@@ -180,7 +201,7 @@ function R3FViewport({
       });
 
       if (mounted) {
-        root.render(<ScoutScene onDebugChange={onDebugChange} />);
+        root.render(<ScoutScene daylight={daylight} onDebugChange={onDebugChange} />);
       }
     };
 
@@ -194,16 +215,31 @@ function R3FViewport({
     return () => {
       mounted = false;
       observer.disconnect();
+      rootRef.current = null;
       root.unmount();
     };
+    // Deliberately NOT depending on daylight: rebuilding the whole WebGL root
+    // every minute would regenerate the terrain and every prop in the park.
+    // The hour is pushed in separately, below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onDebugChange]);
+
+  // Push the new hour into the existing tree. React reconciles; nothing is torn
+  // down, and the scatter and geometry stay memoised across the re-render.
+  useEffect(() => {
+    rootRef.current?.render(
+      <ScoutScene daylight={daylight} onDebugChange={onDebugChange} />,
+    );
+  }, [daylight, onDebugChange]);
 
   return <canvas className={styles.canvas} ref={canvasRef} />;
 }
 
 function ScoutScene({
+  daylight,
   onDebugChange,
 }: {
+  daylight: Daylight;
   onDebugChange: (state: DebugState) => void;
 }) {
   const playerMovement = useGameStore((state) => state.player.movement);
@@ -246,6 +282,8 @@ function ScoutScene({
   const rightRef = useRef(new Vector3());
   const targetPositionRef = useRef(new Vector3(...START_POSITION));
   const velocityRef = useRef(new Vector3());
+  /** Scratch vector for the collision slide. Reused so the loop allocates nothing. */
+  const pushOutRef = useRef(new Vector3());
   const sunRef = useRef<DirectionalLight>(null);
 
   // How the chosen species handles. A hoverfly darts and stops dead; a butterfly
@@ -253,9 +291,11 @@ function ScoutScene({
   const flight = speciesFor(selectedPollinator.type).flight;
 
   // Laid out once. Deterministic, so the park is the same park every session.
-  const plants = useMemo(() => scatterPlants(), []);
-  /** The plant the floating card is currently attached to. */
-  const [nearbyInstance, setNearbyInstance] = useState<PlantInstance | null>(null);
+  const species = useMemo(() => scatterSpecies(), []);
+  /** What the floating card is attached to. */
+  const [nearbyInstance, setNearbyInstance] = useState<SpeciesInstance | null>(
+    null,
+  );
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -269,7 +309,7 @@ function ScoutScene({
       }
 
       if (code === "Escape") {
-        useGameStore.getState().closePlantEntry();
+        useGameStore.getState().closeEntry();
       }
 
       // Gestures. Ignore auto-repeat, and don't let one interrupt another
@@ -285,27 +325,26 @@ function ScoutScene({
         };
       }
 
-      // Space starts the pollination minigame on the plant you're beside. It no
-      // longer just succeeds — that was the hole in the middle of the game.
+      // Space LANDS on whatever you are beside. Landing is the interaction now:
+      // you settle onto the thing and it asks what you want to do with it.
       if (code === "Space" && !event.repeat) {
         const store = useGameStore.getState();
-        const nearby = store.ui.nearbyPlantId;
+        const { landedOn, minigamePlantId, nearby, quiz, activeEntry } = store.ui;
 
-        if (nearby && !store.ui.activePlantId && !store.ui.minigamePlantId) {
+        if (nearby && !landedOn && !minigamePlantId && !quiz && !activeEntry) {
           document.exitPointerLock();
-          store.discoverPlant(nearby);
-          store.startMinigame(nearby);
+          store.land(nearby);
         }
       }
 
-      // R is the way in to the full entry.
+      // R goes straight to the entry, without landing.
       if (code === READ_KEY && !event.repeat) {
         const store = useGameStore.getState();
-        const nearby = store.ui.nearbyPlantId;
+        const nearby = store.ui.nearby;
 
-        if (nearby && !store.ui.activePlantId) {
+        if (nearby && !store.ui.activeEntry) {
           document.exitPointerLock();
-          store.openPlantEntry(nearby);
+          store.openEntry(nearby);
         }
       }
 
@@ -345,10 +384,15 @@ function ScoutScene({
         return;
       }
 
-      // Don't swing the camera around behind an open card or minigame.
+      // Don't swing the camera around behind anything that is open.
       const modal = useGameStore.getState().ui;
 
-      if (modal.activePlantId || modal.minigamePlantId) {
+      if (
+        modal.activeEntry ||
+        modal.minigamePlantId ||
+        modal.landedOn ||
+        modal.quiz
+      ) {
         return;
       }
 
@@ -431,11 +475,14 @@ function ScoutScene({
 
     const elapsed = clock.getElapsedTime();
 
-    // While a card or a minigame is up, the bee holds still. Otherwise you'd
+    // While anything is up on screen, the bee holds still. Otherwise you would
     // carry on flying blind behind it and surface somewhere else entirely.
     const ui = useGameStore.getState().ui;
+    const paused = Boolean(
+      ui.activeEntry || ui.minigamePlantId || ui.landedOn || ui.quiz,
+    );
 
-    if (ui.activePlantId || ui.minigamePlantId) {
+    if (paused) {
       keysRef.current.clear();
     }
 
@@ -448,6 +495,7 @@ function ScoutScene({
     const right = rightRef.current;
     const targetPosition = targetPositionRef.current;
     const velocity = velocityRef.current;
+    const pushOut = pushOutRef.current;
 
     // Arrows turn the same yaw the mouse turns. There is only one.
     const turnInput = axis(keys, TURN_LEFT, TURN_RIGHT);
@@ -493,6 +541,43 @@ function ScoutScene({
       ground + GROUND_CLEARANCE,
       CEILING,
     );
+
+    // The park is solid. Push out of anything the bee is inside, then re-clamp
+    // to the ground: a push-out can shove you sideways into a hillside, and the
+    // terrain has to win that argument or you end up buried.
+    const resolved = resolveCollision(
+      targetPosition.x,
+      targetPosition.y,
+      targetPosition.z,
+    );
+
+    if (resolved.hit) {
+      // Which way the world had to shove us. That is the surface normal, near
+      // enough, and it is the only direction the bee is not allowed to travel.
+      pushOut
+        .set(
+          resolved.x - targetPosition.x,
+          resolved.y - targetPosition.y,
+          resolved.z - targetPosition.z,
+        )
+        .normalize();
+
+      targetPosition.set(resolved.x, resolved.y, resolved.z);
+      targetPosition.y = Math.max(
+        targetPosition.y,
+        terrainHeight(targetPosition.x, targetPosition.z) + GROUND_CLEARANCE,
+      );
+
+      // Kill only the velocity going INTO the wall, and keep whatever was
+      // running along it, so the bee slides down a trunk rather than sticking to
+      // it. Damping the whole vector instead would cut your speed by two thirds
+      // for every frame you so much as brushed a leaf.
+      const into = velocity.dot(pushOut);
+
+      if (into < 0) {
+        velocity.addScaledVector(pushOut, -into);
+      }
+    }
 
     const bob = Math.sin(elapsed * (hasMovementInput ? 9 : 3.2)) * 0.08;
     renderPosition.set(targetPosition.x, targetPosition.y + bob, targetPosition.z);
@@ -582,35 +667,45 @@ function ScoutScene({
     const sun = sunRef.current;
 
     if (sun) {
+      // The light rides along with the bee (a directional light's shadow camera
+      // covers only a small box, and the world is 700x520), but its DIRECTION is
+      // the real sun's: low and long at dawn, overhead at noon, gone at night.
+      const [sx, sy, sz] = daylight.sun;
+
       sun.position.set(
-        pollinator.position.x + 60,
-        pollinator.position.y + 110,
-        pollinator.position.z + 45,
+        pollinator.position.x + sx * 140,
+        pollinator.position.y + sy * 140,
+        pollinator.position.z + sz * 140,
       );
       sun.target.position.copy(pollinator.position);
       sun.target.updateMatrixWorld();
+      sun.intensity = daylight.sunIntensity;
+      sun.color.set(daylight.sunColor);
     }
 
     if (elapsed - lastDebugUpdate.current > 0.15) {
       lastDebugUpdate.current = elapsed;
 
-      // Closest plant within reach, if any. Fifty-odd plants at ~7Hz is nothing,
-      // and it saves keeping a spatial index in sync with the scatter.
-      //
-      // The specific INSTANCE matters, not just the species: the card is anchored
-      // over the one you're actually beside, and there are several of each.
-      let nearestInstance: PlantInstance | null = null;
+      // The nearest thing within reach that is actually OUT right now. A closed
+      // flower and a fungus that is not fruiting are both unreachable, which is
+      // the entire point of the clock.
+      const hour = daylight.hour;
+
+      let nearestInstance: SpeciesInstance | null = null;
       let nearestDistance = DISCOVERY_RADIUS;
 
-      for (const instance of plants) {
-        // Measure to the BLOOM, not the base. A Joe-Pye weed is now twenty units
-        // tall; its base is nowhere near where a bee would visit it.
-        const bloomHeight =
-          instance.position[1] + instance.plant.height * instance.scale * 0.88;
+      for (const instance of species) {
+        if (!isActive(instance.window, hour)) {
+          continue;
+        }
+
+        // Measure to the BLOOM or the cap, not the base. A Joe-Pye weed is twenty
+        // units tall and its base is nowhere near where a bee would visit it.
+        const top = landingHeight(instance) * 0.88;
 
         const distance = Math.hypot(
           instance.position[0] - pollinator.position.x,
-          bloomHeight - pollinator.position.y,
+          top - pollinator.position.y,
           instance.position[2] - pollinator.position.z,
         );
 
@@ -620,22 +715,42 @@ function ScoutScene({
         }
       }
 
-      const nearest = nearestInstance?.plant.id ?? null;
       const store = useGameStore.getState();
-      store.setNearbyPlant(nearest);
 
-      // Re-render only when the anchored card needs to move to a different plant.
+      store.setNearby(
+        nearestInstance
+          ? {
+              kind: nearestInstance.species.kind,
+              id: nearestInstance.id,
+              key: nearestInstance.key,
+            }
+          : null,
+      );
+
       if (nearestInstance?.key !== nearbyInstance?.key) {
         setNearbyInstance(nearestInstance);
       }
 
-      // Getting close is enough to log it in the journal. Pressing Space is what
-      // pollinates it.
-      if (nearest && !store.discoveredPlants[nearest]) {
-        store.discoverPlant(nearest);
-        playSound("discover");
-        trackEvent({ name: "plant_discovered", plant: nearest });
+      // Getting close logs it. Landing is what lets you do something with it.
+      if (nearestInstance) {
+        const id = nearestInstance.id;
+
+        if (nearestInstance.species.kind === "plant") {
+          if (!store.discoveredPlants[id]) {
+            store.discoverPlant(id);
+            playSound("discover");
+            trackEvent({ name: "plant_discovered", plant: id });
+          }
+        } else if (!store.discoveredFungi[id]) {
+          store.discoverFungus(id);
+          playSound("discover");
+          trackEvent({ name: "plant_discovered", plant: id });
+        }
       }
+
+      // Which times of day the player has actually seen. Badge fodder, and a
+      // gentle nudge that the park is different at other hours.
+      store.seePhase(daylight.phase);
 
       const area = areaAt(pollinator.position.x, pollinator.position.z);
       const areaId = area.id;
@@ -679,20 +794,29 @@ function ScoutScene({
 
   return (
     <>
-      {/* A high sun. The default inclination sits it on the horizon, which
-          washes the whole park in sunset orange and reads as dusk. */}
+      {/* The sky is the real Pittsburgh sky: the sun's position, the turbidity
+          and the rayleigh scattering all come from the hour. Dawn is long and
+          red because the light is coming through more atmosphere, which is true. */}
       <Sky
         distance={450000}
         mieCoefficient={0.005}
         mieDirectionalG={0.8}
-        rayleigh={0.9}
-        sunPosition={[60, 45, 30]}
-        turbidity={4}
+        rayleigh={daylight.rayleigh}
+        sunPosition={[
+          daylight.sun[0] * 100,
+          daylight.sun[1] * 100,
+          daylight.sun[2] * 100,
+        ]}
+        turbidity={daylight.turbidity}
       />
-      <ambientLight intensity={1.05} />
+      <ambientLight
+        color={daylight.ambientColor}
+        intensity={daylight.ambientIntensity}
+      />
       <directionalLight
         castShadow
-        intensity={2.1}
+        color={daylight.sunColor}
+        intensity={daylight.sunIntensity}
         ref={sunRef}
         shadow-bias={-0.0012}
         shadow-camera-bottom={-70}
@@ -702,19 +826,27 @@ function ScoutScene({
         shadow-camera-top={70}
         shadow-mapSize={[2048, 2048]}
       />
-      <hemisphereLight args={["#e2f2ff", "#6f8f52", 1.35]} />
+      <hemisphereLight
+        args={[
+          daylight.ambientColor,
+          daylight.groundColor,
+          daylight.hemiIntensity,
+        ]}
+      />
       {/* Haze at the far edge of the park, so the map ends in distance rather
-          than in a hard border. */}
-      <fogExp2 args={["#cfe4f2", 0.0009]} attach="fog" />
+          than at a hard border. Night closes in tighter. */}
+      <fogExp2 args={[daylight.fogColor, daylight.fogDensity]} attach="fog" />
 
       <Terrain />
       <Creek />
       <Landmarks />
       <Foliage />
-      <PlantField instances={plants} />
+      <SpeciesField hour={daylight.hour} instances={species} />
 
-      {/* Anchored over the plant itself, not pinned to the screen. */}
-      {nearbyInstance ? <PlantTag instance={nearbyInstance} /> : null}
+      {/* Anchored over the thing itself, not pinned to the screen. */}
+      {nearbyInstance ? (
+        <SpeciesTag daylight={daylight} instance={nearbyInstance} />
+      ) : null}
 
       {/* Actual bee size, near enough. The world grew around it instead. */}
       <group ref={pollinatorRef} position={START_POSITION} scale={1}>
@@ -825,7 +957,14 @@ function PollinatorPreviewViewport({ pollinator }: { pollinator: Pollinator }) {
   return <canvas className={styles.previewCanvas} ref={canvasRef} />;
 }
 
-export function GameScene({ debug = false }: { debug?: boolean }) {
+export function GameScene({
+  debug = false,
+  hour,
+}: {
+  debug?: boolean;
+  /** Pins the park's clock. Test hook; undefined in every real session. */
+  hour?: number;
+}) {
   const debugVisible = debug;
 
   const selectedPollinator = useGameStore((state) => state.pollinator);
@@ -860,6 +999,31 @@ export function GameScene({ debug = false }: { debug?: boolean }) {
 
     return () => window.clearTimeout(timer);
   }, []);
+
+  /**
+   * The park's own clock.
+   *
+   * Pittsburgh time, not the player's. If it is dusk in Squirrel Hill then it is
+   * dusk in the game, whether you are in Tokyo or Toronto. Ticked once a minute,
+   * which is far more often than the light visibly changes but cheap enough not
+   * to care, and it means the hour rolls over while you are flying rather than
+   * only when you reload.
+   */
+  const [daylight, setDaylight] = useState(() =>
+    hour === undefined ? daylightAt() : daylightForHour(hour),
+  );
+
+  useEffect(() => {
+    // A pinned hour does not tick. It was already set when the state was seeded.
+    if (hour !== undefined) {
+      return;
+    }
+
+    const tick = window.setInterval(() => setDaylight(daylightAt()), 60_000);
+
+    return () => window.clearInterval(tick);
+  }, [hour]);
+
   const [debugState, setDebugState] = useState<DebugState>({
     areaId: "environmental-center",
     area: "Environmental Center",
@@ -875,7 +1039,7 @@ export function GameScene({ debug = false }: { debug?: boolean }) {
   return (
     <section className={styles.shell} aria-label="Scout 3D game scene">
       <div className={styles.canvasWrap}>
-        <R3FViewport onDebugChange={setDebugState} />
+        <R3FViewport daylight={daylight} onDebugChange={setDebugState} />
         {ready ? null : (
           <div className={styles.loading} role="status">
             <span className={styles.loadingBee} aria-hidden>
@@ -946,12 +1110,12 @@ export function GameScene({ debug = false }: { debug?: boolean }) {
         {controlsOpen ? (
           <>
             <ul>
-              <li>Move the mouse to look — the bee turns to follow</li>
+              <li>Move the mouse to look, and the bee turns to follow</li>
               <li>Up / Down or W / S fly forward and back</li>
               <li>Left / Right or A / D also turn</li>
               <li>E / Q or scroll changes altitude</li>
               <li>Shift boosts</li>
-              <li>Space pollinates a nearby plant</li>
+              <li>Space lands you on a nearby plant or fungus</li>
               <li>
                 <kbd>R</kbd> reads its full entry
               </li>
@@ -1004,10 +1168,19 @@ export function GameScene({ debug = false }: { debug?: boolean }) {
             <dt>Journal</dt>
             <dd>{unlockedJournalCount}</dd>
           </div>
+          <div>
+            <dt>Pittsburgh</dt>
+            <dd className={styles.clock}>
+              {daylight.clock}
+              <span>{daylight.label}</span>
+            </dd>
+          </div>
         </dl>
       </aside>
 
       <PlantEntry />
+      <LandingMenu />
+      <Quiz />
       <PollinationMinigame />
       <ProgressionWatcher />
       <FirstFlight />

@@ -35,7 +35,20 @@ export const GROUND_CLEARANCE = 0.6;
 export const CEILING = 260;
 
 /** On the lawn outside the Environmental Center, by the Beechwood gates. */
-export const START_POSITION: [number, number, number] = [-240, 34, 205];
+/**
+ * Open lawn below the Environmental Center, the building behind your left
+ * shoulder and two hundred units of clear park ahead.
+ *
+ * Three things this has to be, and the old spawn at (-240, 205) was none of them
+ * once the park turned solid:
+ *
+ *  - outside every collider. That one was *inside the Environmental Center*.
+ *  - clear of the scenery, so the first thing you see is the park and not the
+ *    inside of a hemlock canopy.
+ *  - pointed down open ground. The bee starts on heading zero, which is due -Z,
+ *    so if there is a wall that way the player's first act is to fly into it.
+ */
+export const START_POSITION: [number, number, number] = [-180, 34, 155];
 
 export type AreaId =
   | "environmental-center"

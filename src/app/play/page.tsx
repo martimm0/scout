@@ -16,5 +16,10 @@ export default async function PlayPage({
   // back for us, and the e2e suite reads flight state out of it.
   const params = await searchParams;
 
-  return <GameScene debug={"debug" in params} />;
+  // `?hour=13.5` pins the park's clock. Not a player-facing feature: it exists
+  // so the tests can find an open flower at three in the morning.
+  const raw = Number(params.hour);
+  const hour = Number.isFinite(raw) ? ((raw % 24) + 24) % 24 : undefined;
+
+  return <GameScene debug={"debug" in params} hour={hour} />;
 }

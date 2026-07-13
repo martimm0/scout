@@ -254,3 +254,20 @@
   background: var(--border);
   color: var(--muted);
 }
+
+/* Edibility. A deadly mushroom should not look like a friendly one. */
+.meta strong[data-risk="deadly"] {
+  color: #b8342a;
+  font-weight: 700;
+}
+
+.meta strong[data-risk="toxic"] {
+  color: #c07020;
+  font-weight: 700;
+}
+
+.meta strong[data-risk="choice"],
+.meta strong[data-risk="edible"] {
+  color: #4a7a3f;
+  font-weight: 700;
+}

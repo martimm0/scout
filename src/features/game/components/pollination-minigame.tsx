@@ -285,7 +285,7 @@ function MinigameRun({ plant }: { plant: Plant }) {
             ) : (
               <p className={styles.fact}>
                 About one flower visit in five comes to nothing, even for a good
-                bee. It costs you nothing but a moment — fly to the next one.
+                bee. It costs you nothing but a moment. Fly to the next one.
               </p>
             )}
 

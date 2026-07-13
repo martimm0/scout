@@ -39,6 +39,16 @@ const CONCEPT_RULES: ConceptRule[] = [
     id: "seasonal-cycles",
     earned: (state) => count(state.pollinatedPlants) >= 5,
   },
+  {
+    // Found a fungus. They are neither plant nor animal, and that is the lesson.
+    id: "fungi",
+    earned: (state) => count(state.discoveredFungi) >= 1,
+  },
+  {
+    // Learned by being out at more than one hour and seeing what changes.
+    id: "day-and-night",
+    earned: (state) => count(state.seenPhases) >= 3,
+  },
 ];
 
 /** Journal entries that should exist but aren't yet unlocked. */

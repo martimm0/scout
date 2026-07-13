@@ -29,6 +29,9 @@ function toSaved(state: GameState) {
   return {
     pollinator: state.pollinator,
     discoveredPlants: state.discoveredPlants,
+    discoveredFungi: state.discoveredFungi,
+    quizPassed: state.quizPassed,
+    seenPhases: state.seenPhases,
     pollinatedPlants: state.pollinatedPlants,
     unlockedMapAreas: state.unlockedMapAreas,
     unlockedBadges: state.unlockedBadges,
@@ -56,6 +59,9 @@ function mergeInto(local: GameState, remote: Awaited<ReturnType<typeof toSaved>>
   return {
     pollinator: (remote.pollinator ?? local.pollinator) as GameState["pollinator"],
     discoveredPlants: union(local.discoveredPlants, remote.discoveredPlants),
+    discoveredFungi: union(local.discoveredFungi, remote.discoveredFungi),
+    quizPassed: union(local.quizPassed, remote.quizPassed),
+    seenPhases: union(local.seenPhases, remote.seenPhases),
     pollinatedPlants: union(local.pollinatedPlants, remote.pollinatedPlants),
     unlockedMapAreas: union(local.unlockedMapAreas, remote.unlockedMapAreas),
     unlockedBadges: union(local.unlockedBadges, remote.unlockedBadges),
@@ -74,6 +80,18 @@ function mergeInto(local: GameState, remote: Awaited<ReturnType<typeof toSaved>>
       ),
       streak: local.stats.streak,
       bestStreak: Math.max(local.stats.bestStreak, remote.stats?.bestStreak ?? 0),
+      quizzesTaken: Math.max(
+        local.stats.quizzesTaken,
+        remote.stats?.quizzesTaken ?? 0,
+      ),
+      quizzesPassed: Math.max(
+        local.stats.quizzesPassed,
+        remote.stats?.quizzesPassed ?? 0,
+      ),
+      questionsCorrect: Math.max(
+        local.stats.questionsCorrect,
+        remote.stats?.questionsCorrect ?? 0,
+      ),
     },
     tutorialSeen: local.tutorialSeen || Boolean(remote.tutorialSeen),
   };

@@ -41,6 +41,57 @@ The one link never exercised by a machine is a human typing a Google password. E
 | 19 | Credits, Accessibility, and Compliance | ✅ Done |
 | 20 | QA, Deployment, and Launch Readiness | ✅ Done |
 
+### After launch
+
+| Milestone | Status |
+|---|---|
+| 21 | Fungi | ✅ Done |
+| 22 | Solid park (collision) | ✅ Done |
+| 23 | Landing, and trivia | ✅ Done |
+| 24 | The park keeps Pittsburgh time | ✅ Done |
+
+---
+
+## The park is alive on a clock
+
+`world/daylight.ts` is the park's own clock, and it runs on **Pittsburgh time regardless of where the player is**. If it is dusk in Squirrel Hill it is dusk in the game, whether you are in Tokyo or Toronto. You are visiting a specific real place, not running a simulation on your own schedule.
+
+The whole look of the park is a blend between a night look and a day look on one number, `brightness`, which ramps across roughly ninety minutes of twilight at each end. Sun position, key-light colour and intensity, ambient, hemisphere, fog colour and density, and the sky's turbidity and rayleigh all come off it, so nothing ever snaps from noon to midnight at the stroke of a boundary. The key light is **always above the horizon**: in daylight it is the sun on its arc, after dark it is the moon. A key light under the floor lights the park from below, which is to say it does not light it at all, and for one build that was exactly what night was: a black screen.
+
+**What you can find changes with the hour.** Every plant and every fungus carries a `TimeWindow`.
+
+- The **spring ephemerals** (trout lily, trillium, mayapple, Virginia bluebell, wild geranium) open with the sun and shut by mid-afternoon, because that is what they really do.
+- Everything else that flowers is open through the day and **shut after dark**.
+- The **fungi keep their own hours**, and the jack-o'-lantern is out at night, glowing, which is also what it really does.
+
+So after dark there is nothing to pollinate anywhere in the park, and the only things out are fungi. That is not a mechanic bolted on to force replay; it is the truth about the place, and it happens to make the park worth visiting twice.
+
+A shut flower is still *drawn*, dimmed and inert, and its card tells you when to come back. A fungus that is not fruiting is genuinely gone. Badges follow: **Night Shift**, **Dawn Chorus**, **All Hours** (every one of the six phases), **Something Glowing** (find the jack-o'-lantern lit).
+
+`?hour=13.5` pins the clock. It is not a player-facing feature: it exists so the e2e suite can find an open flower at three in the morning.
+
+## The park is solid
+
+`world/collision.ts`. You could fly straight through an eighty-unit oak, which looked broken the moment anybody noticed it.
+
+Two rules keep it from being miserable. **Only big things collide** — trees, boulders, logs, buildings, the bridge. Grass, clover, ferns and leaf litter stay pass-through, because at insect scale a lawn is a thicket and colliding with every blade would make flying near the ground unbearable. And **push out, do not stop**: the bee is nudged to the surface of whatever it hit, and only the velocity going *into* the surface is killed. Whatever was running along it survives, so you slide around a trunk instead of sticking to it.
+
+The colliders are derived from the same scatter that draws the trees, so they cannot drift out of sync with what you can see.
+
+Turning the park solid immediately surfaced a bug that had been invisible for as long as walls were suggestions: **the player spawned inside the Environmental Center.** The spawn is now on open lawn, clear of every collider, pointed down two hundred units of open ground.
+
+## Landing, and trivia
+
+Space no longer pollinates. Space **lands** you, and then you choose.
+
+- **Pollinate it** — the minigame, for flowers only.
+- **Take the quiz** — three hand-authored questions, drawn from the same facts the entry shows you. Two out of three passes; every answer explains itself whether you got it right or wrong.
+- **Read the entry**, or **take off**.
+
+A fungus offers everything except pollination, and says so plainly: *nothing pollinates a mushroom. It is not a plant, it has no flower, and it wants nothing from you.*
+
+`data/trivia.ts` carries three questions for each of the twenty-four species, written by hand rather than generated, because a generated question about a trout lily is a question about a template.
+
 ---
 
 ## Direction changes since the original plan
@@ -156,8 +207,8 @@ React Three Fiber scene, lighting, sky, terrain, third-person camera.
 - **Left / Right or A / D** — turn
 - **E / Q or scroll** — altitude
 - **Shift** — boost
-- **Space** — pollinate a nearby plant
-- **R** — read a plant's full entry
+- **Space** — land on the nearby plant or fungus. From there you choose: pollinate it, or take its quiz.
+- **R** — read its full entry
 - **F** — the bee turns around and looks at you
 - **G** — the bee turns around and does a waggle dance
 - **Esc** — release the mouse cursor
@@ -273,7 +324,7 @@ Success shows the plant's fun fact, puts pollen baskets on the bee's hind legs, 
 
 **Status: ✅ Done**
 
-`/journal` has five tabs — Plants, Pollinators, Map areas, Ecology, Badges — plus a progress summary (plants found, pollinated, areas, badges, the share of visits that took, best streak).
+`/journal` has six tabs — Plants, Fungi, Pollinators, Map areas, Ecology, Badges — plus a progress summary (plants found, pollinated, areas, fungi found, quizzes passed, badges, the share of visits that took, best streak).
 
 Locked entries show a **hint**, not a row of question marks. A locked entry that says nothing teaches nothing and tempts nobody; one that says *"there's a darker wood than the one you know"* sends somebody flying.
 
@@ -285,7 +336,7 @@ Seven ecology concepts, unlocked by playing rather than by reading: mutualism, p
 
 **Status: ✅ Done**
 
-Thirteen badges in `data/badges.ts`, each a pure predicate over game state. A `ProgressionWatcher` subscribes to the store and re-evaluates everything on change, so adding a badge to the data file makes it work — no call site has to know it exists.
+Twenty-one badges in `data/badges.ts`, each a pure predicate over game state. A `ProgressionWatcher` subscribes to the store and re-evaluates everything on change, so adding a badge to the data file makes it work — no call site has to know it exists.
 
 Earned badges announce themselves one at a time in a brief toast, never blocking play.
 

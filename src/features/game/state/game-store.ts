@@ -41,14 +41,28 @@ export type OfflineRunState = {
   startedAt: number | null;
 };
 
+export type SpeciesKind = "plant" | "fungus";
+
+/** A thing in the world, identified by what it is and which one it is. */
+export type SpeciesRef = {
+  kind: SpeciesKind;
+  id: string;
+  /** The specific instance, so the card hangs over the right one. */
+  key: string;
+};
+
 export type UIModalState = {
   pollinatorPreviewOpen: boolean;
-  /** The plant the bee is currently close enough to interact with, if any. */
-  nearbyPlantId: string | null;
-  /** The plant whose entry is open on screen, if any. */
-  activePlantId: string | null;
-  /** The plant currently being pollinated, i.e. the minigame is running. */
+  /** What the bee is close enough to interact with, if anything. */
+  nearby: SpeciesRef | null;
+  /** Whose entry is open on screen, if any. */
+  activeEntry: SpeciesRef | null;
+  /** Landed on something: the interaction menu is up. */
+  landedOn: SpeciesRef | null;
+  /** The plant being pollinated. Fungi never appear here; nothing pollinates a mushroom. */
   minigamePlantId: string | null;
+  /** The species whose quiz is running. */
+  quiz: SpeciesRef | null;
 };
 
 export type Settings = {
@@ -65,6 +79,10 @@ export type Stats = {
   /** Consecutive successes. Resets on a failure. */
   streak: number;
   bestStreak: number;
+  quizzesTaken: number;
+  quizzesPassed: number;
+  /** Total questions answered correctly, across every quiz. */
+  questionsCorrect: number;
 };
 
 type BooleanRecord = Record<string, boolean>;
@@ -73,6 +91,11 @@ export type GameState = {
   player: PlayerState;
   pollinator: Pollinator;
   discoveredPlants: BooleanRecord;
+  discoveredFungi: BooleanRecord;
+  /** Species whose quiz you have passed. Plants and fungi alike. */
+  quizPassed: BooleanRecord;
+  /** Which phases of the day you have visited the park in. */
+  seenPhases: BooleanRecord;
   pollinatedPlants: BooleanRecord;
   unlockedMapAreas: BooleanRecord;
   unlockedBadges: BooleanRecord;
@@ -100,11 +123,18 @@ export type GameActions = {
   unlockMapArea: (areaId: string) => void;
   unlockBadge: (badgeId: string) => void;
   unlockJournalEntry: (entryId: string) => void;
-  setNearbyPlant: (plantId: string | null) => void;
-  openPlantEntry: (plantId: string) => void;
-  closePlantEntry: () => void;
+  discoverFungus: (fungusId: string) => void;
+  setNearby: (ref: SpeciesRef | null) => void;
+  openEntry: (ref: SpeciesRef) => void;
+  closeEntry: () => void;
+  land: (ref: SpeciesRef) => void;
+  takeOff: () => void;
   startMinigame: (plantId: string) => void;
   endMinigame: () => void;
+  startQuiz: (ref: SpeciesRef) => void;
+  endQuiz: () => void;
+  recordQuiz: (ref: SpeciesRef, correct: number, total: number) => void;
+  seePhase: (phase: string) => void;
   recordPollinationAttempt: (succeeded: boolean) => void;
   updateSettings: (settings: Partial<Settings>) => void;
   completeTutorial: () => void;
@@ -152,9 +182,11 @@ const initialOfflineRun: OfflineRunState = {
 
 const initialUi: UIModalState = {
   pollinatorPreviewOpen: false,
-  nearbyPlantId: null,
-  activePlantId: null,
+  nearby: null,
+  activeEntry: null,
+  landedOn: null,
   minigamePlantId: null,
+  quiz: null,
 };
 
 const initialSettings: Settings = {
@@ -167,10 +199,16 @@ const initialStats: Stats = {
   pollinationSuccesses: 0,
   streak: 0,
   bestStreak: 0,
+  quizzesTaken: 0,
+  quizzesPassed: 0,
+  questionsCorrect: 0,
 };
 
 const initialProgress = {
   discoveredPlants: {},
+  discoveredFungi: {},
+  quizPassed: {},
+  seenPhases: {},
   pollinatedPlants: {},
   unlockedMapAreas: {
     // Where the player starts: the lawn outside the Frick Environmental Center.
@@ -300,26 +338,75 @@ export const useGameStore = create<GameStore>()(
       };
     }),
 
-  setNearbyPlant: (plantId) =>
+  discoverFungus: (fungusId) =>
+    set((state) => {
+      if (state.discoveredFungi[fungusId]) {
+        return state;
+      }
+
+      return {
+        discoveredFungi: { ...state.discoveredFungi, [fungusId]: true },
+        unlockedJournalEntries: {
+          ...state.unlockedJournalEntries,
+          [`fungus:${fungusId}`]: true,
+        },
+      };
+    }),
+
+  setNearby: (ref) =>
     set((state) =>
-      // Written from the flight loop every frame, so bail out unless it actually
-      // changed — otherwise every subscriber re-renders continuously.
-      state.ui.nearbyPlantId === plantId
+      // Written from the flight loop, so bail out unless it actually changed, or
+      // every subscriber re-renders continuously.
+      state.ui.nearby?.key === ref?.key
         ? state
-        : { ui: { ...state.ui, nearbyPlantId: plantId } },
+        : { ui: { ...state.ui, nearby: ref } },
     ),
 
-  openPlantEntry: (plantId) =>
-    set((state) => ({ ui: { ...state.ui, activePlantId: plantId } })),
+  openEntry: (ref) => set((state) => ({ ui: { ...state.ui, activeEntry: ref } })),
 
-  closePlantEntry: () =>
-    set((state) => ({ ui: { ...state.ui, activePlantId: null } })),
+  closeEntry: () => set((state) => ({ ui: { ...state.ui, activeEntry: null } })),
+
+  land: (ref) => set((state) => ({ ui: { ...state.ui, landedOn: ref } })),
+
+  takeOff: () => set((state) => ({ ui: { ...state.ui, landedOn: null } })),
 
   startMinigame: (plantId) =>
-    set((state) => ({ ui: { ...state.ui, minigamePlantId: plantId } })),
+    set((state) => ({
+      ui: { ...state.ui, minigamePlantId: plantId, landedOn: null },
+    })),
 
   endMinigame: () =>
     set((state) => ({ ui: { ...state.ui, minigamePlantId: null } })),
+
+  startQuiz: (ref) =>
+    set((state) => ({ ui: { ...state.ui, quiz: ref, landedOn: null } })),
+
+  endQuiz: () => set((state) => ({ ui: { ...state.ui, quiz: null } })),
+
+  recordQuiz: (ref, correct, total) =>
+    set((state) => {
+      // Two out of three is a pass. Getting one wrong should not wipe the round.
+      const passed = correct >= Math.ceil((total * 2) / 3);
+
+      return {
+        stats: {
+          ...state.stats,
+          quizzesTaken: state.stats.quizzesTaken + 1,
+          quizzesPassed: state.stats.quizzesPassed + (passed ? 1 : 0),
+          questionsCorrect: state.stats.questionsCorrect + correct,
+        },
+        quizPassed: passed
+          ? { ...state.quizPassed, [ref.id]: true }
+          : state.quizPassed,
+      };
+    }),
+
+  seePhase: (phase) =>
+    set((state) =>
+      state.seenPhases[phase]
+        ? state
+        : { seenPhases: { ...state.seenPhases, [phase]: true } },
+    ),
 
   recordPollinationAttempt: (succeeded) =>
     set((state) => {
@@ -327,6 +414,7 @@ export const useGameStore = create<GameStore>()(
 
       return {
         stats: {
+          ...state.stats,
           pollinationAttempts: state.stats.pollinationAttempts + 1,
           pollinationSuccesses:
             state.stats.pollinationSuccesses + (succeeded ? 1 : 0),
@@ -414,12 +502,16 @@ export const useGameStore = create<GameStore>()(
       offlineRun: initialOfflineRun,
       player: initialPlayer,
       ...initialProgress,
+      stats: initialStats,
+      pendingBadges: [],
     }),
 
   resetSessionProgress: () =>
     set({
       player: initialPlayer,
       ...initialProgress,
+      stats: initialStats,
+      pendingBadges: [],
     }),
     }),
     {
@@ -430,6 +522,9 @@ export const useGameStore = create<GameStore>()(
       partialize: (state) => ({
         pollinator: state.pollinator,
         discoveredPlants: state.discoveredPlants,
+        discoveredFungi: state.discoveredFungi,
+        quizPassed: state.quizPassed,
+        seenPhases: state.seenPhases,
         pollinatedPlants: state.pollinatedPlants,
         unlockedMapAreas: state.unlockedMapAreas,
         unlockedBadges: state.unlockedBadges,

@@ -19,6 +19,9 @@ import { databaseConfigured } from "./env";
 export type SavedProgress = {
   pollinator: Record<string, unknown>;
   discoveredPlants: Record<string, boolean>;
+  discoveredFungi: Record<string, boolean>;
+  quizPassed: Record<string, boolean>;
+  seenPhases: Record<string, boolean>;
   pollinatedPlants: Record<string, boolean>;
   unlockedMapAreas: Record<string, boolean>;
   unlockedBadges: Record<string, boolean>;
@@ -28,6 +31,9 @@ export type SavedProgress = {
     pollinationSuccesses: number;
     streak: number;
     bestStreak: number;
+    quizzesTaken: number;
+    quizzesPassed: number;
+    questionsCorrect: number;
   };
   tutorialSeen: boolean;
   /** Wall-clock of the last write. Used to settle conflicts, not to display. */

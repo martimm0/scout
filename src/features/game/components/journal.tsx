@@ -4,6 +4,8 @@ import Image from "next/image";
 import { useState } from "react";
 
 import { BADGES } from "../data/badges";
+import { EDIBILITY_LABEL, FUNGI } from "../data/fungi";
+import { FUNGUS_PHOTOS } from "../data/fungus-photos";
 import { CONCEPTS, POLLINATOR_ENTRIES } from "../data/journal";
 import { PLANT_PHOTOS } from "../data/plant-photos";
 import { PLANTS } from "../data/plants";
@@ -15,10 +17,10 @@ const ALL_AREAS = [...AREAS, RAVINE_AREA];
 
 const AREA_BLURB: Record<string, string> = {
   "environmental-center":
-    "The way in, off Beechwood Boulevard, through the old stone gates. The Center itself was rebuilt in 2016 as a Living Building — it makes its own energy and harvests its own water. There's a native garden out front, which is where most people's first flower is.",
+    "The way in, off Beechwood Boulevard, through the old stone gates. The Center itself was rebuilt in 2016 as a Living Building: it makes its own energy and harvests its own water. There's a native garden out front, which is where most people's first flower is.",
   "blue-slide": "A long concrete slope that Pittsburgh children have been coming down on flattened cardboard for generations. From up here it's a mountainside. There's rough sunny meadow all around its edges, and the pollinators know it.",
   "bowling-green":
-    "The only lawn bowling green in Pittsburgh, clipped to within an inch of its life and hedged on all four sides. Nothing much grows on it — that's rather the point — but the rough at its margins is thick with goldenrod and aster.",
+    "The only lawn bowling green in Pittsburgh, clipped to within an inch of its life and hedged on all four sides. Nothing much grows on it, which is rather the point, but the rough at its margins is thick with goldenrod and aster.",
   "nine-mile-run":
     "The creek at the bottom of the valley. It was buried under slag for most of the twentieth century and dug back out again in one of the largest urban stream restorations ever attempted in the United States. Everything wet and green down here is younger than it looks.",
   "falls-ravine":
@@ -27,10 +29,11 @@ const AREA_BLURB: Record<string, string> = {
     "Deep shade, closed canopy, and ferns that from your height are small trees. Spicebush flowers here before it bothers growing leaves.",
 };
 
-type Tab = "plants" | "pollinators" | "areas" | "concepts" | "badges";
+type Tab = "plants" | "fungi" | "pollinators" | "areas" | "concepts" | "badges";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "plants", label: "Plants" },
+  { id: "fungi", label: "Fungi" },
   { id: "pollinators", label: "Pollinators" },
   { id: "areas", label: "Map areas" },
   { id: "concepts", label: "Ecology" },
@@ -48,6 +51,8 @@ export function Journal() {
   const [tab, setTab] = useState<Tab>("plants");
 
   const discovered = useGameStore((state) => state.discoveredPlants);
+  const foundFungi = useGameStore((state) => state.discoveredFungi);
+  const quizPassed = useGameStore((state) => state.quizPassed);
   const pollinated = useGameStore((state) => state.pollinatedPlants);
   const areas = useGameStore((state) => state.unlockedMapAreas);
   const entries = useGameStore((state) => state.unlockedJournalEntries);
@@ -86,6 +91,16 @@ export function Journal() {
           </dd>
         </div>
         <div>
+          <dt>Fungi found</dt>
+          <dd>
+            {countUnlocked(foundFungi)} <span>/ {FUNGI.length}</span>
+          </dd>
+        </div>
+        <div>
+          <dt>Quizzes passed</dt>
+          <dd>{stats.quizzesPassed}</dd>
+        </div>
+        <div>
           <dt>Badges</dt>
           <dd>
             {countUnlocked(badges)} <span>/ {BADGES.length}</span>
@@ -93,7 +108,7 @@ export function Journal() {
         </div>
         <div>
           <dt>Visits that took</dt>
-          <dd>{successRate === null ? "—" : `${successRate}%`}</dd>
+          <dd>{successRate === null ? "Not yet" : `${successRate}%`}</dd>
         </div>
         <div>
           <dt>Best streak</dt>
@@ -184,8 +199,81 @@ export function Journal() {
                     </>
                   ) : (
                     <p className={styles.hint}>
-                      Somewhere in the {AREA_LABEL(plant.area)}. Fly close enough
-                      to see it.
+                      Somewhere in the {AREA_LABEL(plant.area)}. {plant.window.note}
+                    </p>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+
+      {tab === "fungi" ? (
+        <ul className={styles.grid}>
+          {FUNGI.map((fungus) => {
+            const found = Boolean(foundFungi[fungus.id]);
+            const learned = Boolean(quizPassed[fungus.id]);
+            const photo = FUNGUS_PHOTOS[fungus.id];
+
+            return (
+              <li className={styles.card} data-locked={!found} key={fungus.id}>
+                {found && photo ? (
+                  <Image
+                    alt={fungus.commonName}
+                    className={styles.thumb}
+                    height={300}
+                    sizes="220px"
+                    src={photo.src}
+                    width={400}
+                  />
+                ) : (
+                  <div className={styles.thumbEmpty} aria-hidden>
+                    ✦
+                  </div>
+                )}
+
+                <div className={styles.cardBody}>
+                  <p className={styles.cardTitle}>
+                    {found ? fungus.commonName : "Not yet found"}
+                  </p>
+
+                  {found ? (
+                    <>
+                      <p className={styles.scientific}>{fungus.scientificName}</p>
+                      <p className={styles.cardText}>{fungus.fact}</p>
+                      <p className={styles.cardNote}>{fungus.roleNote}</p>
+                      <p className={styles.meta}>
+                        Fruits {fungus.season} ·{" "}
+                        <strong data-risk={fungus.edibility}>
+                          {EDIBILITY_LABEL[fungus.edibility]}
+                        </strong>
+                        {learned ? " · Quiz passed" : ""}
+                      </p>
+                      <a
+                        className={styles.link}
+                        href={fungus.wikipedia}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        Read on Wikipedia
+                      </a>
+                      {photo ? (
+                        <p className={styles.credit}>
+                          Photo:{" "}
+                          <a href={photo.sourceUrl} rel="noreferrer" target="_blank">
+                            {photo.author}
+                          </a>{" "}
+                          ·{" "}
+                          <a href={photo.licenseUrl} rel="noreferrer" target="_blank">
+                            {photo.license}
+                          </a>
+                        </p>
+                      ) : null}
+                    </>
+                  ) : (
+                    <p className={styles.hint}>
+                      Somewhere in the {AREA_LABEL(fungus.area)}. {fungus.window.note}
                     </p>
                   )}
                 </div>

@@ -1,4 +1,28 @@
+import type { TimeWindow } from "../world/daylight";
 import type { AreaId } from "../world/terrain";
+
+/**
+ * When a flower is open.
+ *
+ * This is not a game mechanic bolted on: it is what flowers do. Trout lily and
+ * trillium close their petals in the afternoon and at night and open again with
+ * the sun. Meadow flowers stay open through the day and shut at dusk.
+ *
+ * The consequence is that after dark there is nothing to pollinate anywhere in
+ * the park, and the only things out are the fungi. That is exactly right, and it
+ * gives the night its own reason to exist.
+ */
+const EPHEMERAL: TimeWindow = {
+  from: 6,
+  to: 14,
+  note: "Opens with the sun and closes by mid-afternoon. Come in the morning.",
+};
+
+const DAYLIGHT: TimeWindow = {
+  from: 7,
+  to: 19,
+  note: "Open through the day. Shut after dark.",
+};
 
 /**
  * Sixteen plants that actually grow in Frick Park, sorted into the habitats
@@ -18,6 +42,8 @@ export type Plant = {
   scientificName: string;
   area: AreaId;
   bloom: string;
+  /** The hours of the day this flower is actually open. */
+  window: TimeWindow;
   /** One short line for the card that hovers over the plant in the world. */
   hook: string;
   /** The full story. One or two sentences, no lecture. */
@@ -42,9 +68,10 @@ export const PLANTS: Plant[] = [
     commonName: "Common Milkweed",
     scientificName: "Asclepias syriaca",
     area: "blue-slide",
-    bloom: "June – August",
+    bloom: "June to August",
+    window: DAYLIGHT,
     hook: "Hands out pollen like luggage.",
-    fact: "Milkweed doesn't dust you with pollen — it hands you luggage. Its pollen comes in waxy saddlebags called pollinia, and a visiting bee's foot slips into a slot that clips a pair on. Small bees sometimes can't pull free.",
+    fact: "Milkweed doesn't dust you with pollen. It hands you luggage. Its pollen comes in waxy saddlebags called pollinia, and a visiting bee's foot slips into a slot that clips a pair on. Small bees sometimes can't pull free.",
     pollinatorNote: "The only plant monarch caterpillars can eat.",
     wikipedia: "https://en.wikipedia.org/wiki/Asclepias_syriaca",
     archetype: "umbel",
@@ -58,9 +85,10 @@ export const PLANTS: Plant[] = [
     commonName: "Wild Bergamot",
     scientificName: "Monarda fistulosa",
     area: "blue-slide",
-    bloom: "July – September",
+    bloom: "July to September",
+    window: DAYLIGHT,
     hook: "Smells like Earl Grey. It's a mint.",
-    fact: "Crush a leaf and it smells like Earl Grey tea — it's a mint. The flower is a ragged lavender crown of long tubes.",
+    fact: "Crush a leaf and it smells like Earl Grey tea, because it is a mint. The flower is a ragged lavender crown of long tubes.",
     pollinatorNote: "Long-tongued bees and hummingbird moths reach the nectar. Short-tongued bees give up and chew in through the side of the tube.",
     wikipedia: "https://en.wikipedia.org/wiki/Monarda_fistulosa",
     archetype: "spike",
@@ -74,10 +102,11 @@ export const PLANTS: Plant[] = [
     commonName: "Canada Goldenrod",
     scientificName: "Solidago canadensis",
     area: "bowling-green",
-    bloom: "August – October",
+    bloom: "August to October",
+    window: DAYLIGHT,
     hook: "Blamed for hay fever it doesn't cause.",
     fact: "Goldenrod gets blamed every autumn for hay fever it does not cause. Its pollen is heavy and sticky and travels on insects, not wind. Ragweed, blooming quietly at the same time, is the real culprit.",
-    pollinatorNote: "A late-season feast — one of the last big nectar flows before frost.",
+    pollinatorNote: "A late-season feast, and one of the last big nectar flows before frost.",
     wikipedia: "https://en.wikipedia.org/wiki/Solidago_canadensis",
     archetype: "spike",
     bloomColor: "#f2c94c",
@@ -90,7 +119,8 @@ export const PLANTS: Plant[] = [
     commonName: "New England Aster",
     scientificName: "Symphyotrichum novae-angliae",
     area: "bowling-green",
-    bloom: "August – October",
+    bloom: "August to October",
+    window: DAYLIGHT,
     hook: "The meadow's last supper before frost.",
     fact: "Deep violet rays around a gold centre, opening just as everything else in the meadow is shutting down for the year.",
     pollinatorNote: "Fuels migrating monarchs and the last bumblebee queens before they overwinter.",
@@ -106,9 +136,10 @@ export const PLANTS: Plant[] = [
     commonName: "Purple Coneflower",
     scientificName: "Echinacea purpurea",
     area: "environmental-center",
-    bloom: "June – August",
+    bloom: "June to August",
+    window: DAYLIGHT,
     hook: "That cone is hundreds of tiny flowers.",
-    fact: "That raised orange cone isn't one flower — it's hundreds of tiny ones, opening in a slow ring from the outside in. A bee can work the same cone for days.",
+    fact: "That raised orange cone isn't one flower. It is hundreds of tiny ones, opening in a slow ring from the outside in. A bee can work the same cone for days.",
     pollinatorNote: "The drooping petals make a landing pad; the cone is the dinner table.",
     wikipedia: "https://en.wikipedia.org/wiki/Echinacea_purpurea",
     archetype: "daisy",
@@ -122,9 +153,10 @@ export const PLANTS: Plant[] = [
     commonName: "Black-eyed Susan",
     scientificName: "Rudbeckia hirta",
     area: "environmental-center",
-    bloom: "June – September",
+    bloom: "June to September",
+    window: DAYLIGHT,
     hook: "Wears a bullseye only bees can see.",
-    fact: "To us it's a plain yellow daisy. To a bee it has a dark ultraviolet bullseye burned into the middle of the petals — a landing target we simply cannot see.",
+    fact: "To us it's a plain yellow daisy. To a bee it has a dark ultraviolet bullseye burned into the middle of the petals: a landing target we simply cannot see.",
     pollinatorNote: "The UV bullseye points straight at the nectar.",
     wikipedia: "https://en.wikipedia.org/wiki/Rudbeckia_hirta",
     archetype: "daisy",
@@ -138,9 +170,10 @@ export const PLANTS: Plant[] = [
     commonName: "Virginia Bluebell",
     scientificName: "Mertensia virginica",
     area: "nine-mile-run",
-    bloom: "March – May",
+    bloom: "March to May",
+    window: EPHEMERAL,
     hook: "Opens pink, then turns blue.",
-    fact: "The buds open pink and turn blue as they age — the flower's own chemistry shifts underneath them. A colony along the creek in April looks like spilled sky.",
+    fact: "The buds open pink and turn blue as they age, because the flower's own chemistry shifts underneath them. A colony along the creek in April looks like spilled sky.",
     pollinatorNote: "The tube is long, so bumblebees and early butterflies do most of the work.",
     wikipedia: "https://en.wikipedia.org/wiki/Mertensia_virginica",
     archetype: "low",
@@ -154,7 +187,8 @@ export const PLANTS: Plant[] = [
     commonName: "Joe-Pye Weed",
     scientificName: "Eutrochium purpureum",
     area: "nine-mile-run",
-    bloom: "July – September",
+    bloom: "July to September",
+    window: DAYLIGHT,
     hook: "Head-high, and crawling with butterflies.",
     fact: "It grows head-high on damp ground and holds up great dusty-mauve domes of flower. Stand near one in August and the whole thing is moving with insects.",
     pollinatorNote: "One of the best butterfly plants in the park, full stop.",
@@ -170,10 +204,11 @@ export const PLANTS: Plant[] = [
     commonName: "Jewelweed",
     scientificName: "Impatiens capensis",
     area: "nine-mile-run",
-    bloom: "July – September",
+    bloom: "July to September",
+    window: DAYLIGHT,
     hook: "Its seed pods explode at a touch.",
     fact: "Also called touch-me-not: brush a ripe seed pod and it snaps apart in your hand, flinging seeds a metre. It tends to grow right where poison ivy does, and its crushed stem is an old folk remedy for the rash.",
-    pollinatorNote: "Orange spotted lanterns on a thread — hummingbirds and long-tongued bees.",
+    pollinatorNote: "Orange spotted lanterns on a thread, worked by hummingbirds and long-tongued bees.",
     wikipedia: "https://en.wikipedia.org/wiki/Impatiens_capensis",
     archetype: "low",
     bloomColor: "#f0913a",
@@ -186,9 +221,10 @@ export const PLANTS: Plant[] = [
     commonName: "Cardinal Flower",
     scientificName: "Lobelia cardinalis",
     area: "nine-mile-run",
-    bloom: "July – September",
+    bloom: "July to September",
+    window: DAYLIGHT,
     hook: "A red built for hummingbirds, not bees.",
-    fact: "An impossible red, on a spike at the water's edge. The colour is not for you and it is not for bees — most of them cannot even see red properly.",
+    fact: "An impossible red, on a spike at the water's edge. The colour is not for you and it is not for bees, most of which cannot even see red properly.",
     pollinatorNote: "Built end to end for hummingbirds. Most bees can't reach the nectar at all.",
     wikipedia: "https://en.wikipedia.org/wiki/Lobelia_cardinalis",
     archetype: "spike",
@@ -202,7 +238,8 @@ export const PLANTS: Plant[] = [
     commonName: "Mayapple",
     scientificName: "Podophyllum peltatum",
     area: "falls-ravine",
-    bloom: "April – May",
+    bloom: "April to May",
+    window: EPHEMERAL,
     hook: "Hides its flower under an umbrella.",
     fact: "A colony looks like a crowd of little green umbrellas. The single waxy white flower hides underneath, where you'll never see it unless you crouch and look up.",
     pollinatorNote: "Bumblebees have to push under the leaves to find it. The fruit is for box turtles.",
@@ -218,9 +255,10 @@ export const PLANTS: Plant[] = [
     commonName: "Trout Lily",
     scientificName: "Erythronium americanum",
     area: "falls-ravine",
-    bloom: "March – May",
+    bloom: "March to May",
+    window: EPHEMERAL,
     hook: "Leaves mottled like a brook trout.",
-    fact: "Named for its leaves, mottled like the flank of a brook trout. A patch of them can be older than the trees above it — some colonies are estimated at a century or more.",
+    fact: "Named for its leaves, mottled like the flank of a brook trout. A patch of them can be older than the trees above it. Some colonies are estimated at a century or more.",
     pollinatorNote: "Ants carry the seeds home for a fatty snack attached to them, then discard the seed underground. Free planting.",
     wikipedia: "https://en.wikipedia.org/wiki/Erythronium_americanum",
     archetype: "low",
@@ -234,9 +272,10 @@ export const PLANTS: Plant[] = [
     commonName: "Wild Geranium",
     scientificName: "Geranium maculatum",
     area: "falls-ravine",
-    bloom: "April – June",
+    bloom: "April to June",
+    window: EPHEMERAL,
     hook: "Its petals are painted with runways.",
-    fact: "Look closely at a petal and you'll find dark lines running inward. They're nectar guides — a runway painted on the flower, pointing at the middle.",
+    fact: "Look closely at a petal and you'll find dark lines running inward. They're nectar guides: a runway painted on the flower, pointing at the middle.",
     pollinatorNote: "Follow the lines. The plant is telling you exactly where to go.",
     wikipedia: "https://en.wikipedia.org/wiki/Geranium_maculatum",
     archetype: "low",
@@ -250,7 +289,8 @@ export const PLANTS: Plant[] = [
     commonName: "White Trillium",
     scientificName: "Trillium grandiflorum",
     area: "falls-ravine",
-    bloom: "April – May",
+    bloom: "April to May",
+    window: EPHEMERAL,
     hook: "Seven years from seed to first flower.",
     fact: "Everything about it comes in threes: three leaves, three petals, three sepals. It takes roughly seven years to get from seed to its first flower, which is why picking one is close to killing it.",
     pollinatorNote: "Ants disperse the seeds. Bees and beetles handle the pollen.",
@@ -266,9 +306,10 @@ export const PLANTS: Plant[] = [
     commonName: "Spicebush",
     scientificName: "Lindera benzoin",
     area: "fern-hollow",
-    bloom: "March – April",
+    bloom: "March to April",
+    window: DAYLIGHT,
     hook: "Flowers before it bothers with leaves.",
-    fact: "It flowers before it bothers growing leaves — a haze of tiny yellow-green blooms on bare grey twigs in early spring. Snap a twig and it smells sharp and citrusy.",
+    fact: "It flowers before it bothers growing leaves, throwing a haze of tiny yellow-green blooms onto bare grey twigs in early spring. Snap a twig and it smells sharp and citrusy.",
     pollinatorNote: "Host plant for the spicebush swallowtail, whose caterpillar disguises itself as a small snake, fake eyespots and all.",
     wikipedia: "https://en.wikipedia.org/wiki/Lindera_benzoin",
     archetype: "shrub",
@@ -282,9 +323,10 @@ export const PLANTS: Plant[] = [
     commonName: "Eastern Redbud",
     scientificName: "Cercis canadensis",
     area: "fern-hollow",
-    bloom: "March – May",
+    bloom: "March to May",
+    window: DAYLIGHT,
     hook: "Blooms straight out of its own trunk.",
-    fact: "The flowers erupt straight out of the trunk and the bare branches, not from twig tips — a trick called cauliflory. For two weeks the whole tree is magenta, then it goes green and you forget it's there.",
+    fact: "The flowers erupt straight out of the trunk and the bare branches, not from twig tips, in a trick called cauliflory. For two weeks the whole tree is magenta, then it goes green and you forget it's there.",
     pollinatorNote: "One of the first serious nectar sources of spring, arriving exactly when queen bumblebees wake up starving.",
     wikipedia: "https://en.wikipedia.org/wiki/Cercis_canadensis",
     archetype: "tree",
