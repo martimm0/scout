@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { trackEvent } from "@/lib/analytics";
 import { playSound } from "../audio/sound";
 import { ACCESSORIES, WING_STYLES } from "../models/bee";
 import { useGameStore } from "../state/game-store";
@@ -99,6 +100,7 @@ export function Customize() {
 
     updatePollinator({ name: name.trim() });
     playSound("pollinateSuccess");
+    trackEvent({ name: "pollinator_customized" });
     setSaved(true);
   };
 

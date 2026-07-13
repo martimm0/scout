@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
+
 import { AuthProvider } from "@/features/auth/components/session-provider";
 import { SignIn } from "@/features/auth/components/sign-in";
 import { authConfigured } from "@/lib/env";
@@ -82,6 +85,12 @@ export default function RootLayout({
           </footer>
         </div>
         </AuthProvider>
+        {/* Vercel Analytics: first-party, no third-party script, no cookies, and
+            therefore no consent banner. It counts page views and Web Vitals and
+            nothing else — it cannot follow anybody around the internet, which is
+            the right amount of tracking for a game about bees. */}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

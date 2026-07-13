@@ -89,10 +89,22 @@ test("offline mode frames the run and starts a clock", async ({ page }) => {
   await expect(clock).toBeVisible();
 });
 
-test("every page has a working skip link", async ({ page }) => {
+test("every page has a working skip link", async ({ browserName, page }) => {
   await page.goto("/");
-  await page.keyboard.press("Tab");
 
   const skip = page.getByRole("link", { name: "Skip to content" });
+
+  // The link exists and points at the main landmark in every engine.
+  await expect(skip).toHaveAttribute("href", "#main");
+
+  // Whether Tab *reaches* it is a platform decision, not ours: Safari leaves
+  // links out of the tab order unless the user turns on Full Keyboard Access.
+  // Asserting it there would be testing macOS's default, not our markup.
+  test.skip(
+    browserName === "webkit",
+    "Safari omits links from the tab order unless Full Keyboard Access is on",
+  );
+
+  await page.keyboard.press("Tab");
   await expect(skip).toBeFocused();
 });

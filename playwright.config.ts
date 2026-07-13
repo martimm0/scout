@@ -18,19 +18,37 @@ export default defineConfig({
   use: {
     baseURL: "http://localhost:3000",
     trace: "on-first-retry",
-    launchOptions: {
-      args: [
-        "--use-gl=angle",
-        "--use-angle=metal",
-        "--enable-unsafe-swiftshader",
-      ],
-    },
   },
 
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        // Headless Chromium needs a real GL backend or the canvas renders
+        // nothing and every scene test fails for reasons unrelated to the code.
+        // These flags are Chromium-only — passing them to Firefox or WebKit
+        // makes the browser refuse to launch at all.
+        launchOptions: {
+          args: [
+            "--use-gl=angle",
+            "--use-angle=metal",
+            "--enable-unsafe-swiftshader",
+          ],
+        },
+      },
+    },
+    {
+      name: "firefox",
+      use: { ...devices["Desktop Firefox"] },
+    },
+    {
+      // Safari's engine. Worth running even though the game is desktop-first:
+      // WebGL, pointer lock and Web Audio all behave differently here, and a
+      // scene that never renders in WebKit is not something to find out from a
+      // player.
+      name: "webkit",
+      use: { ...devices["Desktop Safari"] },
     },
   ],
 

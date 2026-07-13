@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { trackEvent } from "@/lib/analytics";
 import { setSoundEnabled } from "../audio/sound";
 import { useGameStore } from "../state/game-store";
 import styles from "./first-flight.module.css";
@@ -58,6 +59,7 @@ export function FirstFlight() {
       setSoundEnabled(true);
     }
 
+    trackEvent({ name: "tutorial_completed", withSound });
     completeTutorial();
   };
 

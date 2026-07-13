@@ -12,6 +12,7 @@ import {
   type Pollinator,
   type PlayerMovementState,
 } from "@/features/game/state/game-store";
+import { trackEvent } from "@/lib/analytics";
 import { playSound, setAreaAmbience } from "../audio/sound";
 import { BeeModel } from "./bee-model";
 import { Creek, Foliage, Landmarks, PlantField, Terrain } from "./frick-park";
@@ -229,6 +230,8 @@ function ScoutScene({
    */
   const yawRef = useRef(0);
   const pitchRef = useRef(0.18);
+  /** Last pointer position, for engines that don't give us movementX outside pointer lock. */
+  const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
   /** An in-progress gesture: the bee turning to face the player. */
   const gestureRef = useRef<{ kind: Gesture; time: number }>({
     kind: "none",
@@ -332,6 +335,8 @@ function ScoutScene({
       const locked = document.pointerLockElement === canvas;
 
       if (!locked && event.target !== canvas) {
+        lastPointerRef.current = null;
+
         return;
       }
 
@@ -342,14 +347,33 @@ function ScoutScene({
         return;
       }
 
+      let deltaX: number;
+      let deltaY: number;
+
+      if (locked) {
+        deltaX = event.movementX;
+        deltaY = event.movementY;
+      } else {
+        // WebKit only populates movementX/movementY while the pointer is LOCKED.
+        // Outside pointer lock it reports 0, so hover-to-look — which is how the
+        // game is actually played — simply does nothing in Safari. Deriving the
+        // delta from clientX/clientY ourselves works in every engine.
+        const last = lastPointerRef.current;
+
+        deltaX = last ? event.clientX - last.x : 0;
+        deltaY = last ? event.clientY - last.y : 0;
+
+        lastPointerRef.current = { x: event.clientX, y: event.clientY };
+      }
+
       // The mouse turns you. Yaw grows clockwise — forward is (sin y, 0, -cos y)
       // — so moving the mouse right must ADD, or the world comes out mirrored.
-      yawRef.current += event.movementX * MOUSE_SENSITIVITY;
+      yawRef.current += deltaX * MOUSE_SENSITIVITY;
       // Positive pitch lifts the camera and tips the view DOWN at the park, so
-      // pushing the mouse forward (negative movementY) has to lower it, i.e.
-      // look up. Getting this backwards inverts the vertical axis.
+      // pushing the mouse forward (negative delta) has to lower it, i.e. look up.
+      // Getting this backwards inverts the vertical axis.
       pitchRef.current = clamp(
-        pitchRef.current + event.movementY * MOUSE_SENSITIVITY,
+        pitchRef.current + deltaY * MOUSE_SENSITIVITY,
         -0.55,
         1.05,
       );
@@ -366,12 +390,19 @@ function ScoutScene({
       }
     };
 
+    // Entering or leaving pointer lock switches which source the delta comes
+    // from. Drop the anchor, or the first move afterwards is a wild jump.
+    const handlePointerLockChange = () => {
+      lastPointerRef.current = null;
+    };
+
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
     window.addEventListener("blur", releaseAll);
     document.addEventListener("visibilitychange", releaseAll);
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("wheel", handleWheel, { passive: false });
+    document.addEventListener("pointerlockchange", handlePointerLockChange);
     canvas?.addEventListener("click", handleCanvasClick);
 
     return () => {
@@ -381,6 +412,7 @@ function ScoutScene({
       window.removeEventListener("keyup", handleKeyUp);
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("wheel", handleWheel);
+      document.removeEventListener("pointerlockchange", handlePointerLockChange);
       canvas?.removeEventListener("click", handleCanvasClick);
     };
   }, [canvas]);
@@ -593,6 +625,7 @@ function ScoutScene({
       if (nearest && !store.discoveredPlants[nearest]) {
         store.discoverPlant(nearest);
         playSound("discover");
+        trackEvent({ name: "plant_discovered", plant: nearest });
       }
 
       const area = areaAt(pollinator.position.x, pollinator.position.z);
@@ -610,6 +643,11 @@ function ScoutScene({
       };
 
       store.setPlayerFlightState(nextPlayerState);
+
+      if (!store.unlockedMapAreas[areaId]) {
+        trackEvent({ name: "area_entered", area: areaId });
+      }
+
       store.unlockMapArea(areaId);
       setAreaAmbience(areaId);
 

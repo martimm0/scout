@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 
+import { trackEvent } from "@/lib/analytics";
 import { playSound } from "../audio/sound";
 import { BADGES_BY_ID, evaluateBadges } from "../data/badges";
 import { useGameStore } from "../state/game-store";
@@ -38,6 +39,10 @@ export function ProgressionWatcher() {
       if (badges.length > 0) {
         state.queueBadges(badges);
         playSound("badge");
+
+        for (const badge of badges) {
+          trackEvent({ name: "badge_earned", badge });
+        }
       }
     };
 

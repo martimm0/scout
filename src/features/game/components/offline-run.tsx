@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { trackEvent } from "@/lib/analytics";
 import { PLANTS } from "../data/plants";
 import { countUnlocked, useGameStore } from "../state/game-store";
 import { GameScene } from "./game-scene";
@@ -40,6 +41,18 @@ export function OfflineRun() {
 
   const remaining = offlineRun.durationSeconds - offlineRun.elapsedSeconds;
   const finished = started && !offlineRun.active && offlineRun.startedAt !== null;
+
+  // What did ten minutes actually buy them? This is the sharpest signal the game
+  // produces about whether the pacing works.
+  useEffect(() => {
+    if (finished) {
+      trackEvent({
+        name: "offline_run_finished",
+        pollinated,
+        found: discovered,
+      });
+    }
+  }, [finished, pollinated, discovered]);
 
   // The clock. Driven off the wall clock rather than a frame counter, so a
   // stutter or a background tab can't buy you extra time.

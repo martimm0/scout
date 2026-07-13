@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { trackEvent } from "@/lib/analytics";
 import { playSound } from "../audio/sound";
 import {
   FAILURE_MESSAGES,
@@ -63,6 +64,14 @@ function MinigameRun({ plant }: { plant: Plant }) {
   const kind: MinigameKind = MINIGAME_FOR_ARCHETYPE[plant.archetype] ?? "hover";
   const spec = MINIGAME_SPEC[kind];
 
+  useEffect(() => {
+    trackEvent({
+      name: "pollination_attempted",
+      plant: plant.id,
+      minigame: kind,
+    });
+  }, [plant.id, kind]);
+
   const [progress, setProgress] = useState(0);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
 
@@ -118,6 +127,11 @@ function MinigameRun({ plant }: { plant: Plant }) {
     const success = resolvePollination(score, roll);
 
     recordAttempt(success);
+    trackEvent({
+      name: "pollination_resolved",
+      plant: plant.id,
+      success,
+    });
 
     if (success) {
       pollinatePlant(plant.id);

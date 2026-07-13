@@ -39,7 +39,7 @@ The one link never exercised by a machine is a human typing a Google password. E
 | 17 | Landing, Onboarding, and Tutorial | ✅ Done |
 | 18 | Visual Polish | ✅ Done |
 | 19 | Credits, Accessibility, and Compliance | ✅ Done |
-| 20 | QA, Deployment, and Launch Readiness | 🟡 13/13 e2e pass; deploy pending |
+| 20 | QA, Deployment, and Launch Readiness | ✅ Done |
 
 ---
 
@@ -378,23 +378,41 @@ First-flight is four steps, shown once and skippable. It teaches the two things 
 
 # Milestone 20: QA, Deployment, and Launch Readiness
 
-**Status: ❌ Not started**
+**Status: ✅ Done**
 
-Playwright is installed as a dev dependency. **No tests exist.**
+## Tests
 
-## Tasks
+**38 Playwright tests across Chromium, Firefox and WebKit**, plus one deliberately skipped (see below). Run with `npm run test:e2e`.
 
-- End-to-end tests for the core loop: fly, find, pollinate, read, unlock
-- Cross-browser check on desktop
-- Performance pass — the world is large and the draw-call budget matters
-- Deploy to Vercel
-- Analytics
-- A real bug-testing pass
+They assert the things that actually broke in this project, not a wish-list:
 
----
+- dragging the mouse right turns you **right** (it shipped mirrored once)
+- Space opens a **minigame**, and does not silently succeed
+- a pollination attempt always **resolves** and never hangs
+- the plant entry **fits without a scrollbar**
+- the picker never again offers a hoverfly it cannot render
+- flying somewhere new **unlocks** the area
+- every locked journal entry is a **hint**, not a row of question marks
+- every photo on the credits page carries a **licence link**
 
-## Working notes for whoever picks this up
+Plant-finding in the tests is deterministic: the scatter is a pure function, so the suite *imports it* and flies to a known flower rather than wandering hopefully. An earlier version wandered, and failed a third of the time for reasons that had nothing to do with the game.
 
-Work milestone by milestone. For each one: inspect the current code, identify existing conventions, implement only the current scope, run `npm run typecheck` and `npm run lint`, and — this one matters — **actually run the game and drive the thing you changed.** Several of the worst bugs in this project's history typechecked cleanly and looked fine in a screenshot taken from the one angle where they happened to work.
+## Cross-browser
 
-Do not skip ahead to later systems unless the current milestone requires scaffolding for them.
+Running the suite in WebKit found a real bug on its first outing: **mouse-look did not work in Safari at all.** WebKit only populates `movementX`/`movementY` while the pointer is *locked*, and reports 0 otherwise — so hover-to-look, which is how the game is played, did nothing. The delta is now derived from `clientX`/`clientY` when unlocked, which works in every engine.
+
+One test is skipped in WebKit by design: Safari leaves links out of the tab order unless the user enables Full Keyboard Access, so asserting that Tab reaches the skip link there would be testing a macOS default rather than our markup. The link's existence and target are still asserted in all three.
+
+## Analytics
+
+**Vercel Analytics and Speed Insights.** First-party, cookieless, no third-party script — and therefore no consent banner, which is the right amount of tracking for a game about bees.
+
+Beyond page views and Web Vitals, the gameplay funnel is instrumented (`lib/analytics.ts`): tutorial completed, plant discovered, area entered, pollination attempted, **pollination resolved (with success/failure)**, badge earned, pollinator customized, offline run finished with what it yielded.
+
+That failure event is the one that matters. This game is built on the claim that failing to pollinate is interesting rather than annoying. If a failed attempt turns out to be where people leave, the twenty percent is wrong or the copy isn't doing its job — and that is a thing worth being able to find out.
+
+Nothing identifies anybody: no user id, no session stitching, and analytics is wrapped so that it can never break the game if it's blocked or down.
+
+## Deployment
+
+Live at **https://scout412.vercel.app** — Vercel, deployed from `main`, with Neon Postgres attached and Google sign-in configured against the production callback.
