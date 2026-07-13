@@ -7,19 +7,23 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
+    "@vercel/postgres": "^0.10.0",
     "next": "^16.2.6",
-    "next-auth": "^4.24.14",
+    "next-auth": "^5.0.0-beta.31",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "three": "^0.184.0",
     "zustand": "^5.0.13"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",

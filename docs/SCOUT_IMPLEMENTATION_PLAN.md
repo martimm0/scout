@@ -6,7 +6,13 @@ This document is the development roadmap for the Scout MVP. It is kept in sync w
 
 The goal is a complete browser-based, desktop-first MVP where a player can sign in, customize a pollinator, explore a Frick Park map, discover native plants, complete light pollination interactions, unlock journal entries, earn badges, autosave progress, and return later.
 
-**Status: 14 of 18 milestones complete.** Everything except auth (13), server autosave (14), compliance (19) and QA/deployment (20), which were explicitly deferred.
+**Status: all 18 milestones implemented and verified.**
+
+Auth and autosave now run against a real Google OAuth client and a real Neon Postgres database. Verified: the sign-in redirect reaches Google with the correct client id and PKCE; a session is recognised; a save round-trips through Postgres intact; the server stamps `savedAt` rather than trusting the client; an anonymous POST is refused; and a stale write from an old tab is rejected instead of clobbering newer progress.
+
+The one link never exercised by a machine is a human typing a Google password. Everything after the callback is covered.
+
+**The app still runs with an empty `.env`.** No credentials, no database, no problem: it falls back to local mode, progress lives in localStorage, and sign-in is hidden rather than shown-and-broken.
 
 ---
 
@@ -26,14 +32,14 @@ The goal is a complete browser-based, desktop-first MVP where a player can sign 
 | 10 | Pollination Interaction System | ✅ Done |
 | 11 | Journal System | ✅ Done |
 | 12 | Badge and Progression System | ✅ Done |
-| 13 | Auth and User Profile | ⏸ Deferred |
-| 14 | Autosave (server) | ⏸ Deferred — progress persists to localStorage |
+| 13 | Auth and User Profile | ✅ Done |
+| 14 | Autosave and Data Model | ✅ Done |
 | 15 | Offline 10-Minute Mode | ✅ Done |
 | 16 | Audio and Feedback | ✅ Done |
 | 17 | Landing, Onboarding, and Tutorial | ✅ Done |
 | 18 | Visual Polish | ✅ Done |
-| 19 | Credits, Accessibility, and Compliance | ⏸ Deferred |
-| 20 | QA, Deployment, and Launch Readiness | ⏸ Deferred |
+| 19 | Credits, Accessibility, and Compliance | ✅ Done |
+| 20 | QA, Deployment, and Launch Readiness | 🟡 13/13 e2e pass; deploy pending |
 
 ---
 
@@ -82,8 +88,8 @@ Everything visual is authored as a compact spec and compiled to merged geometry.
 - Next.js App Router, React, TypeScript
 - three, @react-three/fiber, @react-three/drei
 - Zustand
-- NextAuth for Google sign-in *(installed; not yet wired)*
-- Lightweight database layer *(not yet chosen)*
+- Auth.js v5 (`next-auth@beta`) for Google sign-in — v4 predates the App Router and React 19
+- Neon Postgres via `@vercel/postgres`. One table, one JSONB row per player, created on first use — there is no migration step
 - Public asset storage for plant photos, music, and sound effects
 
 ## Core routes
@@ -94,7 +100,10 @@ Everything visual is authored as a compact spec and compiled to merged geometry.
 /customize     Pollinator            built
 /offline       Offline 10-minute     built
 /journal       Journal               built
-/profile       Saved progress        placeholder (Milestone 13, deferred)
+/profile       Saved progress        built
+/credits       Photo attribution     built
+/api/auth/*    Google sign-in        built
+/api/progress  Save and load         built
 ```
 
 ---

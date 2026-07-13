@@ -1,23 +1,19 @@
-import { RoutePlaceholder } from "@/components/route-placeholder";
-import { IMAGE_ASSETS } from "@/lib/assets";
+import type { Metadata } from "next";
 
-export const metadata = {
-  title: "Profile",
+import { Profile } from "@/features/game/components/profile";
+import { authConfigured } from "@/lib/env";
+
+export const metadata: Metadata = {
+  title: "Profile · Scout",
+  description: "Your pollinator, your progress, and the badges you've earned.",
 };
 
 export default function ProfilePage() {
   return (
-    <RoutePlaceholder
-      eyebrow="Milestone 13 target"
-      title="Profile and Progress"
-      description="Saved accomplishments, selected pollinator, badges, and progress summaries will appear here."
-      imageAlt="Scout badge placeholder"
-      imageSrc={IMAGE_ASSETS.badge}
-      tasks={[
-        "Show signed-in identity",
-        "Summarize saved progress",
-        "Display earned badges",
-      ]}
-    />
+    <main className="page-container">
+      <p className="eyebrow">Profile</p>
+      <h1>Where you&apos;ve got to</h1>
+      <Profile authConfigured={authConfigured} />
+    </main>
   );
 }

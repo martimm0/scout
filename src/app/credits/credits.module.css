@@ -1,0 +1,52 @@
+.note {
+  max-width: 68ch;
+  line-height: 1.65;
+  color: var(--muted);
+}
+
+.tableWrap {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  margin: 16px 0;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.table th,
+.table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.table th {
+  background: var(--surface-soft);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.latin {
+  display: block;
+  font-style: italic;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.list {
+  max-width: 68ch;
+  line-height: 1.7;
+  color: var(--muted);
+}

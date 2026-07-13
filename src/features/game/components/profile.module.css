@@ -1,0 +1,149 @@
+.wrap {
+  display: grid;
+  gap: 32px;
+}
+
+.card {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 24px;
+  align-items: center;
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, #fffdf5, #fff4dd);
+}
+
+@media (max-width: 640px) {
+  .card { grid-template-columns: 1fr; }
+}
+
+.visual {
+  display: grid;
+  place-items: center;
+  min-height: 150px;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #b08428;
+}
+
+.name {
+  margin: 2px 0 2px;
+  font-size: 1.7rem;
+  color: #33291a;
+}
+
+.species {
+  margin: 0;
+  color: #8a7a5e;
+}
+
+.signedIn,
+.signedOut {
+  margin: 10px 0 0;
+  font-size: 0.88rem;
+  color: #6f5f43;
+}
+
+.signedOut {
+  font-style: italic;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 2px;
+  margin: 0;
+  padding: 2px;
+  border-radius: 12px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.summary > div {
+  padding: 14px 16px;
+  background: var(--surface);
+}
+
+.summary dt {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.summary dd {
+  margin: 4px 0 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.summary dd span {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.count {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.empty {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.badges {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.badge {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.badgeIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #f7c855, #eeae2f);
+  color: #3b2c0e;
+}
+
+.badgeName {
+  margin: 0;
+  font-weight: 700;
+}
+
+.badgeText {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}

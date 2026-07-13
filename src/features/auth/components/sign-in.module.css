@@ -1,0 +1,38 @@
+.wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.who {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.button {
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: inherit;
+  cursor: pointer;
+}
+
+.button:hover {
+  border-color: #d8a12c;
+  background: rgba(242, 187, 66, 0.16);
+}
+
+.button:focus-visible {
+  outline: 2px solid #b07f16;
+  outline-offset: 2px;
+}
+
+.pending {
+  font-size: 0.86rem;
+  color: var(--muted);
+}

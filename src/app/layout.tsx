@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+
+import { AuthProvider } from "@/features/auth/components/session-provider";
+import { SignIn } from "@/features/auth/components/sign-in";
+import { authConfigured } from "@/lib/env";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -38,6 +42,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
+        <AuthProvider>
+        <a className="skip-link" href="#main">
+          Skip to content
+        </a>
         <div className="app-shell">
           <header className="site-header">
             <div className="site-header__inner">
@@ -53,16 +61,27 @@ export default function RootLayout({
                     {item.label}
                   </Link>
                 ))}
+                {/* Renders nothing at all when Google isn't configured. */}
+                <SignIn configured={authConfigured} />
               </nav>
             </div>
           </header>
-          <main className="main-content">{children}</main>
+          {/* A div, not a <main>. Every page renders its own <main>, and nesting two
+              of them is invalid HTML and gives a screen reader two conflicting
+              "main" landmarks to choose between. */}
+          <div className="main-content" id="main">
+            {children}
+          </div>
           <footer className="site-footer">
             <div className="site-footer__inner">
-              Scout MVP foundation for the Frick Park pollinator RPG.
+              <span>
+                A pollinator RPG set in Frick Park, Pittsburgh.
+              </span>
+              <Link href="/credits">Credits &amp; licences</Link>
             </div>
           </footer>
         </div>
+        </AuthProvider>
       </body>
     </html>
   );

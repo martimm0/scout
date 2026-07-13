@@ -21,6 +21,7 @@ import { PlantTag } from "./plant-tag";
 import { PollinationMinigame } from "./pollination-minigame";
 import { ProgressionWatcher } from "./progression-watcher";
 import { SoundToggle } from "./sound-toggle";
+import { CloudSyncBadge } from "./cloud-sync-badge";
 import { PLANTS } from "../data/plants";
 import {
   scatterPlants,
@@ -919,6 +920,7 @@ export function GameScene() {
               View pollinator
             </button>
             <SoundToggle />
+            <CloudSyncBadge />
           </>
         ) : null}
       </aside>
