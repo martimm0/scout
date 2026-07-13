@@ -195,10 +195,118 @@ export function playSound(name: SoundName) {
 }
 
 /**
- * The music loop: a slow, wandering pentatonic figure. Pentatonic because it
- * cannot land on a wrong note, so a loop this short never turns grating.
+ * The music.
+ *
+ * The old loop was one sine note every 900ms over a low root that landed every
+ * fourth beat and rang for a second and a half. That long low note under a
+ * plodding melody is what made it feel like a bass pulse: there was nothing else
+ * in it, and it never changed. So it is gone, and there is no drone anywhere in
+ * here now.
+ *
+ * What replaced it is a small band rather than a metronome:
+ *
+ *  - a **chord progression** that rotates through four different sequences, so
+ *    the harmony has somewhere to go instead of sitting on one root
+ *  - a **melody** that random-walks a pentatonic scale on a real rhythm, with
+ *    rests, and lands on a chord tone on the strong beats so it always resolves
+ *  - light **chord stabs** on the off-beat, which is where the lift comes from
+ *  - a **shaker** on the eighths instead of a bass drum, which keeps it moving
+ *    without putting anything heavy underneath
+ *  - a **bassline** that is short, plucked and quiet, up around 130-220Hz rather
+ *    than down in the sub, so you feel the root without it thumping
+ *
+ * Bars are scheduled a bar ahead against the audio clock, not fired off a bare
+ * setInterval, because setInterval drifts and a drifting beat is worse than no
+ * beat at all.
  */
-const SCALE = [392, 440, 523, 587, 659, 784, 880];
+
+const BPM = 112;
+const BEAT = 60 / BPM;
+const EIGHTH = BEAT / 2;
+const BAR = BEAT * 4;
+
+/** MIDI note to Hz. */
+function hz(midi: number) {
+  return 440 * 2 ** ((midi - 69) / 12);
+}
+
+type Chord = { root: number; minor: boolean };
+
+const maj = (root: number): Chord => ({ root, minor: false });
+const min = (root: number): Chord => ({ root, minor: true });
+
+/**
+ * Four progressions in C, all of them cheerful. The loop walks through them in
+ * turn, so you have to listen for sixteen bars before anything repeats.
+ */
+const PROGRESSIONS: Chord[][] = [
+  [maj(60), maj(67), min(69), maj(65)],
+  [min(69), maj(65), maj(60), maj(67)],
+  [maj(65), maj(67), maj(60), min(69)],
+  [maj(60), min(64), maj(65), maj(67)],
+];
+
+/** Which eighths of the bar carry a melody note. Rests are as important as notes. */
+const RHYTHMS = [
+  [1, 0, 1, 1, 0, 1, 0, 1],
+  [1, 1, 0, 1, 0, 1, 1, 0],
+  [1, 0, 1, 0, 1, 1, 0, 1],
+  [1, 1, 1, 0, 1, 0, 1, 1],
+  [0, 1, 1, 0, 1, 1, 0, 1],
+];
+
+/** C major pentatonic across two octaves. There is no wrong note in here. */
+const PENTATONIC = [72, 74, 76, 79, 81, 84, 86, 88, 91, 93];
+
+function chordTones(chord: Chord) {
+  return [chord.root, chord.root + (chord.minor ? 3 : 4), chord.root + 7];
+}
+
+/** The pentatonic note nearest a chord tone, so strong beats resolve. */
+function snapToChord(index: number, chord: Chord) {
+  const tones = chordTones(chord).map((tone) => tone % 12);
+
+  for (let step = 0; step < PENTATONIC.length; step += 1) {
+    for (const candidate of [index - step, index + step]) {
+      if (
+        candidate >= 0 &&
+        candidate < PENTATONIC.length &&
+        tones.includes(PENTATONIC[candidate] % 12)
+      ) {
+        return candidate;
+      }
+    }
+  }
+
+  return index;
+}
+
+/** A short noise burst through a highpass: a shaker, near enough. */
+function shaker(context: AudioContext, at: number, gain: number, to: AudioNode) {
+  const length = Math.floor(context.sampleRate * 0.05);
+  const buffer = context.createBuffer(1, length, context.sampleRate);
+  const data = buffer.getChannelData(0);
+
+  for (let i = 0; i < length; i += 1) {
+    data[i] = (Math.random() * 2 - 1) * (1 - i / length);
+  }
+
+  const source = context.createBufferSource();
+  source.buffer = buffer;
+
+  const filter = context.createBiquadFilter();
+  filter.type = "highpass";
+  filter.frequency.value = 6000;
+
+  const env = context.createGain();
+  env.gain.value = gain;
+
+  source.connect(filter);
+  filter.connect(env);
+  env.connect(to);
+  source.start(at);
+  source.stop(at + 0.06);
+}
 
 function startMusic() {
   const active = ensureEngine();
@@ -207,28 +315,96 @@ function startMusic() {
     return;
   }
 
-  let step = 0;
+  const { context, musicGain } = active;
 
-  const play = () => {
+  let bar = 0;
+  /** Where the melody currently sits in the pentatonic. It walks; it does not jump. */
+  let melodyIndex = 4;
+  let nextBarAt = context.currentTime + 0.15;
+
+  const scheduleBar = () => {
+    const progression = PROGRESSIONS[Math.floor(bar / 4) % PROGRESSIONS.length];
+    const chord = progression[bar % 4];
+    const rhythm = RHYTHMS[bar % RHYTHMS.length];
+    const tones = chordTones(chord);
+
+    // Bass: short and plucked, an octave up from where a bassline would normally
+    // sit. Present, but nothing to lean on.
+    for (const eighth of [0, 3, 6]) {
+      blip(
+        nextBarAt + eighth * EIGHTH,
+        hz(chord.root - 12),
+        0.16,
+        "triangle",
+        0.05,
+        musicGain,
+      );
+    }
+
+    for (let eighth = 0; eighth < 8; eighth += 1) {
+      const at = nextBarAt + eighth * EIGHTH;
+
+      // Shaker on every eighth, accented on the off-beats. This is the engine of
+      // the thing: it is what makes it feel quick rather than heavy.
+      shaker(context, at, eighth % 2 === 1 ? 0.05 : 0.025, musicGain);
+
+      // Chord stabs pushed onto the off-beat.
+      if (eighth === 1 || eighth === 5) {
+        for (const tone of tones) {
+          blip(at, hz(tone), 0.22, "triangle", 0.035, musicGain);
+        }
+      }
+
+      if (!rhythm[eighth]) {
+        continue;
+      }
+
+      // Wander, mostly by a step, occasionally by a leap.
+      const move = Math.random() < 0.18 ? 2 : 1;
+      melodyIndex += Math.random() < 0.5 ? -move : move;
+      melodyIndex = Math.min(PENTATONIC.length - 1, Math.max(0, melodyIndex));
+
+      // On the strong beats, land somewhere that belongs to the chord.
+      if (eighth === 0 || eighth === 4) {
+        melodyIndex = snapToChord(melodyIndex, chord);
+      }
+
+      blip(
+        at,
+        hz(PENTATONIC[melodyIndex]),
+        eighth === 0 ? 0.42 : 0.26,
+        "triangle",
+        0.085,
+        musicGain,
+      );
+    }
+
+    nextBarAt += BAR;
+    bar += 1;
+  };
+
+  // Two bars in hand, then top up. Scheduling against the audio clock rather
+  // than firing notes straight off the timer is what keeps the beat steady when
+  // the main thread is busy drawing a park.
+  scheduleBar();
+  scheduleBar();
+
+  active.musicTimer = window.setInterval(() => {
     if (!enabled || !engine) {
       return;
     }
 
-    const now = engine.context.currentTime;
-    const note = SCALE[(step * 3) % SCALE.length];
-
-    blip(now, note, 0.9, "sine", 0.1, engine.musicGain);
-
-    // A low root every fourth beat, to hold it down.
-    if (step % 4 === 0) {
-      blip(now, 196, 1.6, "triangle", 0.08, engine.musicGain);
+    // A backgrounded tab freezes the timer while the audio clock runs on. Coming
+    // back to a schedule that is minutes in the past would fire every missed bar
+    // at once, so give up on the past and start again from now.
+    if (nextBarAt < engine.context.currentTime) {
+      nextBarAt = engine.context.currentTime + 0.1;
     }
 
-    step += 1;
-  };
-
-  play();
-  active.musicTimer = window.setInterval(play, 900);
+    while (nextBarAt < engine.context.currentTime + BAR * 2) {
+      scheduleBar();
+    }
+  }, (BAR * 1000) / 2);
 }
 
 function stopMusic() {
