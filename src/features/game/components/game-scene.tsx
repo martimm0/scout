@@ -14,7 +14,8 @@ import {
 } from "@/features/game/state/game-store";
 import { trackEvent } from "@/lib/analytics";
 import { playSound, setAreaAmbience } from "../audio/sound";
-import { BeeModel } from "./bee-model";
+import { speciesFor } from "../models/pollinators";
+import { PollinatorModel } from "./pollinator-model";
 import { Creek, Foliage, Landmarks, PlantField, Terrain } from "./frick-park";
 import { FirstFlight } from "./first-flight";
 import { PlantEntry } from "./plant-entry";
@@ -247,6 +248,10 @@ function ScoutScene({
   const velocityRef = useRef(new Vector3());
   const sunRef = useRef<DirectionalLight>(null);
 
+  // How the chosen species handles. A hoverfly darts and stops dead; a butterfly
+  // floats and drifts. Without this the species picker is a costume change.
+  const flight = speciesFor(selectedPollinator.type).flight;
+
   // Laid out once. Deterministic, so the park is the same park every session.
   const plants = useMemo(() => scatterPlants(), []);
   /** The plant the floating card is currently attached to. */
@@ -447,7 +452,7 @@ function ScoutScene({
     // Arrows turn the same yaw the mouse turns. There is only one.
     const turnInput = axis(keys, TURN_LEFT, TURN_RIGHT);
 
-    yawRef.current += turnInput * TURN_SPEED * delta;
+    yawRef.current += turnInput * TURN_SPEED * flight.turn * delta;
 
     const yaw = yawRef.current;
     const throttle = axis(keys, FLY_BACK, FLY_FORWARD);
@@ -460,7 +465,8 @@ function ScoutScene({
     const hasMovementInput = throttle !== 0;
     const isBoosting = held(keys, BOOST) && hasMovementInput;
     const isPollinating = keys.has("Space");
-    const speed = BASE_SPEED * (isBoosting ? BOOST_MULTIPLIER : 1);
+    const speed =
+      BASE_SPEED * flight.speed * (isBoosting ? BOOST_MULTIPLIER : 1);
     const altitudeInput = axis(keys, DIVE, CLIMB) + scrollAltitudeRef.current;
 
     scrollAltitudeRef.current *= 0.82;
@@ -469,7 +475,10 @@ function ScoutScene({
       direction.normalize().multiplyScalar(speed);
     }
 
-    velocity.lerp(direction, 1 - Math.exp(-delta * 8));
+    // Responsiveness is what actually separates the species in the hand. A
+    // hoverfly snaps to its target velocity; a butterfly drifts toward it and
+    // keeps drifting after you let go.
+    velocity.lerp(direction, 1 - Math.exp(-delta * 8 * flight.responsiveness));
     targetPosition.addScaledVector(velocity, delta);
     targetPosition.y += altitudeInput * ALTITUDE_SPEED * delta;
 
@@ -709,7 +718,7 @@ function ScoutScene({
 
       {/* Actual bee size, near enough. The world grew around it instead. */}
       <group ref={pollinatorRef} position={START_POSITION} scale={1}>
-        <BeeModel
+        <PollinatorModel
           animationState={
             playerMovement === "Pollinating"
               ? "pollinating"
@@ -753,7 +762,7 @@ function PollinatorPreviewScene({ pollinator }: { pollinator: Pollinator }) {
       <directionalLight intensity={2.5} position={[-2, 3, -4]} />
       <hemisphereLight args={["#f2fbff", "#f1d68e", 1.2]} />
       <group ref={pollinatorRef} scale={1.45}>
-        <BeeModel animationState="hovering" pollinator={pollinator} />
+        <PollinatorModel animationState="hovering" pollinator={pollinator} />
       </group>
     </>
   );

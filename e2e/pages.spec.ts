@@ -26,22 +26,44 @@ test("customize saves a name, and rejects an empty one", async ({ page }) => {
   await expect(save).toBeDisabled();
 });
 
-test("customize does not offer species it cannot render", async ({ page }) => {
+test("customize offers all three species, and each one really renders", async ({
+  page,
+}) => {
+  await page.addInitScript(() => window.localStorage.clear());
   await page.goto("/customize");
 
-  // The picker used to offer a hoverfly and a butterfly while the scene rendered
-  // a bee regardless — pick either and you flew a bee in their colours. It must
-  // never do that again.
-  //
-  // Matched on the starter NAMES, not the words "hoverfly"/"butterfly": those
-  // appear legitimately in the wing-style copy ("long and tapered, like a
-  // hoverfly's"), and an earlier version of this test failed on exactly that.
-  await expect(page.getByText("Zip", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("Marigold", { exact: true })).toHaveCount(0);
+  // All three are offered again — and this time each is a real model. The rule
+  // that matters is the one that got broken before: the picker must never offer
+  // a species the scene cannot render. So every option here has to survive being
+  // selected and flown.
+  for (const species of ["Bee", "Hoverfly", "Butterfly"]) {
+    await expect(page.getByRole("button", { name: new RegExp(species) })).toBeVisible();
+  }
+});
 
-  await expect(
-    page.getByText(/The bee is the only pollinator in the park so far/),
-  ).toBeVisible();
+test("each species can be selected and flown", async ({ page }) => {
+  test.setTimeout(180_000);
+
+  for (const species of ["Hoverfly", "Butterfly", "Bee"]) {
+    await page.addInitScript(() => window.localStorage.clear());
+    await page.goto("/customize");
+
+    await page.getByRole("button", { name: new RegExp(species) }).first().click();
+    await expect(
+      page.getByRole("button", { name: new RegExp(species) }).first(),
+    ).toHaveAttribute("aria-pressed", "true");
+
+    // Now fly it. A species that renders in the picker but crashes the scene is
+    // exactly the failure this test exists to catch.
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+
+    await page.goto("/play");
+    await page.waitForTimeout(4000);
+
+    expect(errors, `${species} threw on /play`).toEqual([]);
+    await expect(page.locator("canvas").first()).toBeVisible();
+  }
 });
 
 test("journal shows locked entries as hints, not as question marks", async ({

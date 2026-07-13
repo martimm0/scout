@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { trackEvent } from "@/lib/analytics";
 import { playSound } from "../audio/sound";
-import { ACCESSORIES, WING_STYLES } from "../models/bee";
+import { ACCESSORIES, SPECIES_LIST, WING_STYLES, speciesFor } from "../models/pollinators";
 import { useGameStore } from "../state/game-store";
 import { StarterVisual } from "./starter-selection";
 import styles from "./customize.module.css";
@@ -73,10 +73,10 @@ function validateName(raw: string) {
 /**
  * Pollinator customization.
  *
- * The species picker is deliberately bee-only. It used to offer a hoverfly and a
- * butterfly, but the scene renders the bee model whatever you pick — so choosing
- * either handed you a bee wearing their colours. Better an honest "not yet" than
- * a lie.
+ * The species picker offers all three again — and this time each one is a real
+ * model that really flies differently. It was bee-only for a while precisely
+ * because the scene rendered a bee whatever you picked, and a chooser that hands
+ * you a bee whatever you choose is just lying to you.
  */
 export function Customize() {
   const pollinator = useGameStore((state) => state.pollinator);
@@ -84,6 +84,8 @@ export function Customize() {
 
   const [name, setName] = useState(pollinator.name);
   const [saved, setSaved] = useState(false);
+
+  const species = speciesFor(pollinator.type);
 
   const validation = useMemo(() => validateName(name), [name]);
 
@@ -111,7 +113,8 @@ export function Customize() {
           <StarterVisual pollinator={pollinator} />
         </div>
         <p className={styles.previewName}>
-          {validation.valid ? name.trim() : pollinator.name} the bee
+          {validation.valid ? name.trim() : pollinator.name} the{" "}
+          {species.label.toLowerCase()}
         </p>
         <p className={styles.previewNote}>
           The 2D preview shows your colours. Fly to see the model.
@@ -119,6 +122,24 @@ export function Customize() {
       </aside>
 
       <div className={styles.form}>
+        <section className={styles.field}>
+          <p className={styles.label}>Species</p>
+          <div className={styles.species}>
+            {SPECIES_LIST.map((option) => (
+              <button
+                aria-pressed={pollinator.type === option.id}
+                className={styles.speciesOption}
+                key={option.id}
+                onClick={() => set({ type: option.id })}
+                type="button"
+              >
+                <span className={styles.speciesName}>{option.label}</span>
+                <span className={styles.speciesNote}>{option.flightNote}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
         <section className={styles.field}>
           <label className={styles.label} htmlFor="pollinator-name">
             Name
@@ -147,20 +168,28 @@ export function Customize() {
           value={pollinator.bodyColor}
         />
 
-        <Swatches
-          colors={WING_COLORS}
-          label="Wing colour"
-          onPick={(wingColor) => set({ wingColor })}
-          value={pollinator.wingColor}
-        />
+        {/* A butterfly's wings carry their own pattern in the vertex colours, so
+            a "wing colour" would only smear it. Hidden rather than ignored. */}
+        {species.wings.tinted ? (
+          <Swatches
+            colors={WING_COLORS}
+            label="Wing colour"
+            onPick={(wingColor) => set({ wingColor })}
+            value={pollinator.wingColor}
+          />
+        ) : null}
 
-        <Options
-          label="Wing style"
-          notes={WING_STYLE_NOTES}
-          onPick={(wingStyle) => set({ wingStyle })}
-          options={[...WING_STYLES]}
-          value={pollinator.wingStyle}
-        />
+        {/* Wing style is the bee's alone. A butterfly's wings ARE the butterfly,
+            and a hoverfly has exactly the two it needs. */}
+        {species.supportsWingStyle ? (
+          <Options
+            label="Wing style"
+            notes={WING_STYLE_NOTES}
+            onPick={(wingStyle) => set({ wingStyle })}
+            options={[...WING_STYLES]}
+            value={pollinator.wingStyle}
+          />
+        ) : null}
 
         <Options
           label="Accessory"
@@ -195,15 +224,6 @@ export function Customize() {
           </div>
         </section>
 
-        <section className={styles.field}>
-          <p className={styles.label}>Species</p>
-          <p className={styles.speciesNote}>
-            The bee is the only pollinator in the park so far. The hoverfly and
-            the butterfly are coming — they aren&apos;t offered here because they
-            aren&apos;t built yet, and a chooser that hands you a bee whatever you
-            pick is just lying to you.
-          </p>
-        </section>
 
         <div className={styles.actions}>
           <Button disabled={!validation.valid} onClick={save} type="button">

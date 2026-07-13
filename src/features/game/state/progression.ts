@@ -45,9 +45,12 @@ const CONCEPT_RULES: ConceptRule[] = [
 export function evaluateJournal(state: GameState): string[] {
   const pending: string[] = [];
 
-  // You are a bee. That entry should be there from the first flight.
-  if (!state.unlockedJournalEntries["pollinator:bee"]) {
-    pending.push("pollinator:bee");
+  // Flying a species is how you learn about it. Switch to the hoverfly and its
+  // journal entry opens; the others stay shut until you've been one.
+  const flown = `pollinator:${state.pollinator.type}`;
+
+  if (!state.unlockedJournalEntries[flown]) {
+    pending.push(flown);
   }
 
   for (const rule of CONCEPT_RULES) {

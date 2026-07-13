@@ -66,9 +66,26 @@ The original plan specified five generic zones (Woodland Trail, Meadow, Ravine/C
 
 Landmarks are hand-placed, not scattered: the Blue Slide, the stone gatehouse, the Environmental Center building, the bowling green and its clubhouse, the clay tennis courts, benches, trail posts, and stepping stones across the creek.
 
-### One pollinator for the MVP
+### Three pollinators, and they are not palette swaps
 
-The MVP ships the bee only. The hoverfly and butterfly are deferred.
+The bee, the hoverfly and the butterfly are all built and all playable. Each is a separate spec file (`models/bee.ts`, `models/hoverfly.ts`, `models/butterfly.ts`) feeding one shared voxel pipeline and one shared animation rig — there is no per-species branching anywhere in the model component.
+
+They are modelled on what actually distinguishes the animals:
+
+- **Hoverfly** — a fly, not a bee. Enormous red eyes that meet over the crown. **Two** wings, not four: the hind pair shrank into halteres, the little gyroscopic knobs that are *why* it can hang dead still in the air, and they are modelled. Bare shell instead of fuzz, stubby antennae, long flat abdomen.
+- **Butterfly** — mostly wings. Two huge patterned pairs with dark veins and a rim of white spots, a thread of a body, and clubbed antennae (the club is the one feature separating a butterfly from a moth). Its wings are opaque and carry their own pattern, so the "wing colour" control is hidden for it — tinting them would smear the pattern into stained glass.
+
+**And they fly differently.** Measured in the browser, not asserted:
+
+| | distance in 3s | turn rate | top speed |
+|---|---|---|---|
+| Hoverfly | 83 | 161°/s | 29.1 |
+| Bee | 73 | 114°/s | 21.3 |
+| Butterfly | 58 | 82°/s | 16.3 |
+
+The hoverfly darts and stops dead; the butterfly floats and drifts on after you let go. Choosing a species is a real choice, not a costume change.
+
+Flying one is also how you unlock its journal entry.
 
 ### Models are data, not code
 
@@ -175,11 +192,11 @@ With the MVP committed to a single species, "choose your starter" is a menu with
 
 Saving writes to the store, which persists locally.
 
-## The three-starter bug: fixed
+## The three-starter bug: fixed properly
 
-The picker used to offer Scout (bee), Zip (hoverfly) and Marigold (butterfly) while the scene rendered `BeeModel` unconditionally — pick either of the other two and you flew a bee in their colours. The species picker is now bee-only, and says so plainly:
+The picker once offered a hoverfly and a butterfly while the scene rendered a bee whatever you chose. For a while it was restricted to the bee alone, which was honest but thin. Now all three are offered *and all three are real* — different models, different flight.
 
-> The bee is the only pollinator in the park so far. The hoverfly and the butterfly are coming — they aren't offered here because they aren't built yet, and a chooser that hands you a bee whatever you pick is just lying to you.
+The rule that came out of it is worth keeping: **never offer a choice the game cannot honour.** The e2e suite now selects each species and flies it, so a picker option that crashes the scene fails the build.
 
 ---
 

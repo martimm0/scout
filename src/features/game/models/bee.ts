@@ -1,6 +1,4 @@
-import type { BufferGeometry } from "three";
-
-import { buildVoxelGeometry, shade, tint, type VoxelPalette } from "./voxel";
+import type { Colors, SpeciesSpec, WingStyle } from "./species";
 
 /**
  * The bee, as text art.
@@ -204,69 +202,15 @@ const WING_STUBBY_LAYERS = [
   ],
 ];
 
-export const WING_STYLES = ["round", "long", "stubby"] as const;
-export type WingStyle = (typeof WING_STYLES)[number];
-
 const WING_BY_STYLE: Record<WingStyle, string[][]> = {
   round: WING_LAYERS,
   long: WING_LONG_LAYERS,
   stubby: WING_STUBBY_LAYERS,
 };
 
-/**
- * Accessories. Small, silly, and entirely the point — this is the one place in
- * the game that exists purely so the bee is *yours*.
- */
 // X is the accent colour the player picks. R/Y/N are the flower's own colours.
 // None of these letters may collide with the body palette — C is the head's face
 // plate and G is the eye glint, and reusing either repaints the bee's face.
-const CAP_LAYERS = [
-  [
-    ".XXXXX.",
-    "XXXXXXX",
-    "XXXXXXX",
-    ".XXXXX.",
-  ],
-  [
-    "..XXX..",
-    ".XXXXX.",
-    ".XXXXX.",
-    "..XXX..",
-  ],
-  [
-    ".......",
-    "..XXX..",
-    "..XXX..",
-    ".......",
-  ],
-];
-
-const FLOWER_LAYERS = [
-  [
-    "...N...",
-    "..NNN..",
-    "...N...",
-  ],
-  [
-    "..R.R..",
-    ".RRYRR.",
-    "..R.R..",
-  ],
-];
-
-const SCARF_LAYERS = [
-  [
-    "XXXXXXX",
-    "XXXXXXX",
-  ],
-  [
-    ".XXXXX.",
-    "..XXX..",
-  ],
-];
-
-export const ACCESSORIES = ["none", "cap", "flower", "scarf"] as const;
-export type Accessory = (typeof ACCESSORIES)[number];
 
 const HIND_WING_LAYERS = [
   [
@@ -332,161 +276,63 @@ const ANTENNA_LAYERS = [
   ],
 ];
 
-export type BeeGeometry = {
-  head: BufferGeometry;
-  thorax: BufferGeometry;
-  abdomen: BufferGeometry;
-  wing: BufferGeometry;
-  hindWing: BufferGeometry;
-  legs: BufferGeometry;
-  pollen: BufferGeometry;
-  antennae: BufferGeometry;
-  /** Null when the pollinator isn't wearing anything. */
-  accessory: BufferGeometry | null;
+
+export const BEE_SPEC: SpeciesSpec = {
+  id: "bee",
+  label: "Bee",
+  flightNote: "Steady, sure-footed, and built to carry a load. The all-rounder.",
+  voxelSize: VOXEL_SIZE,
+  detailSize: DETAIL_SIZE,
+  supportsWingStyle: true,
+
+  parts: {
+    head: { layers: HEAD_LAYERS, origin: [3.5, 2.5, 2] },
+    thorax: { layers: THORAX_LAYERS, origin: [3.5, 3, 2] },
+    abdomen: { layers: ABDOMEN_LAYERS, origin: [3.5, 3, 0] },
+    wing: { layers: WING_LAYERS, origin: [0, 0, 2], ao: false },
+    hindWing: { layers: HIND_WING_LAYERS, origin: [0, 0, 1.5], ao: false },
+    legs: { layers: LEG_LAYERS, origin: [4.5, 2, 2.5], size: DETAIL_SIZE },
+    pollen: { layers: POLLEN_LAYERS, origin: [4.5, 2, 2.5], size: DETAIL_SIZE },
+    antennae: { layers: ANTENNA_LAYERS, origin: [3.5, 0, 1], size: DETAIL_SIZE },
+  },
+
+  offsets: {
+    head: [0, 0.03, -0.22],
+    thorax: [0, 0, 0],
+    abdomen: [0, -0.02, 0.11],
+    wing: [0.15, 0.14, -0.02],
+    hindWing: [0.13, 0.09, 0.07],
+    legs: [0, -0.16, 0.02],
+    pollen: [0, -0.16, 0.02],
+    antennae: [0, 0.16, -0.29],
+  },
+
+  animation: {
+    wingSpeed: 1,
+    wingAmplitude: 1,
+    bob: 1,
+    hindWingFollow: 0.72,
+    wingRest: 0.12,
+  },
+
+  wings: {
+    opacity: 0.62,
+    hindOpacity: 0.5,
+    tinted: true,
+  },
+
+  flight: {
+    speed: 1,
+    turn: 1,
+    responsiveness: 1,
+  },
+
+  palette: () => ({}),
 };
 
-/** Where each accessory sits. A hat goes on the head; a scarf goes on the neck. */
-const ACCESSORY_OFFSET: Record<Accessory, [number, number, number]> = {
-  none: [0, 0, 0],
-  cap: [0, 0.2, -0.2],
-  flower: [0.12, 0.21, -0.2],
-  scarf: [0, -0.04, -0.11],
-};
-
-/**
- * Where each part sits relative to the bee's centre, and — for the parts that
- * move — what it pivots around. The bee faces -Z, matching the flight loop's
- * forward vector, so it flies nose-first without a corrective yaw.
- */
-export const BEE_OFFSETS = {
-  head: [0, 0.03, -0.22],
-  thorax: [0, 0, 0],
-  abdomen: [0, -0.02, 0.11],
-  wing: [0.15, 0.14, -0.02],
-  hindWing: [0.13, 0.09, 0.07],
-  legs: [0, -0.16, 0.02],
-  pollen: [0, -0.16, 0.02],
-  antennae: [0, 0.16, -0.29],
-} as const satisfies Record<
-  Exclude<keyof BeeGeometry, "accessory">,
-  readonly [number, number, number]
->;
-
-function beePalette(
-  bodyColor: string,
-  wingColor: string,
-  accentColor: string,
-): VoxelPalette {
-  const chitin = "#2a2119";
-
-  return {
-    // Accessories.
-    X: accentColor,
-    R: "#e4759b",
-    Y: "#f7e07a",
-    N: "#5f9a45",
-    B: bodyColor,
-    S: chitin,
-    D: chitin,
-    A: chitin,
-    L: chitin,
-    E: "#181510",
-    G: "#ffffff",
-    C: shade(bodyColor, 0.3),
-    F: tint(bodyColor, 0.42),
-    K: "#f0a52e",
-    W: wingColor,
-  };
+/** The bee's wings are the one set the player can restyle. */
+export function beeWingLayers(style: WingStyle) {
+  return WING_BY_STYLE[style] ?? WING_LAYERS;
 }
 
-export function buildBeeGeometry(
-  bodyColor: string,
-  wingColor: string,
-  wingStyle: WingStyle = "round",
-  accessory: Accessory = "none",
-  accentColor = "#c0413b",
-): BeeGeometry {
-  const palette = beePalette(bodyColor, wingColor, accentColor);
-  const size = VOXEL_SIZE;
-
-  const accessoryLayers: Record<Accessory, string[][] | null> = {
-    none: null,
-    cap: CAP_LAYERS,
-    flower: FLOWER_LAYERS,
-    scarf: SCARF_LAYERS,
-  };
-
-  const layers = accessoryLayers[accessory];
-
-  return {
-    head: buildVoxelGeometry({
-      layers: HEAD_LAYERS,
-      origin: [3.5, 2.5, 2],
-      palette,
-      size,
-    }),
-    thorax: buildVoxelGeometry({
-      layers: THORAX_LAYERS,
-      origin: [3.5, 3, 2],
-      palette,
-      size,
-    }),
-    abdomen: buildVoxelGeometry({
-      layers: ABDOMEN_LAYERS,
-      origin: [3.5, 3, 0],
-      palette,
-      size,
-    }),
-    // Wings are thin and translucent; baked AO would just read as dirt.
-    wing: buildVoxelGeometry({
-      ao: false,
-      layers: WING_BY_STYLE[wingStyle] ?? WING_LAYERS,
-      origin: [0, 0, 2],
-      palette,
-      size,
-    }),
-    accessory: layers
-      ? buildVoxelGeometry({
-          layers,
-          origin: [3.5, 0, 1.5],
-          palette,
-          size,
-        })
-      : null,
-    hindWing: buildVoxelGeometry({
-      ao: false,
-      layers: HIND_WING_LAYERS,
-      origin: [0, 0, 1.5],
-      palette,
-      size,
-    }),
-    legs: buildVoxelGeometry({
-      layers: LEG_LAYERS,
-      origin: [4.5, 2, 2.5],
-      palette,
-      size: DETAIL_SIZE,
-    }),
-    pollen: buildVoxelGeometry({
-      layers: POLLEN_LAYERS,
-      origin: [4.5, 2, 2.5],
-      palette,
-      size: DETAIL_SIZE,
-    }),
-    antennae: buildVoxelGeometry({
-      layers: ANTENNA_LAYERS,
-      origin: [3.5, 0, 1],
-      palette,
-      size: DETAIL_SIZE,
-    }),
-  };
-}
-
-export function disposeBeeGeometry(geometry: BeeGeometry) {
-  for (const part of Object.values(geometry)) {
-    part?.dispose();
-  }
-}
-
-export function accessoryOffset(accessory: Accessory) {
-  return ACCESSORY_OFFSET[accessory];
-}
+export type { Colors };

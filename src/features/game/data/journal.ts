@@ -81,18 +81,18 @@ export const POLLINATOR_ENTRIES: PollinatorEntry[] = [
     id: "bee",
     title: "Bee",
     body: "Fuzzy, deliberate, and built for the job: branched hairs that pollen sticks to, baskets on the hind legs to carry it home, and enough colour vision to see ultraviolet patterns on petals that are invisible to us. Most of the four thousand bee species in North America are solitary and sting almost nobody.",
-    hint: "You are one.",
+    hint: "Become one, and you'll learn what it is.",
   },
   {
     id: "hoverfly",
     title: "Hoverfly",
-    body: "A fly wearing a bee's warning colours, and a very good pollinator in its own right. It can hang dead still in the air, which no bee can do. Its larvae eat aphids by the hundred.",
-    hint: "Not yet. Coming to the park soon.",
+    body: "A fly wearing a bee's warning colours — and it works, because nothing wants to eat a bee. Two wings instead of four: the hind pair shrank into halteres, tiny gyroscopes that let it hang dead still in the air, which no bee can do. It cannot sting you with anything. Its larvae eat aphids by the hundred.",
+    hint: "Become one, and you'll learn what it is.",
   },
   {
     id: "butterfly",
     title: "Butterfly",
-    body: "Long legs, long tongue, and a habit of standing well clear of the flower — which makes it a less thorough pollinator than a bee but a far prettier one. Monarchs will cross a continent on the nectar in this park.",
-    hint: "Not yet. Coming to the park soon.",
+    body: "Long legs, long tongue, and a habit of standing well clear of the flower — which makes it a worse pollinator than a bee and a far better sight. It drinks through a coiled straw and tastes with its feet. A monarch will cross a continent on nectar from meadows like this one.",
+    hint: "Become one, and you'll learn what it is.",
   },
 ];

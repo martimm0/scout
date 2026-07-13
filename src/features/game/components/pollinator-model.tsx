@@ -6,12 +6,12 @@ import { DoubleSide, MeshLambertMaterial, type BufferGeometry, type Group } from
 
 import {
   accessoryOffset,
-  BEE_OFFSETS,
-  buildBeeGeometry,
-  disposeBeeGeometry,
+  buildPollinatorGeometry,
+  speciesFor,
   type Accessory,
   type WingStyle,
-} from "../models/bee";
+} from "../models/pollinators";
+import { disposePollinatorGeometry } from "../models/species";
 import type { Pollinator } from "../state/game-store";
 
 export type PollinatorAnimationState =
@@ -68,20 +68,21 @@ const TUNING: Record<PollinatorAnimationState, Tuning> = {
   },
 };
 
-/** Wings sit slightly above horizontal at rest. */
-const WING_REST = 0.12;
-
 function approach(current: number, target: number, delta: number, rate: number) {
   return current + (target - current) * (1 - Math.exp(-delta * rate));
 }
 
 function wingMaterial(color: string, opacity: number) {
+  const solid = opacity >= 1;
+
   return new MeshLambertMaterial({
     color,
-    depthWrite: false,
+    // Opaque wings (a butterfly's) must write depth, or they render as ghosts
+    // that the abdomen shows straight through.
+    depthWrite: solid,
     opacity,
     side: DoubleSide,
-    transparent: true,
+    transparent: !solid,
     vertexColors: true,
   });
 }
@@ -122,7 +123,15 @@ function WingPair({
 
 export type Gesture = "none" | "greet" | "dance";
 
-export function BeeModel({
+/**
+ * Renders any pollinator.
+ *
+ * One rig, three species. The bee, the hoverfly and the butterfly differ only in
+ * their spec: the art, the proportions, and how hard and fast the wings beat.
+ * There is no per-species branching in here at all, which is the entire payoff
+ * of having authored the models as data.
+ */
+export function PollinatorModel({
   animationState = "hovering",
   gestureRef,
   hasPollen = false,
@@ -137,16 +146,22 @@ export function BeeModel({
   hasPollen?: boolean;
   pollinator: Pollinator;
 }) {
+  const spec = speciesFor(pollinator.type);
+
   const geometry = useMemo(
     () =>
-      buildBeeGeometry(
-        pollinator.bodyColor,
-        pollinator.wingColor,
+      buildPollinatorGeometry(
+        pollinator.type,
+        {
+          bodyColor: pollinator.bodyColor,
+          wingColor: pollinator.wingColor,
+          accentColor: pollinator.accentColor,
+        },
         pollinator.wingStyle as WingStyle,
         pollinator.accessory as Accessory,
-        pollinator.accentColor,
       ),
     [
+      pollinator.type,
       pollinator.bodyColor,
       pollinator.wingColor,
       pollinator.wingStyle,
@@ -157,13 +172,19 @@ export function BeeModel({
 
   const materials = useMemo(
     () => ({
-      wing: wingMaterial(pollinator.wingColor, 0.62),
-      hindWing: wingMaterial(pollinator.wingColor, 0.5),
+      wing: wingMaterial(
+        spec.wings.tinted ? pollinator.wingColor : "#ffffff",
+        spec.wings.opacity,
+      ),
+      hindWing: wingMaterial(
+        spec.wings.tinted ? pollinator.wingColor : "#ffffff",
+        spec.wings.hindOpacity,
+      ),
     }),
-    [pollinator.wingColor],
+    [pollinator.wingColor, spec],
   );
 
-  useEffect(() => () => disposeBeeGeometry(geometry), [geometry]);
+  useEffect(() => () => disposePollinatorGeometry(geometry), [geometry]);
 
   useEffect(
     () => () => {
@@ -202,22 +223,30 @@ export function BeeModel({
     // Clamp so a backgrounded tab doesn't fling the pose on return.
     const step = Math.min(delta, 0.05);
 
-    // A dancing bee beats its wings hard whatever else it's doing.
+    // Species scale the rig. A hoverfly's wings are a blur; a butterfly's are a
+    // slow sweep you can count.
+    const anim = spec.animation;
+
     current.wingSpeed = approach(
       current.wingSpeed,
-      dancing ? 34 : target.wingSpeed,
+      (dancing ? 34 : target.wingSpeed) * anim.wingSpeed,
       step,
       8,
     );
     current.wingAmplitude = approach(
       current.wingAmplitude,
-      target.wingAmplitude,
+      target.wingAmplitude * anim.wingAmplitude,
       step,
       8,
     );
     current.pitch = approach(current.pitch, target.pitch, step, 6);
     current.bobSpeed = approach(current.bobSpeed, target.bobSpeed, step, 6);
-    current.bobAmount = approach(current.bobAmount, target.bobAmount, step, 6);
+    current.bobAmount = approach(
+      current.bobAmount,
+      target.bobAmount * anim.bob,
+      step,
+      6,
+    );
     current.legTuck = approach(current.legTuck, target.legTuck, step, 7);
 
     // Integrate the phase rather than sampling the clock, so a change in wing
@@ -263,7 +292,7 @@ export function BeeModel({
       bodyRef.current.scale.set(1 / squash, squash, 1 / squash);
     }
 
-    const flap = WING_REST + beat * current.wingAmplitude;
+    const flap = anim.wingRest + beat * current.wingAmplitude;
 
     if (rightWingRef.current && leftWingRef.current) {
       rightWingRef.current.rotation.z = flap;
@@ -271,10 +300,11 @@ export function BeeModel({
     }
 
     if (rightHindRef.current && leftHindRef.current) {
-      // Hind wings hook to the forewings in a real bee, so they follow along
-      // with a shallower sweep.
-      rightHindRef.current.rotation.z = flap * 0.72;
-      leftHindRef.current.rotation.z = -flap * 0.72;
+      // A bee's hind wings hook to the forewings and follow. A butterfly's sweep
+      // nearly as far. A hoverfly has none — those are halteres, and they barely
+      // move, which is exactly why it can hold a position in a breeze.
+      rightHindRef.current.rotation.z = flap * anim.hindWingFollow;
+      leftHindRef.current.rotation.z = -flap * anim.hindWingFollow;
     }
 
     if (abdomenRef.current) {
@@ -300,30 +330,30 @@ export function BeeModel({
     if (legsRef.current) {
       // Tucked back and up at speed, dangling at rest.
       legsRef.current.rotation.x = current.legTuck * -0.85;
-      legsRef.current.position.y = BEE_OFFSETS.legs[1] + current.legTuck * 0.045;
+      legsRef.current.position.y = spec.offsets.legs[1] + current.legTuck * 0.045;
     }
   });
 
   return (
     <group ref={rootRef}>
       <group ref={bodyRef}>
-        <mesh castShadow geometry={geometry.thorax} position={BEE_OFFSETS.thorax}>
+        <mesh castShadow geometry={geometry.thorax} position={spec.offsets.thorax}>
           <meshLambertMaterial vertexColors />
         </mesh>
 
-        <group position={BEE_OFFSETS.abdomen} ref={abdomenRef}>
+        <group position={spec.offsets.abdomen} ref={abdomenRef}>
           <mesh castShadow geometry={geometry.abdomen}>
             <meshLambertMaterial vertexColors />
           </mesh>
         </group>
 
-        <group position={BEE_OFFSETS.head} ref={headRef}>
+        <group position={spec.offsets.head} ref={headRef}>
           <mesh castShadow geometry={geometry.head}>
             <meshLambertMaterial vertexColors />
           </mesh>
         </group>
 
-        <group position={BEE_OFFSETS.antennae} ref={antennaeRef}>
+        <group position={spec.offsets.antennae} ref={antennaeRef}>
           <mesh geometry={geometry.antennae}>
             <meshLambertMaterial vertexColors />
           </mesh>
@@ -339,7 +369,7 @@ export function BeeModel({
           </mesh>
         ) : null}
 
-        <group position={BEE_OFFSETS.legs} ref={legsRef}>
+        <group position={spec.offsets.legs} ref={legsRef}>
           <mesh geometry={geometry.legs}>
             <meshLambertMaterial vertexColors />
           </mesh>
@@ -354,16 +384,18 @@ export function BeeModel({
           geometry={geometry.wing}
           leftRef={leftWingRef}
           material={materials.wing}
-          offset={BEE_OFFSETS.wing}
+          offset={spec.offsets.wing}
           rightRef={rightWingRef}
         />
-        <WingPair
-          geometry={geometry.hindWing}
-          leftRef={leftHindRef}
-          material={materials.hindWing}
-          offset={BEE_OFFSETS.hindWing}
-          rightRef={rightHindRef}
-        />
+        {geometry.hindWing ? (
+          <WingPair
+            geometry={geometry.hindWing}
+            leftRef={leftHindRef}
+            material={materials.hindWing}
+            offset={spec.offsets.hindWing}
+            rightRef={rightHindRef}
+          />
+        ) : null}
       </group>
     </group>
   );

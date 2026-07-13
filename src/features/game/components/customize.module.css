@@ -174,3 +174,44 @@
   gap: 12px;
   padding-top: 4px;
 }
+
+/* Species picker. Sits first, because it changes what the rest even means. */
+.species {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.speciesOption {
+  display: grid;
+  gap: 3px;
+  padding: 14px 16px;
+  text-align: left;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.speciesOption[aria-pressed="true"] {
+  border-color: #d8a12c;
+  background: rgba(242, 187, 66, 0.18);
+}
+
+.speciesOption:focus-visible {
+  outline: 2px solid #b07f16;
+  outline-offset: 2px;
+}
+
+.speciesName {
+  font-weight: 700;
+  font-size: 1.02rem;
+}
+
+.speciesNote {
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
