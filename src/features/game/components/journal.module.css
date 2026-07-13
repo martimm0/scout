@@ -1,0 +1,256 @@
+.wrap {
+  display: grid;
+  gap: 22px;
+}
+
+/* Progress summary. */
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 2px;
+  margin: 0;
+  padding: 2px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--border);
+  overflow: hidden;
+}
+
+.summary > div {
+  padding: 14px 16px;
+  background: var(--surface);
+}
+
+.summary dt {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.summary dd {
+  margin: 4px 0 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.summary dd span {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* Tabs. */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tab {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.tab[aria-current="true"] {
+  border-color: #d8a12c;
+  background: linear-gradient(180deg, #f7c855, #eeae2f);
+  color: #3b2c0e;
+}
+
+/* Plants grid. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.card[data-locked="true"] {
+  background: var(--surface-soft);
+}
+
+.thumb {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+}
+
+.thumbEmpty {
+  display: grid;
+  place-items: center;
+  height: 140px;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--surface-soft),
+    var(--surface-soft) 10px,
+    rgba(0, 0, 0, 0.03) 10px,
+    rgba(0, 0, 0, 0.03) 20px
+  );
+  color: var(--muted);
+  font-size: 1.6rem;
+  opacity: 0.5;
+}
+
+.cardBody {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px 16px;
+}
+
+.cardTitle {
+  margin: 0;
+  font-weight: 700;
+  font-size: 1.02rem;
+}
+
+.scientific {
+  margin: -2px 0 0;
+  font-style: italic;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.cardText {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.cardNote {
+  margin: 0;
+  padding: 9px 11px;
+  border-left: 3px solid #eeae2f;
+  border-radius: 0 6px 6px 0;
+  background: rgba(242, 187, 66, 0.14);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.meta,
+.credit {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.credit a {
+  color: inherit;
+}
+
+.link {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #8a6a1e;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* Rows for pollinators, areas, concepts. */
+.list {
+  display: grid;
+  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  padding: 16px 18px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.row[data-locked="true"] {
+  background: var(--surface-soft);
+  border-style: dashed;
+}
+
+.rowTitle {
+  margin: 0 0 4px;
+  font-weight: 700;
+  font-size: 1.02rem;
+}
+
+.row[data-locked="true"] .rowTitle {
+  color: var(--muted);
+}
+
+.rowText {
+  margin: 0;
+  font-size: 0.94rem;
+  line-height: 1.6;
+}
+
+.row[data-locked="true"] .rowText {
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* Badges. */
+.badges {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.badge {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.badge[data-locked="true"] {
+  background: var(--surface-soft);
+  border-style: dashed;
+}
+
+.badgeIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #f7c855, #eeae2f);
+  color: #3b2c0e;
+}
+
+.badge[data-locked="true"] .badgeIcon {
+  background: var(--border);
+  color: var(--muted);
+}

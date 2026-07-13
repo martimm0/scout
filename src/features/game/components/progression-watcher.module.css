@@ -1,0 +1,62 @@
+/* Badge toast. Bottom-centre, brief, and never blocking. */
+
+.toast {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 18;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px 12px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(122, 92, 38, 0.28);
+  background: linear-gradient(180deg, #fffdf5 0%, #fff2d6 100%);
+  box-shadow: 0 14px 36px rgba(40, 30, 12, 0.28);
+  pointer-events: none;
+  animation: badge-in 320ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #f7c855, #eeae2f);
+  color: #3b2c0e;
+  font-size: 1.1rem;
+}
+
+.label {
+  margin: 0;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #b08428;
+}
+
+.name {
+  margin: 1px 0 0;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #33291a;
+}
+
+.description {
+  margin: 1px 0 0;
+  font-size: 0.8rem;
+  color: #8a7a5e;
+}
+
+@keyframes badge-in {
+  from { opacity: 0; transform: translate(-50%, 14px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+}

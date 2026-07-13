@@ -1,23 +1,23 @@
-import { RoutePlaceholder } from "@/components/route-placeholder";
-import { IMAGE_ASSETS } from "@/lib/assets";
+import type { Metadata } from "next";
 
-export const metadata = {
-  title: "Journal",
+import { Journal } from "@/features/game/components/journal";
+
+export const metadata: Metadata = {
+  title: "Journal · Scout",
+  description:
+    "Your record of Frick Park: the plants you've found, the places you've been, and what you've learned.",
 };
 
 export default function JournalPage() {
   return (
-    <RoutePlaceholder
-      eyebrow="Milestone 11 target"
-      title="Pollinator Journal"
-      description="The journal will collect unlocked plant, pollinator, map area, and ecology concept entries."
-      imageAlt="Scout journal entry placeholder"
-      imageSrc={IMAGE_ASSETS.placeholder}
-      tasks={[
-        "Display locked and unlocked entries",
-        "Support journal tabs",
-        "Reflect discovery progress",
-      ]}
-    />
+    <main className="page-container">
+      <p className="eyebrow">Journal</p>
+      <h1>Your pollinator record</h1>
+      <p className="lead">
+        Everything you&apos;ve found, everywhere you&apos;ve been, and what the
+        park has taught you so far.
+      </p>
+      <Journal />
+    </main>
   );
 }

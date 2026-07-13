@@ -78,15 +78,22 @@ First map: One seamless, simplified Frick Park area.
 
 Use real geography as inspiration, but simplify it for gameplay.
 
-Core areas:
+Core areas (revised — see SCOUT_IMPLEMENTATION_PLAN.md, "Direction changes"):
 
-Frick Environmental Center starting area
-Woodland trail zone
-Meadow / sunny clearing
-Ravine / creek zone
-Dense tree canopy zone
+Frick Environmental Center — the starting area, on the lawn by the Beechwood gates
+Blue Slide Playground — the most recognisable object in the park
+Lawn Bowling Green — the only one in Pittsburgh
+Nine Mile Run — the creek at the bottom of the valley
+Falls Ravine — steep hemlock slopes
+Fern Hollow — deep shade under a closed canopy
 
-The map starts partially gray. As the player flies through areas, those areas become discovered.
+The map is cut around things that are actually in Frick Park rather than around generic biomes,
+and it is built at INSECT SCALE: the bee is bee-sized and everything else grew around it. Grass
+towers overhead, an oak is a hill, a flower stalk is something you fly up. A park you could walk
+across in twenty minutes is a continent, and that is what makes it worth exploring twice.
+
+The gray/unexplored reveal was dropped. Navigation is by pollen motes and by landmarks you can
+see and steer toward; a fog-of-war overlay would be a second wayfinding system fighting the first.
 # Camera & Controls
 # Camera & Controls
 
@@ -266,9 +273,9 @@ MVP content target
 
 Start small:
 
-3 pollinators
-12 to 20 plants
-5 map areas
+1 pollinator for the MVP (the bee; hoverfly and butterfly deferred)
+16 plants — done
+6 map areas — done
 10 to 15 badges
 20 to 30 journal entries
 1 music loop
@@ -310,9 +317,12 @@ Game state management with Zustand
 ## Phase 2: Pollinator System
 **Goal: make the player character feel personal and fun.**
 Starter pollinator selection:
-bee
-hoverfly
-butterfly
+bee — the only species modelled for the MVP
+hoverfly — deferred
+butterfly — deferred
+
+NOTE: the picker currently offers all three, but the scene renders the bee regardless of the
+choice. Restrict the picker to the bee, or mark the other two "coming soon".
 Google sign-in required for saved pollinator
 Pollinator naming
 Customization options:

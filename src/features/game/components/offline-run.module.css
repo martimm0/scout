@@ -1,0 +1,125 @@
+.gate {
+  display: grid;
+  gap: 14px;
+  justify-items: start;
+  max-width: 640px;
+  margin: 40px auto;
+  padding: 32px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, #fffdf5, #fff4dd);
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #b08428;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.8rem;
+  line-height: 1.2;
+  color: #33291a;
+}
+
+.pitch {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: #4a4034;
+}
+
+.note {
+  margin: 0;
+  font-size: 0.9rem;
+  font-style: italic;
+  color: #8a7a5e;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 2px;
+  width: 100%;
+  margin: 6px 0;
+  padding: 2px;
+  border-radius: 12px;
+  background: rgba(122, 92, 38, 0.18);
+  overflow: hidden;
+}
+
+.summary > div {
+  padding: 12px 14px;
+  background: #fffdf5;
+}
+
+.summary dt {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8a7a5e;
+}
+
+.summary dd {
+  margin: 3px 0 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #33291a;
+}
+
+.summary dd span {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #8a7a5e;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  padding-top: 6px;
+}
+
+/* In-run clock. */
+.run {
+  position: relative;
+}
+
+.clock {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  display: grid;
+  justify-items: center;
+  padding: 8px 22px;
+  border-radius: 12px;
+  border: 1px solid rgba(122, 92, 38, 0.28);
+  background: rgba(255, 253, 245, 0.94);
+  box-shadow: 0 8px 24px rgba(40, 30, 12, 0.2);
+  pointer-events: none;
+}
+
+.clockLabel {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8a7a5e;
+}
+
+.clockValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #33291a;
+}
+
+.clock[data-low="true"] .clockValue {
+  color: #c0413b;
+}

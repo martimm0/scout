@@ -1,12 +1,14 @@
 .shell {
   position: relative;
-  min-height: calc(100vh - 73px);
+  height: calc(100dvh - 73px);
+  min-height: 560px;
+  overflow: hidden;
   background: #c7dfb2;
 }
 
 .canvasWrap {
-  height: calc(100vh - 73px);
-  min-height: 620px;
+  height: 100%;
+  min-height: 0;
   width: 100%;
 }
 
@@ -95,6 +97,15 @@
   list-style: none;
 }
 
+.pollinatorStatus {
+  margin: 14px 0 0;
+  color: var(--primary-dark);
+  font-size: 0.92rem;
+  font-weight: 900;
+  line-height: 1.3;
+  text-transform: capitalize;
+}
+
 .previewButton,
 .closeButton {
   min-height: 40px;
@@ -161,20 +172,68 @@
 }
 
 .previewStage {
-  height: min(420px, 58vh);
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(190px, 0.65fr);
+  gap: 18px;
+  align-items: stretch;
   min-height: 320px;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 8px;
+  padding: 18px;
   background:
     radial-gradient(circle at 50% 45%, rgba(246, 222, 157, 0.72), transparent 36%),
     linear-gradient(180deg, #e7f2ff 0%, #fff9e8 100%);
+}
+
+.previewCanvasWrap {
+  min-width: 0;
+  min-height: 280px;
+  overflow: hidden;
+  border: 2px solid rgba(36, 32, 24, 0.18);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.22) 2px, transparent 2px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18) 2px, transparent 2px),
+    radial-gradient(circle at 50% 45%, rgba(255, 245, 199, 0.92), transparent 42%),
+    linear-gradient(180deg, #e8f5ff 0%, #f8f1d5 100%);
+  background-size: 18px 18px, 18px 18px, auto, auto;
 }
 
 .previewCanvas {
   display: block;
   width: 100% !important;
   height: 100% !important;
+}
+
+.previewDetails {
+  align-self: center;
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid rgba(30, 44, 26, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.previewDetails div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.previewDetails dt {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.previewDetails dd {
+  margin: 0;
+  font-weight: 900;
+  text-align: right;
+  text-transform: capitalize;
 }
 
 .stateActions {
@@ -200,12 +259,13 @@
 
 @media (max-width: 720px) {
   .shell {
+    height: auto;
     min-height: 720px;
   }
 
   .canvasWrap {
     height: 720px;
-    min-height: 720px;
+    min-height: 0;
   }
 
   .debugPanel,
@@ -232,6 +292,128 @@
   }
 
   .previewStage {
+    grid-template-columns: 1fr;
     min-height: 280px;
   }
+
+  .previewCanvasWrap {
+    min-height: 240px;
+  }
+}
+
+/* Interaction prompt, centred under the bee. */
+.plantPrompt {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  padding: 10px 20px;
+  text-align: center;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(255, 253, 245, 0.94);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+}
+
+.plantPromptName {
+  margin: 0;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.plantPromptHint {
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.plantPromptHint kbd {
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  font: inherit;
+  font-weight: 600;
+}
+
+/* Collapsible controls overlay. */
+.controlsToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.controlsToggle:hover .controlsChevron {
+  opacity: 1;
+}
+
+.controlsChevron {
+  font-size: 0.8rem;
+  line-height: 1;
+  opacity: 0.55;
+  transition: transform 140ms ease, opacity 140ms ease;
+}
+
+.controlsChevron[data-open="false"] {
+  transform: rotate(-90deg);
+}
+
+.controlsPanel kbd {
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* Loading veil, shown while the world is generated. */
+.loading {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 6px;
+  background: linear-gradient(180deg, #eaf3ff 0%, #dff0dd 100%);
+}
+
+.loadingBee {
+  font-size: 2.6rem;
+  animation: bee-bob 1.4s ease-in-out infinite;
+}
+
+.loadingTitle {
+  margin: 6px 0 0;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #33291a;
+}
+
+.loadingNote {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #6f7f5f;
+}
+
+@keyframes bee-bob {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50% { transform: translateY(-10px) rotate(4deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loadingBee { animation: none; }
 }

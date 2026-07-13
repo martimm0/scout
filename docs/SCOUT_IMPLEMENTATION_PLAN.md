@@ -2,982 +2,390 @@
 
 ## Purpose
 
-This document converts the Scout MVP game plan into a development-ready implementation roadmap for Codex or another engineering agent.
+This document is the development roadmap for the Scout MVP. It is kept in sync with the code: every milestone carries a status, and where the build has deliberately diverged from the original plan, the divergence is recorded rather than quietly ignored.
 
-The goal is to build a complete browser-based, desktop-first MVP where a player can sign in, customize one pollinator, explore a simplified Frick Park map, discover native plants, complete light pollination interactions, unlock journal entries, earn badges, autosave progress, and return later.
+The goal is a complete browser-based, desktop-first MVP where a player can sign in, customize a pollinator, explore a Frick Park map, discover native plants, complete light pollination interactions, unlock journal entries, earn badges, autosave progress, and return later.
 
-## Product Scope
+**Status: 14 of 18 milestones complete.** Everything except auth (13), server autosave (14), compliance (19) and QA/deployment (20), which were explicitly deferred.
 
-### MVP Definition
+---
 
-The MVP is a complete single-player Frick Park experience, not a throwaway prototype.
+## Status at a glance
 
-The MVP must include:
+| # | Milestone | Status |
+|---|---|---|
+| 1 | Project Foundation | ✅ Done |
+| 2 | Game Scene Foundation | ✅ Done |
+| 3 | Desktop Flight Controls | ✅ Done |
+| 4 | Client Game State | ✅ Done |
+| 5 | — | ⛔ Removed (folded into 6) |
+| 6 | Pollinator System | ✅ Done |
+| 7 | Frick Park Map Experience | ✅ Done (rescoped) |
+| 8 | Native Plant Data Layer | ✅ Done |
+| 9 | Plant Discovery System | ✅ Done |
+| 10 | Pollination Interaction System | ✅ Done |
+| 11 | Journal System | ✅ Done |
+| 12 | Badge and Progression System | ✅ Done |
+| 13 | Auth and User Profile | ⏸ Deferred |
+| 14 | Autosave (server) | ⏸ Deferred — progress persists to localStorage |
+| 15 | Offline 10-Minute Mode | ✅ Done |
+| 16 | Audio and Feedback | ✅ Done |
+| 17 | Landing, Onboarding, and Tutorial | ✅ Done |
+| 18 | Visual Polish | ✅ Done |
+| 19 | Credits, Accessibility, and Compliance | ⏸ Deferred |
+| 20 | QA, Deployment, and Launch Readiness | ⏸ Deferred |
 
-- Landing page
-- Google sign-in
-- Offline 10-minute mode
-- Starter pollinator selection
-- Pollinator customization
-- Third-person desktop flight controls
-- One seamless simplified Frick Park map
-- Native plant discovery system
-- Pollination interactions
-- Journal system
-- Badge system
-- Autosave for signed-in users
-- Lightweight saved progress model
-- Profile/progress summary
-- Launch-ready polish pass
+---
 
-### Launch Target
+## Direction changes since the original plan
+
+These were deliberate calls made during the build. The original plan no longer describes the game; this section does.
+
+### The world is at insect scale
+
+The bee is roughly bee-sized — under one world unit — and everything else grew around it. Grass blades tower overhead, oaks and hemlocks run 60–90 units, a flower stalk is 15–25 units tall, an acorn is a boulder and a fallen log is a tunnel. The world is 700×520 units.
+
+This is the core of the game's appeal: a park you could walk across in twenty minutes is a continent to an insect, and it can hide things from you. It is what makes the map worth flying back into.
+
+### The map is cut around real Frick Park landmarks
+
+The original plan specified five generic zones (Woodland Trail, Meadow, Ravine/Creek, Dense Canopy). Those have been replaced by six areas named for things that actually exist in the park:
+
+- **Frick Environmental Center** — the starting area, on the lawn by the Beechwood Boulevard gates
+- **Blue Slide Playground** — the most recognisable object in the park
+- **Lawn Bowling Green** — the only one in Pittsburgh
+- **Nine Mile Run** — the creek at the bottom of the valley
+- **Falls Ravine** — steep hemlock slopes
+- **Fern Hollow** — deep shade under a closed canopy
+
+Landmarks are hand-placed, not scattered: the Blue Slide, the stone gatehouse, the Environmental Center building, the bowling green and its clubhouse, the clay tennis courts, benches, trail posts, and stepping stones across the creek.
+
+### One pollinator for the MVP
+
+The MVP ships the bee only. The hoverfly and butterfly are deferred.
+
+### Models are data, not code
+
+Everything visual is authored as a compact spec and compiled to merged geometry. The bee is layered ASCII text art (`models/bee.ts`); trees, flora and landmarks are box lists. Editing the bee means editing text art, not tweaking transforms.
+
+---
+
+## Launch target
 
 - Platform: Browser
 - Device target: Desktop only
-- Rendering: WebGL with Three.js / React Three Fiber
+- Rendering: WebGL via Three.js / React Three Fiber
 - Deployment: Vercel
 
-## Recommended Stack
+## Stack
 
-- Next.js App Router
-- React
-- TypeScript
-- Three.js
-- @react-three/fiber
-- @react-three/drei
+- Next.js App Router, React, TypeScript
+- three, @react-three/fiber, @react-three/drei
 - Zustand
-- NextAuth or Firebase Auth for Google sign-in
-- Lightweight database layer
-- Public asset storage for plant photos, placeholder images, music, and sound effects
-- Vercel API routes or server actions for save/load endpoints
+- NextAuth for Google sign-in *(installed; not yet wired)*
+- Lightweight database layer *(not yet chosen)*
+- Public asset storage for plant photos, music, and sound effects
 
-## Core Routes
+## Core routes
 
 ```txt
-/              Landing page
-/play          Signed-in game experience
-/offline       Offline 10-minute game mode
-/customize     Pollinator customization
-/journal       Journal
-/profile       Saved progress and accomplishments
+/              Landing page          built
+/play          Game experience       built
+/customize     Pollinator            built
+/offline       Offline 10-minute     built
+/journal       Journal               built
+/profile       Saved progress        placeholder (Milestone 13, deferred)
 ```
-
-## Development Milestones
 
 ---
 
 # Milestone 1: Project Foundation
 
-## Goal
+**Status: ✅ Done**
 
-Create the technical foundation for the browser-based game.
-
-## Tasks
-
-- Initialize Next.js project with TypeScript.
-- Install core dependencies:
-  - three
-  - @react-three/fiber
-  - @react-three/drei
-  - zustand
-  - auth package selected for Google sign-in
-- Create base route structure.
-- Add global layout and app shell.
-- Add reusable UI primitives for buttons, cards, modals, and page containers.
-- Create basic loading state system.
-- Create environment variable structure.
-- Add initial Vercel-ready configuration.
-
-## Checkpoint Deliverables
-
-- Project runs locally.
-- Routes exist and render placeholder pages.
-- Shared UI components are available.
-- Basic lint/build flow works.
-
-## Acceptance Criteria
-
-- `npm run dev` starts successfully.
-- `npm run build` passes.
-- User can navigate between placeholder routes.
+Next.js App Router project, TypeScript, routes scaffolded, shared UI primitives, lint and typecheck scripts.
 
 ---
 
 # Milestone 2: Game Scene Foundation
 
-## Goal
+**Status: ✅ Done**
 
-Create the initial playable 3D scene.
-
-## Tasks
-
-- Build React Three Fiber canvas wrapper.
-- Add basic scene lighting.
-- Add sky/background.
-- Add ground plane.
-- Add placeholder Frick Park terrain blockout.
-- Add placeholder environmental objects:
-  - trees
-  - trail markers
-  - creek/ravine shapes
-  - meadow objects
-- Add camera system.
-- Add third-person camera behind the pollinator.
-- Add basic debug overlay for position, altitude, and current area.
-
-## Checkpoint Deliverables
-
-- `/play` loads a 3D scene.
-- The player can see a placeholder pollinator in the map.
-- Camera follows behind the pollinator.
-
-## Acceptance Criteria
-
-- Scene loads without runtime errors.
-- Camera remains stable during movement.
-- Terrain and environment objects provide a readable play space.
+React Three Fiber scene, lighting, sky, terrain, third-person camera.
 
 ---
 
 # Milestone 3: Desktop Flight Controls
 
-## Goal
+**Status: ✅ Done**
 
-Make player movement feel smooth and arcade-like.
+## Controls as built
 
-## Controls
+- **Mouse** — look. The bee's nose follows the view, and that is also the direction it flies.
+- **Up / Down or W / S** — fly forward and back
+- **Left / Right or A / D** — turn
+- **E / Q or scroll** — altitude
+- **Shift** — boost
+- **Space** — pollinate a nearby plant
+- **R** — read a plant's full entry
+- **F** — the bee turns around and looks at you
+- **G** — the bee turns around and does a waggle dance
+- **Esc** — release the mouse cursor
 
-```txt
-WASD or Arrow Keys: movement
-Mouse: camera/look
-Space: pollination interaction
-Shift: speed boost
-E/Q or scroll: altitude control
-```
+## Notes
 
-## Tasks
+One yaw drives the camera, the bee's facing, and its flight direction. An earlier version split flight heading from camera look; that is a two-stick idea and it makes the bee fly one way while facing another. What you are looking at *is* forward.
 
-- Implement keyboard input manager.
-- Add WASD movement.
-- Add arrow key movement.
-- Add mouse camera/look.
-- Add altitude control with E/Q.
-- Add altitude control with mouse scroll.
-- Add Shift speed boost.
-- Add collision or soft boundaries for the map edges.
-- Add movement smoothing.
-- Add hover state when player is mostly stationary.
-
-## Checkpoint Deliverables
-
-- Pollinator can move around the 3D scene.
-- Pollinator can freely change altitude.
-- Player can use both WASD and arrow keys.
-
-## Acceptance Criteria
-
-- Controls feel responsive on desktop.
-- Player cannot accidentally leave the playable map.
-- Altitude visibly affects player position.
-- Camera does not clip aggressively through terrain.
+Input is keyed off `event.code` (physical keys), and all held keys are released on window blur — without that, alt-tabbing mid-turn strands a key down forever and the bee turns for the rest of the session.
 
 ---
 
 # Milestone 4: Client Game State
 
-## Goal
+**Status: ✅ Done**
 
-Create a clean state layer for gameplay, progress, and session data.
+Zustand store with the full progress shape: player flight state, pollinator, and boolean records for discovered plants, pollinated plants, unlocked areas, badges, and journal entries. Discovery and pollination cascade into journal unlocks.
 
-## Tasks
-
-- Create Zustand store.
-- Add state slices for:
-  - player
-  - pollinator
-  - map discovery
-  - plant discovery
-  - pollination
-  - journal
-  - badges
-  - offline mode
-  - UI modals
-- Add selectors and update actions.
-- Add temporary local session state for offline mode.
-- Add initial mock data loading.
-
-## Checkpoint Deliverables
-
-- Central game state exists.
-- Components can read/write game state.
-- State updates are predictable and isolated.
-
-## Acceptance Criteria
-
-- Discovering a mock plant updates state.
-- Unlocking a mock badge updates state.
-- State can be reset for a new offline run.
+Progress now persists to `localStorage` — plants, areas, badges, journal, settings and stats. Server-side autosave is Milestone 14 and remains deferred, but a journal that empties itself on every reload isn't worth building.
 
 ---
 
-# Milestone 5: Starter Pollinator System
+# ⛔ Milestone 5: Starter Pollinator System — REMOVED
 
-## Goal
+**Folded into Milestone 6.**
 
-Let players choose a starter pollinator and see it reflected in-game.
-
-## Starter Pollinators
-
-- Bee
-- Hoverfly
-- Butterfly
-
-## Pollinator Fields
-
-```ts
-pollinator: {
-  type: "bee" | "hoverfly" | "butterfly";
-  name: string;
-  bodyColor: string;
-  wingColor: string;
-  wingStyle: string;
-  trailEffect: string;
-}
-```
-
-## Tasks
-
-- Create starter pollinator data.
-- Build starter selection UI.
-- Add placeholder 3D model or stylized geometry for each pollinator.
-- Add visual differences by type.
-- Add basic flight animations:
-  - idle
-  - flying
-  - hovering
-  - pollinating
-- Connect selected pollinator to game scene.
-
-## Checkpoint Deliverables
-
-- Player can choose Bee, Hoverfly, or Butterfly.
-- Selected pollinator appears in the game scene.
-
-## Acceptance Criteria
-
-- Each starter has distinct visuals.
-- Selection persists during active session.
-- Pollinator animation changes based on movement state.
+With the MVP committed to a single species, "choose your starter" is a menu with one option. It does not earn its own milestone. The picker UI and `starter-pollinators.ts` remain in the codebase and now live under Milestone 6.
 
 ---
 
-# Milestone 6: Pollinator Customization
+# Milestone 6: Pollinator System
 
-## Goal
+**Status: ✅ Done**
 
-Allow signed-in players to personalize their saved pollinator.
+`/customize` is a real form: name (validated — non-empty, ≤20 chars, letters/numbers/spaces/hyphens), body colour, wing colour, wing style (round / long / stubby), accessory (none / cap / flower / scarf), accent colour, and trail. Everything applies to the voxel model, which compiles wings and accessories from the same text-art pipeline as the rest of the bee.
 
-## Customization Options
+Saving writes to the store, which persists locally.
 
-- Name
-- Body/stripe color
-- Wing color
-- Wing style
-- Trail effect
-- Small accessory
+## The three-starter bug: fixed
 
-## Tasks
+The picker used to offer Scout (bee), Zip (hoverfly) and Marigold (butterfly) while the scene rendered `BeeModel` unconditionally — pick either of the other two and you flew a bee in their colours. The species picker is now bee-only, and says so plainly:
 
-- Build `/customize` route.
-- Add form controls for customization fields.
-- Add preview panel.
-- Apply customization to in-game model.
-- Add validation for pollinator name.
-- Add save action placeholder.
-- Gate saved customization behind Google sign-in.
-
-## Checkpoint Deliverables
-
-- Player can customize a pollinator.
-- Customization appears in preview and game scene.
-
-## Acceptance Criteria
-
-- Signed-in player customization can be saved.
-- Offline player can choose a temporary pollinator but does not save progress.
-- Invalid names are handled cleanly.
+> The bee is the only pollinator in the park so far. The hoverfly and the butterfly are coming — they aren't offered here because they aren't built yet, and a chooser that hands you a bee whatever you pick is just lying to you.
 
 ---
 
 # Milestone 7: Frick Park Map Experience
 
-## Goal
+**Status: ✅ Done (rescoped)**
 
-Build one seamless simplified Frick Park-inspired map.
+## Done
 
-## Map Areas
+- Deterministic heightfield: rolling terrain, a meandering Nine Mile Run, a carved valley with flanking ridges, and flattened plateaus for the lawn, the bowling green and the playground shelf
+- Six areas, named for real park features, with area detection and unlock events
+- Hand-placed landmarks: the Blue Slide, the gatehouse, the Environmental Center, the bowling green, the clay courts, benches, trail posts, stepping stones
+- Instanced foliage by biome: hemlock, oak, fern, shrub, fallen logs, stumps, snags, acorns, creek stones — and a grass field of thousands of blades, which is what actually sells the scale
+- Flight floor follows the terrain, so you can dive into the ravine and skim the creek
 
-- Frick Environmental Center starting area
-- Woodland trail zone
-- Meadow / sunny clearing
-- Ravine / creek zone
-- Dense tree canopy zone
+## ⛔ Removed from this milestone
 
-## Tasks
+**The gray/unexplored map reveal.** It contradicts the direction the game took. There is no map screen to grey out, and navigation is now driven by pollen motes and real landmarks you can see and steer toward. A fog-of-war overlay would be a second, competing wayfinding system fighting the first.
 
-- Replace rough terrain with a more intentional map layout.
-- Add distinct visual identity for each area.
-- Add area boundary volumes or trigger zones.
-- Add current area detection.
-- Add gray/unexplored map reveal system.
-- Add map area unlock events.
-- Add altitude-relevant plant placement zones.
-- Add environmental ambience hooks per area.
-
-## Checkpoint Deliverables
-
-- Map has five readable areas.
-- Areas unlock as the player explores.
-- Unexplored map regions start gray and become discovered.
-
-## Acceptance Criteria
-
-- Player can fly seamlessly between all map areas.
-- Area unlock state updates correctly.
-- Map reveal is visible and understandable.
+**Environmental ambience hooks.** Not removed — moved to Milestone 16, where the rest of the audio lives.
 
 ---
 
 # Milestone 8: Native Plant Data Layer
 
-## Goal
+**Status: ✅ Done**
 
-Create the plant content system that powers discovery, journal entries, and pollination.
+16 native species in `data/plants.ts`, each with common and scientific name, home area, bloom window, a one-line hook, a full fact, a pollinator note, and a **verified** Wikipedia link (every URL was checked to return 200 — a dead "learn more" is worse than none).
 
-## MVP Content Target
-
-- 12 to 20 native Frick Park / Pittsburgh-area plants
-- Real photos from public sources where available
-- Placeholder image fallback
-
-## Plant Shape
-
-```ts
-plant = {
-  id: "common-milkweed",
-  name: "Common Milkweed",
-  scientificName: "",
-  bloomSeason: "",
-  lifespan: "",
-  habitat: "",
-  pollinatorNotes: "",
-  funFact: "",
-  ecologyFact: "",
-  imageUrl: "",
-  placeholderImageUrl: "",
-  mapArea: "meadow"
-}
-```
-
-## Tasks
-
-- Create plant data file.
-- Add 12 to 20 starter plant records.
-- Add fields for discovery and pollination state.
-- Add image fallback handling.
-- Add photo credit fields if needed.
-- Add plant placement config for 3D scene.
-- Add validation helper for missing plant data.
-
-## Checkpoint Deliverables
-
-- Plant data is available to the game scene.
-- Each plant has complete required fields.
-
-## Acceptance Criteria
-
-- Missing image URLs fall back to placeholder image.
-- Plant records can power both 3D map objects and journal entries.
+Real photographs live in `public/images/plants/`, downloaded rather than hotlinked, all public-domain or CC-licensed, with attribution rendered in the UI and recorded in `public/images/plants/CREDITS.md`. Eleven carry an attribution obligation; the credit is a licence term, not a nicety.
 
 ---
 
 # Milestone 9: Plant Discovery System
 
-## Goal
+**Status: ✅ Done**
 
-Make discovery the heart of the exploration loop.
-
-## Tasks
-
-- Render plant objects in the map.
-- Add distance-based visibility scaling.
-- Add plant highlight when player is nearby.
-- Add discovery trigger when player approaches plant.
-- Add discovery modal or toast.
-- Unlock plant journal entry on discovery.
-- Track discovered state.
-- Prevent repeat discovery spam.
-
-## Checkpoint Deliverables
-
-- Player can find plants from a distance.
-- Approaching a plant marks it as discovered.
-- Discovery unlocks a journal entry.
-
-## Acceptance Criteria
-
-- Discovered plants remain discovered in session.
-- Discovery feedback is clear and positive.
-- Plants are visible without breaking the 3D feel.
+- Proximity detection against the nearest plant instance, measured to the **bloom**, not the base
+- Undiscovered plants carry a bobbing pollen mote — without it you cannot pick a flower out of the undergrowth from flight height
+- A small card anchored in the world **over the plant itself**, with the name, the hook, and two ways forward
+- The full entry (`R`) opens a properly-sized dialogue with the photograph, bloom window, fact, pollinator note, attribution, and the Wikipedia link
 
 ---
 
 # Milestone 10: Pollination Interaction System
 
-## Goal
+**Status: ✅ Done**
 
-Make pollination more than a button press.
+Space no longer just succeeds. It opens one of three minigames, chosen by the plant's shape so a species always plays the same way and you learn its rhythm:
 
-## Required Interaction
+- **hover** — settle inside a drifting ring and hold still (daisies, woodland flowers)
+- **taps** — work the florets one at a time (spikes, shrubs)
+- **cue** — press the arrow the open flower points to (umbels, flowering trees)
 
-- Press Space near a discovered plant to start pollination.
+All three fold into a single 0–1 performance score and one resolver, so the failure rate lives in exactly one place (`data/pollination.ts`). Base failure is 20%. Playing well cuts it to a floor of 6%; playing badly raises it to a ceiling of 42%. Neither reaches certainty — a bee at the top of its game still gets rained on, and nobody ever gets stuck.
 
-## Minigame Variations
+Failure is warm and factual, never a buzzer:
 
-- Timed hover
-- Repeated taps
-- Flower cue matching
+> "Too windy this time. The pollen blew right off you."
+> "This flower was already visited — its pollen is spent."
+> "The anthers hadn't opened yet. Come back when the sun's higher."
 
-## Tasks
+And a failed attempt teaches something: it unlocks the **Pollination Failure** journal entry, which explains that most flower visits come to nothing and that this is the arithmetic the whole system runs on.
 
-- Add pollination eligibility checks.
-- Add Space interaction near plants.
-- Build shared minigame modal/system.
-- Implement timed hover variation.
-- Implement repeated taps variation.
-- Implement flower cue matching variation.
-- Add random failure rate around 20%.
-- Add positive failure messages.
-- Add success/failure animation hooks.
-- Update pollinated state on success.
-- Unlock facts and journal entries after interaction.
-
-## Positive Failure Messages
-
-- “Too windy this time.”
-- “This flower was already visited.”
-- “You missed the pollen window.”
-- “Wrong angle. Try hovering closer.”
-
-## Checkpoint Deliverables
-
-- Player can pollinate plants.
-- Pollination can succeed or fail.
-- Failure remains positive and educational.
-
-## Acceptance Criteria
-
-- Pollination succeeds most of the time.
-- Failure rate is approximately 20%.
-- Pollinated plants update state correctly.
-- Player receives a fun fact or ecology fact after interaction.
+Success shows the plant's fun fact, puts pollen baskets on the bee's hind legs, and plays a rising arpeggio.
 
 ---
 
 # Milestone 11: Journal System
 
-## Goal
+**Status: ✅ Done**
 
-Create the player’s pollinator record.
+`/journal` has five tabs — Plants, Pollinators, Map areas, Ecology, Badges — plus a progress summary (plants found, pollinated, areas, badges, the share of visits that took, best streak).
 
-## Journal Sections
+Locked entries show a **hint**, not a row of question marks. A locked entry that says nothing teaches nothing and tempts nobody; one that says *"there's a darker wood than the one you know"* sends somebody flying.
 
-- Plants
-- Pollinators
-- Map areas
-- Ecology concepts
-
-## Ecology Concept Examples
-
-- Native plants
-- Pollination failure
-- Bloom windows
-- Habitat corridors
-- Invasive species
-- Seasonal cycles
-- Mutualism
-
-## Tasks
-
-- Build `/journal` route.
-- Add tabbed journal UI.
-- Add locked/unlocked states.
-- Add plant entries.
-- Add pollinator entries.
-- Add map area entries.
-- Add ecology concept entries.
-- Connect unlocks to discovery, pollination, and area exploration events.
-- Add casual adult, fun, slightly Pokédex-like tone.
-
-## Checkpoint Deliverables
-
-- Journal displays locked and unlocked entries.
-- Plant discovery unlocks plant entries.
-- Ecology concepts unlock through gameplay.
-
-## Acceptance Criteria
-
-- Journal state reflects actual progress.
-- Locked entries are intriguing without revealing everything.
-- Unlocked entries are readable and polished.
+Seven ecology concepts, unlocked by playing rather than by reading: mutualism, pollination failure, native plants, bloom windows, habitat corridors, invasive species, seasonal cycles.
 
 ---
 
 # Milestone 12: Badge and Progression System
 
-## Goal
+**Status: ✅ Done**
 
-Make progress feel satisfying without competition.
+Thirteen badges in `data/badges.ts`, each a pure predicate over game state. A `ProgressionWatcher` subscribes to the store and re-evaluates everything on change, so adding a badge to the data file makes it work — no call site has to know it exists.
 
-## Badge Categories
+Earned badges announce themselves one at a time in a brief toast, never blocking play.
 
-- Plants pollinated
-- Plants discovered
-- Map areas uncovered
-- Journal completion
-- Successful pollination streaks
-- Learning milestones
-
-## Example Badges
-
-- First Flight
-- Meadow Scout
-- 10 Plants Pollinated
-- Frick Park Explorer
-- Creekside Visitor
-- Native Plant Friend
-
-## Tasks
-
-- Create badge data model.
-- Create badge unlock rules.
-- Add badge unlock evaluator.
-- Add badge unlock UI feedback.
-- Add badge display to profile.
-- Add progress summary component.
-- Ensure no leaderboard exists in MVP.
-
-## Checkpoint Deliverables
-
-- Badges unlock based on gameplay events.
-- Player can view earned badges.
-
-## Acceptance Criteria
-
-- Badge unlocks are deterministic.
-- Badge feedback does not interrupt gameplay too aggressively.
-- Progression feels positive, not competitive.
+**No leaderboard, and there never will be.** Nothing is scored against another player and nothing is timed. Several badges reward simply being curious, and one — *Persistent* — rewards failing and carrying on anyway.
 
 ---
 
 # Milestone 13: Auth and User Profile
 
-## Goal
+**Status: ❌ Not started**
 
-Allow signed-in players to save and resume progress.
+`next-auth` is installed but **not imported anywhere**. There are no API routes and no database.
 
 ## Tasks
 
-- Implement Google sign-in.
-- Add signed-in and signed-out states.
-- Add protected behavior for saved mode.
-- Create user profile record on first sign-in.
-- Build `/profile` route.
-- Display saved pollinator.
-- Display accomplishments.
-- Display progress summary.
+- Google sign-in
+- Signed-in and signed-out states
+- Create a user profile record on first sign-in
+- Build the `/profile` route: saved pollinator, accomplishments, progress summary
 
-## Checkpoint Deliverables
+## Acceptance criteria
 
-- User can sign in with Google.
-- User profile page renders saved data.
-
-## Acceptance Criteria
-
-- Signed-out players can access offline mode.
-- Signed-in players can access saved play mode.
-- Auth state survives refresh.
+- Signed-out players can access offline mode
+- Signed-in players can access saved play mode
+- Auth state survives refresh
 
 ---
 
 # Milestone 14: Autosave and Lightweight Data Model
 
-## Goal
+**Status: ❌ Not started**
 
-Persist signed-in player progress after major events.
-
-## User Progress Shape
-
-```ts
-userProgress = {
-  userId: string,
-  pollinator: {
-    type: "bee" | "hoverfly" | "butterfly",
-    name: string,
-    bodyColor: string,
-    wingColor: string,
-    wingStyle: string,
-    trailEffect: string
-  },
-  discoveredPlants: {
-    [plantId: string]: boolean
-  },
-  pollinatedPlants: {
-    [plantId: string]: boolean
-  },
-  unlockedMapAreas: {
-    [areaId: string]: boolean
-  },
-  unlockedBadges: {
-    [badgeId: string]: boolean
-  },
-  unlockedJournalEntries: {
-    [entryId: string]: boolean
-  }
-}
-```
-
-## Autosave Events
-
-- Plant discovered
-- Plant pollinated
-- Failed pollination attempt
-- Map area unlocked
-- Badge earned
-- Journal entry unlocked
-- Customization updated
+Progress is currently **lost on reload** — only the pollinator persists, to `localStorage`.
 
 ## Tasks
 
-- Create database schema.
-- Create progress load endpoint.
-- Create progress save endpoint.
-- Add debounced autosave client.
-- Add optimistic state updates.
-- Add save error handling.
-- Add resume-from-save behavior.
-- Add loading and empty states.
+- Choose and wire the database layer
+- Save/load API routes
+- Autosave on the major events: plant discovered, plant pollinated, area unlocked, badge earned, journal entry unlocked, pollinator customized, session end
+- Resume from saved state on return
 
-## Checkpoint Deliverables
-
-- Signed-in progress saves after major events.
-- Reloading the game restores saved progress.
-
-## Acceptance Criteria
-
-- Progress is not lost after page refresh.
-- Save errors are handled without crashing the game.
-- Offline mode never writes saved progress.
+The progress model is deliberately lightweight — boolean records keyed by id, which the client store already uses. It should serialize almost directly.
 
 ---
 
 # Milestone 15: Offline 10-Minute Mode
 
-## Goal
+**Status: ✅ Done**
 
-Make non-auth play meaningful and intentional.
+`/offline` opens on the framing, not on a menu:
 
-## Framing
+> **You are a pollinator.** Your time is short. Ten minutes, no account, nothing saved. Explore Frick Park, pollinate what you can, and learn as much as you're able before the light goes.
+>
+> *This is not a trial version. It's a whole season, compressed.*
 
-“You are a pollinator. Your time is short. Explore, pollinate, and learn as much as you can.”
+The clock runs off the wall clock, not a frame counter, so a stutter or a background tab can't buy extra time. The end-of-run summary counts what you found, pollinated and learned — and reads it back honestly:
 
-## Rules
-
-- 10-minute timer
-- Full open-world access
-- No saved progress
-- No account required
-- No leaderboard
-
-## End Screen Metrics
-
-- Plants discovered
-- Plants pollinated
-- Map explored
-- Favorite fact found
-
-## Tasks
-
-- Build `/offline` route.
-- Add temporary pollinator selection.
-- Add 10-minute countdown timer.
-- Use session-only game state.
-- Add end-run screen.
-- Add restart option.
-- Add sign-in CTA after run.
-
-## Checkpoint Deliverables
-
-- User can complete a full offline run.
-- End screen summarizes the run.
-
-## Acceptance Criteria
-
-- Offline mode does not require auth.
-- Offline progress clears after run/reset.
-- End screen feels complete, not like an error state.
+- 0 pollinated → *"Not a single flower took. That happens — most visits come to nothing, and a bee just flies to the next one."*
+- 1 → *"One flower will set seed because of you. That is not nothing. That is the entire mechanism."*
 
 ---
 
 # Milestone 16: Audio and Feedback
 
-## Goal
+**Status: ✅ Done**
 
-Add atmosphere and satisfying feedback.
+**Synthesized in the browser — no audio files at all.** Everything is oscillators and envelopes through the Web Audio API (`audio/sound.ts`): no assets to license, nothing to download, a chiptune character that matches the voxel art for free, and the whole soundtrack costs a few kilobytes of code.
 
-## MVP Audio Target
+- Seven effects: tap, discover, pollination success, pollination failure, badge, UI, wing
+- A slow pentatonic music loop — pentatonic because it cannot land on a wrong note, so a short loop never turns grating
+- Per-area ambience: a pair of detuned drones whose pitch and texture shift with where you are, low and close under the canopy, brighter out on the green
+- Volume slider and an on/off toggle in the HUD
 
-- 1 music loop
-- 6 to 10 sound effects
-
-## Sound Effects
-
-- Discovery
-- Pollination start
-- Success
-- Failure
-- Journal unlock
-- Badge unlock
-- UI click or confirm
-
-## Tasks
-
-- Add audio manager.
-- Add volume controls.
-- Add music loop.
-- Add area ambience hooks.
-- Add sound effects to major events.
-- Add mute toggle.
-
-## Checkpoint Deliverables
-
-- Game has music and event sound effects.
-- Player can control audio.
-
-## Acceptance Criteria
-
-- Audio does not autoplay in a browser-hostile way.
-- Volume controls work.
-- Sounds reinforce gameplay without becoming annoying.
+**Audio starts off.** Browsers block sound before a user gesture anyway, and a game that makes noise the instant it loads is a game people mute permanently. The tutorial's last step offers "Fly, with sound" or "Fly in silence" — a real gesture, at the only moment it's welcome.
 
 ---
 
 # Milestone 17: Landing, Onboarding, and Tutorial
 
-## Goal
+**Status: ✅ Done**
 
-Make the game understandable for first-time players.
+The landing page used to advertise the build status — "Next.js App Router", "Route placeholders" — which is a thing nobody has ever wanted to read. It now opens with **"You are a bee."** and sells the park.
 
-## Tasks
-
-- Build final landing page.
-- Explain the premise clearly.
-- Add mode selection:
-  - Sign in with Google
-  - Offline 10-minute run
-- Add brief controls tutorial.
-- Add first-time gameplay hints.
-- Add tutorial prompts for:
-  - movement
-  - altitude
-  - plant discovery
-  - pollination
-  - journal unlocks
-
-## Checkpoint Deliverables
-
-- New player can start without external explanation.
-- Controls are easy to find.
-
-## Acceptance Criteria
-
-- Landing page clearly explains Scout.
-- Player understands how to move and pollinate.
-- Tutorial can be dismissed or completed cleanly.
+First-flight is four steps, shown once and skippable. It teaches the two things nobody guesses: that the mouse *steers* rather than merely looks, and that failing to pollinate is normal rather than a mistake. Everything else the player can find out by flying.
 
 ---
 
 # Milestone 18: Visual Polish
 
-## Goal
+**Status: ✅ Done**
 
-Make the MVP feel cute, positive, and shareable.
-
-## Visual Direction
-
-- Cute
-- Positive
-- 8-bit-adjacent
-- Lightweight 3D
-- Friendly ecology tone
-
-## Tasks
-
-- Finalize color palette.
-- Polish UI components.
-- Add consistent typography.
-- Improve plant visuals.
-- Improve pollinator visuals.
-- Improve map readability.
-- Add lightweight particles or trail effects.
-- Add success and discovery animations.
-- Add loading screens.
-- Add empty states.
-
-## Checkpoint Deliverables
-
-- Game has a consistent visual identity.
-- UI and 3D scene feel connected.
-
-## Acceptance Criteria
-
-- MVP feels charming, not purely technical.
-- Important UI is readable.
-- Game remains performant on desktop browsers.
+- The 8-bit-adjacent voxel direction, applied throughout: bee, flora, trees, landmarks
+- Faceted low-poly terrain, coloured by biome, slope and depth
+- Every overlay in the game's own honey-and-cream palette rather than generic system chrome — plant entry, world card, minigame, badge toast, tutorial
+- A loading veil while the world generates. It builds terrain, scatters thousands of props and compiles all the geometry before its first frame; without this the player stares at a blank canvas and assumes it's broken
+- `prefers-reduced-motion` respected across every animated overlay
 
 ---
 
-# Milestone 19: Credits, Accessibility, and Compliance Basics
+# Milestone 19: Credits, Accessibility, and Compliance
 
-## Goal
-
-Prepare the MVP for public sharing.
+**Status: ❌ Not started**
 
 ## Tasks
 
-- Add plant/photo credits page.
-- Add source fields for public plant photos.
-- Add readable text sizing.
-- Add volume controls.
-- Add reduced motion option.
-- Add keyboard-first support for UI flows.
-- Add basic error states.
-- Add privacy note for Google sign-in and saved progress.
-
-## Checkpoint Deliverables
-
-- Credits page exists.
-- Accessibility basics are implemented.
-
-## Acceptance Criteria
-
-- Photos can be attributed.
-- Core UI can be used with keyboard and mouse.
-- Reduced motion setting affects major nonessential animations.
+- A credits page — **the plant photo attributions are a licence obligation, not a courtesy.** `public/images/plants/CREDITS.md` already holds the data; it needs a route.
+- Readable text sizes, volume control, reduced-motion support *(the plant entry and world card already respect `prefers-reduced-motion`; nothing else does)*
+- Keyboard navigability outside the game canvas
 
 ---
 
 # Milestone 20: QA, Deployment, and Launch Readiness
 
-## Goal
+**Status: ❌ Not started**
 
-Ship a stable Frick Park MVP.
+Playwright is installed as a dev dependency. **No tests exist.**
 
 ## Tasks
 
-- Add smoke tests for key routes.
-- Test signed-in flow.
-- Test offline mode.
-- Test autosave and resume.
-- Test journal unlocks.
-- Test badge unlocks.
-- Test pollination success/failure.
-- Test browser refresh behavior.
-- Test deployment build.
-- Deploy to Vercel.
-- Add basic analytics.
-- Create launch checklist.
-
-## Checkpoint Deliverables
-
-- MVP is deployed.
-- Core flows are tested.
-- Launch checklist is complete.
-
-## Acceptance Criteria
-
-- Signed-in user can complete the core loop and resume later.
-- Offline user can complete a 10-minute run.
-- No critical console errors appear during normal play.
-- Vercel production deployment works.
+- End-to-end tests for the core loop: fly, find, pollinate, read, unlock
+- Cross-browser check on desktop
+- Performance pass — the world is large and the draw-call budget matters
+- Deploy to Vercel
+- Analytics
+- A real bug-testing pass
 
 ---
 
-# Suggested Build Order
+## Working notes for whoever picks this up
 
-Use this order unless technical constraints require adjustment:
-
-1. Project Foundation
-2. Game Scene Foundation
-3. Desktop Flight Controls
-4. Client Game State
-5. Starter Pollinator System
-6. Pollinator Customization
-7. Frick Park Map Experience
-8. Native Plant Data Layer
-9. Plant Discovery System
-10. Pollination Interaction System
-11. Journal System
-12. Badge and Progression System
-13. Auth and User Profile
-14. Autosave and Data Model
-15. Offline Mode
-16. Audio and Feedback
-17. Landing, Onboarding, and Tutorial
-18. Visual Polish
-19. Credits, Accessibility, and Compliance Basics
-20. QA, Deployment, and Launch Readiness
-
-## Codex Execution Notes
-
-When using Codex, work milestone by milestone.
-
-For each milestone:
-
-1. Inspect the current codebase.
-2. Identify existing files and conventions.
-3. Implement only the current milestone scope.
-4. Preserve existing comments and formatting where possible.
-5. Avoid deleting existing code unless required.
-6. Run build or typecheck after implementation.
-7. Summarize changed files and remaining issues.
+Work milestone by milestone. For each one: inspect the current code, identify existing conventions, implement only the current scope, run `npm run typecheck` and `npm run lint`, and — this one matters — **actually run the game and drive the thing you changed.** Several of the worst bugs in this project's history typechecked cleanly and looked fine in a screenshot taken from the one angle where they happened to work.
 
 Do not skip ahead to later systems unless the current milestone requires scaffolding for them.
-
-## MVP Completion Definition
-
-The MVP is complete when:
-
-- A signed-in user can choose, customize, and save a pollinator.
-- The user can explore a seamless Frick Park-inspired map.
-- The user can discover and pollinate native plants.
-- The user can unlock journal entries and badges.
-- Progress autosaves and resumes correctly.
-- Offline users can play a full 10-minute session.
-- The game has basic music, sound effects, onboarding, credits, accessibility settings, and launch polish.
-- The app is deployed to Vercel and passes core QA.
-
-## Future Multiplayer Guardrail
-
-Do not build multiplayer in the MVP.
-
-Design choices should avoid blocking future multiplayer, but multiplayer systems should wait until after the single-player Frick Park experience is complete.
-
-Future multiplayer may include:
-
-- Other pollinators visible in the world
-- Seasonal community pollination events
-- Map-specific pollinator unlocks
-- New city maps
-- Shared ecology goals
-- Cooperative habitat restoration events

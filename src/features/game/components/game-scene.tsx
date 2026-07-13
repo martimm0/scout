@@ -1,16 +1,40 @@
 "use client";
 
-import { Sky, Text } from "@react-three/drei";
-import { createRoot, extend, useFrame } from "@react-three/fiber";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Sky } from "@react-three/drei";
+import { createRoot, extend, useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import type { Group } from "three";
+import type { DirectionalLight, Group } from "three";
 import { Vector3 } from "three";
 import {
   countUnlocked,
   useGameStore,
+  type Pollinator,
   type PlayerMovementState,
 } from "@/features/game/state/game-store";
+import { playSound, setAreaAmbience } from "../audio/sound";
+import { BeeModel } from "./bee-model";
+import { Creek, Foliage, Landmarks, PlantField, Terrain } from "./frick-park";
+import { FirstFlight } from "./first-flight";
+import { PlantEntry } from "./plant-entry";
+import { PlantTag } from "./plant-tag";
+import { PollinationMinigame } from "./pollination-minigame";
+import { ProgressionWatcher } from "./progression-watcher";
+import { SoundToggle } from "./sound-toggle";
+import { PLANTS } from "../data/plants";
+import {
+  scatterPlants,
+  DISCOVERY_RADIUS,
+  type PlantInstance,
+} from "../world/plant-scatter";
+import {
+  areaAt,
+  terrainHeight,
+  CEILING,
+  GROUND_CLEARANCE,
+  START_POSITION,
+  WORLD,
+} from "../world/terrain";
 import styles from "./game-scene.module.css";
 
 extend(THREE as unknown as Parameters<typeof extend>[0]);
@@ -24,127 +48,89 @@ type DebugState = {
   speed: number;
   x: number;
   z: number;
+  /** Which physical keys the game is currently seeing held. */
+  input: string;
 };
 
-type MapArea = {
-  id: string;
-  label: string;
-  color: string;
-  position: [number, number, number];
-  size: [number, number, number];
-};
-
-const MAP_AREAS: MapArea[] = [
-  {
-    id: "environmental-center",
-    label: "Environmental Center",
-    color: "#9fcb83",
-    position: [0, 0.03, 0],
-    size: [12, 0.08, 9],
-  },
-  {
-    id: "woodland-trail",
-    label: "Woodland Trail",
-    color: "#5f9a5b",
-    position: [-13, 0.02, -4],
-    size: [15, 0.08, 15],
-  },
-  {
-    id: "meadow",
-    label: "Sunny Meadow",
-    color: "#d9c767",
-    position: [12, 0.025, 6],
-    size: [16, 0.08, 12],
-  },
-  {
-    id: "ravine-creek",
-    label: "Ravine Creek",
-    color: "#7e9d8d",
-    position: [4, 0.015, -13],
-    size: [22, 0.08, 8],
-  },
-  {
-    id: "dense-canopy",
-    label: "Dense Canopy",
-    color: "#3f7244",
-    position: [18, 0.02, -10],
-    size: [12, 0.08, 15],
-  },
-];
-
-const TREE_POSITIONS: [number, number, number][] = [
-  [-18, 0, -9],
-  [-16, 0, -1],
-  [-12, 0, -12],
-  [-8, 0, -6],
-  [-6, 0, 4],
-  [4, 0, 8],
-  [9, 0, 13],
-  [15, 0, 2],
-  [17, 0, -7],
-  [22, 0, -13],
-  [11, 0, -16],
-  [-2, 0, -15],
-];
-
-const FLOWER_POSITIONS: [number, number, number][] = [
-  [8, 0.25, 5],
-  [11, 0.25, 7],
-  [14, 0.25, 4],
-  [6, 0.25, 10],
-  [15, 0.25, 9],
-];
-
-const MAP_BOUNDS = {
-  minX: -21,
-  maxX: 24,
-  minZ: -18,
-  maxZ: 16,
-  minY: 1.1,
-  maxY: 7.2,
-};
-
-const BASE_SPEED = 8.2;
-const BOOST_MULTIPLIER = 1.75;
-const ALTITUDE_SPEED = 4.4;
+/**
+ * The bee is now roughly bee-sized — under a unit long against seventy-unit
+ * trees — so everything that used to be tuned against a bee the size of a shrub
+ * has to be retuned. It flies faster because the park is enormous, and the
+ * camera sits close because at this scale a few units back is already a long way.
+ */
+const BASE_SPEED = 26;
+const BOOST_MULTIPLIER = 2.2;
+const ALTITUDE_SPEED = 17;
 const MOUSE_SENSITIVITY = 0.0024;
-const CAMERA_DISTANCE = 7.8;
-const CAMERA_HEIGHT = 2.7;
+/** Radians per second when steering with the arrow keys. */
+const TURN_SPEED = 2;
+const CAMERA_DISTANCE = 4.4;
+const CAMERA_HEIGHT = 1.5;
 
-function getCurrentArea(position: Vector3) {
-  const match = MAP_AREAS.find((area) => {
-    const [x, , z] = area.position;
-    const [width, , depth] = area.size;
+/**
+ * The control scheme, as physical keys.
+ *
+ *   turn     Mouse, or Left / Right, or A / D
+ *   fly      Up / Down, or W / S
+ *   climb    E / Q, or the scroll wheel
+ *   boost    Shift
+ *   act      Space
+ *   read     R
+ *   greet    F
+ *   dance    G
+ *
+ * The mouse and the turn keys drive one and the same yaw. The bee points where
+ * you're looking, and that is also the direction it flies.
+ */
+const TURN_LEFT = ["ArrowLeft", "KeyA"];
+const TURN_RIGHT = ["ArrowRight", "KeyD"];
+const FLY_FORWARD = ["ArrowUp", "KeyW"];
+const FLY_BACK = ["ArrowDown", "KeyS"];
+const CLIMB = ["KeyE"];
+const DIVE = ["KeyQ"];
+const BOOST = ["ShiftLeft", "ShiftRight"];
+const GREET_KEY = "KeyF";
+const DANCE_KEY = "KeyG";
+const READ_KEY = "KeyR";
 
-    return (
-      position.x >= x - width / 2 &&
-      position.x <= x + width / 2 &&
-      position.z >= z - depth / 2 &&
-      position.z <= z + depth / 2
-    );
-  });
+const STEER_CODES = new Set([
+  ...TURN_LEFT,
+  ...TURN_RIGHT,
+  ...FLY_FORWARD,
+  ...FLY_BACK,
+  ...CLIMB,
+  ...DIVE,
+]);
 
-  return match?.label ?? "Open Trail";
-}
+const ACTION_CODES = new Set([
+  ...BOOST,
+  "Space",
+  GREET_KEY,
+  DANCE_KEY,
+  READ_KEY,
+]);
 
-function getCurrentAreaId(position: Vector3) {
-  const match = MAP_AREAS.find((area) => {
-    const [x, , z] = area.position;
-    const [width, , depth] = area.size;
+export type Gesture = "none" | "greet" | "dance";
 
-    return (
-      position.x >= x - width / 2 &&
-      position.x <= x + width / 2 &&
-      position.z >= z - depth / 2 &&
-      position.z <= z + depth / 2
-    );
-  });
-
-  return match?.id ?? "open-trail";
-}
+/** How long the bee holds an about-face before turning back to fly on. */
+const GESTURE_DURATION: Record<Gesture, number> = {
+  none: 0,
+  greet: 1.7,
+  dance: 3.4,
+};
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+/** True if any of these physical keys is currently held. */
+function held(keys: Set<string>, codes: string[]) {
+  return codes.some((code) => keys.has(code));
+}
+
+/** -1, 0 or 1 from an opposing pair of keys. */
+function axis(keys: Set<string>, negative: string[], positive: string[]) {
+  return (held(keys, positive) ? 1 : 0) - (held(keys, negative) ? 1 : 0);
 }
 
 function R3FViewport({
@@ -172,11 +158,14 @@ function R3FViewport({
         return;
       }
 
-      canvas.width = Math.round(rect.width);
-      canvas.height = Math.round(rect.height);
-
+      // Do NOT touch canvas.width/height here. Those are the drawing buffer, and
+      // three sizes it as CSS size x pixel ratio. Forcing it to the CSS size on a
+      // retina screen leaves the GL viewport twice the buffer, so you render the
+      // bottom-left quadrant blown up 2x — the bee ends up in the top-right
+      // corner instead of centred, and only on HiDPI displays.
       await root.configure({
         camera: { fov: 52, position: [0, 4.8, 8.2] },
+        dpr: Math.min(window.devicePixelRatio, 2),
         gl: { antialias: true, preserveDrawingBuffer: true },
         shadows: true,
         size: {
@@ -209,114 +198,159 @@ function R3FViewport({
   return <canvas className={styles.canvas} ref={canvasRef} />;
 }
 
-function PollinatorModel() {
-  return (
-    <>
-      <mesh castShadow>
-        <sphereGeometry args={[0.34, 24, 16]} />
-        <meshStandardMaterial color="#f2bb42" roughness={0.55} />
-      </mesh>
-      <mesh castShadow position={[0, 0, 0.36]}>
-        <sphereGeometry args={[0.25, 20, 12]} />
-        <meshStandardMaterial color="#322b21" roughness={0.6} />
-      </mesh>
-      <mesh position={[-0.32, 0.16, -0.08]} rotation={[0.5, -0.15, -0.55]}>
-        <sphereGeometry args={[0.2, 16, 10]} />
-        <meshStandardMaterial color="#dcefff" opacity={0.66} transparent />
-      </mesh>
-      <mesh position={[0.32, 0.16, -0.08]} rotation={[0.5, 0.15, 0.55]}>
-        <sphereGeometry args={[0.2, 16, 10]} />
-        <meshStandardMaterial color="#dcefff" opacity={0.66} transparent />
-      </mesh>
-      <mesh position={[0, -0.04, -0.38]}>
-        <sphereGeometry args={[0.13, 16, 10]} />
-        <meshStandardMaterial color="#2d251b" roughness={0.6} />
-      </mesh>
-      <mesh position={[-0.12, 0.1, -0.28]}>
-        <sphereGeometry args={[0.045, 10, 8]} />
-        <meshStandardMaterial color="#191510" roughness={0.45} />
-      </mesh>
-      <mesh position={[0.12, 0.1, -0.28]}>
-        <sphereGeometry args={[0.045, 10, 8]} />
-        <meshStandardMaterial color="#191510" roughness={0.45} />
-      </mesh>
-    </>
-  );
-}
-
 function ScoutScene({
   onDebugChange,
 }: {
   onDebugChange: (state: DebugState) => void;
 }) {
+  const playerMovement = useGameStore((state) => state.player.movement);
+  const selectedPollinator = useGameStore((state) => state.pollinator);
+  const pollinatedCount = useGameStore((state) =>
+    countUnlocked(state.pollinatedPlants),
+  );
+  // This scene's own canvas. A document-wide query would grab whichever canvas
+  // mounted first, which is the preview modal's as soon as that opens.
+  const canvas = useThree((state) => state.gl.domElement);
   const pollinatorRef = useRef<Group>(null);
   const keysRef = useRef(new Set<string>());
   const lastDebugUpdate = useRef(0);
   const movementState = useRef<PlayerMovementState>("Hovering");
-  const mouseDownRef = useRef(false);
   const pollinatorYawRef = useRef(0);
   const scrollAltitudeRef = useRef(0);
+  /**
+   * One yaw for everything: where you look, where the bee points, and where it
+   * flies. The mouse turns it and the arrow keys turn it, and both mean the
+   * same thing.
+   *
+   * An earlier version split this into a separate heading and camera-look. That
+   * is a two-stick idea, and on a mouse and keyboard it just means the bee can
+   * fly one way while facing another. What you are looking at IS forward.
+   */
   const yawRef = useRef(0);
   const pitchRef = useRef(0.18);
+  /** An in-progress gesture: the bee turning to face the player. */
+  const gestureRef = useRef<{ kind: Gesture; time: number }>({
+    kind: "none",
+    time: 0,
+  });
   const cameraTargetRef = useRef(new Vector3());
   const cameraPositionRef = useRef(new Vector3());
   const directionRef = useRef(new Vector3());
   const forwardRef = useRef(new Vector3());
   const renderPositionRef = useRef(new Vector3());
   const rightRef = useRef(new Vector3());
-  const targetPositionRef = useRef(new Vector3(0, 2.15, 0));
+  const targetPositionRef = useRef(new Vector3(...START_POSITION));
   const velocityRef = useRef(new Vector3());
+  const sunRef = useRef<DirectionalLight>(null);
+
+  // Laid out once. Deterministic, so the park is the same park every session.
+  const plants = useMemo(() => scatterPlants(), []);
+  /** The plant the floating card is currently attached to. */
+  const [nearbyInstance, setNearbyInstance] = useState<PlantInstance | null>(null);
 
   useEffect(() => {
-    const normalizeKey = (key: string) => key.toLowerCase();
-
     const handleKeyDown = (event: KeyboardEvent) => {
-      const key = normalizeKey(event.key);
+      // Keyed off event.code — the physical key — rather than event.key, which
+      // is whatever the OS layout decided to produce. On a Dvorak or AZERTY
+      // layout, or with a modifier held, event.key for the D key is not "d".
+      const code = event.code;
 
-      if (
-        [
-          " ",
-          "arrowup",
-          "arrowdown",
-          "arrowleft",
-          "arrowright",
-          "w",
-          "a",
-          "s",
-          "d",
-          "e",
-          "q",
-          "shift",
-        ].includes(key)
-      ) {
+      if (STEER_CODES.has(code) || ACTION_CODES.has(code)) {
         event.preventDefault();
       }
 
-      keysRef.current.add(key);
+      if (code === "Escape") {
+        useGameStore.getState().closePlantEntry();
+      }
+
+      // Gestures. Ignore auto-repeat, and don't let one interrupt another
+      // mid-spin — otherwise leaning on the key leaves the bee stuck facing you.
+      if (
+        (code === GREET_KEY || code === DANCE_KEY) &&
+        !event.repeat &&
+        gestureRef.current.kind === "none"
+      ) {
+        gestureRef.current = {
+          kind: code === GREET_KEY ? "greet" : "dance",
+          time: 0,
+        };
+      }
+
+      // Space starts the pollination minigame on the plant you're beside. It no
+      // longer just succeeds — that was the hole in the middle of the game.
+      if (code === "Space" && !event.repeat) {
+        const store = useGameStore.getState();
+        const nearby = store.ui.nearbyPlantId;
+
+        if (nearby && !store.ui.activePlantId && !store.ui.minigamePlantId) {
+          document.exitPointerLock();
+          store.discoverPlant(nearby);
+          store.startMinigame(nearby);
+        }
+      }
+
+      // R is the way in to the full entry.
+      if (code === READ_KEY && !event.repeat) {
+        const store = useGameStore.getState();
+        const nearby = store.ui.nearbyPlantId;
+
+        if (nearby && !store.ui.activePlantId) {
+          document.exitPointerLock();
+          store.openPlantEntry(nearby);
+        }
+      }
+
+      keysRef.current.add(code);
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {
-      keysRef.current.delete(normalizeKey(event.key));
+      keysRef.current.delete(event.code);
     };
 
-    const handleMouseDown = () => {
-      mouseDownRef.current = true;
-    };
-
-    const handleMouseUp = () => {
-      mouseDownRef.current = false;
+    /**
+     * Drop every held key.
+     *
+     * Without this, losing focus mid-press strands that key in the set forever:
+     * alt-tab while turning and the bee turns for the rest of the session, with
+     * no keyup ever arriving to stop it. Steering feels dead or possessed and
+     * only a reload clears it.
+     */
+    const releaseAll = () => {
+      keysRef.current.clear();
     };
 
     const handleMouseMove = (event: MouseEvent) => {
-      if (!mouseDownRef.current && document.pointerLockElement === null) {
+      // Look on plain mouse movement over the scene. Requiring a held button
+      // (or a click into pointer lock) first meant that simply moving the mouse
+      // did nothing at all — so the view never turned, and the bee dutifully
+      // following a view that never moved looked exactly like a bee that
+      // followed nothing.
+      //
+      // Movement over the HUD panels is ignored: their event target isn't the
+      // canvas, so reaching for a button doesn't spin the camera.
+      const locked = document.pointerLockElement === canvas;
+
+      if (!locked && event.target !== canvas) {
         return;
       }
 
-      yawRef.current -= event.movementX * MOUSE_SENSITIVITY;
+      // Don't swing the camera around behind an open card or minigame.
+      const modal = useGameStore.getState().ui;
+
+      if (modal.activePlantId || modal.minigamePlantId) {
+        return;
+      }
+
+      // The mouse turns you. Yaw grows clockwise — forward is (sin y, 0, -cos y)
+      // — so moving the mouse right must ADD, or the world comes out mirrored.
+      yawRef.current += event.movementX * MOUSE_SENSITIVITY;
+      // Positive pitch lifts the camera and tips the view DOWN at the park, so
+      // pushing the mouse forward (negative movementY) has to lower it, i.e.
+      // look up. Getting this backwards inverts the vertical axis.
       pitchRef.current = clamp(
-        pitchRef.current - event.movementY * MOUSE_SENSITIVITY,
-        -0.35,
-        0.72,
+        pitchRef.current + event.movementY * MOUSE_SENSITIVITY,
+        -0.55,
+        1.05,
       );
     };
 
@@ -325,7 +359,6 @@ function ScoutScene({
       scrollAltitudeRef.current += clamp(-event.deltaY * 0.006, -1, 1);
     };
 
-    const canvas = document.querySelector("canvas");
     const handleCanvasClick = () => {
       if (document.pointerLockElement === null) {
         void canvas?.requestPointerLock();
@@ -334,22 +367,22 @@ function ScoutScene({
 
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
-    window.addEventListener("mousedown", handleMouseDown);
-    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener("blur", releaseAll);
+    document.addEventListener("visibilitychange", releaseAll);
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("wheel", handleWheel, { passive: false });
     canvas?.addEventListener("click", handleCanvasClick);
 
     return () => {
+      window.removeEventListener("blur", releaseAll);
+      document.removeEventListener("visibilitychange", releaseAll);
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
-      window.removeEventListener("mousedown", handleMouseDown);
-      window.removeEventListener("mouseup", handleMouseUp);
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("wheel", handleWheel);
       canvas?.removeEventListener("click", handleCanvasClick);
     };
-  }, []);
+  }, [canvas]);
 
   useFrame(({ camera, clock }, delta) => {
     const pollinator = pollinatorRef.current;
@@ -359,6 +392,15 @@ function ScoutScene({
     }
 
     const elapsed = clock.getElapsedTime();
+
+    // While a card or a minigame is up, the bee holds still. Otherwise you'd
+    // carry on flying blind behind it and surface somewhere else entirely.
+    const ui = useGameStore.getState().ui;
+
+    if (ui.activePlantId || ui.minigamePlantId) {
+      keysRef.current.clear();
+    }
+
     const keys = keysRef.current;
     const cameraTarget = cameraTargetRef.current;
     const cameraPosition = cameraPositionRef.current;
@@ -368,34 +410,25 @@ function ScoutScene({
     const right = rightRef.current;
     const targetPosition = targetPositionRef.current;
     const velocity = velocityRef.current;
-    const yaw = yawRef.current;
 
+    // Arrows turn the same yaw the mouse turns. There is only one.
+    const turnInput = axis(keys, TURN_LEFT, TURN_RIGHT);
+
+    yawRef.current += turnInput * TURN_SPEED * delta;
+
+    const yaw = yawRef.current;
+    const throttle = axis(keys, FLY_BACK, FLY_FORWARD);
+
+    // Forward is wherever you are looking.
     forward.set(Math.sin(yaw), 0, Math.cos(yaw) * -1).normalize();
     right.set(Math.cos(yaw), 0, Math.sin(yaw)).normalize();
+    direction.copy(forward).multiplyScalar(throttle);
 
-    if (keys.has("w") || keys.has("arrowup")) {
-      direction.add(forward);
-    }
-
-    if (keys.has("s") || keys.has("arrowdown")) {
-      direction.sub(forward);
-    }
-
-    if (keys.has("d") || keys.has("arrowright")) {
-      direction.add(right);
-    }
-
-    if (keys.has("a") || keys.has("arrowleft")) {
-      direction.sub(right);
-    }
-
-    const hasMovementInput = direction.lengthSq() > 0;
-    const isBoosting = keys.has("shift") && hasMovementInput;
+    const hasMovementInput = throttle !== 0;
+    const isBoosting = held(keys, BOOST) && hasMovementInput;
+    const isPollinating = keys.has("Space");
     const speed = BASE_SPEED * (isBoosting ? BOOST_MULTIPLIER : 1);
-    const altitudeInput =
-      (keys.has("e") ? 1 : 0) -
-      (keys.has("q") ? 1 : 0) +
-      scrollAltitudeRef.current;
+    const altitudeInput = axis(keys, DIVE, CLIMB) + scrollAltitudeRef.current;
 
     scrollAltitudeRef.current *= 0.82;
 
@@ -407,9 +440,17 @@ function ScoutScene({
     targetPosition.addScaledVector(velocity, delta);
     targetPosition.y += altitudeInput * ALTITUDE_SPEED * delta;
 
-    targetPosition.x = clamp(targetPosition.x, MAP_BOUNDS.minX, MAP_BOUNDS.maxX);
-    targetPosition.y = clamp(targetPosition.y, MAP_BOUNDS.minY, MAP_BOUNDS.maxY);
-    targetPosition.z = clamp(targetPosition.z, MAP_BOUNDS.minZ, MAP_BOUNDS.maxZ);
+    targetPosition.x = clamp(targetPosition.x, WORLD.minX + 2, WORLD.maxX - 2);
+    targetPosition.z = clamp(targetPosition.z, WORLD.minZ + 2, WORLD.maxZ - 2);
+
+    // The floor follows the ground rather than sitting at a fixed altitude, so
+    // the bee can drop all the way down into the ravine and skim the creek.
+    const ground = terrainHeight(targetPosition.x, targetPosition.z);
+    targetPosition.y = clamp(
+      targetPosition.y,
+      ground + GROUND_CLEARANCE,
+      CEILING,
+    );
 
     const bob = Math.sin(elapsed * (hasMovementInput ? 9 : 3.2)) * 0.08;
     renderPosition.set(targetPosition.x, targetPosition.y + bob, targetPosition.z);
@@ -418,40 +459,143 @@ function ScoutScene({
       1 - Math.exp(-delta * 12),
     );
 
-    const horizontalSpeed = Math.hypot(velocity.x, velocity.z);
+    // Run down any gesture in progress.
+    const gesture = gestureRef.current;
 
-    if (horizontalSpeed > 0.18) {
-      const desiredYaw = Math.atan2(velocity.x, -velocity.z);
-      const turnDelta = Math.atan2(
-        Math.sin(desiredYaw - pollinatorYawRef.current),
-        Math.cos(desiredYaw - pollinatorYawRef.current),
-      );
-      pollinatorYawRef.current += turnDelta * (1 - Math.exp(-delta * 10));
+    if (gesture.kind !== "none") {
+      gesture.time += delta;
+
+      // Flying cancels it — you shouldn't be stuck admiring the bee's back while
+      // trying to get somewhere.
+      if (gesture.time >= GESTURE_DURATION[gesture.kind] || throttle !== 0) {
+        gestureRef.current = { kind: "none", time: 0 };
+      }
     }
 
-    pollinator.rotation.y = pollinatorYawRef.current;
-    pollinator.rotation.z = hasMovementInput
-      ? clamp(-velocity.x * 0.018, -0.22, 0.22)
-      : Math.sin(elapsed * 3) * 0.035;
+    const activeGesture = gestureRef.current.kind;
 
-    movementState.current = isBoosting
+    // The bee faces where you're looking — which is also where it flies. During
+    // a gesture it swings a half-turn to face the camera instead, then comes
+    // back on its own.
+    //
+    // Note the NEGATED yaw. three's rotation.y = t sends the model's -Z nose to
+    // (-sin t, 0, -cos t), while the camera's forward is (+sin t, 0, -cos t).
+    // The X components have opposite signs, so feeding yaw in directly turns the
+    // bee the wrong way — mirrored about the view axis. At yaw 0 the two agree,
+    // which is exactly why this survived so long: every screenshot taken facing
+    // straight ahead looks perfect, and the bee only peels away once you turn.
+    const facing = activeGesture === "none" ? -yaw : -yaw + Math.PI;
+    const turnDelta = Math.atan2(
+      Math.sin(facing - pollinatorYawRef.current),
+      Math.cos(facing - pollinatorYawRef.current),
+    );
+    pollinatorYawRef.current += turnDelta * (1 - Math.exp(-delta * 9));
+
+    pollinator.rotation.y = pollinatorYawRef.current;
+
+    // Bank into the turn. Roll comes from how hard you're steering, not from
+    // sideways velocity — there is no sideways velocity any more.
+    pollinator.rotation.z =
+      clamp(-turnInput * 0.2 * (hasMovementInput ? 1 : 0.45), -0.24, 0.24) +
+      (hasMovementInput ? 0 : Math.sin(elapsed * 3) * 0.03);
+
+    movementState.current = isPollinating
+      ? "Pollinating"
+      : isBoosting
       ? "Boosting"
       : hasMovementInput
         ? "Flying"
         : "Hovering";
 
+    // The camera orbits the bee on a sphere. It used to only shift its HEIGHT by
+    // a few units with pitch, which meant you could never actually tilt the view
+    // down and look at the park you were flying over — the horizon stayed pinned
+    // at the bee no matter what you did with the mouse.
+    const pitch = pitchRef.current;
+    const cosPitch = Math.cos(pitch);
+
     cameraTarget.copy(pollinator.position);
     cameraPosition.set(
-      pollinator.position.x - Math.sin(yaw) * CAMERA_DISTANCE,
-      pollinator.position.y + CAMERA_HEIGHT + pitchRef.current * 4,
-      pollinator.position.z + Math.cos(yaw) * CAMERA_DISTANCE,
+      pollinator.position.x - Math.sin(yaw) * CAMERA_DISTANCE * cosPitch,
+      pollinator.position.y + CAMERA_HEIGHT + Math.sin(pitch) * CAMERA_DISTANCE,
+      pollinator.position.z + Math.cos(yaw) * CAMERA_DISTANCE * cosPitch,
     );
-    camera.position.lerp(cameraPosition, 0.08);
+    // Delta-scaled, like every other smoothing term in this loop. A flat 0.08
+    // ties camera follow speed to frame rate.
+    camera.position.lerp(cameraPosition, 1 - Math.exp(-delta * 5));
+
+    // Never let the camera clip through a hillside behind the bee.
+    const cameraGround =
+      terrainHeight(camera.position.x, camera.position.z) + 0.7;
+
+    if (camera.position.y < cameraGround) {
+      camera.position.y = cameraGround;
+    }
+
     camera.lookAt(cameraTarget);
 
-    if (elapsed - lastDebugUpdate.current > 0.2) {
+    // The sun rides along with the bee. A directional light's shadow camera can
+    // only cover a small box, and the world is 140x110 — parking it at the
+    // origin would leave the bee shadowless almost everywhere.
+    const sun = sunRef.current;
+
+    if (sun) {
+      sun.position.set(
+        pollinator.position.x + 60,
+        pollinator.position.y + 110,
+        pollinator.position.z + 45,
+      );
+      sun.target.position.copy(pollinator.position);
+      sun.target.updateMatrixWorld();
+    }
+
+    if (elapsed - lastDebugUpdate.current > 0.15) {
       lastDebugUpdate.current = elapsed;
-      const areaId = getCurrentAreaId(pollinator.position);
+
+      // Closest plant within reach, if any. Fifty-odd plants at ~7Hz is nothing,
+      // and it saves keeping a spatial index in sync with the scatter.
+      //
+      // The specific INSTANCE matters, not just the species: the card is anchored
+      // over the one you're actually beside, and there are several of each.
+      let nearestInstance: PlantInstance | null = null;
+      let nearestDistance = DISCOVERY_RADIUS;
+
+      for (const instance of plants) {
+        // Measure to the BLOOM, not the base. A Joe-Pye weed is now twenty units
+        // tall; its base is nowhere near where a bee would visit it.
+        const bloomHeight =
+          instance.position[1] + instance.plant.height * instance.scale * 0.88;
+
+        const distance = Math.hypot(
+          instance.position[0] - pollinator.position.x,
+          bloomHeight - pollinator.position.y,
+          instance.position[2] - pollinator.position.z,
+        );
+
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearestInstance = instance;
+        }
+      }
+
+      const nearest = nearestInstance?.plant.id ?? null;
+      const store = useGameStore.getState();
+      store.setNearbyPlant(nearest);
+
+      // Re-render only when the anchored card needs to move to a different plant.
+      if (nearestInstance?.key !== nearbyInstance?.key) {
+        setNearbyInstance(nearestInstance);
+      }
+
+      // Getting close is enough to log it in the journal. Pressing Space is what
+      // pollinates it.
+      if (nearest && !store.discoveredPlants[nearest]) {
+        store.discoverPlant(nearest);
+        playSound("discover");
+      }
+
+      const area = areaAt(pollinator.position.x, pollinator.position.z);
+      const areaId = area.id;
       const nextPlayerState = {
         areaId,
         altitude: Number(pollinator.position.y.toFixed(1)),
@@ -464,144 +608,119 @@ function ScoutScene({
         speed: Number(velocity.length().toFixed(1)),
       };
 
-      const store = useGameStore.getState();
       store.setPlayerFlightState(nextPlayerState);
       store.unlockMapArea(areaId);
+      setAreaAmbience(areaId);
 
       onDebugChange({
         areaId,
-        area: getCurrentArea(pollinator.position),
+        area: area.label,
         altitude: nextPlayerState.altitude,
         heading: nextPlayerState.heading,
         movement: nextPlayerState.movement,
         speed: nextPlayerState.speed,
         x: nextPlayerState.position.x,
         z: nextPlayerState.position.z,
+        input:
+          [...keys]
+            .map((code) => code.replace(/^(Key|Arrow|Shift)/, ""))
+            .join(" ") || "none",
       });
     }
   });
 
   return (
     <>
+      {/* A high sun. The default inclination sits it on the horizon, which
+          washes the whole park in sunset orange and reads as dusk. */}
       <Sky
-        azimuth={0.25}
         distance={450000}
-        inclination={0.49}
-        mieCoefficient={0.006}
-        mieDirectionalG={0.78}
-        rayleigh={1.6}
-        turbidity={5}
+        mieCoefficient={0.005}
+        mieDirectionalG={0.8}
+        rayleigh={0.9}
+        sunPosition={[60, 45, 30]}
+        turbidity={4}
       />
-      <ambientLight intensity={0.62} />
+      <ambientLight intensity={1.05} />
       <directionalLight
         castShadow
-        intensity={2.4}
-        position={[8, 12, 6]}
-        shadow-mapSize={[1024, 1024]}
+        intensity={2.1}
+        ref={sunRef}
+        shadow-bias={-0.0012}
+        shadow-camera-bottom={-70}
+        shadow-camera-far={300}
+        shadow-camera-left={-70}
+        shadow-camera-right={70}
+        shadow-camera-top={70}
+        shadow-mapSize={[2048, 2048]}
       />
-      <hemisphereLight args={["#dcefff", "#5d7a42", 1.2]} />
+      <hemisphereLight args={["#e2f2ff", "#6f8f52", 1.35]} />
+      {/* Haze at the far edge of the park, so the map ends in distance rather
+          than in a hard border. */}
+      <fogExp2 args={["#cfe4f2", 0.0009]} attach="fog" />
 
-      <group>
-        <mesh position={[0, -0.05, 0]} receiveShadow>
-          <boxGeometry args={[42, 0.08, 34]} />
-          <meshStandardMaterial color="#7fab66" roughness={0.92} />
-        </mesh>
+      <Terrain />
+      <Creek />
+      <Landmarks />
+      <Foliage />
+      <PlantField instances={plants} />
 
-        {MAP_AREAS.map((area) => (
-          <group key={area.id}>
-            <mesh position={area.position} receiveShadow>
-              <boxGeometry args={area.size} />
-              <meshStandardMaterial color={area.color} roughness={0.9} />
-            </mesh>
-            <Text
-              anchorX="center"
-              anchorY="middle"
-              color="#20301d"
-              fontSize={0.55}
-              position={[area.position[0], 0.16, area.position[2]]}
-              rotation={[-Math.PI / 2, 0, 0]}
-            >
-              {area.label}
-            </Text>
-          </group>
-        ))}
+      {/* Anchored over the plant itself, not pinned to the screen. */}
+      {nearbyInstance ? <PlantTag instance={nearbyInstance} /> : null}
 
-        <mesh position={[3, 0.12, -13]} rotation={[0, -0.12, 0]}>
-          <boxGeometry args={[20, 0.1, 1.1]} />
-          <meshStandardMaterial color="#579bc0" roughness={0.45} />
-        </mesh>
-
-        <mesh position={[-4, 0.18, -1]} rotation={[0, -0.24, 0]}>
-          <boxGeometry args={[22, 0.08, 0.6]} />
-          <meshStandardMaterial color="#8c7651" roughness={0.85} />
-        </mesh>
-      </group>
-
-      {TREE_POSITIONS.map((position, index) => (
-        <group key={`${position[0]}-${position[2]}`} position={position}>
-          <mesh castShadow position={[0, 0.85, 0]}>
-            <cylinderGeometry args={[0.16, 0.22, 1.7, 8]} />
-            <meshStandardMaterial color="#6d4f35" roughness={0.8} />
-          </mesh>
-          <mesh castShadow position={[0, 2, 0]}>
-            <coneGeometry args={[0.85 + (index % 3) * 0.08, 1.8, 9]} />
-            <meshStandardMaterial color={index % 2 ? "#2f6b3d" : "#3f7b46"} />
-          </mesh>
-        </group>
-      ))}
-
-      {FLOWER_POSITIONS.map((position, index) => (
-        <group key={`${position[0]}-${position[2]}`} position={position}>
-          <mesh>
-            <sphereGeometry args={[0.28, 12, 12]} />
-            <meshStandardMaterial color={index % 2 ? "#f3c84f" : "#e4759b"} />
-          </mesh>
-          <mesh position={[0, -0.28, 0]}>
-            <cylinderGeometry args={[0.04, 0.05, 0.55, 6]} />
-            <meshStandardMaterial color="#3d743b" />
-          </mesh>
-        </group>
-      ))}
-
-      <group ref={pollinatorRef} position={[0, 2.15, 0]}>
-        <PollinatorModel />
+      {/* Actual bee size, near enough. The world grew around it instead. */}
+      <group ref={pollinatorRef} position={START_POSITION} scale={1}>
+        <BeeModel
+          animationState={
+            playerMovement === "Pollinating"
+              ? "pollinating"
+              : playerMovement === "Flying" || playerMovement === "Boosting"
+                ? "flying"
+                : "hovering"
+          }
+          gestureRef={gestureRef}
+          // Pollen baskets on the hind legs, once you're actually carrying some.
+          hasPollen={pollinatedCount > 0}
+          pollinator={selectedPollinator}
+        />
       </group>
     </>
   );
 }
 
-function PollinatorPreviewScene() {
+function PollinatorPreviewScene({ pollinator }: { pollinator: Pollinator }) {
   const pollinatorRef = useRef<Group>(null);
 
   useFrame(({ camera, clock }) => {
-    const pollinator = pollinatorRef.current;
+    const pollinatorGroup = pollinatorRef.current;
 
-    if (!pollinator) {
+    if (!pollinatorGroup) {
       return;
     }
 
     const elapsed = clock.getElapsedTime();
-    pollinator.rotation.y = Math.sin(elapsed * 0.7) * 0.18;
-    pollinator.rotation.x = Math.sin(elapsed * 1.1) * 0.04;
-    pollinator.position.y = Math.sin(elapsed * 1.8) * 0.08;
-    camera.position.set(0, 0.45, -2.65);
-    camera.lookAt(0, 0.05, 0);
+    // The bee models face -Z (the flight loop's forward vector), and the preview
+    // camera sits on +Z, so turn it around to show its face rather than its back.
+    pollinatorGroup.rotation.y = Math.PI - 0.34 + Math.sin(elapsed * 0.55) * 0.12;
+    pollinatorGroup.position.y = Math.sin(elapsed * 1.8) * 0.045;
+    camera.position.set(0.7, 0.36, 3.55);
+    camera.lookAt(0, 0.04, 0);
   });
 
   return (
     <>
-      <color attach="background" args={["#fff4ce"]} />
-      <ambientLight intensity={1.8} />
-      <directionalLight intensity={2.2} position={[-2, 3, -4]} />
-      <hemisphereLight args={["#eaf6ff", "#f0d58e", 1.2]} />
-      <group ref={pollinatorRef} scale={2.35}>
-        <PollinatorModel />
+      <color attach="background" args={["#fff6dc"]} />
+      <ambientLight intensity={1.7} />
+      <directionalLight intensity={2.5} position={[-2, 3, -4]} />
+      <hemisphereLight args={["#f2fbff", "#f1d68e", 1.2]} />
+      <group ref={pollinatorRef} scale={1.45}>
+        <BeeModel animationState="hovering" pollinator={pollinator} />
       </group>
     </>
   );
 }
 
-function PollinatorPreviewViewport() {
+function PollinatorPreviewViewport({ pollinator }: { pollinator: Pollinator }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useLayoutEffect(() => {
@@ -622,12 +741,12 @@ function PollinatorPreviewViewport() {
         return;
       }
 
-      canvas.width = Math.round(rect.width);
-      canvas.height = Math.round(rect.height);
-
+      // Same as the main viewport: three owns the drawing buffer. Setting it by
+      // hand desyncs the GL viewport from the buffer on retina screens.
       await root.configure({
-        camera: { fov: 42, position: [0, 0.45, -2.65] },
-        gl: { antialias: true, alpha: false, preserveDrawingBuffer: true },
+        camera: { fov: 38, position: [0.7, 0.36, 3.55] },
+        dpr: Math.min(window.devicePixelRatio, 2),
+        gl: { antialias: false, alpha: false, preserveDrawingBuffer: true },
         size: {
           height: rect.height,
           left: rect.left,
@@ -637,7 +756,7 @@ function PollinatorPreviewViewport() {
       });
 
       if (mounted) {
-        root.render(<PollinatorPreviewScene />);
+        root.render(<PollinatorPreviewScene pollinator={pollinator} />);
       }
     };
 
@@ -653,12 +772,13 @@ function PollinatorPreviewViewport() {
       observer.disconnect();
       root.unmount();
     };
-  }, []);
+  }, [pollinator]);
 
   return <canvas className={styles.previewCanvas} ref={canvasRef} />;
 }
 
 export function GameScene() {
+  const selectedPollinator = useGameStore((state) => state.pollinator);
   const discoveredPlantCount = useGameStore((state) =>
     countUnlocked(state.discoveredPlants),
   );
@@ -677,12 +797,19 @@ export function GameScene() {
   const isPreviewOpen = useGameStore(
     (state) => state.ui.pollinatorPreviewOpen,
   );
-  const discoverPlant = useGameStore((state) => state.discoverPlant);
-  const pollinatePlant = useGameStore((state) => state.pollinatePlant);
-  const unlockBadge = useGameStore((state) => state.unlockBadge);
-  const resetOfflineRun = useGameStore((state) => state.resetOfflineRun);
   const openModal = useGameStore((state) => state.openModal);
   const closeModal = useGameStore((state) => state.closeModal);
+  const [controlsOpen, setControlsOpen] = useState(true);
+  // The scene generates terrain, scatters thousands of props and compiles all the
+  // geometry before its first frame. Without this the player stares at a blank
+  // canvas and assumes it is broken.
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setReady(true), 900);
+
+    return () => window.clearTimeout(timer);
+  }, []);
   const [debugState, setDebugState] = useState<DebugState>({
     areaId: "environmental-center",
     area: "Environmental Center",
@@ -692,12 +819,24 @@ export function GameScene() {
     speed: 0,
     x: 0,
     z: 0,
+    input: "none",
   });
 
   return (
     <section className={styles.shell} aria-label="Scout 3D game scene">
       <div className={styles.canvasWrap}>
         <R3FViewport onDebugChange={setDebugState} />
+        {ready ? null : (
+          <div className={styles.loading} role="status">
+            <span className={styles.loadingBee} aria-hidden>
+              🐝
+            </span>
+            <p className={styles.loadingTitle}>Growing Frick Park…</p>
+            <p className={styles.loadingNote}>
+              Six hundred acres, one blade of grass at a time.
+            </p>
+          </div>
+        )}
       </div>
 
       <aside className={styles.debugPanel} aria-label="Debug flight readout">
@@ -729,24 +868,59 @@ export function GameScene() {
             <dt>Speed</dt>
             <dd>{debugState.speed}</dd>
           </div>
+          <div>
+            <dt>Input</dt>
+            <dd>{debugState.input}</dd>
+          </div>
         </dl>
       </aside>
 
       <aside className={styles.controlsPanel} aria-label="Flight controls">
-        <p className={styles.debugLabel}>Controls</p>
-        <ul>
-          <li>WASD / Arrows move</li>
-          <li>Mouse drag or click to look</li>
-          <li>E / Q or scroll changes altitude</li>
-          <li>Shift boosts</li>
-        </ul>
         <button
-          className={styles.previewButton}
-          onClick={() => openModal("pollinatorPreviewOpen")}
+          aria-expanded={controlsOpen}
+          className={styles.controlsToggle}
+          onClick={() => setControlsOpen((open) => !open)}
           type="button"
         >
-          View pollinator
+          <span className={styles.debugLabel}>Controls</span>
+          <span aria-hidden className={styles.controlsChevron} data-open={controlsOpen}>
+            ▾
+          </span>
         </button>
+
+        {controlsOpen ? (
+          <>
+            <ul>
+              <li>Move the mouse to look — the bee turns to follow</li>
+              <li>Up / Down or W / S fly forward and back</li>
+              <li>Left / Right or A / D also turn</li>
+              <li>E / Q or scroll changes altitude</li>
+              <li>Shift boosts</li>
+              <li>Space pollinates a nearby plant</li>
+              <li>
+                <kbd>R</kbd> reads its full entry
+              </li>
+              <li>
+                <kbd>F</kbd> look at me · <kbd>G</kbd> dance
+              </li>
+              <li>
+                <kbd>Esc</kbd> releases the mouse cursor
+              </li>
+              <li>Follow the drifting motes to find flora</li>
+            </ul>
+            <p className={styles.pollinatorStatus}>
+              {selectedPollinator.name} the {selectedPollinator.type}
+            </p>
+            <button
+              className={styles.previewButton}
+              onClick={() => openModal("pollinatorPreviewOpen")}
+              type="button"
+            >
+              View pollinator
+            </button>
+            <SoundToggle />
+          </>
+        ) : null}
       </aside>
 
       <aside className={styles.statePanel} aria-label="Game state debug">
@@ -757,10 +931,14 @@ export function GameScene() {
             <dd>{unlockedAreaCount}</dd>
           </div>
           <div>
-            <dt>Plants</dt>
+            <dt>Found</dt>
             <dd>
-              {discoveredPlantCount} / {pollinatedPlantCount}
+              {discoveredPlantCount} / {PLANTS.length}
             </dd>
+          </div>
+          <div>
+            <dt>Pollinated</dt>
+            <dd>{pollinatedPlantCount}</dd>
           </div>
           <div>
             <dt>Badges</dt>
@@ -771,21 +949,12 @@ export function GameScene() {
             <dd>{unlockedJournalCount}</dd>
           </div>
         </dl>
-        <div className={styles.stateActions}>
-          <button onClick={() => discoverPlant("mock-goldenrod")} type="button">
-            Discover mock plant
-          </button>
-          <button onClick={() => pollinatePlant("mock-goldenrod")} type="button">
-            Pollinate mock plant
-          </button>
-          <button onClick={() => unlockBadge("first-flight")} type="button">
-            Unlock mock badge
-          </button>
-          <button onClick={resetOfflineRun} type="button">
-            Reset offline state
-          </button>
-        </div>
       </aside>
+
+      <PlantEntry />
+      <PollinationMinigame />
+      <ProgressionWatcher />
+      <FirstFlight />
 
       {isPreviewOpen ? (
         <div className={styles.modalBackdrop} role="presentation">
@@ -810,7 +979,27 @@ export function GameScene() {
               </button>
             </div>
             <div className={styles.previewStage}>
-              <PollinatorPreviewViewport />
+              <div className={styles.previewCanvasWrap}>
+                <PollinatorPreviewViewport pollinator={selectedPollinator} />
+              </div>
+              <dl className={styles.previewDetails}>
+                <div>
+                  <dt>Name</dt>
+                  <dd>{selectedPollinator.name}</dd>
+                </div>
+                <div>
+                  <dt>Type</dt>
+                  <dd>{selectedPollinator.type}</dd>
+                </div>
+                <div>
+                  <dt>Wings</dt>
+                  <dd>{selectedPollinator.wingStyle}</dd>
+                </div>
+                <div>
+                  <dt>Trail</dt>
+                  <dd>{selectedPollinator.trailEffect}</dd>
+                </div>
+              </dl>
             </div>
           </section>
         </div>

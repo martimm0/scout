@@ -1,0 +1,45 @@
+.wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.button[aria-pressed="true"] {
+  border-color: #d8a12c;
+  background: rgba(242, 187, 66, 0.18);
+  color: #6f5f43;
+}
+
+.volume {
+  flex: 1;
+  display: flex;
+}
+
+.volume input {
+  width: 100%;
+  accent-color: #eeae2f;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}

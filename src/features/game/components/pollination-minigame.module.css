@@ -1,0 +1,216 @@
+/* The pollination minigame. Same warm palette as the plant entry. */
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(48, 38, 20, 0.34);
+  backdrop-filter: blur(2px);
+  animation: fade-in 200ms ease-out both;
+}
+
+.panel {
+  width: min(420px, 100%);
+  padding: 22px 24px 20px;
+  border-radius: 16px;
+  border: 1px solid rgba(122, 92, 38, 0.24);
+  background: linear-gradient(180deg, #fffdf5 0%, #fff5e2 100%);
+  color: #3a3226;
+  text-align: center;
+  box-shadow: 0 24px 60px rgba(40, 30, 12, 0.3);
+  animation: rise-in 260ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #b08428;
+}
+
+.name {
+  margin: 2px 0 4px;
+  font-size: 1.3rem;
+  color: #33291a;
+}
+
+.instruction {
+  margin: 0 0 14px;
+  font-size: 0.92rem;
+  color: #8a7a5e;
+}
+
+/* The playfield. */
+.stage {
+  position: relative;
+  height: 170px;
+  border-radius: 12px;
+  border: 1px solid rgba(122, 92, 38, 0.18);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(242, 187, 66, 0.16), transparent 70%),
+    #fdf6e4;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+
+/* --- hover --- */
+.ring {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  border: 3px dashed rgba(176, 132, 40, 0.55);
+  display: grid;
+  place-items: center;
+  cursor: crosshair;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.ring[data-holding="true"] {
+  border-style: solid;
+  border-color: #eeae2f;
+  background: rgba(242, 187, 66, 0.25);
+}
+
+.ringCore {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #eeae2f;
+  box-shadow: 0 0 0 6px rgba(242, 187, 66, 0.25);
+}
+
+/* --- taps --- */
+.florets {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+  padding: 0 18px;
+}
+
+.floret {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid rgba(122, 92, 38, 0.3);
+  background: #fffdf5;
+  transition: background 120ms ease, transform 120ms ease;
+}
+
+.floret[data-done="true"] {
+  background: #eeae2f;
+  border-color: #d8a12c;
+  transform: scale(1.12);
+}
+
+/* --- cue --- */
+.cue {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle, #f7c855, #eeae2f);
+  border: 4px solid #fffdf5;
+  box-shadow: 0 0 0 2px rgba(122, 92, 38, 0.22);
+}
+
+.cueGlyph {
+  font-size: 2.6rem;
+  line-height: 1;
+  color: #3b2c0e;
+}
+
+.hint {
+  margin: 12px 0 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #6f5f43;
+}
+
+.timer {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(122, 92, 38, 0.15);
+  overflow: hidden;
+}
+
+.timer span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #eeae2f, #f7c855);
+  transition: width 80ms linear;
+}
+
+/* --- outcome --- */
+.outcome {
+  display: grid;
+  gap: 8px;
+}
+
+.outcomeTitle {
+  margin: 6px 0 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #7a5f14;
+}
+
+.outcome[data-success="false"] .outcomeTitle {
+  color: #7d6a52;
+}
+
+.outcomeMessage {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.fact {
+  margin: 6px 0 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(242, 187, 66, 0.42);
+  background: rgba(242, 187, 66, 0.16);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  text-align: left;
+  color: #5b4826;
+}
+
+.dismiss {
+  justify-self: center;
+  margin-top: 6px;
+  padding: 9px 20px;
+  border-radius: 10px;
+  border: 1px solid #d8a12c;
+  background: linear-gradient(180deg, #f7c855 0%, #eeae2f 100%);
+  color: #3b2c0e;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.dismiss:focus-visible {
+  outline: 2px solid #b07f16;
+  outline-offset: 2px;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scrim, .panel { animation: none; }
+  .ring { transition: none; }
+}

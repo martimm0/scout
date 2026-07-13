@@ -1,23 +1,22 @@
-import { RoutePlaceholder } from "@/components/route-placeholder";
-import { IMAGE_ASSETS } from "@/lib/assets";
+import type { Metadata } from "next";
 
-export const metadata = {
-  title: "Customize",
+import { Customize } from "@/features/game/components/customize";
+
+export const metadata: Metadata = {
+  title: "Customize · Scout",
+  description: "Name and dress your pollinator before you fly.",
 };
 
 export default function CustomizePage() {
   return (
-    <RoutePlaceholder
-      eyebrow="Milestone 6 target"
-      title="Pollinator Customization"
-      description="Signed-in players will customize their starter pollinator and save it to their profile."
-      imageAlt="Scout pollinator customization placeholder"
-      imageSrc={IMAGE_ASSETS.character}
-      tasks={[
-        "Name the pollinator",
-        "Pick body and wing colors",
-        "Preview the selected style",
-      ]}
-    />
+    <main className="page-container">
+      <p className="eyebrow">Your pollinator</p>
+      <h1>Make it yours</h1>
+      <p className="lead">
+        A name, a colour, and something silly on its head. It has a long way to
+        fly.
+      </p>
+      <Customize />
+    </main>
   );
 }

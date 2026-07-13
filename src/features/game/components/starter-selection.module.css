@@ -1,0 +1,417 @@
+.layout {
+  display: grid;
+  gap: 28px;
+}
+
+.header {
+  max-width: 760px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.starterCard {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+  min-height: 100%;
+  border: 2px solid transparent;
+  text-align: left;
+}
+
+.starterCard[data-selected="true"] {
+  border-color: var(--primary);
+  box-shadow: 0 18px 45px rgba(60, 125, 74, 0.18);
+}
+
+.visual {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 190px;
+  overflow: hidden;
+  border: 2px solid rgba(36, 32, 24, 0.18);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.22) 2px, transparent 2px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18) 2px, transparent 2px),
+    radial-gradient(circle at 50% 42%, rgba(255, 245, 199, 0.92), transparent 42%),
+    linear-gradient(180deg, #e8f5ff 0%, #f8f1d5 100%);
+  background-size: 18px 18px, 18px 18px, auto, auto;
+}
+
+.visual::before {
+  content: "";
+  position: absolute;
+  right: 24px;
+  bottom: 20px;
+  width: 70px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(60, 75, 40, 0.16);
+}
+
+.insect {
+  position: relative;
+  width: 118px;
+  height: 94px;
+  transform: rotate(-8deg);
+}
+
+.body,
+.head,
+.tail,
+.wing,
+.wingLower,
+.eye,
+.stripe,
+.antenna {
+  position: absolute;
+  display: block;
+}
+
+.body {
+  left: 38px;
+  top: 34px;
+  width: 46px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--starter-body);
+  box-shadow:
+    0 0 0 3px rgba(36, 32, 24, 0.92),
+    inset -8px -5px 0 rgba(0, 0, 0, 0.14);
+}
+
+.head {
+  left: 78px;
+  top: 36px;
+  width: 28px;
+  height: 25px;
+  border-radius: 50%;
+  background: var(--starter-accent);
+  box-shadow: 0 0 0 3px rgba(36, 32, 24, 0.92);
+}
+
+.tail {
+  left: 26px;
+  top: 39px;
+  width: 22px;
+  height: 19px;
+  border-radius: 50%;
+  background: var(--starter-accent);
+  box-shadow: 0 0 0 3px rgba(36, 32, 24, 0.92);
+}
+
+.stripe {
+  top: 33px;
+  width: 5px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--starter-accent);
+  opacity: 0.86;
+  box-shadow: 0 0 0 1px rgba(36, 32, 24, 0.2);
+}
+
+.stripeOne {
+  left: 50px;
+}
+
+.stripeTwo {
+  left: 64px;
+}
+
+.wing {
+  top: 8px;
+  width: 40px;
+  height: 54px;
+  border: 3px solid rgba(36, 32, 24, 0.26);
+  border-radius: 70% 48% 70% 42%;
+  background: var(--starter-wing);
+  opacity: 0.78;
+  transform-origin: bottom center;
+}
+
+.wing:first-of-type {
+  left: 40px;
+  transform: rotate(-24deg);
+}
+
+.wing:nth-of-type(2) {
+  left: 64px;
+  transform: rotate(24deg) scaleX(-1);
+}
+
+.wingLower {
+  display: none;
+}
+
+.eye {
+  top: 41px;
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgba(36, 32, 24, 0.9);
+}
+
+.eye:nth-of-type(10) {
+  left: 92px;
+}
+
+.eye:nth-of-type(11) {
+  left: 101px;
+}
+
+.antenna {
+  top: 32px;
+  width: 18px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--starter-accent);
+  transform-origin: left center;
+}
+
+.antenna:nth-of-type(12) {
+  left: 96px;
+  transform: rotate(-42deg);
+}
+
+.antenna:nth-of-type(13) {
+  left: 97px;
+  transform: rotate(-18deg);
+}
+
+.insect[data-type="hoverfly"] {
+  transform: rotate(-7deg);
+}
+
+.insect[data-type="hoverfly"] .body {
+  left: 22px;
+  top: 38px;
+  width: 72px;
+  height: 19px;
+}
+
+.insect[data-type="hoverfly"] .head {
+  left: 80px;
+  top: 32px;
+  width: 38px;
+  height: 35px;
+}
+
+.insect[data-type="hoverfly"] .tail {
+  left: 10px;
+  top: 42px;
+  width: 23px;
+  height: 12px;
+}
+
+.insect[data-type="hoverfly"] .wing {
+  top: 17px;
+  width: 62px;
+  height: 27px;
+  border-radius: 78% 18% 72% 24%;
+  opacity: 0.6;
+}
+
+.insect[data-type="hoverfly"] .wing:first-of-type {
+  left: 38px;
+  transform: rotate(-14deg);
+}
+
+.insect[data-type="hoverfly"] .wing:nth-of-type(2) {
+  left: 60px;
+  transform: rotate(14deg) scaleX(-1);
+}
+
+.insect[data-type="hoverfly"] .stripe {
+  width: 4px;
+  height: 20px;
+  top: 38px;
+}
+
+.insect[data-type="hoverfly"] .stripeOne {
+  left: 46px;
+}
+
+.insect[data-type="hoverfly"] .stripeTwo {
+  left: 61px;
+}
+
+.insect[data-type="hoverfly"] .eye {
+  top: 41px;
+  width: 9px;
+  height: 9px;
+  background: #c8f4ff;
+}
+
+.insect[data-type="hoverfly"] .eye:nth-of-type(10) {
+  left: 91px;
+}
+
+.insect[data-type="hoverfly"] .eye:nth-of-type(11) {
+  left: 103px;
+}
+
+.insect[data-type="butterfly"] {
+  transform: rotate(-6deg);
+}
+
+.insect[data-type="butterfly"] .body {
+  left: 52px;
+  top: 32px;
+  width: 17px;
+  height: 44px;
+  border-radius: 999px;
+}
+
+.insect[data-type="butterfly"] .head {
+  left: 49px;
+  top: 19px;
+  width: 23px;
+  height: 23px;
+  background: #3a2a20;
+}
+
+.insect[data-type="butterfly"] .tail {
+  left: 53px;
+  top: 68px;
+  width: 15px;
+  height: 15px;
+  background: #3a2a20;
+}
+
+.insect[data-type="butterfly"] .wing {
+  top: 10px;
+  width: 55px;
+  height: 66px;
+  border-radius: 70% 42% 58% 55%;
+  background:
+    radial-gradient(circle at 56% 50%, var(--starter-accent) 0 14%, transparent 15%),
+    var(--starter-wing);
+  opacity: 0.88;
+}
+
+.insect[data-type="butterfly"] .wing:first-of-type {
+  left: 3px;
+  transform: rotate(-15deg);
+}
+
+.insect[data-type="butterfly"] .wing:nth-of-type(2) {
+  left: 64px;
+  transform: rotate(15deg) scaleX(-1);
+}
+
+.insect[data-type="butterfly"] .wingLower {
+  display: block;
+  top: 57px;
+  width: 42px;
+  height: 32px;
+  border-radius: 42% 58% 64% 54%;
+  background: var(--starter-wing);
+  opacity: 0.88;
+}
+
+.insect[data-type="butterfly"] .wingLower:nth-of-type(3) {
+  left: 15px;
+  transform: rotate(18deg);
+}
+
+.insect[data-type="butterfly"] .wingLower:nth-of-type(4) {
+  left: 65px;
+  transform: rotate(-18deg) scaleX(-1);
+}
+
+.insect[data-type="butterfly"] .stripe {
+  display: none;
+}
+
+.insect[data-type="butterfly"] .eye:nth-of-type(10) {
+  left: 57px;
+  top: 25px;
+}
+
+.insect[data-type="butterfly"] .eye:nth-of-type(11) {
+  display: none;
+}
+
+.meta {
+  display: grid;
+  gap: 10px;
+}
+
+.nameRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.nameRow h2 {
+  margin: 0;
+}
+
+.type {
+  color: var(--primary-dark);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.meta p {
+  margin: 0;
+}
+
+.detailList {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.detailList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.detailList strong {
+  color: var(--foreground);
+  text-align: right;
+}
+
+.swatch {
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  border-radius: 999px;
+  background: var(--swatch);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.status {
+  margin: 0;
+  color: var(--primary-dark);
+  font-weight: 800;
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
