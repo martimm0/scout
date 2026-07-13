@@ -825,7 +825,9 @@ function PollinatorPreviewViewport({ pollinator }: { pollinator: Pollinator }) {
   return <canvas className={styles.previewCanvas} ref={canvasRef} />;
 }
 
-export function GameScene() {
+export function GameScene({ debug = false }: { debug?: boolean }) {
+  const debugVisible = debug;
+
   const selectedPollinator = useGameStore((state) => state.pollinator);
   const discoveredPlantCount = useGameStore((state) =>
     countUnlocked(state.discoveredPlants),
@@ -887,6 +889,10 @@ export function GameScene() {
         )}
       </div>
 
+      {/* Not shown to players. Open /play?debug=1 to bring it back — the e2e
+          suite reads flight state (area, heading, position) out of this panel,
+          and deleting it outright would blind the tests as well as tidy the HUD. */}
+      {debugVisible ? (
       <aside className={styles.debugPanel} aria-label="Debug flight readout">
         <p className={styles.debugLabel}>Debug Overlay</p>
         <dl>
@@ -922,6 +928,7 @@ export function GameScene() {
           </div>
         </dl>
       </aside>
+      ) : null}
 
       <aside className={styles.controlsPanel} aria-label="Flight controls">
         <button
@@ -972,8 +979,8 @@ export function GameScene() {
         ) : null}
       </aside>
 
-      <aside className={styles.statePanel} aria-label="Game state debug">
-        <p className={styles.debugLabel}>Game State</p>
+      <aside className={styles.statePanel} aria-label="Scout stats">
+        <p className={styles.debugLabel}>Scout Stats</p>
         <dl>
           <div>
             <dt>Areas</dt>

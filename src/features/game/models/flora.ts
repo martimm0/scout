@@ -20,19 +20,67 @@ function stem(height: number, color: string, width = 0.09): Box {
   };
 }
 
-/** Paired leaves stepping up the stalk. */
+/**
+ * Paired leaves stepping up the stalk — each with a midrib and a droop at the
+ * tip, because a leaf that is one flat slab reads as a plank.
+ */
 function leaves(height: number, color: string, pairs: number, span: number): Box[] {
   const boxes: Box[] = [];
 
   for (let i = 0; i < pairs; i += 1) {
-    const y = height * (0.2 + (i / pairs) * 0.5);
+    const y = height * (0.18 + (i / pairs) * 0.55);
     const side = i % 2 === 0 ? 1 : -1;
     const angle = i * 1.1;
+    const dx = Math.cos(angle) * span * side;
+    const dz = Math.sin(angle) * span * side;
 
+    // The blade.
     boxes.push({
-      position: [Math.cos(angle) * span * side, y, Math.sin(angle) * span * side],
+      position: [dx, y, dz],
       size: [span * 1.5, 0.06, span * 0.8],
       color: i % 2 === 0 ? color : shade(color, 0.12),
+    });
+    // A paler midrib down the middle of it.
+    boxes.push({
+      position: [dx, y + 0.035, dz],
+      size: [span * 1.5, 0.03, span * 0.16],
+      color: tint(color, 0.22),
+    });
+    // The tip, drooping.
+    boxes.push({
+      position: [dx * 1.7, y - 0.08, dz * 1.7],
+      size: [span * 0.7, 0.05, span * 0.5],
+      color: shade(color, 0.08),
+    });
+  }
+
+  return boxes;
+}
+
+/** Buds that haven't opened yet. A plant in flower is never *entirely* in flower. */
+function buds(height: number, color: string, count: number, radius: number): Box[] {
+  const boxes: Box[] = [];
+
+  for (let i = 0; i < count; i += 1) {
+    const angle = (i / count) * Math.PI * 2 + 0.6;
+
+    boxes.push({
+      position: [
+        Math.cos(angle) * radius,
+        height * (0.72 + (i % 2) * 0.08),
+        Math.sin(angle) * radius,
+      ],
+      size: [0.14, 0.2, 0.14],
+      color: shade(color, 0.28),
+    });
+    boxes.push({
+      position: [
+        Math.cos(angle) * radius * 0.55,
+        height * (0.66 + (i % 2) * 0.08),
+        Math.sin(angle) * radius * 0.55,
+      ],
+      size: [0.05, height * 0.1, 0.05],
+      color: shade(STEM, 0.1),
     });
   }
 
@@ -42,9 +90,13 @@ function leaves(height: number, color: string, pairs: number, span: number): Box
 /** Petal ring around a raised centre. Coneflowers, asters, black-eyed Susans. */
 function daisy(plant: Plant): Box[] {
   const { bloomColor, height, leafColor } = plant;
-  const boxes: Box[] = [stem(height, STEM), ...leaves(height, leafColor, 4, 0.28)];
-  const petals = 8;
-  const radius = 0.34;
+  const boxes: Box[] = [
+    stem(height, STEM),
+    ...leaves(height, leafColor, 4, 0.28),
+    ...buds(height, bloomColor, 2, 0.3),
+  ];
+  const petals = 10;
+  const radius = 0.36;
 
   for (let i = 0; i < petals; i += 1) {
     const angle = (i / petals) * Math.PI * 2;
@@ -57,10 +109,21 @@ function daisy(plant: Plant): Box[] {
     });
   }
 
+  // The disc: a raised cone of hundreds of tiny florets, not a flat button.
   boxes.push({
-    position: [0, height + 0.05, 0],
-    size: [0.28, 0.16, 0.28],
+    position: [0, height + 0.04, 0],
+    size: [0.3, 0.12, 0.3],
     color: "#8a5a22",
+  });
+  boxes.push({
+    position: [0, height + 0.12, 0],
+    size: [0.2, 0.1, 0.2],
+    color: "#6b4318",
+  });
+  boxes.push({
+    position: [0, height + 0.18, 0],
+    size: [0.1, 0.06, 0.1],
+    color: "#a06f2e",
   });
 
   return boxes;
@@ -69,19 +132,31 @@ function daisy(plant: Plant): Box[] {
 /** A tapering column of bloom. Goldenrod, cardinal flower, bergamot. */
 function spike(plant: Plant): Box[] {
   const { bloomColor, height, leafColor } = plant;
-  const boxes: Box[] = [stem(height, STEM), ...leaves(height, leafColor, 4, 0.24)];
-  const tiers = 5;
+  const boxes: Box[] = [stem(height, STEM), ...leaves(height, leafColor, 5, 0.24)];
+  const tiers = 7;
 
   for (let i = 0; i < tiers; i += 1) {
     const t = i / (tiers - 1);
-    const width = 0.42 - t * 0.26;
-    const y = height * 0.62 + i * (height * 0.09);
+    const width = 0.44 - t * 0.3;
+    const y = height * 0.58 + i * (height * 0.075);
 
     boxes.push({
       position: [0, y, 0],
-      size: [width, height * 0.1, width],
+      size: [width, height * 0.08, width],
       color: i % 2 === 0 ? bloomColor : shade(bloomColor, 0.1),
     });
+
+    // Florets sticking out sideways. A spike is dozens of little flowers, and a
+    // smooth tapered column reads as a corn dog.
+    if (i % 2 === 0 && i < tiers - 1) {
+      for (const side of [-1, 1]) {
+        boxes.push({
+          position: [side * (width * 0.62), y, 0],
+          size: [0.12, height * 0.06, 0.12],
+          color: tint(bloomColor, 0.18),
+        });
+      }
+    }
   }
 
   return boxes;
@@ -93,6 +168,7 @@ function umbel(plant: Plant): Box[] {
   const boxes: Box[] = [
     stem(height, STEM, 0.11),
     ...leaves(height, leafColor, 5, 0.32),
+    ...buds(height, bloomColor, 3, 0.34),
   ];
 
   const clusters: [number, number, number, number][] = [
@@ -108,6 +184,19 @@ function umbel(plant: Plant): Box[] {
       position: [x, y, z],
       size: [size, size * 0.7, size],
       color: bloomColor,
+    });
+    // A paler crown on each dome, so the cluster reads as many florets rather
+    // than one lump of chewing gum.
+    boxes.push({
+      position: [x, y + size * 0.4, z],
+      size: [size * 0.6, size * 0.25, size * 0.6],
+      color: tint(bloomColor, 0.2),
+    });
+    // The little spoke holding it up.
+    boxes.push({
+      position: [x * 0.5, y - 0.16, z * 0.5],
+      size: [0.05, 0.3, 0.05],
+      color: shade(STEM, 0.1),
     });
   }
 
@@ -134,15 +223,25 @@ function low(plant: Plant): Box[] {
     });
   }
 
+  // A small bloom, with petals rather than a blob.
+  for (let i = 0; i < 5; i += 1) {
+    const angle = (i / 5) * Math.PI * 2;
+
+    boxes.push({
+      position: [
+        Math.cos(angle) * 0.16,
+        height * 0.72,
+        Math.sin(angle) * 0.16,
+      ],
+      size: [0.16, 0.07, 0.16],
+      color: i % 2 === 0 ? bloomColor : tint(bloomColor, 0.15),
+    });
+  }
+
   boxes.push({
-    position: [0, height * 0.72, 0],
-    size: [0.3, 0.16, 0.3],
-    color: bloomColor,
-  });
-  boxes.push({
-    position: [0, height * 0.82, 0],
-    size: [0.18, 0.1, 0.18],
-    color: tint(bloomColor, 0.2),
+    position: [0, height * 0.76, 0],
+    size: [0.11, 0.09, 0.11],
+    color: tint(bloomColor, 0.35),
   });
 
   return boxes;

@@ -178,6 +178,155 @@ function steppingStone(): Box[] {
   ];
 }
 
+
+/**
+ * The Fern Hollow Bridge.
+ *
+ * It collapsed on the morning of 28 January 2022, hours before the President was
+ * due in town to talk about infrastructure. Nobody died. It was rebuilt and
+ * reopened in under a year, and it is now the single most Pittsburgh object in
+ * Pittsburgh — a city of four hundred bridges that dropped one into a ravine and
+ * then put it back faster than anyone believed possible.
+ *
+ * It carries Forbes Avenue over the top of Fern Hollow. From down here it is the
+ * sky.
+ */
+function fernHollowBridge(): Box[] {
+  const boxes: Box[] = [];
+  const SPAN = 300;
+  const DECK_Y = 96;
+
+  // The deck.
+  boxes.push({ position: [0, DECK_Y, 0], size: [SPAN, 5, 44], color: "#8e8a82" });
+  boxes.push({ position: [0, DECK_Y + 3.5, 0], size: [SPAN, 2, 38], color: "#5a5750" });
+
+  // Parapets down both sides.
+  for (const z of [-21, 21]) {
+    boxes.push({ position: [0, DECK_Y + 6, z], size: [SPAN, 8, 3], color: "#a49f95" });
+  }
+
+  // Girders under the deck.
+  for (const z of [-14, 0, 14]) {
+    boxes.push({ position: [0, DECK_Y - 6, z], size: [SPAN, 8, 5], color: "#6f6a60" });
+  }
+
+  // Piers, marching down into the hollow.
+  for (const x of [-96, -32, 32, 96]) {
+    boxes.push({ position: [x, DECK_Y / 2 - 6, 0], size: [16, DECK_Y - 4, 22], color: "#9a9488" });
+    boxes.push({ position: [x, DECK_Y - 12, 0], size: [24, 6, 30], color: "#8e8a82" });
+  }
+
+  // Abutments at both ends.
+  for (const x of [-SPAN / 2 + 10, SPAN / 2 - 10]) {
+    boxes.push({ position: [x, DECK_Y / 2, 0], size: [28, DECK_Y, 46], color: "#7f7a70" });
+  }
+
+  return boxes;
+}
+
+/** Stone steps down into the ravine. Frick is full of them, and they are steep. */
+function stoneSteps(): Box[] {
+  const boxes: Box[] = [];
+  const steps = 16;
+
+  for (let i = 0; i < steps; i += 1) {
+    const t = i / (steps - 1);
+
+    boxes.push({
+      position: [0, 40 - t * 40, -40 + t * 80],
+      size: [26, 4, 6],
+      color: i % 2 === 0 ? STONE : STONE_DARK,
+    });
+  }
+
+  // A handrail, because the drop is genuinely alarming.
+  for (const x of [-15, 15]) {
+    boxes.push({ position: [x, 46 - 20, 0], size: [2, 6, 84], color: "#5f5a52" });
+  }
+
+  return boxes;
+}
+
+/** Swings, beside the Blue Slide. */
+function swings(): Box[] {
+  const boxes: Box[] = [
+    // A-frame.
+    { position: [0, 20, 0], size: [56, 3, 3], color: SLATE },
+  ];
+
+  for (const x of [-26, 26]) {
+    for (const z of [-9, 9]) {
+      boxes.push({ position: [x, 10, z], size: [2.5, 20, 2.5], color: SLATE });
+    }
+  }
+
+  // Two seats, hanging.
+  for (const x of [-13, 13]) {
+    boxes.push({ position: [x, 11, 0], size: [1, 16, 1], color: "#3f3b36" });
+    boxes.push({ position: [x, 3, 0], size: [10, 1.5, 5], color: "#2f6fa8" });
+  }
+
+  return boxes;
+}
+
+/** A trail shelter. Somewhere to sit out a downpour. */
+function pavilion(): Box[] {
+  const boxes: Box[] = [
+    { position: [0, 1, 0], size: [64, 2, 48], color: "#9c9382" },
+    // Roof.
+    { position: [0, 26, 0], size: [72, 3, 56], color: "#7a5f3e" },
+    { position: [0, 29, 0], size: [50, 3, 38], color: "#6b5232" },
+  ];
+
+  for (const x of [-28, 28]) {
+    for (const z of [-20, 20]) {
+      boxes.push({ position: [x, 13, z], size: [4, 24, 4], color: TIMBER });
+    }
+  }
+
+  // Picnic table under it.
+  boxes.push({ position: [0, 8, 0], size: [30, 1.5, 12], color: TIMBER });
+  boxes.push({ position: [0, 4, 0], size: [3, 8, 10], color: TIMBER });
+
+  return boxes;
+}
+
+/**
+ * A storm culvert, discharging into Nine Mile Run.
+ *
+ * The whole restoration story lives here: this stream was a sewer and a slag
+ * dump for most of the twentieth century, and the outfalls are still there.
+ */
+function culvert(): Box[] {
+  return [
+    { position: [0, 9, 0], size: [30, 18, 14], color: "#7a7268" },
+    // The mouth.
+    { position: [0, 7, 8], size: [18, 12, 4], color: "#3a352e" },
+    // Apron of rip-rap.
+    { position: [0, 1, 18], size: [34, 3, 20], color: "#8a8175" },
+    { position: [-8, 3, 22], size: [8, 4, 7], color: "#9a9184" },
+    { position: [9, 3, 25], size: [7, 4, 6], color: "#7b7368" },
+  ];
+}
+
+/**
+ * A slag outcrop.
+ *
+ * Nine Mile Run's valley was filled with steel-mill slag — millions of tons of
+ * it, dumped for decades. The restoration moved what it could and planted over
+ * the rest, but the stuff is still under everything, and it still breaks the
+ * surface. Glassy, sharp, and faintly wrong-coloured.
+ */
+function slag(): Box[] {
+  return [
+    { position: [0, 4, 0], size: [22, 8, 18], color: "#4a4048" },
+    { position: [4, 9, -3], size: [13, 6, 11], color: "#5c5060" },
+    { position: [-6, 8, 4], size: [10, 5, 9], color: "#3e3640" },
+    // A vein of rust where the iron in it is still weathering out.
+    { position: [1, 12, 1], size: [7, 2, 6], color: "#7a4a32" },
+  ];
+}
+
 export type LandmarkKind =
   | "blueSlide"
   | "gatehouse"
@@ -186,7 +335,13 @@ export type LandmarkKind =
   | "tennisCourts"
   | "bench"
   | "trailPost"
-  | "steppingStone";
+  | "steppingStone"
+  | "fernHollowBridge"
+  | "stoneSteps"
+  | "swings"
+  | "pavilion"
+  | "culvert"
+  | "slag";
 
 const BUILDERS: Record<LandmarkKind, () => Box[]> = {
   blueSlide,
@@ -197,6 +352,12 @@ const BUILDERS: Record<LandmarkKind, () => Box[]> = {
   bench,
   trailPost,
   steppingStone,
+  fernHollowBridge,
+  stoneSteps,
+  swings,
+  pavilion,
+  culvert,
+  slag,
 };
 
 export function buildLandmarkGeometry(): Record<LandmarkKind, BufferGeometry> {

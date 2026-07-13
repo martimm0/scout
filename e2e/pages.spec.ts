@@ -111,6 +111,27 @@ test("offline mode frames the run and starts a clock", async ({ page }) => {
   await expect(clock).toBeVisible();
 });
 
+test("the debug overlay is hidden from players, and the stats panel is renamed", async ({
+  page,
+}) => {
+  await page.addInitScript(() => window.localStorage.clear());
+
+  // Plain /play — what a player actually loads.
+  await page.goto("/play");
+  await page.waitForTimeout(3000);
+
+  await expect(page.getByText("Debug Overlay")).toHaveCount(0);
+  await expect(page.getByText("Game State")).toHaveCount(0);
+  await expect(page.getByText("Scout Stats")).toBeVisible();
+
+  // ?debug=1 brings it back — the e2e suite reads flight state out of it, so it
+  // must keep working even though players never see it.
+  await page.goto("/play?debug=1");
+  await page.waitForTimeout(3000);
+
+  await expect(page.getByText("Debug Overlay")).toBeVisible();
+});
+
 test("every page has a working skip link", async ({ browserName, page }) => {
   await page.goto("/");
 

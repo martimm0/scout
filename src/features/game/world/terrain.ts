@@ -86,6 +86,20 @@ export const LANDMARKS = {
   bowlingGreen: [245, -55] as [number, number],
   /** Clay courts, beside the green. */
   tennisCourts: [286, -14] as [number, number],
+  /**
+   * The Fern Hollow Bridge — Forbes Avenue, carried over the top of the hollow.
+   * It fell down in January 2022 and was rebuilt inside a year. From the valley
+   * floor it is the sky.
+   */
+  fernHollowBridge: [-30, -150] as [number, number],
+  /** Stone steps down the west wall of the ravine. */
+  stoneSteps: [-92, 60] as [number, number],
+  /** Swings, beside the Blue Slide. */
+  swings: [150, 205] as [number, number],
+  /** A trail shelter, up on the woodland ridge. */
+  pavilion: [-190, 90] as [number, number],
+  /** A storm outfall into Nine Mile Run. The restoration story, in concrete. */
+  culvert: [-52, 10] as [number, number],
 };
 
 const SEED = 1337;
@@ -216,6 +230,72 @@ export function areaAt(x: number, z: number): Area {
   }
 
   return closest;
+}
+
+/**
+ * The trails.
+ *
+ * Frick Park is really a trail network with a wood around it — Tranquil, Falls
+ * Ravine, Riverview, Homewood. Each is a meandering line, and `trailStrength`
+ * says how close a point is to one, from 1 on the path to 0 in the undergrowth.
+ *
+ * They do three things: they colour the ground bare and brown, they clear the
+ * scatter so a trail is actually walkable, and they give a lost bee something to
+ * follow home.
+ */
+const TRAILS: ((t: number) => [number, number])[] = [
+  // Tranquil Trail: down the west flank of the valley, roughly parallel to the creek.
+  (t) => [creekX(t) - 42 + 12 * Math.sin(t * 0.03), t],
+  // Riverview Trail: along the east rim, high up.
+  (t) => [creekX(t) + 78 + 16 * Math.sin(t * 0.022 + 2), t],
+  // Falls Ravine Trail: cuts down the west wall to the water.
+  (t) => [-150 + t * 0.55, -60 + t * 0.9],
+  // Homewood Trail: the long way round the top, joining the Center to the green.
+  (t) => [-230 + t * 1.6, 170 - t * 0.35],
+];
+
+/** Half-width of a trail, in world units. */
+const TRAIL_WIDTH = 9;
+const TRAIL_REACH = TRAIL_WIDTH * 2;
+
+/**
+ * The trail curves, flattened to points ONCE.
+ *
+ * trailStrength is called for every terrain face, every scatter cell and every
+ * blade of grass — hundreds of thousands of times. Re-evaluating four parametric
+ * curves inside each of those calls would be tens of millions of trig operations
+ * for a set of points that never change.
+ */
+const TRAIL_POINTS: [number, number][] = TRAILS.flatMap((trail) => {
+  const points: [number, number][] = [];
+
+  for (let t = -280; t <= 280; t += 10) {
+    points.push(trail(t));
+  }
+
+  return points;
+});
+
+/** How much a point belongs to a trail: 1 on the path, 0 off in the undergrowth. */
+export function trailStrength(x: number, z: number) {
+  let best = TRAIL_REACH * TRAIL_REACH;
+
+  for (const [tx, tz] of TRAIL_POINTS) {
+    const dx = x - tx;
+    const dz = z - tz;
+    // Squared distance — no square root until we actually need the number.
+    const distance = dx * dx + dz * dz;
+
+    if (distance < best) {
+      best = distance;
+    }
+  }
+
+  if (best >= TRAIL_REACH * TRAIL_REACH) {
+    return 0;
+  }
+
+  return smoothstep(1 - Math.sqrt(best) / TRAIL_REACH);
 }
 
 /** Deterministic pseudo-random in [0,1) keyed off a position and a channel. */

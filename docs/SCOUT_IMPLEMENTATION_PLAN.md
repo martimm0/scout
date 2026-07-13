@@ -64,7 +64,11 @@ The original plan specified five generic zones (Woodland Trail, Meadow, Ravine/C
 - **Falls Ravine** — steep hemlock slopes
 - **Fern Hollow** — deep shade under a closed canopy
 
-Landmarks are hand-placed, not scattered: the Blue Slide, the stone gatehouse, the Environmental Center building, the bowling green and its clubhouse, the clay tennis courts, benches, trail posts, and stepping stones across the creek.
+Landmarks are hand-placed, not scattered: the Blue Slide, the stone gatehouse, the Environmental Center, the bowling green and its clubhouse, the clay tennis courts, the **Fern Hollow Bridge** (which fell into the ravine in January 2022 and was rebuilt inside a year — the most Pittsburgh object in Pittsburgh), stone steps down the ravine wall, the swings, a trail shelter, a storm culvert discharging into the creek, benches, trail posts, and stepping stones.
+
+**The trail network is carved into the terrain** — Tranquil, Riverview, Falls Ravine, Homewood. The paths are bare packed dirt, nothing grows on them, and from the air they are what you navigate by. Frick Park is really a trail network with a wood around it.
+
+**The ground tells you where you are before you look up.** Deep woods get mushrooms, leaf litter and fallen branches. The creek margin gets cattails and **Japanese knotweed** — the invasive that is eating the ravine, which you cannot pollinate, which is the lesson. The mown lawns get clover and acorns. Slag outcrops break the surface in the valley, because millions of tons of it are still down there under everything.
 
 ### Three pollinators, and they are not palette swaps
 

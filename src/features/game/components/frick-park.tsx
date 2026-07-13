@@ -164,6 +164,23 @@ export function Landmarks() {
       {at("gatehouse", LANDMARKS.gatehouse, 0.55)}
       {at("bowlingGreen", LANDMARKS.bowlingGreen)}
       {at("tennisCourts", LANDMARKS.tennisCourts, 0.1)}
+      {at("swings", LANDMARKS.swings, -0.3)}
+      {at("pavilion", LANDMARKS.pavilion, 0.4)}
+      {at("stoneSteps", LANDMARKS.stoneSteps, 1.2)}
+      {at("culvert", LANDMARKS.culvert, -1.4, 4)}
+
+      {/* The bridge is the exception: it spans the hollow rather than sitting on
+          the ground, so it hangs from a fixed height instead of following the
+          terrain under it. */}
+      <mesh
+        castShadow
+        geometry={geometry.fernHollowBridge}
+        position={[LANDMARKS.fernHollowBridge[0], 0, LANDMARKS.fernHollowBridge[1]]}
+        receiveShadow
+        rotation={[0, 0.12, 0]}
+      >
+        <meshLambertMaterial vertexColors />
+      </mesh>
 
       {/* Benches and trail posts along the way, for orientation. */}
       {at("bench", [-190, 168], 0.4)}

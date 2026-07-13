@@ -156,6 +156,119 @@ function grass(): Box[] {
   ];
 }
 
+
+/**
+ * A mushroom. Frick's woodland floor is thick with them after rain, and at this
+ * scale one is a parasol you could shelter under.
+ */
+function mushroom(): Box[] {
+  return [
+    { position: [0, 3, 0], size: [1.6, 6, 1.6], color: "#e6dcc4" },
+    { position: [0, 6.6, 0], size: [7, 2.2, 7], color: "#9c5a3c" },
+    { position: [0, 8, 0], size: [4.5, 1.4, 4.5], color: "#b06a48" },
+    // Gills underneath.
+    { position: [0, 5.6, 0], size: [5.5, 0.6, 5.5], color: "#d8c8a8" },
+  ];
+}
+
+/** Cattails, at the creek margin. The restoration planted these by the thousand. */
+function cattail(): Box[] {
+  const boxes: Box[] = [];
+
+  for (const [x, z, h] of [
+    [0, 0, 22],
+    [2.5, 1.5, 17],
+    [-2, 2, 19],
+  ] as const) {
+    boxes.push({ position: [x, h / 2, z], size: [0.7, h, 0.7], color: "#5f8a4a" });
+    // The brown sausage.
+    boxes.push({ position: [x, h + 3, z], size: [1.8, 6, 1.8], color: "#6b4a2a" });
+    // A blade of leaf leaning off it.
+    boxes.push({
+      position: [x + 1.4, h * 0.45, z],
+      size: [0.5, h * 0.8, 2.4],
+      color: "#6f9a55",
+    });
+  }
+
+  return boxes;
+}
+
+/** A fallen branch. Terrain, at this size. */
+function branch(): Box[] {
+  return [
+    { position: [0, 1.4, 0], size: [26, 2.6, 2.6], color: "#7a5f42" },
+    { position: [10, 2.8, 3], size: [9, 1.6, 1.6], color: "#6b5237" },
+    { position: [-8, 2.6, -3], size: [7, 1.4, 1.4], color: "#6b5237" },
+  ];
+}
+
+/**
+ * Leaf litter. A drift of fallen leaves.
+ *
+ * This is where the queen bumblebees sleep through the winter, which is one very
+ * good reason not to rake the woods clean — and it's in the journal.
+ */
+function leafLitter(): Box[] {
+  const boxes: Box[] = [];
+  const colors = ["#a87a3c", "#8a5f2c", "#c49a52", "#7a5024"];
+
+  for (let i = 0; i < 7; i += 1) {
+    const angle = (i / 7) * Math.PI * 2;
+    const radius = 2 + (i % 3) * 2.2;
+
+    boxes.push({
+      position: [Math.cos(angle) * radius, 0.4 + (i % 2) * 0.4, Math.sin(angle) * radius],
+      size: [3.4, 0.5, 2.6],
+      color: colors[i % colors.length],
+    });
+  }
+
+  return boxes;
+}
+
+/** Clover, in the mown grass. A bee's favourite thing on a lawn. */
+function clover(): Box[] {
+  return [
+    { position: [0, 1.2, 0], size: [0.4, 2.4, 0.4], color: "#5f9a45" },
+    { position: [-0.9, 2.6, 0], size: [1.6, 0.4, 1.6], color: "#67a552" },
+    { position: [0.9, 2.6, 0.4], size: [1.6, 0.4, 1.6], color: "#5f9a45" },
+    { position: [0, 2.6, -1], size: [1.6, 0.4, 1.6], color: "#6faa58" },
+    // The flower head.
+    { position: [0, 3.4, 0], size: [1.5, 1.4, 1.5], color: "#f0e6e8" },
+  ];
+}
+
+/**
+ * Japanese knotweed. The invasive that is eating the ravine.
+ *
+ * It grows in dense stands nothing else can get through, it feeds almost nobody,
+ * and Frick's volunteers spend thousands of hours a year pulling it. It is here
+ * because a park is not only the things you want in it — and because you cannot
+ * pollinate it, which is the lesson.
+ */
+function knotweed(): Box[] {
+  const boxes: Box[] = [];
+
+  for (const [x, z, h] of [
+    [0, 0, 30],
+    [4, 3, 26],
+    [-4, 2, 28],
+    [2, -4, 24],
+    [-3, -3, 22],
+  ] as const) {
+    // Hollow bamboo-like cane, with its red-flecked nodes.
+    boxes.push({ position: [x, h / 2, z], size: [1.6, h, 1.6], color: "#9aa86a" });
+    boxes.push({ position: [x, h * 0.45, z], size: [1.9, 1.2, 1.9], color: "#a8564a" });
+    boxes.push({ position: [x, h * 0.75, z], size: [1.9, 1.2, 1.9], color: "#a8564a" });
+    // The big heart-shaped leaves that shade everything else out.
+    boxes.push({ position: [x + 2.6, h * 0.7, z], size: [5, 0.5, 4], color: "#4f7a3c" });
+    boxes.push({ position: [x - 2.6, h * 0.85, z + 1], size: [5, 0.5, 4], color: "#588a44" });
+  }
+
+  return boxes;
+}
+
 export type FoliageKind =
   | "hemlock"
   | "oak"
@@ -166,7 +279,13 @@ export type FoliageKind =
   | "rock"
   | "snag"
   | "fern"
-  | "grass";
+  | "grass"
+  | "mushroom"
+  | "cattail"
+  | "branch"
+  | "leafLitter"
+  | "clover"
+  | "knotweed";
 
 const BUILDERS: Record<FoliageKind, () => Box[]> = {
   hemlock,
@@ -179,6 +298,12 @@ const BUILDERS: Record<FoliageKind, () => Box[]> = {
   snag,
   fern,
   grass,
+  mushroom,
+  cattail,
+  branch,
+  leafLitter,
+  clover,
+  knotweed,
 };
 
 export function buildFoliageGeometry(): Record<FoliageKind, BufferGeometry> {

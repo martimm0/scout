@@ -5,6 +5,7 @@ import {
   sample,
   terrainHeight,
   terrainSlope,
+  trailStrength,
   WATER_LEVEL,
   WORLD,
   type AreaId,
@@ -17,7 +18,7 @@ export type Placement = {
 };
 
 /** Spacing of the candidate grid for trees and large props. */
-const CELL = 26;
+const CELL = 19;
 
 /** Grass gets its own, much finer grid — it has to be everywhere. */
 const GRASS_CELL = 7;
@@ -28,49 +29,69 @@ const GRASS_CELL = 7;
  * isn't a bowling green.
  */
 const DENSITY: Record<AreaId, number> = {
-  "fern-hollow": 0.72,
-  "falls-ravine": 0.5,
-  "nine-mile-run": 0.22,
-  "environmental-center": 0.12,
-  "blue-slide": 0.16,
-  "bowling-green": 0.06,
+  "fern-hollow": 0.85,
+  "falls-ravine": 0.68,
+  "nine-mile-run": 0.4,
+  "environmental-center": 0.3,
+  "blue-slide": 0.3,
+  "bowling-green": 0.14,
 };
 
 /** Anything steeper than this is bare — trees don't grow on the cliff faces. */
 const MAX_SLOPE = 0.9;
 
+/**
+ * What grows where.
+ *
+ * Not a uniform sprinkle: the deep woods get mushrooms and leaf litter and
+ * fallen branches, the creek margin gets cattails and knotweed, and the mown
+ * lawns get clover and acorns. Reading the ground should tell you where you are
+ * before you look up.
+ */
 function pickKind(area: AreaId, roll: number): FoliageKind {
   if (area === "fern-hollow") {
-    if (roll < 0.3) return "hemlock";
-    if (roll < 0.5) return "oak";
-    if (roll < 0.74) return "fern";
-    if (roll < 0.85) return "shrub";
-    if (roll < 0.93) return "log";
+    if (roll < 0.22) return "hemlock";
+    if (roll < 0.36) return "oak";
+    if (roll < 0.54) return "fern";
+    if (roll < 0.63) return "shrub";
+    if (roll < 0.7) return "log";
+    if (roll < 0.79) return "mushroom";
+    if (roll < 0.88) return "leafLitter";
+    if (roll < 0.95) return "branch";
     return "snag";
   }
 
   if (area === "falls-ravine") {
-    if (roll < 0.42) return "hemlock";
-    if (roll < 0.62) return "oak";
-    if (roll < 0.74) return "fern";
-    if (roll < 0.84) return "shrub";
-    if (roll < 0.9) return "log";
-    if (roll < 0.96) return "stump";
+    if (roll < 0.3) return "hemlock";
+    if (roll < 0.45) return "oak";
+    if (roll < 0.56) return "fern";
+    if (roll < 0.64) return "shrub";
+    if (roll < 0.7) return "log";
+    if (roll < 0.78) return "mushroom";
+    if (roll < 0.86) return "leafLitter";
+    if (roll < 0.92) return "branch";
+    if (roll < 0.97) return "stump";
     return "snag";
   }
 
   if (area === "nine-mile-run") {
-    if (roll < 0.3) return "oak";
-    if (roll < 0.46) return "shrub";
-    if (roll < 0.62) return "fern";
-    if (roll < 0.78) return "log";
+    // The valley floor. Damp, disturbed, and losing ground to knotweed.
+    if (roll < 0.2) return "oak";
+    if (roll < 0.32) return "shrub";
+    if (roll < 0.44) return "fern";
+    if (roll < 0.56) return "log";
+    if (roll < 0.72) return "knotweed";
+    if (roll < 0.82) return "cattail";
+    if (roll < 0.9) return "branch";
+    if (roll < 0.96) return "mushroom";
     return "stump";
   }
 
-  // The mown, managed places: scattered specimen trees, and acorns beneath them.
-  if (roll < 0.42) return "oak";
-  if (roll < 0.58) return "shrub";
-  if (roll < 0.86) return "acorn";
+  // The mown, managed places: specimen trees, acorns under them, clover between.
+  if (roll < 0.3) return "oak";
+  if (roll < 0.42) return "shrub";
+  if (roll < 0.62) return "acorn";
+  if (roll < 0.88) return "clover";
   return "stump";
 }
 
@@ -88,6 +109,12 @@ function empty(): FoliageScatter {
     snag: [],
     fern: [],
     grass: [],
+    mushroom: [],
+    cattail: [],
+    branch: [],
+    leafLitter: [],
+    clover: [],
+    knotweed: [],
   };
 }
 
@@ -123,12 +150,36 @@ export function scatterFoliage(): FoliageScatter {
         continue;
       }
 
+      // Cattails and knotweed crowd the water's edge — that's the whole point of
+      // both of them, so they get placed closer in than anything else.
+      if (
+        area === "nine-mile-run" &&
+        channel >= 12 &&
+        channel < 30 &&
+        height > WATER_LEVEL + 1
+      ) {
+        const bank = sample(x, z, 11);
+
+        result[bank < 0.55 ? "knotweed" : "cattail"].push({
+          position: [px, height - 1, pz],
+          rotation: sample(x, z, 12) * Math.PI * 2,
+          scale: 0.8 + sample(x, z, 13) * 0.5,
+        });
+        continue;
+      }
+
       // Keep the creek channel clear so the valley stays flyable.
       if (channel < 22 || height < WATER_LEVEL + 4) {
         continue;
       }
 
       if (terrainSlope(px, pz) > MAX_SLOPE) {
+        continue;
+      }
+
+      // Trails are walked bare. A hemlock in the middle of the path is not a
+      // trail, and the whole point of them is that you can follow one.
+      if (trailStrength(px, pz) > 0.45) {
         continue;
       }
 
@@ -177,7 +228,11 @@ export function scatterGrass(): Placement[] {
             ? 0.95
             : 0.7;
 
-      if (terrainSlope(px, pz) > 1 || sample(x, z, 23) > density) {
+      // Grass gets worn off the trails too, though not as completely.
+      if (
+        terrainSlope(px, pz) > 1 ||
+        sample(x, z, 23) > density * (1 - trailStrength(px, pz) * 0.85)
+      ) {
         continue;
       }
 

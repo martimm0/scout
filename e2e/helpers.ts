@@ -61,7 +61,7 @@ function heading(state: Readout) {
 /** Load /play with a clean slate and get past the first-flight tutorial. */
 export async function enterGame(page: Page) {
   await page.addInitScript(() => window.localStorage.clear());
-  await page.goto("/play");
+  await page.goto("/play?debug=1");
   await page.waitForTimeout(2500);
 
   const skip = page.getByRole("button", { name: "Skip", exact: true });

@@ -4,6 +4,7 @@ import {
   areaAt,
   sample,
   terrainHeight,
+  trailStrength,
   WATER_LEVEL,
   WORLD,
   type AreaId,
@@ -33,6 +34,8 @@ const BIOME_COLOR: Record<AreaId, string> = {
 
 const ROCK = "#8a8175";
 const SHALLOWS = "#6d6a52";
+/** Bare packed dirt. Thousands of feet a week keep it that way. */
+const TRAIL = "#a68b63";
 
 /**
  * One flat-shaded triangle at a time, coloured by where it sits rather than by
@@ -47,6 +50,7 @@ export function buildTerrainGeometry(): BufferGeometry {
   const base = new Color();
   const rock = new Color(ROCK).convertSRGBToLinear();
   const shallows = new Color(SHALLOWS).convertSRGBToLinear();
+  const trail = new Color(TRAIL).convertSRGBToLinear();
 
   const a = new Vector3();
   const b = new Vector3();
@@ -113,6 +117,10 @@ export function buildTerrainGeometry(): BufferGeometry {
     // Silt and gravel where the ground drops toward Nine Mile Run.
     const depth = cy - WATER_LEVEL;
     base.lerp(shallows, Math.min(1, Math.max(0, 1 - depth / 22)));
+
+    // The trails. Frick Park is a trail network with a wood around it, and from
+    // the air the paths are the thing you actually navigate by.
+    base.lerp(trail, trailStrength(cx, cz) * 0.92);
 
     // A little per-face variation, or large flats read as dead colour fields.
     const jitter = 0.92 + sample(cx, cz, 5) * 0.16;
