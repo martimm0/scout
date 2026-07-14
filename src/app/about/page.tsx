@@ -39,6 +39,16 @@ export default function AboutPage() {
           day precisely because so many of them do not take.
         </p>
         <p>
+          The park also keeps <strong>Pittsburgh&apos;s weather</strong>. Not a
+          simulation and not a random roll: it pulls the real observation for the
+          park&apos;s own coordinates, so if it is raining in Squirrel Hill it is
+          raining in the game, and the rain is coming in at the angle the wind is
+          actually blowing. An overcast day is genuinely dimmer and harder to find
+          a flower in. In fog you cannot see the far bank of the creek, and you
+          have to fly low and follow the trails, because you cannot navigate by
+          landmarks you cannot see.
+        </p>
+        <p>
           The park keeps <strong>Pittsburgh time</strong>, whatever time it is
           where you are. If it is dusk in Squirrel Hill it is dusk in the game.
           What you can find changes with the hour: the spring ephemerals shut by

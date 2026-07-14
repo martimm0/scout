@@ -241,3 +241,13 @@ export function isActive(window: TimeWindow, hour: number) {
 export function describeWindow(window: TimeWindow) {
   return window.note;
 }
+
+/** "Mon 14 Jul". The date in Pittsburgh, which is not always the player's date. */
+export function pittsburghDate(now = new Date()): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "America/New_York",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  }).format(now);
+}

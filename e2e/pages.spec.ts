@@ -596,3 +596,246 @@ test.describe("the about page and the site chrome", () => {
     ).toBe("dark");
   });
 });
+
+test.describe("the weather is Pittsburgh's weather", () => {
+  test("the API answers with a well-formed sky, whatever the service does", async ({
+    page,
+  }) => {
+    const response = await page.request.get("/api/weather");
+    expect(response.status()).toBe(200);
+
+    const body = await response.json();
+    const w = body.weather;
+
+    // The contract holds even when the upstream is down, because the route falls
+    // back to a fair day rather than to a broken object. A weather service being
+    // unreachable is not a reason for the sky to be missing.
+    expect(["clear", "cloudy", "overcast", "fog", "drizzle", "rain", "snow", "thunderstorm"]).toContain(w.condition);
+    expect(["none", "rain", "snow"]).toContain(w.falling);
+    expect(w.cloudCover).toBeGreaterThanOrEqual(0);
+    expect(w.cloudCover).toBeLessThanOrEqual(1);
+    expect(w.intensity).toBeGreaterThanOrEqual(0);
+    expect(w.intensity).toBeLessThanOrEqual(1);
+    expect(typeof w.temperature).toBe("number");
+    expect(typeof w.label).toBe("string");
+
+    console.log("Pittsburgh right now:", w.label, `${Math.round(w.temperature)}C`, `cloud ${Math.round(w.cloudCover * 100)}%`);
+  });
+
+  test("the real observation reaches the park, not just the test hook", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+
+    // Stand in for the weather service. This exercises the path a real player
+    // takes: the game asks the server what the weather is and renders the answer.
+    await page.route("**/api/weather", (route) =>
+      route.fulfill({
+        json: {
+          live: true,
+          weather: {
+            condition: "snow",
+            label: "Heavy snow",
+            temperature: -6,
+            cloudCover: 0.95,
+            wind: 20,
+            precipitation: 3,
+            falling: "snow",
+            intensity: 0.8,
+            observedAt: "2026-01-09T08:00",
+          },
+        },
+      }),
+    );
+
+    await signIn(page.context());
+    await page.goto("/play?debug=1&hour=13");
+    await page.waitForTimeout(5000);
+
+    const skip = page.getByRole("button", { name: "Skip", exact: true });
+    if (await skip.count()) await skip.first().click();
+
+    const stats = page.getByRole("complementary", { name: "Scout stats" });
+    await expect(stats).toContainText("Heavy snow");
+    await expect(stats).toContainText("-6°C");
+  });
+
+  test("the park shows the date and the hour in Pittsburgh", async ({ page }) => {
+    test.setTimeout(120_000);
+
+    await signIn(page.context());
+    await page.goto("/play?hour=13");
+    await page.waitForTimeout(4000);
+
+    const skip = page.getByRole("button", { name: "Skip", exact: true });
+    if (await skip.count()) await skip.first().click();
+
+    const stats = page.getByRole("complementary", { name: "Scout stats" });
+
+    // The date, in Pittsburgh, which is not always the player's date.
+    const today = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "America/New_York",
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    }).format(new Date());
+
+    await expect(stats).toContainText(today);
+    await expect(stats).toContainText("1:00 pm");
+  });
+
+  test("rain is actually drawn, and fog actually hides the park", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+
+    await signIn(page.context());
+
+    /** The mean and the spread of what is on screen. */
+    const look = async (weather: string) => {
+      await page.goto(`/play?hour=13&weather=${weather}`);
+      await page.waitForTimeout(4500);
+
+      const skip = page.getByRole("button", { name: "Skip", exact: true });
+      if (await skip.count()) await skip.first().click();
+      await page.waitForTimeout(1200);
+
+      return page.evaluate(() => {
+        const canvas = document.querySelector("canvas") as HTMLCanvasElement;
+        const shot = canvas.toDataURL("image/jpeg", 0.9);
+
+        return new Promise<{ mean: number; spread: number }>((resolve) => {
+          const image = new Image();
+
+          image.onload = () => {
+            const scratch = document.createElement("canvas");
+            scratch.width = image.width;
+            scratch.height = image.height;
+
+            const context = scratch.getContext("2d")!;
+            context.drawImage(image, 0, 0);
+
+            const { data } = context.getImageData(0, 0, image.width, image.height);
+            const values: number[] = [];
+
+            for (let i = 0; i < data.length; i += 4 * 53) {
+              values.push((data[i] + data[i + 1] + data[i + 2]) / 3);
+            }
+
+            const mean = values.reduce((a, b) => a + b, 0) / values.length;
+            const spread = Math.sqrt(
+              values.reduce((a, b) => a + (b - mean) ** 2, 0) / values.length,
+            );
+
+            resolve({ mean, spread });
+          };
+
+          image.src = shot;
+        });
+      });
+    };
+
+    const clear = await look("clear");
+    const fog = await look("fog");
+
+    console.log("clear:", clear, "fog:", fog);
+
+    // Fog flattens the park: everything moves toward one grey, so the spread of
+    // brightness across the frame collapses. This is the assertion that would
+    // catch the weather being computed and then never reaching the renderer,
+    // which is the failure mode that looks fine in the code and blank on screen.
+    expect(fog.spread).toBeLessThan(clear.spread * 0.85);
+  });
+});
+
+test.describe("the weather is Pittsburgh's weather", () => {
+  test("the service answers, and answers with something usable", async ({
+    page,
+  }) => {
+    const response = await page.request.get("/api/weather");
+    expect(response.status()).toBe(200);
+
+    const body = await response.json();
+    const weather = body.weather;
+
+    console.log("Pittsburgh right now:", JSON.stringify(weather));
+
+    // Whatever the sky is doing, the shape has to be complete: the scene reads
+    // every one of these on the first frame, and an undefined cloud cover is a
+    // NaN in the light rig rather than a nice error.
+    expect(typeof weather.label).toBe("string");
+    expect(typeof weather.temperature).toBe("number");
+    expect(weather.cloudCover).toBeGreaterThanOrEqual(0);
+    expect(weather.cloudCover).toBeLessThanOrEqual(1);
+    expect(["none", "rain", "snow"]).toContain(weather.falling);
+    expect(weather.intensity).toBeGreaterThanOrEqual(0);
+    expect(weather.intensity).toBeLessThanOrEqual(1);
+
+    // And when it fails it says so rather than inventing a sky.
+    expect(typeof body.live).toBe("boolean");
+  });
+
+  test("the HUD shows the date, the time and the real conditions", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+
+    await signIn(page.context());
+    await page.goto("/play?hour=13&weather=rain");
+    await page.waitForTimeout(4000);
+
+    const stats = page.getByRole("complementary", { name: "Scout stats" });
+
+    await expect(stats).toContainText("Rain");
+    await expect(stats).toContainText("1:00 pm");
+    // The date, in Pittsburgh, which is not always the player's date.
+    await expect(stats).toContainText(/\d+ \w{3}/);
+  });
+
+  test("weather changes what you can see, not just what the label says", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+
+    await signIn(page.context());
+
+    /** Mean brightness of the rendered park. */
+    const brightness = async (weather: string) => {
+      await page.goto(`/play?hour=13&weather=${weather}`);
+      await page.waitForTimeout(4500);
+
+      const skip = page.getByRole("button", { name: "Skip", exact: true });
+      if (await skip.count()) await skip.first().click();
+      await page.waitForTimeout(1200);
+
+      return page.evaluate(() => {
+        const canvas = document.querySelector("canvas") as HTMLCanvasElement;
+        const scaled = document.createElement("canvas");
+        scaled.width = 200;
+        scaled.height = 120;
+
+        const context = scaled.getContext("2d")!;
+        context.drawImage(canvas, 0, 0, 200, 120);
+
+        const { data } = context.getImageData(0, 0, 200, 120);
+        let sum = 0;
+
+        for (let i = 0; i < data.length; i += 4) {
+          sum += (data[i] + data[i + 1] + data[i + 2]) / 3;
+        }
+
+        return sum / (data.length / 4);
+      });
+    };
+
+    const clear = await brightness("clear");
+    const storm = await brightness("storm");
+
+    console.log(`brightness: clear ${clear.toFixed(1)}, storm ${storm.toFixed(1)}`);
+
+    // A thunderstorm has to actually darken the park. If the only thing the
+    // weather changed were a word in the corner of the HUD, this is the assertion
+    // that would catch it.
+    expect(storm).toBeLessThan(clear * 0.85);
+  });
+});

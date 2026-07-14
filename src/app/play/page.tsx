@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { requireSignIn } from "@/features/auth/components/sign-in-required";
 import { GameScene } from "@/features/game/components/game-scene";
+import { weatherPreset } from "@/features/game/world/weather";
 
 export const metadata: Metadata = {
   title: "Play · Scout",
@@ -50,5 +51,10 @@ export default async function PlayPage({
   const park =
     requested === "frick" || requested === "schenley" ? requested : undefined;
 
-  return <GameScene debug={debug} hour={hour} park={park} />;
+  // `?weather=rain` pins the sky. Same idea as `?hour=`: the real weather is the
+  // real weather, so on a fine day there is otherwise no way to look at the rain,
+  // and no way for a test to check it falls.
+  const weather = weatherPreset(String(params.weather ?? ""));
+
+  return <GameScene debug={debug} hour={hour} park={park} weather={weather} />;
 }

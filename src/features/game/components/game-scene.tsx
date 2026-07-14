@@ -26,6 +26,7 @@ import { speciesFor } from "../models/pollinators";
 import { PollinatorModel } from "./pollinator-model";
 import { Creek, Foliage, Landmarks, Terrain } from "./frick-park";
 import { SpeciesField } from "./species-field";
+import { WeatherLayer } from "./weather";
 import { LandingMenu } from "./landing-menu";
 import { Quiz } from "./quiz";
 import { SpeciesTag } from "./species-tag";
@@ -48,8 +49,14 @@ import {
   daylightAt,
   daylightForHour,
   isActive,
+  pittsburghDate,
   type Daylight,
 } from "../world/daylight";
+import {
+  applyWeather,
+  FAIR_WEATHER,
+  type Weather,
+} from "../world/weather";
 import {
   areaAt,
   ceiling,
@@ -166,10 +173,12 @@ function R3FViewport({
   canvasRef,
   daylight,
   onDebugChange,
+  weather,
 }: {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   daylight: Daylight;
   onDebugChange: (state: DebugState) => void;
+  weather: Weather;
 }) {
   /**
    * The scene lives in an imperative R3F root, so it does not re-render when the
@@ -217,7 +226,13 @@ function R3FViewport({
       });
 
       if (mounted) {
-        root.render(<ScoutScene daylight={daylight} onDebugChange={onDebugChange} />);
+        root.render(
+          <ScoutScene
+            daylight={daylight}
+            onDebugChange={onDebugChange}
+            weather={weather}
+          />,
+        );
       }
     };
 
@@ -244,9 +259,13 @@ function R3FViewport({
   // down, and the scatter and geometry stay memoised across the re-render.
   useEffect(() => {
     rootRef.current?.render(
-      <ScoutScene daylight={daylight} onDebugChange={onDebugChange} />,
+      <ScoutScene
+        daylight={daylight}
+        onDebugChange={onDebugChange}
+        weather={weather}
+      />,
     );
-  }, [daylight, onDebugChange]);
+  }, [daylight, onDebugChange, weather]);
 
   return <canvas className={styles.canvas} ref={canvasRef} />;
 }
@@ -254,10 +273,25 @@ function R3FViewport({
 function ScoutScene({
   daylight,
   onDebugChange,
+  weather,
 }: {
   daylight: Daylight;
   onDebugChange: (state: DebugState) => void;
+  weather: Weather;
 }) {
+  /**
+   * The sky, once the weather has had its say.
+   *
+   * The hour decides where the sun is; the weather decides whether you can see
+   * it. Folding them together here means every light, the fog and the sky itself
+   * all read one answer, rather than each of them separately remembering to check
+   * whether it is raining.
+   */
+  const sky = useMemo(
+    () => applyWeather(daylight, weather),
+    [daylight, weather],
+  );
+
   const playerMovement = useGameStore((state) => state.player.movement);
   const selectedPollinator = useGameStore((state) => state.pollinator);
   const pollinatedCount = useGameStore((state) =>
@@ -686,7 +720,7 @@ function ScoutScene({
       // The light rides along with the bee (a directional light's shadow camera
       // covers only a small box, and the world is 700x520), but its DIRECTION is
       // the real sun's: low and long at dawn, overhead at noon, gone at night.
-      const [sx, sy, sz] = daylight.sun;
+      const [sx, sy, sz] = sky.sun;
 
       sun.position.set(
         pollinator.position.x + sx * 140,
@@ -695,8 +729,8 @@ function ScoutScene({
       );
       sun.target.position.copy(pollinator.position);
       sun.target.updateMatrixWorld();
-      sun.intensity = daylight.sunIntensity;
-      sun.color.set(daylight.sunColor);
+      sun.intensity = sky.sunIntensity;
+      sun.color.set(sky.sunColor);
     }
 
     if (elapsed - lastDebugUpdate.current > 0.15) {
@@ -817,22 +851,22 @@ function ScoutScene({
         distance={450000}
         mieCoefficient={0.005}
         mieDirectionalG={0.8}
-        rayleigh={daylight.rayleigh}
+        rayleigh={sky.rayleigh}
         sunPosition={[
-          daylight.sun[0] * 100,
-          daylight.sun[1] * 100,
-          daylight.sun[2] * 100,
+          sky.sun[0] * 100,
+          sky.sun[1] * 100,
+          sky.sun[2] * 100,
         ]}
-        turbidity={daylight.turbidity}
+        turbidity={sky.turbidity}
       />
       <ambientLight
-        color={daylight.ambientColor}
-        intensity={daylight.ambientIntensity}
+        color={sky.ambientColor}
+        intensity={sky.ambientIntensity}
       />
       <directionalLight
         castShadow
-        color={daylight.sunColor}
-        intensity={daylight.sunIntensity}
+        color={sky.sunColor}
+        intensity={sky.sunIntensity}
         ref={sunRef}
         shadow-bias={-0.0012}
         shadow-camera-bottom={-70}
@@ -844,20 +878,23 @@ function ScoutScene({
       />
       <hemisphereLight
         args={[
-          daylight.ambientColor,
-          daylight.groundColor,
-          daylight.hemiIntensity,
+          sky.ambientColor,
+          sky.groundColor,
+          sky.hemiIntensity,
         ]}
       />
       {/* Haze at the far edge of the park, so the map ends in distance rather
           than at a hard border. Night closes in tighter. */}
-      <fogExp2 args={[daylight.fogColor, daylight.fogDensity]} attach="fog" />
+      <fogExp2 args={[sky.fogColor, sky.fogDensity]} attach="fog" />
 
       <Terrain />
       <Creek />
       <Landmarks />
       <Foliage />
       <SpeciesField hour={daylight.hour} instances={species} />
+
+      {/* What is actually falling on Pittsburgh right now. */}
+      <WeatherLayer weather={weather} />
 
       {/* Anchored over the thing itself, not pinned to the screen. */}
       {nearbyInstance ? (
@@ -977,12 +1014,15 @@ export function GameScene({
   debug = false,
   hour,
   park: forcedPark,
+  weather: forcedWeather,
 }: {
   debug?: boolean;
   /** Pins the park's clock. Test hook; undefined in every real session. */
   hour?: number;
   /** Pins the park. Test hook, same as `hour`. */
   park?: ParkId;
+  /** Pins the sky. Test hook, same as `hour`. */
+  weather?: Weather;
 }) {
   const debugVisible = debug;
 
@@ -1055,6 +1095,55 @@ export function GameScene({
   const [daylight, setDaylight] = useState(() =>
     hour === undefined ? daylightAt() : daylightForHour(hour),
   );
+
+  /**
+   * The weather over Pittsburgh, right now.
+   *
+   * Starts fair and is replaced the moment the real observation arrives, rather
+   * than holding the park hostage behind a network request. A weather service
+   * being slow is not a reason to stare at a loading spinner instead of a meadow.
+   */
+  const [live, setLive] = useState<Weather>(FAIR_WEATHER);
+  const weather = forcedWeather ?? live;
+
+  useEffect(() => {
+    // A pinned sky does not go and ask what the weather is.
+    if (forcedWeather) {
+      return;
+    }
+
+    let mounted = true;
+
+    const pull = async () => {
+      try {
+        const response = await fetch("/api/weather");
+
+        if (!response.ok) {
+          return;
+        }
+
+        const body = (await response.json()) as { weather: Weather };
+
+        if (mounted && body.weather) {
+          setLive(body.weather);
+        }
+      } catch {
+        // Offline. The park gets a fair day, which is the honest fallback: a
+        // guess about the weather is worse than no weather at all.
+      }
+    };
+
+    void pull();
+
+    // The observation only moves every fifteen minutes upstream, and the route
+    // caches for ten. Asking more often would be asking the same question.
+    const tick = window.setInterval(pull, 10 * 60_000);
+
+    return () => {
+      mounted = false;
+      window.clearInterval(tick);
+    };
+  }, [forcedWeather]);
 
   useEffect(() => {
     // A pinned hour does not tick. It was already set when the state was seeded.
@@ -1175,6 +1264,7 @@ export function GameScene({
           daylight={daylight}
           key={currentPark}
           onDebugChange={setDebugState}
+          weather={weather}
         />
         {flashing ? <div className={styles.flash} aria-hidden /> : null}
 
@@ -1339,7 +1429,16 @@ export function GameScene({
             <dt>Pittsburgh</dt>
             <dd className={styles.clock}>
               {daylight.clock}
-              <span>{daylight.label}</span>
+              <span>
+                {pittsburghDate()} · {daylight.label}
+              </span>
+            </dd>
+          </div>
+          <div>
+            <dt>Weather</dt>
+            <dd className={styles.clock}>
+              {weather.label}
+              <span>{Math.round(weather.temperature)}°C, real</span>
             </dd>
           </div>
         </dl>

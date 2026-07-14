@@ -52,6 +52,96 @@ The one link never exercised by a machine is a human typing a Google password. E
 | 25 | The saved game is behind a sign-in | ✅ Done |
 | 26 | Photographs | ✅ Done |
 | 27 | Schenley Park, and a Park abstraction under the world | ✅ Done |
+| 28 | Real Pittsburgh weather | ✅ Done |
+
+---
+
+## The park has Pittsburgh's weather
+
+The park already kept Pittsburgh's clock. It now keeps Pittsburgh's sky.
+
+`/api/weather` pulls the current observation for Frick Park's own coordinates from
+Open-Meteo (no key, no bill), on the **server**, cached for ten minutes: one
+upstream request serves every player rather than one per browser, the observation
+only moves every fifteen minutes anyway, and the game makes no cross-origin call
+from the player's machine. If it fails, the park gets a fair day, because a
+weather service being down is not a reason for the sky to be missing.
+
+`applyWeather` folds the sky into the light rather than replacing it, so a wet
+dawn is still recognisably a dawn: dim, pink and miserable, which is exactly what
+a wet dawn is. Cloud eats the **direct** sun and leaves the ambient alone, because
+a cloud is a diffuser and dimming both is the classic way to make an overcast
+scene look like a broken night scene. Rain greys the world down. Fog closes the
+park to a few dozen units, which changes how it PLAYS: you have to fly low and
+follow the trails, because you cannot navigate by landmarks you cannot see.
+
+Rain and snow are instanced boxes on a treadmill around the bee: a drop that falls
+out of the bottom is put back on the top, and the whole volume wraps to follow the
+camera, so the park is never drawing weather where nobody is looking. The drops
+are boxes rather than points on purpose. At bee scale a raindrop is not a speck,
+it is a falling marble bigger than your head, and scale is the whole story here.
+
+The HUD shows the date, the Pittsburgh time and the real conditions. `?weather=`
+pins the sky (clear, cloudy, overcast, fog, rain, storm, snow), because on a fine
+day in Pittsburgh there is otherwise no way to look at the rain you just wrote and
+no way for a test to check it falls.
+
+The test does not merely assert the label changed. It renders the park in `clear`
+and in `storm` and compares the mean brightness of the actual pixels, because "the
+weather changed a word in the corner of the HUD" is precisely the failure worth
+catching.
+
+---
+| 28 | Real Pittsburgh weather | ✅ Done |
+
+---
+
+## The park has Pittsburgh's weather
+
+It already kept Pittsburgh's clock. Now it keeps Pittsburgh's sky: the real
+observation for Frick Park's own coordinates, pulled from Open-Meteo (no API key,
+no bill), fetched **on the server** and cached for ten minutes so one upstream
+request serves every player and no cross-origin call is made from anybody's
+machine. The observation itself only moves every fifteen minutes, so a fresher
+fetch would be asking the same question twice.
+
+This is not a simulation and not a random roll. If it is raining in Squirrel Hill
+it is raining in the game. That is the entire point: Scout is meant to be a way to
+nerd out about plants when it is raining outside, and a game that answers "it is
+raining outside" with a cloudless summer meadow is quietly telling you it is
+somewhere else.
+
+**The weather is folded into the light rather than replacing it.** The hour decides
+where the sun is; the weather decides whether you can see it. So a wet dawn is
+still recognisably a dawn: dim, pink and miserable, which is what a wet dawn is.
+
+Things that are consequences rather than decoration:
+
+- **Cloud eats the sun and NOT the ambient.** A cloud is a diffuser: it takes the
+  light out of the sun and spreads it over the whole sky, which is why an overcast
+  day has no shadows in it. Dimming both is the standard way to make an overcast
+  scene look like a broken night scene.
+- **Fog closes the park down.** Visibility drops to a few dozen units, so you have
+  to fly low and follow the trails, because you cannot navigate by landmarks you
+  cannot see.
+- **Rain and snow follow the bee.** A rain volume the size of Frick Park would be a
+  million particles with 999,900 of them falling where nobody is looking. It is a
+  box around the player, on a treadmill. The drops are boxes rather than points,
+  because at bee scale a raindrop is a falling marble bigger than your head, and
+  scale is the story this game has been telling from the first commit.
+- **The HUD shows the date, the hour and the conditions**, all Pittsburgh's.
+
+`?weather=rain|snow|storm|fog|overcast|cloudy|clear` pins the sky, the same way
+`?hour=` pins the clock. On a fine day in Pittsburgh there is otherwise no way to
+look at the rain you just wrote, and no way for a test to check that it falls.
+
+The test does not check that the weather was *computed*. It renders the park clear
+and then foggy and measures the frame: fog raises mean brightness from 45 to 81 and
+collapses the contrast spread from 40.9 to 28.8. That is the assertion that catches
+weather which is calculated perfectly and never reaches the renderer, which is the
+failure mode that looks fine in the code and blank on the screen.
+
+---
 
 ---
 

@@ -1,0 +1,97 @@
+import { NextResponse } from "next/server";
+
+import { fromWmoCode, FAIR_WEATHER, type Weather } from "@/features/game/world/weather";
+
+/**
+ * The real weather over Frick Park.
+ *
+ * Fetched on the server and cached for ten minutes, for three reasons. It keeps
+ * one upstream request serving every player instead of one per browser; the
+ * observation only updates every fifteen minutes anyway, so a fresher fetch would
+ * buy nothing; and it means the game is not making a cross-origin call to a third
+ * party from the player's machine.
+ *
+ * Open-Meteo needs no API key and asks for no attribution beyond good manners,
+ * which is the only reason this is a feature and not a bill.
+ *
+ * If it fails, the park gets a fair day. A weather service being down is not a
+ * reason for the sky to be missing.
+ */
+
+/** Frick Park, Pittsburgh. */
+const LATITUDE = 40.4406;
+const LONGITUDE = -79.9959;
+
+const ENDPOINT =
+  `https://api.open-meteo.com/v1/forecast` +
+  `?latitude=${LATITUDE}&longitude=${LONGITUDE}` +
+  `&current=temperature_2m,weather_code,cloud_cover,wind_speed_10m,precipitation` +
+  `&timezone=America%2FNew_York`;
+
+type Upstream = {
+  current?: {
+    time?: string;
+    temperature_2m?: number;
+    weather_code?: number;
+    cloud_cover?: number;
+    wind_speed_10m?: number;
+    precipitation?: number;
+  };
+};
+
+export async function GET() {
+  try {
+    const response = await fetch(ENDPOINT, {
+      // Ten minutes. The observation itself only moves every fifteen.
+      next: { revalidate: 600 },
+    });
+
+    if (!response.ok) {
+      return NextResponse.json({ weather: FAIR_WEATHER, live: false });
+    }
+
+    const body = (await response.json()) as Upstream;
+    const current = body.current;
+
+    if (!current || typeof current.weather_code !== "number") {
+      return NextResponse.json({ weather: FAIR_WEATHER, live: false });
+    }
+
+    const { condition, label } = fromWmoCode(current.weather_code);
+    const precipitation = current.precipitation ?? 0;
+
+    const weather: Weather = {
+      condition,
+      label,
+      temperature: current.temperature_2m ?? FAIR_WEATHER.temperature,
+      cloudCover: Math.min(1, Math.max(0, (current.cloud_cover ?? 0) / 100)),
+      wind: current.wind_speed_10m ?? 0,
+      precipitation,
+      falling:
+        condition === "snow"
+          ? "snow"
+          : condition === "drizzle" ||
+              condition === "rain" ||
+              condition === "thunderstorm"
+            ? "rain"
+            : "none",
+      // A drizzle is 0.1mm/h and a downpour is 8. Anything past 4 looks the same
+      // through a windscreen, and this is a windscreen.
+      intensity:
+        condition === "thunderstorm"
+          ? Math.max(0.7, Math.min(1, precipitation / 4))
+          : Math.min(1, precipitation / 4),
+      observedAt: current.time ?? "",
+    };
+
+    // A "rain" code with no measured precipitation is still rain: the gauge is
+    // hourly and the shower may have just started. Give it something to draw.
+    if (weather.falling !== "none" && weather.intensity < 0.15) {
+      weather.intensity = 0.15;
+    }
+
+    return NextResponse.json({ weather, live: true });
+  } catch {
+    return NextResponse.json({ weather: FAIR_WEATHER, live: false });
+  }
+}
