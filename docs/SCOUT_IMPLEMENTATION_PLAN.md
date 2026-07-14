@@ -99,13 +99,45 @@ a dev-only bypass is a dev-only bypass right up until the day it ships.
 remembers where you were and what the park's clock said, so an album is a record
 of a day rather than a pile of pictures.
 
-They live in their own localStorage key and **not** in the save file. The save
-file is a few hundred bytes of booleans that goes to Postgres as a single JSONB
-row on every autosave; a photograph is fifty kilobytes. Putting them together
-would mean posting the whole album back to the server every time you found a
-flower. So the album stays on the device, the journal says so plainly, and the
-last twelve are kept with the oldest falling off the end rather than the write
-throwing `QuotaExceededError` halfway through and corrupting the key.
+They live **in the player's account**, as a row each in `player_photos`, and are
+served from `/api/photos/[id]` so the browser can cache them like any other
+image.
+
+There was a version of this that kept them in localStorage, on the reasoning that
+the save file is a few hundred bytes of booleans and a photograph is fifty
+kilobytes, so the two do not belong together. That reasoning was right about the
+*save file* and wrong about the *database*. The save file is one JSONB row read
+and written whole on every autosave, so an album in there would be shipped both
+ways every time somebody found a flower. The fix for that is a second table, not
+a second service. A capped album is under a megabyte, Postgres stores a megabyte
+without noticing, and `bytea` is TOASTed out of line automatically, which is
+precisely the case it exists for. Blob storage earns its keep on big files, CDN
+delivery, and millions of objects, and none of those are true here.
+
+Decisions worth keeping:
+
+- **`bytea`, not base64 text.** Base64 is a third larger and we would pay it on
+  every row, forever, for nothing. The bytes cross the wire as hex and come back
+  as base64 via `decode()` / `encode()`, because the serverless driver talks HTTP
+  and its round-tripping of binary parameters is not worth betting an album on.
+- **Its own endpoint, not inlined into JSON.** A URL can be cached. An image
+  pasted into a JSON payload is re-downloaded every time the journal is opened.
+- **Listing the album does not select the image column.** Otherwise the captions
+  drag a megabyte of JPEG through the database behind them.
+- **The cap is enforced server-side.** A client that forgets, or a second tab
+  that does not know about the first, would otherwise grow the album without end.
+- **Ownership is in the SQL**, not a filter after the fact. An id is an
+  unguessable UUID, but "unguessable" is not an access control policy: somebody
+  else's photograph is a 404 even to somebody holding its id, and there is a test
+  that signs in as a second player to prove it.
+- **The upload is validated.** It must be a JPEG data URL, under 400KB, and it
+  must actually start with the JPEG magic number, because this row is handed back
+  out later with an `image/jpeg` header on it.
+
+The local fallback is not a convenience, it is a correctness requirement: on a
+fresh clone with an empty `.env` there is no account to own an album and no
+database to put it in, so the photographs sit in localStorage and the journal
+says so plainly rather than implying they are safe somewhere they are not.
 
 This works at all only because the GL context is created with
 `preserveDrawingBuffer: true`. Without it the drawing buffer is discarded after

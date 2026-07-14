@@ -226,8 +226,7 @@ test("a photograph taken in the park lands in the journal, and is of the park", 
   test.setTimeout(120_000);
 
   // No addInitScript(localStorage.clear) here: it re-runs on EVERY navigation,
-  // so it would wipe the album on the way to the journal and the photo would be
-  // gone before it was ever looked at. The context is fresh anyway.
+  // so it would wipe a local-mode album on the way to the journal.
   await signIn(page.context());
   await page.goto("/play?hour=13");
   await page.waitForTimeout(4000);
@@ -237,7 +236,7 @@ test("a photograph taken in the park lands in the journal, and is of the park", 
   await page.waitForTimeout(1500);
 
   await page.getByRole("button", { name: /Take a photo/ }).click();
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(1200);
 
   await page.goto("/journal");
   await page.getByRole("button", { name: "Photos" }).click();
@@ -246,7 +245,21 @@ test("a photograph taken in the park lands in the journal, and is of the park", 
   await expect(shot).toBeVisible();
 
   const src = await shot.getAttribute("src");
-  expect(src).toMatch(/^data:image\/jpeg/);
+
+  // Cloud mode: the album is a row in Postgres, served from its own endpoint so
+  // the browser can cache it, rather than a data URL pasted into the page.
+  expect(src).toMatch(/^\/api\/photos\//);
+
+  // And the endpoint really serves a JPEG.
+  const response = await page.request.get(src!);
+  expect(response.status()).toBe(200);
+  expect(response.headers()["content-type"]).toBe("image/jpeg");
+
+  const bytes = await response.body();
+  expect(bytes.length).toBeGreaterThan(2000);
+  // The magic number, so a blank or corrupt row cannot pass as an image.
+  expect(bytes[0]).toBe(0xff);
+  expect(bytes[1]).toBe(0xd8);
 
   // It has to be a picture OF SOMETHING. The GL context is created with
   // preserveDrawingBuffer, and the day that quietly changes, toDataURL starts
@@ -280,4 +293,42 @@ test("a photograph taken in the park lands in the journal, and is of the park", 
 
   console.log("photo pixel spread:", spread.toFixed(1));
   expect(spread).toBeGreaterThan(8);
+
+  // Clean up after ourselves. These rows are in the real database.
+  await page.getByRole("button", { name: "Remove" }).first().click();
+  await expect(page.locator("li img")).toHaveCount(0);
+
+  // And gone means gone: deleted on the server, not merely hidden in the page.
+  expect((await page.request.get(src!)).status()).toBe(404);
+});
+
+test("one player cannot read another player's photographs", async ({ page }) => {
+  test.setTimeout(120_000);
+
+  await signIn(page.context());
+  await page.goto("/play?hour=13");
+  await page.waitForTimeout(4000);
+
+  const skip = page.getByRole("button", { name: "Skip", exact: true });
+  if (await skip.count()) await skip.first().click();
+  await page.waitForTimeout(1500);
+
+  await page.getByRole("button", { name: /Take a photo/ }).click();
+  await page.waitForTimeout(1200);
+
+  await page.goto("/journal");
+  await page.getByRole("button", { name: "Photos" }).click();
+  const src = await page.locator("li img").first().getAttribute("src");
+
+  // A different player, holding the id. An id is an unguessable UUID, but
+  // "unguessable" is not an access control policy.
+  await page.context().clearCookies();
+  await signIn(page.context(), "somebody-else");
+
+  expect((await page.request.get(src!)).status()).toBe(404);
+
+  // Put it back the way we found it, and tidy up.
+  await page.context().clearCookies();
+  await signIn(page.context());
+  await page.request.delete(src!);
 });

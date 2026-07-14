@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { BADGES } from "../data/badges";
 import { EDIBILITY_LABEL, FUNGI } from "../data/fungi";
@@ -68,7 +68,15 @@ export function Journal() {
   const badges = useGameStore((state) => state.unlockedBadges);
   const stats = useGameStore((state) => state.stats);
   const photos = usePhotoStore((state) => state.photos);
+  const photoMode = usePhotoStore((state) => state.mode);
+  const photosLoaded = usePhotoStore((state) => state.loaded);
+  const loadPhotos = usePhotoStore((state) => state.load);
   const removePhoto = usePhotoStore((state) => state.remove);
+
+  // The album is on the server, so the journal has to go and get it.
+  useEffect(() => {
+    void loadPhotos();
+  }, [loadPhotos]);
 
   const discoveredCount = countUnlocked(discovered);
   const pollinatedCount = countUnlocked(pollinated);
@@ -299,7 +307,9 @@ export function Journal() {
       ) : null}
 
       {tab === "photos" ? (
-        photos.length === 0 ? (
+        !photosLoaded ? (
+          <p className={styles.empty}>Fetching your photographs…</p>
+        ) : photos.length === 0 ? (
           <p className={styles.empty}>
             No photographs yet. Press <kbd>P</kbd> while you are flying, or use
             the Take a photo button, and whatever is on screen at that moment
@@ -309,11 +319,9 @@ export function Journal() {
         ) : (
           <>
             <p className={styles.empty}>
-              Kept on this device, not in your account: a photograph is a
-              thousand times the size of everything else in your save file, and
-              it is not worth posting back to the server every time you find a
-              flower. The last {MAX_PHOTOS} are held, and the oldest drops off
-              the end.
+              {photoMode === "cloud"
+                ? `Kept in your account, so they are here whatever you are sitting at. The last ${MAX_PHOTOS} are held, and the oldest drops off the end.`
+                : `Kept on this device only, because there is no account to keep them in. They will not follow you to another browser. The last ${MAX_PHOTOS} are held, and the oldest drops off the end.`}
             </p>
 
             <ul className={styles.grid}>

@@ -1089,7 +1089,9 @@ export function GameScene({
 
     context.drawImage(canvas, 0, 0, width, height);
 
-    capturePhoto({
+    // Fire and forget. The upload must not block the flight loop, and a photo
+    // that fails to reach the server falls back to the device inside the store.
+    void capturePhoto({
       src: scaled.toDataURL("image/jpeg", 0.72),
       area: debugState.area,
       clock: daylight.clock,
