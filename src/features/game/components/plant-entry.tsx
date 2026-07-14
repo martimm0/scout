@@ -4,8 +4,7 @@ import Image from "next/image";
 import { useEffect, useRef } from "react";
 
 import { EDIBILITY_LABEL, FUNGI_BY_ID } from "../data/fungi";
-import { FUNGUS_PHOTOS } from "../data/fungus-photos";
-import { PLANT_PHOTOS } from "../data/plant-photos";
+import { photoFor } from "../data/plant-photos";
 import { describeHomes, PLANTS_BY_ID } from "../data/plants";
 import { useGameStore } from "../state/game-store";
 import { PARK_LIST, PARKS } from "../world/terrain";
@@ -78,9 +77,7 @@ export function PlantEntry() {
     return null;
   }
 
-  const photo = plant
-    ? PLANT_PHOTOS[plant.id]
-    : FUNGUS_PHOTOS[fungus!.id];
+  const photo = photoFor(activeEntry.id);
 
   const name = plant?.commonName ?? fungus!.commonName;
   const scientific = plant?.scientificName ?? fungus!.scientificName;

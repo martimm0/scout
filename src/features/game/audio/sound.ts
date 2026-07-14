@@ -521,6 +521,76 @@ const AMBIENCE: Record<string, Ambience> = {
     calls: [784, 988, 1175],
     every: 5.5,
   },
+
+  /* ----------------------------------------------------------------------- *
+   * Schenley Park. A city park: you can hear Oakland from most of it, and the
+   * hollow is the one place you cannot.
+   * ----------------------------------------------------------------------- */
+
+  // Clipped lawn under a glasshouse. Open, bright, and never quite quiet.
+  phipps: {
+    filter: 1000,
+    q: 0.6,
+    gain: 0.045,
+    calls: [1568, 1760, 2093],
+    every: 3.6,
+  },
+  // The most open ground in either park. Wind, and not much else.
+  "flagstaff-hill": {
+    filter: 1250,
+    q: 0.5,
+    gain: 0.055,
+    calls: [1760, 2093, 2349],
+    every: 4.4,
+  },
+  "schenley-oval": {
+    filter: 1100,
+    q: 0.6,
+    gain: 0.04,
+    calls: [1568, 1976, 2349],
+    every: 4.8,
+  },
+  // Still water, and whatever is standing in it.
+  westinghouse: {
+    filter: 820,
+    q: 1,
+    gain: 0.05,
+    calls: [1047, 1319, 1568],
+    every: 3.2,
+  },
+  // The bottom of the hollow: closed in, damp, and further from the city than
+  // anywhere in Schenley has any right to be.
+  "panther-hollow": {
+    filter: 540,
+    q: 1.2,
+    gain: 0.055,
+    calls: [880, 1047, 1319],
+    every: 4.2,
+  },
+  // The lake. Frogs, and something moving in the reeds.
+  "panther-hollow-lake": {
+    filter: 700,
+    q: 1.3,
+    gain: 0.06,
+    calls: [523, 587, 1319, 1568],
+    every: 2.4,
+  },
+  // Railway cinders and deep shade.
+  "junction-hollow": {
+    filter: 460,
+    q: 1.2,
+    gain: 0.05,
+    calls: [740, 932, 1175],
+    every: 5.2,
+  },
+  // The stream ravine below the conservatory, where the ephemerals are.
+  "phipps-run": {
+    filter: 620,
+    q: 1.1,
+    gain: 0.05,
+    calls: [988, 1175, 1397],
+    every: 4.6,
+  },
 };
 
 let currentArea: string | null = null;

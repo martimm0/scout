@@ -499,3 +499,21 @@
   line-height: 1.5;
   text-align: center;
 }
+
+/* Crossing the city without going back to a menu. */
+.travel {
+  width: 100%;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid rgba(31, 107, 59, 0.35);
+  border-radius: 999px;
+  background: rgba(31, 107, 59, 0.08);
+  color: #1f6b3b;
+  font: inherit;
+  font-weight: 650;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.travel:hover {
+  background: rgba(31, 107, 59, 0.16);
+}

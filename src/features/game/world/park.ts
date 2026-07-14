@@ -44,7 +44,21 @@ export type Park = {
    * the water runs, so a ravine stays one continuous place rather than being
    * carved up by whichever hilltop happens to be nearest.
    */
-  valley: { area: Area; halfWidth: number; centreLine: (z: number) => number };
+  valley: {
+    area: Area;
+    halfWidth: number;
+    centreLine: (z: number) => number;
+    /**
+     * How steep the banks are allowed to be before a plant will not grow there.
+     *
+     * A property of the park, because Panther Hollow is a crack in the ground and
+     * Nine Mile Run is a valley: measured, the Schenley banks run at slope 1.4 to
+     * 2.4 where Frick's run at 1.0 to 1.3. Holding Schenley to Frick's limit left
+     * seven species in the data and nowhere in the world, which is the third time
+     * this exact bug has bitten.
+     */
+    bankSlopeLimit: number;
+  };
   /**
    * Places that override even the valley: a lake in the bottom of a hollow.
    *

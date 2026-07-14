@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
 
-import { signIn } from "./helpers";
+import { hold, readout, signIn } from "./helpers";
 import { FUNGUS_PHOTOS } from "../src/features/game/data/fungus-photos";
 import { PLANT_PHOTOS } from "../src/features/game/data/plant-photos";
+import { SCHENLEY_PHOTOS } from "../src/features/game/data/schenley-photos";
 
 /** The pages around the game: landing, customize, journal, credits, offline. */
 
@@ -94,15 +95,20 @@ test("credits page names every photographer and links every licence", async ({
 }) => {
   await page.goto("/credits");
 
-  // Sixteen plants and eight fungi. Every fungus photograph in the set requires
-  // attribution, so a missing fungus row is a licence breach, not a typo.
+  // Every species with a photograph, across both parks. A missing row is a
+  // licence breach, not a typo: nearly all of these images are CC BY-SA.
   const rows = page.locator("tbody tr");
-  await expect(rows).toHaveCount(24);
+  await expect(rows).toHaveCount(
+    Object.keys(PLANT_PHOTOS).length +
+      Object.keys(FUNGUS_PHOTOS).length +
+      Object.keys(SCHENLEY_PHOTOS).length,
+  );
 
   // Named, not just counted: assert the actual photographers are on the page.
   for (const photo of [
     ...Object.values(PLANT_PHOTOS),
     ...Object.values(FUNGUS_PHOTOS),
+    ...Object.values(SCHENLEY_PHOTOS),
   ]) {
     await expect(page.getByText(photo.author, { exact: false }).first()).toBeVisible();
   }
@@ -110,7 +116,7 @@ test("credits page names every photographer and links every licence", async ({
   // Every row must carry a licence link and a source link. A silently-missing
   // credit is a breach, not a cosmetic bug.
   const licenceLinks = page.locator("tbody tr td a");
-  expect(await licenceLinks.count()).toBeGreaterThanOrEqual(48);
+  expect(await licenceLinks.count()).toBeGreaterThanOrEqual(76);
 });
 
 test("offline mode frames the run and starts a clock", async ({ page }) => {
@@ -175,6 +181,11 @@ test.describe("the saved game is behind a sign-in", () => {
   test("pressing Fly without an account asks for one", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("link", { name: "Fly", exact: true }).click();
+
+    // Firefox and WebKit are slower off the mark than Chromium, and asserting on
+    // the heading before the navigation has landed reads the home page and calls
+    // the gate missing.
+    await page.waitForURL(/\/play/);
 
     // Not the park. The park belongs to somebody.
     await expect(
@@ -413,4 +424,73 @@ test("the album fills up, and a full album refuses rather than quietly binning t
   for (const photo of left.photos as { id: string }[]) {
     await page.request.delete(`/api/photos/${photo.id}`);
   }
+});
+
+test.describe("Schenley Park", () => {
+  test("is locked until half of Frick's plants are found, and says what opens it", async ({
+    page,
+  }) => {
+    // A player with no progress. The shared e2e account has been flying all
+    // suite and has already found enough of Frick to open Schenley, which is
+    // correct behaviour and useless for testing the lock.
+    await signIn(page.context(), "e2e-newcomer");
+    await page.goto("/journal");
+
+    // A locked door that will not say what opens it is just a wall.
+    await expect(page.getByText(/Find/).first()).toBeVisible();
+    await expect(page.getByText(/Schenley opens/)).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Fly Schenley Park/ }),
+    ).toHaveCount(0);
+  });
+
+  test("is a different park: its own areas, its own flowers", async ({ page }) => {
+    test.setTimeout(120_000);
+
+    await signIn(page.context());
+    await page.goto("/play?debug=1&hour=13&park=schenley");
+    await page.waitForTimeout(5000);
+
+    const skip = page.getByRole("button", { name: "Skip", exact: true });
+    if (await skip.count()) await skip.first().click();
+
+    const state = await readout(page);
+
+    // Flagstaff Hill, not the Frick Environmental Center.
+    expect(state.Area).toBe("Flagstaff Hill");
+
+    // And a way back across the city, from inside the park.
+    await expect(
+      page.getByRole("button", { name: /Fly to Frick Park/ }),
+    ).toBeVisible();
+  });
+
+  test("Panther Hollow really is down there", async ({ page }) => {
+    test.setTimeout(120_000);
+
+    await signIn(page.context());
+    await page.goto("/play?debug=1&hour=13&park=schenley");
+    await page.waitForTimeout(5000);
+
+    const skip = page.getByRole("button", { name: "Skip", exact: true });
+    if (await skip.count()) await skip.first().click();
+
+    const before = await readout(page);
+
+    // Starts high: Flagstaff Hill is the top of the park.
+    expect(Number.parseFloat(before.Altitude)).toBeGreaterThan(60);
+
+    // Fly off the hill, then go down into the hollow. Flying LEVEL keeps your
+    // altitude; it is the ground that falls away, which is the whole conceit of
+    // this park and the reason the first version of this assertion was wrong.
+    await hold(page, "ArrowUp", 6000);
+    await hold(page, "KeyQ", 6000);
+
+    const after = await readout(page);
+    expect(after.Area).toBe("Panther Hollow");
+
+    // Down below the waterline of the hill you started on. The top of Schenley is
+    // mown and the wild part is a hundred feet underneath it.
+    expect(Number.parseFloat(after.Altitude)).toBeLessThan(0);
+  });
 });

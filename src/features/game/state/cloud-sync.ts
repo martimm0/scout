@@ -30,6 +30,7 @@ function toSaved(state: GameState) {
     pollinator: state.pollinator,
     discoveredPlants: state.discoveredPlants,
     discoveredFungi: state.discoveredFungi,
+    unlockedParks: state.unlockedParks,
     quizPassed: state.quizPassed,
     seenPhases: state.seenPhases,
     pollinatedPlants: state.pollinatedPlants,
@@ -57,9 +58,20 @@ function mergeInto(local: GameState, remote: Awaited<ReturnType<typeof toSaved>>
   ) => ({ ...a, ...(b ?? {}) });
 
   return {
-    pollinator: (remote.pollinator ?? local.pollinator) as GameState["pollinator"],
+    // MERGED, not replaced. `remote.pollinator ?? local.pollinator` looks right
+    // and is not: an empty object is truthy, so a partial or empty row on the
+    // server replaced the whole bee, the palette lost its colours, and the voxel
+    // builder threw "missing an entry for B" and took the entire scene down with
+    // it. Spreading local underneath means a bad row can no longer produce a bee
+    // that cannot be drawn.
+    pollinator: {
+      ...local.pollinator,
+      ...(remote.pollinator as Partial<GameState["pollinator"]>),
+    } as GameState["pollinator"],
     discoveredPlants: union(local.discoveredPlants, remote.discoveredPlants),
     discoveredFungi: union(local.discoveredFungi, remote.discoveredFungi),
+    // A park you have earned on any device is earned. Union, never intersect.
+    unlockedParks: union(local.unlockedParks, remote.unlockedParks),
     quizPassed: union(local.quizPassed, remote.quizPassed),
     seenPhases: union(local.seenPhases, remote.seenPhases),
     pollinatedPlants: union(local.pollinatedPlants, remote.pollinatedPlants),

@@ -305,3 +305,7 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+.parks {
+  margin: 1.5rem 0;
+}

@@ -53,9 +53,6 @@ export const FUNGUS_SCALE = 12;
 /** How close you have to get before something counts as found. */
 export const DISCOVERY_RADIUS = 9;
 
-/** The creek banks are steep. Anything gentler than this excludes the habitat. */
-const BANK_SLOPE_LIMIT = 1.4;
-
 function homeOf(areaId: string) {
   const all = areas();
 
@@ -93,13 +90,19 @@ function place(
     let z: number;
 
     if (isValley(areaId)) {
-      // Hug the water: a point along it, then out to one bank. Starting at 34
-      // rather than 26 keeps them out of it: inside about 30 units of the channel
-      // the ground is still below the waterline.
-      const { minZ, maxZ } = activePark().world;
-      const along = minZ + sample(seed, count, 11) * (maxZ - minZ);
+      // Hug the water: a point along it, then out to one bank.
+      //
+      // The offsets are a FRACTION of the valley's own half-width, not the two
+      // fixed numbers that used to be here. Those were Nine Mile Run's, and they
+      // reached out to 86 units in a hollow that is only 58 wide, so every
+      // candidate past the rim was rejected for standing in a different area than
+      // the one it was being planted in. Staying inside the corridor keeps the
+      // sampler and `areaAt` telling the same story.
+      const { world: bounds, valley } = activePark();
+      const along = bounds.minZ + sample(seed, count, 11) * (bounds.maxZ - bounds.minZ);
       const side = sample(seed, count, 12) < 0.5 ? -1 : 1;
-      const offset = 34 + sample(seed, count, 13) * 52;
+      const offset =
+        valley.halfWidth * (0.35 + sample(seed, count, 13) * 0.57);
       x = creekX(along) + side * offset;
       z = along;
     } else {
@@ -121,7 +124,9 @@ function place(
     // the world at all: four plants in the journal that could never be found, and
     // an "all sixteen" badge nobody could ever earn. Creekside plants grow on
     // banks. That is the entire point of them.
-    const limit = isValley(areaId) ? BANK_SLOPE_LIMIT : slopeLimit;
+    const limit = isValley(areaId)
+      ? activePark().valley.bankSlopeLimit
+      : slopeLimit;
 
     if (height < waterLevel() + 6 || terrainSlope(x, z) > limit) {
       continue;

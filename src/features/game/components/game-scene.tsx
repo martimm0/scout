@@ -15,6 +15,7 @@ import type { DirectionalLight, Group } from "three";
 import { Vector3 } from "three";
 import {
   countUnlocked,
+  parkUnlocked,
   useGameStore,
   type Pollinator,
   type PlayerMovementState,
@@ -52,10 +53,14 @@ import {
 import {
   areaAt,
   ceiling,
+  setActivePark,
   startPosition,
   terrainHeight,
   world,
   GROUND_CLEARANCE,
+  PARKS,
+  PARK_LIST,
+  type ParkId,
 } from "../world/terrain";
 import styles from "./game-scene.module.css";
 
@@ -971,12 +976,39 @@ function PollinatorPreviewViewport({ pollinator }: { pollinator: Pollinator }) {
 export function GameScene({
   debug = false,
   hour,
+  park: forcedPark,
 }: {
   debug?: boolean;
   /** Pins the park's clock. Test hook; undefined in every real session. */
   hour?: number;
+  /** Pins the park. Test hook, same as `hour`. */
+  park?: ParkId;
 }) {
   const debugVisible = debug;
+
+  const storedPark = useGameStore((state) => state.currentPark);
+  const currentPark = forcedPark ?? storedPark;
+  const unlockedParks = useGameStore((state) => state.unlockedParks);
+  const discoveredPlants = useGameStore((state) => state.discoveredPlants);
+  const enterPark = useGameStore((state) => state.enterPark);
+
+  /**
+   * Point the world module at the right park BEFORE anything under it renders.
+   *
+   * This runs during render on purpose, not in an effect. Every piece of the
+   * scene (the terrain mesh, the scatter, the collision grid) reads the active
+   * park at build time, and children render before a parent's effects fire. Do
+   * this in a useEffect and the first frame builds Frick's world and then hears
+   * about Schenley afterwards.
+   */
+  useMemo(() => setActivePark(currentPark), [currentPark]);
+
+  const park = PARKS[currentPark];
+  const elsewhere = PARK_LIST.filter(
+    (other) =>
+      other.id !== currentPark &&
+      parkUnlocked({ unlockedParks, discoveredPlants }, other.id),
+  );
 
   const selectedPollinator = useGameStore((state) => state.pollinator);
   const discoveredPlantCount = useGameStore((state) =>
@@ -1133,9 +1165,15 @@ export function GameScene({
   return (
     <section className={styles.shell} aria-label="Scout 3D game scene">
       <div className={styles.canvasWrap}>
+        {/* Keyed by park: changing park tears the WebGL root down and builds the
+            new world from scratch. The scatter, the terrain geometry and the
+            collision grid are all memoised for the life of the scene, so
+            anything less than a remount would leave one park's trees standing in
+            another park's ground. */}
         <R3FViewport
           canvasRef={canvasRef}
           daylight={daylight}
+          key={currentPark}
           onDebugChange={setDebugState}
         />
         {flashing ? <div className={styles.flash} aria-hidden /> : null}
@@ -1151,9 +1189,9 @@ export function GameScene({
             <span className={styles.loadingBee} aria-hidden>
               🐝
             </span>
-            <p className={styles.loadingTitle}>Growing Frick Park…</p>
+            <p className={styles.loadingTitle}>Growing {park.label}…</p>
             <p className={styles.loadingNote}>
-              Six hundred acres, one blade of grass at a time.
+              One blade of grass at a time.
             </p>
           </div>
         )}
@@ -1253,6 +1291,19 @@ export function GameScene({
             >
               Take a photo <kbd>P</kbd>
             </button>
+
+            {/* The warp. You do not have to go back to a menu to cross the city:
+                a park you have earned is somewhere you can simply go. */}
+            {elsewhere.map((other) => (
+              <button
+                className={styles.travel}
+                key={other.id}
+                onClick={() => enterPark(other.id)}
+                type="button"
+              >
+                Fly to {other.label}
+              </button>
+            ))}
             <SoundToggle />
             <CloudSyncBadge />
           </>

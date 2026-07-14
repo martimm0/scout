@@ -107,6 +107,7 @@ test("the music is varied, and there is nothing droning under it", async ({ page
   // /play is behind the sign-in now, and a signed-out visit lands on the wall,
   // where there is no Sound button to click and no music to listen to.
   await signIn(page.context());
+  await page.addInitScript(() => window.localStorage.clear());
   await page.goto("/play");
   await page.waitForTimeout(2000);
 
@@ -114,7 +115,13 @@ test("the music is varied, and there is nothing droning under it", async ({ page
   if (await skip.count()) await skip.first().click();
 
   // Turn the sound on, then listen for eight seconds of bars.
-  await page.getByRole("button", { name: /Sound/ }).click();
+  // A real user gesture, on a toggle that is currently OFF. Both halves matter:
+  // browsers keep an AudioContext suspended until a gesture, so if a persisted
+  // setting has already switched sound "on" at load, nothing is actually audible,
+  // and clicking then merely turns it off again. That is how these tests came to
+  // be earnestly measuring silence.
+  await page.getByRole("button", { name: /Sound off/i }).click();
+  await expect(page.getByRole("button", { name: /Sound on/i })).toBeVisible();
   await page.waitForTimeout(8000);
 
   const notes = await page.evaluate(() => window.__notes);
@@ -135,8 +142,13 @@ test("the music is varied, and there is nothing droning under it", async ({ page
   // It plays at all, and it plays a lot: this is a band, not a metronome.
   expect(musical.length).toBeGreaterThan(60);
 
-  // Varied: the old loop cycled seven pitches forever.
-  expect(new Set(freqs.map((f) => Math.round(f))).size).toBeGreaterThan(10);
+  // Varied: the old loop cycled seven pitches, forever, in the same order.
+  //
+  // The threshold sits below what a good run produces (12 to 20). The melody
+  // random-walks a pentatonic, so the count in any single window genuinely
+  // varies, and a threshold set at the high-water mark is a test that fails on
+  // Tuesdays. Eight is still out of reach of the old loop.
+  expect(new Set(freqs.map((f) => Math.round(f))).size).toBeGreaterThanOrEqual(8);
 
   // Nothing down in the sub, and nothing left ringing. That combination is
   // exactly what made the old loop feel like a bass pulse.

@@ -569,6 +569,393 @@ export const TRIVIA: Record<string, Question[]> = {
     },
   ],
 
+  // --- Schenley Park ---
+
+  pickerelweed: [
+    {
+      ask: "Pickerelweed is tristylous. How many builds of the flower are there?",
+      options: ["One", "Two", "Three", "Six"],
+      answer: 2,
+      because:
+        "Three. Every plant has its style long, medium or short, with the anthers set at the two heights it is not.",
+    },
+    {
+      ask: "What is all that arrangement actually for?",
+      options: [
+        "It stops the plant fertilising itself",
+        "It makes the flower harder to rob",
+        "It spreads the flowering over three months",
+        "It attracts three different species of bee",
+      ],
+      answer: 0,
+      because:
+        "A flower can only really pollinate one of the other two builds. It is an elaborate, and very effective, way of refusing to fertilise itself.",
+    },
+    {
+      ask: "How does a bumblebee work a pickerelweed spike?",
+      options: [
+        "It hovers without landing",
+        "From the bottom up",
+        "It chews in through the side",
+        "From the top down",
+      ],
+      answer: 1,
+      because:
+        "Bottom to top, every time. Which means the pollen ends up on the bee at exactly the height the next build needs it.",
+    },
+  ],
+
+  buttonbush: [
+    {
+      ask: "What shape is a buttonbush flower head?",
+      options: [
+        "A flat plate",
+        "A narrow spike",
+        "A perfect sphere",
+        "A drooping tassel",
+      ],
+      answer: 2,
+      because:
+        "A flawless white sphere with the styles shooting out of it in every direction. It looks like a firework caught halfway.",
+    },
+    {
+      ask: "The lake rises and floods a buttonbush for weeks. What happens to it?",
+      options: [
+        "Very little. It does not mind",
+        "It drowns within days",
+        "It drops its flowers and reflowers later",
+        "It goes dormant until the water falls",
+      ],
+      answer: 0,
+      because:
+        "It grows with its feet in the water and tolerates being flooded outright. That is why it is the shrub standing at the very edge and nothing else is.",
+    },
+    {
+      ask: "Who works a flowering buttonbush?",
+      options: [
+        "Only long-tongued bees",
+        "Only beetles",
+        "Only night-flying moths",
+        "Nearly everything: bees, wasps, swallowtails, even hummingbirds",
+      ],
+      answer: 3,
+      because:
+        "It is the busiest shrub on the lake edge. Hundreds of small flowers packed into a ball, and almost anything can get a meal out of it.",
+    },
+  ],
+
+  "swamp-milkweed": [
+    {
+      ask: "How does swamp milkweed get its pollen onto a bee?",
+      options: [
+        "As loose dust on her back",
+        "In waxy saddlebags clipped onto her foot",
+        "On the wind",
+        "It does not. It self-pollinates",
+      ],
+      answer: 1,
+      because:
+        "The same trick as common milkweed: pollen in waxy packets, clipped on by a slot in the flower. Different address, same machinery.",
+    },
+    {
+      ask: "Why does a bird only ever try to eat one monarch?",
+      options: [
+        "Monarchs are too quick to catch twice",
+        "Monarchs sting",
+        "The caterpillar eats milkweed and keeps the toxins",
+        "Monarchs taste of nothing at all",
+      ],
+      answer: 2,
+      because:
+        "The sap is mildly toxic, the caterpillar eats it anyway, and the adult butterfly carries the poison for life. The orange is a warning, and it was earned by eating.",
+    },
+    {
+      ask: "What sets swamp milkweed apart from common milkweed?",
+      options: [
+        "It has no milky sap",
+        "Monarchs will not touch it",
+        "It is pollinated by wind",
+        "It is rose pink, and it stands in the mud",
+      ],
+      answer: 3,
+      because:
+        "A narrower plant with rose-pink flowers, wanting wet feet at the water's edge. The milky sap and the saddlebags are exactly the same.",
+    },
+  ],
+
+  boneset: [
+    {
+      ask: "What is odd about the way boneset's leaves meet the stem?",
+      options: [
+        "The pair is fused, so the stalk seems pushed clean through one leaf",
+        "They clasp the stem and can be pulled off in a ring",
+        "They grow only on one side of it",
+        "There are no leaves on the stem at all",
+      ],
+      answer: 0,
+      because:
+        "The leaf pair fuses around the stalk. It genuinely looks as though somebody has run the stem through a single leaf.",
+    },
+    {
+      ask: "Where does the name boneset come from?",
+      options: [
+        "Its stems are as hard and hollow as bone",
+        "The fused leaf suggested a plant for knitting things back together",
+        "The roots are bone white",
+        "It grows on old graveyards",
+      ],
+      answer: 1,
+      because:
+        "Colonial doctors read that fused leaf as a sign, and dosed people with it for a fever so vicious it was called breakbone fever. The name stuck. The medicine did not.",
+    },
+    {
+      ask: "Which crowd does boneset feed that a deep, tubed flower shuts out?",
+      options: [
+        "Hummingbirds",
+        "Hawkmoths",
+        "Long-tongued bumblebees",
+        "Small bees, flies, wasps and beetles",
+      ],
+      answer: 3,
+      because:
+        "The florets are shallow and open, so a short tongue is no handicap. A deep flower is exclusive. Boneset is not.",
+    },
+  ],
+
+  "blue-vervain": [
+    {
+      ask: "A blue vervain spike flowers in a thin ring of violet. What is below the ring?",
+      options: [
+        "Buds, still waiting to open",
+        "Seed. Those flowers have already finished",
+        "Bare stem",
+        "Leaves",
+      ],
+      answer: 1,
+      because:
+        "Below the ring is done and setting seed. Above it is still waiting. Only the band itself is open for business.",
+    },
+    {
+      ask: "Which way does the ring travel?",
+      options: [
+        "Upward, over weeks",
+        "Downward, over weeks",
+        "In a spiral around the spike",
+        "It does not move",
+      ],
+      answer: 0,
+      because:
+        "It starts at the bottom and creeps up the spike over weeks, so one plant stays worth visiting for most of the summer.",
+    },
+    {
+      ask: "What does the ring do for a bee?",
+      options: [
+        "It hides the nectar from robbers",
+        "Nothing. Bees cannot see violet",
+        "It tells her exactly where the open flowers are",
+        "It warns her off until the flowers are ready",
+      ],
+      answer: 2,
+      because:
+        "It is a moving billboard. She lands on the band and works around it, and wastes no time on the parts of the spike that have nothing left to give.",
+    },
+  ],
+
+  "mapleleaf-viburnum": [
+    {
+      ask: "What does mapleleaf viburnum do in October that almost no other native shrub does?",
+      options: [
+        "It flowers a second time",
+        "It holds its leaves all winter",
+        "Its leaves turn rose pink",
+        "It fruits before it flowers",
+      ],
+      answer: 2,
+      because:
+        "Soft rose pink, sometimes nearly lilac, glowing in the understorey after the canopy above it has gone brown.",
+    },
+    {
+      ask: "How would you know one in summer, with no autumn colour to help?",
+      options: [
+        "Maple-shaped leaves, and flat plates of small white flowers",
+        "Long violet spikes",
+        "Red trumpet flowers",
+        "Needles, and a smell of resin",
+      ],
+      answer: 0,
+      because:
+        "The leaf is the giveaway. It looks like a maple, on a shrub that is nothing of the kind, which is the whole of the name.",
+    },
+    {
+      ask: "Who does a flat, shallow plate of flowers suit?",
+      options: [
+        "Hummingbirds",
+        "Hawkmoths",
+        "Nobody. It is wind pollinated",
+        "Small bees, flies and beetles",
+      ],
+      answer: 3,
+      because:
+        "No tube to climb, nowhere to hide the nectar. The small, unglamorous insects that deeper flowers exclude can all feed here.",
+    },
+  ],
+
+  "white-snakeroot": [
+    {
+      ask: "White snakeroot killed a great many people without any of them touching it. How?",
+      options: [
+        "Through the milk of cows that had eaten it",
+        "Through wells it grew beside",
+        "Through honey made from its nectar",
+        "Through smoke, when the fields were burned",
+      ],
+      answer: 0,
+      because:
+        "Its toxin passes straight through a cow and into her milk. Whole settlements died of milk sickness before anyone worked out where it was coming from.",
+    },
+    {
+      ask: "Whose mother died of milk sickness?",
+      options: [
+        "George Washington's",
+        "Abraham Lincoln's",
+        "Andrew Carnegie's",
+        "Mary Schenley's",
+      ],
+      answer: 1,
+      because:
+        "Nancy Hanks Lincoln, in 1818, when Abraham was nine. Nobody knew what was killing them, and the plant went on flowering at the edge of the wood.",
+    },
+    {
+      ask: "Why does white snakeroot matter to insects in September?",
+      options: [
+        "Its seeds feed them through the winter",
+        "It is the only plant deer will not touch",
+        "It is late nectar, in deep shade, where nothing else is open",
+        "It shelters them from the first frosts",
+      ],
+      answer: 2,
+      because:
+        "Frothy white clusters lighting the woodland edge when the wood has otherwise shut up shop. Bees, wasps and flies work it hard.",
+    },
+  ],
+
+  bloodroot: [
+    {
+      ask: "Break a bloodroot rhizome. What comes out?",
+      options: [
+        "Clear water",
+        "A milky white latex",
+        "Nothing at all",
+        "A thick orange-red sap",
+      ],
+      answer: 3,
+      because:
+        "Orange red, and thick, and startling the first time. Both its names, bloodroot and Sanguinaria, come straight from it.",
+    },
+    {
+      ask: "What does a bloodroot flower offer a bee?",
+      options: [
+        "Nectar only",
+        "Pollen only",
+        "Both, and generously",
+        "Neither. It is wind pollinated",
+      ],
+      answer: 1,
+      because:
+        "No nectar whatsoever. The early bees turn up expecting a drink and leave with the shopping instead.",
+    },
+    {
+      ask: "How long is a bloodroot flower open?",
+      options: [
+        "All spring",
+        "About a month",
+        "A day or two",
+        "Until the first frost",
+      ],
+      answer: 2,
+      because:
+        "It comes up wrapped in its own leaf like a furled umbrella, opens for a day or two, and is gone. Miss the week and you miss the year.",
+    },
+  ],
+
+  "cutleaf-toothwort": [
+    {
+      ask: "Cutleaf toothwort is a mustard. What gives it away?",
+      options: [
+        "A square stem",
+        "Milky sap",
+        "Four white petals in a cross, and a root that bites like horseradish",
+        "Yellow flowers in a flat head",
+      ],
+      answer: 2,
+      because:
+        "Four petals in a cross is the family badge, and the knobbly toothed rhizome underneath tastes exactly of horseradish.",
+    },
+    {
+      ask: "Which butterfly lays its eggs on toothwort?",
+      options: [
+        "The monarch",
+        "The spicebush swallowtail",
+        "The West Virginia white",
+        "The cabbage white",
+      ],
+      answer: 2,
+      because:
+        "The West Virginia white, a small pale butterfly of old woodland, and its caterpillars need this plant.",
+    },
+    {
+      ask: "Why is invasive garlic mustard a disaster for that butterfly?",
+      options: [
+        "It shades toothwort out, and does nothing else",
+        "She lays her eggs on it by mistake, and every caterpillar dies",
+        "It poisons the adult butterflies outright",
+        "It flowers first and takes all the pollinators",
+      ],
+      answer: 1,
+      because:
+        "She cannot tell the impostor from the real thing. She lays, the caterpillars hatch, and they cannot survive on it. Every one of those eggs is wasted.",
+    },
+  ],
+
+  "dutchmans-breeches": [
+    {
+      ask: "Where is the nectar in a Dutchman's breeches flower?",
+      options: [
+        "At the base of the stem",
+        "On the outside of the petals",
+        "Up in the toes of the trousers",
+        "There is none",
+      ],
+      answer: 2,
+      because:
+        "Right up in the toes of the two little upside-down legs, and the flower is locked shut around it.",
+    },
+    {
+      ask: "Who can actually get into one?",
+      options: [
+        "Any honeybee",
+        "A queen bumblebee",
+        "A hoverfly",
+        "Nothing. The wind does it",
+      ],
+      answer: 1,
+      because:
+        "It takes something strong enough to force the petals apart and long enough in the tongue to reach the toes. Almost nothing else in the wood is invited.",
+    },
+    {
+      ask: "Why would a flower bother locking itself shut at all?",
+      options: [
+        "To keep warm through a cold night",
+        "To keep the rain off its pollen",
+        "To stop its petals falling",
+        "To save its nectar for a visitor that will actually carry the pollen on",
+      ],
+      answer: 3,
+      because:
+        "Nectar handed to an insect too small to reach the pollen is nectar thrown away. Locking the door is a way of choosing your customer.",
+    },
+  ],
+
   // --- Fungi ---
 
   "turkey-tail": [
@@ -865,6 +1252,162 @@ export const TRIVIA: Record<string, Question[]> = {
       answer: 0,
       because:
         "It is mycorrhizal. Its threads wrap the roots of oaks and trade water and minerals for sugar, and the wood is healthier for it. Beautiful, useful, and it will kill you.",
+    },
+  ],
+
+  "hen-of-the-woods": [
+    {
+      ask: "Why does a forager guard the location of a hen of the woods oak?",
+      options: [
+        "It comes back to the same tree year after year, sometimes for twenty",
+        "It fruits once, and never again",
+        "It is the only edible fungus in the park",
+        "It is worth more than the tree it grows on",
+      ],
+      answer: 0,
+      because:
+        "Same tree, same week, decade after decade. Find one and you have found it for life, which is why the oaks are kept quiet and handed on like property.",
+    },
+    {
+      ask: "Where would you look for one?",
+      options: [
+        "High on a dead trunk",
+        "Out in open grassland",
+        "At the foot of an old oak",
+        "On fallen branches, well away from any tree",
+      ],
+      answer: 2,
+      because:
+        "A great grey rosette of overlapping fronds sitting at the base of the tree, big enough to fill a rucksack.",
+    },
+    {
+      ask: "What is it doing to the oak?",
+      options: [
+        "Nothing. It only eats the leaf litter around it",
+        "Feeding it, through the roots",
+        "Strangling it",
+        "Rotting the roots and the base of the trunk",
+      ],
+      answer: 3,
+      because:
+        "It is quietly rotting the tree it feeds on, from the roots up. The hen is the bill arriving, decades late.",
+    },
+  ],
+
+  "artists-conk": [
+    {
+      ask: "Why is it called artist's conk?",
+      options: [
+        "Its top is banded with colour, like a painting",
+        "Scratch the white underside and it bruises brown, permanently",
+        "Artists once boiled it down to make ink",
+        "It grows in the shape of a palette",
+      ],
+      answer: 1,
+      because:
+        "The chalk-white pore surface bruises wherever you touch it, and the mark never fades. People draw whole landscapes on them with a stick, and the picture keeps for years.",
+    },
+    {
+      ask: "How could you work out the age of one?",
+      options: [
+        "Weigh it",
+        "Measure how far it juts from the trunk",
+        "Count its annual layers, like tree rings",
+        "You cannot. It fruits once and rots away",
+      ],
+      answer: 2,
+      because:
+        "The bracket is perennial and lays down a new layer every year. It keeps its own records, and you can read them.",
+    },
+    {
+      ask: "How many spores can one large conk shed in a single day?",
+      options: [
+        "A few thousand",
+        "About a million",
+        "None. This one is sterile",
+        "Tens of billions",
+      ],
+      answer: 3,
+      because:
+        "Tens of billions a day, all summer long. They settle as a fine rust-brown dust on everything underneath the bracket, and once you know that, you start noticing it.",
+    },
+  ],
+
+  "ravenels-stinkhorn": [
+    {
+      ask: "Why does Ravenel's stinkhorn smell so precisely of rotting meat?",
+      options: [
+        "To warn animals away from it",
+        "To attract flies",
+        "To repel the insects that would eat it",
+        "No reason. It is a by-product of decay",
+      ],
+      answer: 1,
+      because:
+        "The smell is an advertisement, and the customers are flies. They come expecting carrion and find a fungus instead.",
+    },
+    {
+      ask: "What do the flies do for it?",
+      options: [
+        "Eat the slime and carry the spores off in their guts",
+        "Pollinate it",
+        "Lay eggs whose grubs feed the fungus",
+        "Nothing. They get stuck and die",
+      ],
+      answer: 0,
+      because:
+        "Every other fungus here trusts its spores to the wind. This one advertises, pays in slime, and has the flies deliver. It is the only pollinator-shaped arrangement in the wood with no plant in it.",
+    },
+    {
+      ask: "What does a stinkhorn come up out of?",
+      options: [
+        "A hollow log",
+        "A woody bracket",
+        "A soft gelatinous egg",
+        "Nothing. It grows straight off a tree root",
+      ],
+      answer: 2,
+      because:
+        "An egg, sitting in the leaf litter, and then several inches of stinkhorn in a few hours. It is one of the fastest-growing things in the park.",
+    },
+  ],
+
+  "bitter-oyster": [
+    {
+      ask: "What is foxfire?",
+      options: [
+        "The autumn colour of a rotting log",
+        "A beetle that glows in dead wood",
+        "The green light given off by a fungus in the dark",
+        "A red bracket fungus of burnt ground",
+      ],
+      answer: 2,
+      because:
+        "A steady green glow off the gills, along a fallen branch, in a wood with no other light in it. Soldiers once read letters by it.",
+    },
+    {
+      ask: "What is strange about which bitter oysters glow?",
+      options: [
+        "Only the young ones glow",
+        "Only the North American ones glow. The European ones are dark",
+        "Only the ones growing on oak glow",
+        "Only the ones fruiting in winter glow",
+      ],
+      answer: 1,
+      because:
+        "The same species, on two continents, and only one of them lights up. There is no way to guess it from looking at the mushroom.",
+    },
+    {
+      ask: "Its second name is stipticus. What does that mean?",
+      options: [
+        "Bitter",
+        "Glowing",
+        "Stalked",
+        "Styptic: it stops bleeding",
+      ],
+      answer: 3,
+      because:
+        "Styptic. It was once packed onto wounds to stop them bleeding. The bitterness is real too, and nobody eats it twice.",
     },
   ],
 };

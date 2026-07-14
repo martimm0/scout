@@ -70,11 +70,18 @@ test("nothing throbs: the low end is inaudible against the midrange", async ({
   });
 
   await signIn(page.context());
+  await page.addInitScript(() => window.localStorage.clear());
   await page.goto("/play");
   await page.waitForTimeout(2500);
   const skip = page.getByRole("button", { name: "Skip", exact: true });
   if (await skip.count()) await skip.first().click();
-  await page.getByRole("button", { name: /Sound/ }).click();
+  // A real user gesture, on a toggle that is currently OFF. Both halves matter:
+  // browsers keep an AudioContext suspended until a gesture, so if a persisted
+  // setting has already switched sound "on" at load, nothing is actually audible,
+  // and clicking then merely turns it off again. That is how these tests came to
+  // be earnestly measuring silence.
+  await page.getByRole("button", { name: /Sound off/i }).click();
+  await expect(page.getByRole("button", { name: /Sound on/i })).toBeVisible();
   await page.waitForTimeout(9000);
 
   const lows = await page.evaluate(() => (window as any).__lows as any[]);

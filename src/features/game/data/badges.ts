@@ -1,6 +1,12 @@
 import type { GameState } from "../state/game-store";
+import { schenleyUnlocked } from "../state/game-store";
+import { PARKS } from "../world/terrain";
+import { allAreas } from "../world/park";
 import { FUNGI } from "./fungi";
 import { PLANTS } from "./plants";
+
+const FRICK_AREAS = allAreas(PARKS.frick).map((area) => area.id);
+const SCHENLEY_AREAS = allAreas(PARKS.schenley).map((area) => area.id);
 
 /**
  * Badges.
@@ -23,6 +29,24 @@ export type Badge = {
 
 const count = (record: Record<string, boolean>) =>
   Object.values(record).filter(Boolean).length;
+
+/**
+ * Counting, per park.
+ *
+ * "Find all sixteen" quietly became "find all twenty-six" the moment Schenley
+ * landed, and "visit all six areas" became "visit six of fourteen", which two
+ * parks would satisfy between them without either being finished. A badge that
+ * silently changes what it means is worse than no badge.
+ */
+const speciesOf = (park: "frick" | "schenley") => ({
+  plants: PLANTS.filter((p) => p.homes.some((h) => h.park === park)),
+  fungi: FUNGI.filter((f) => f.homes.some((h) => h.park === park)),
+});
+
+const foundAll = (
+  record: Record<string, boolean>,
+  species: { id: string }[],
+) => species.every((s) => record[s.id]);
 
 export const BADGES: Badge[] = [
   {
@@ -49,9 +73,10 @@ export const BADGES: Badge[] = [
   {
     id: "frick-park-explorer",
     name: "Frick Park Explorer",
-    description: "You have flown every corner of the park.",
+    description: "You have flown every corner of Frick Park.",
     hint: "Visit all six areas.",
-    earned: (state) => count(state.unlockedMapAreas) >= 6,
+    earned: (state) =>
+      FRICK_AREAS.every((area) => state.unlockedMapAreas[area]),
   },
   {
     id: "blue-slide-visitor",
@@ -77,9 +102,10 @@ export const BADGES: Badge[] = [
   {
     id: "native-plant-friend",
     name: "Native Plant Friend",
-    description: "You have found every native plant in the park.",
-    hint: "Find all sixteen.",
-    earned: (state) => count(state.discoveredPlants) >= PLANTS.length,
+    description: "You have found every native plant in Frick Park.",
+    hint: "Find all sixteen in Frick.",
+    earned: (state) =>
+      foundAll(state.discoveredPlants, speciesOf("frick").plants),
   },
   {
     id: "meadow-scout",
@@ -122,9 +148,10 @@ export const BADGES: Badge[] = [
   {
     id: "mycologist",
     name: "Mycologist",
-    description: "Every fungus in the park, found.",
+    description: "Every fungus in Frick Park, found.",
     hint: "All eight of them. Some only come out at night.",
-    earned: (state) => count(state.discoveredFungi) >= FUNGI.length,
+    earned: (state) =>
+      foundAll(state.discoveredFungi, speciesOf("frick").fungi),
   },
   {
     id: "night-shift",
@@ -167,6 +194,53 @@ export const BADGES: Badge[] = [
     description: "Ten quizzes passed. You have actually been reading.",
     hint: "Keep landing, keep reading.",
     earned: (state) => state.stats.quizzesPassed >= 10,
+  },
+  {
+    id: "second-park",
+    name: "A Second Park",
+    description: "Half of Frick's flowers found, and Schenley opened.",
+    hint: "There is another park in this city.",
+    earned: (state) => schenleyUnlocked(state),
+  },
+  {
+    id: "schenley-explorer",
+    name: "Schenley Park Explorer",
+    description: "Phipps, the hill, the Oval, the lake and the hollow. All of it.",
+    hint: "Fly every corner of the second park.",
+    earned: (state) =>
+      SCHENLEY_AREAS.every((area) => state.unlockedMapAreas[area]),
+  },
+  {
+    id: "schenley-botanist",
+    name: "Schenley Botanist",
+    description: "Every plant Schenley has, found.",
+    hint: "The lake, the hollow, the hill and the ravine below the glasshouse.",
+    earned: (state) =>
+      foundAll(state.discoveredPlants, speciesOf("schenley").plants),
+  },
+  {
+    id: "under-the-bridge",
+    name: "Under the Panthers",
+    description: "You went down into Panther Hollow, where the city cannot follow.",
+    hint: "In Schenley the ground opens. Go down.",
+    earned: (state) => Boolean(state.unlockedMapAreas["panther-hollow"]),
+  },
+  {
+    id: "foxfire",
+    name: "Foxfire",
+    description:
+      "You found the bitter oyster after dark, and the old wood was glowing.",
+    hint: "Something else in this city makes its own light.",
+    earned: (state) => Boolean(state.discoveredFungi["bitter-oyster"]),
+  },
+  {
+    id: "both-parks",
+    name: "Two Parks, One City",
+    description: "Every plant and every fungus in both parks. All of it.",
+    hint: "Everything. Everywhere. Both of them.",
+    earned: (state) =>
+      foundAll(state.discoveredPlants, PLANTS) &&
+      foundAll(state.discoveredFungi, FUNGI),
   },
   {
     id: "ecologist",

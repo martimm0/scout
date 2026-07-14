@@ -5,12 +5,12 @@ import { useEffect, useState } from "react";
 
 import { BADGES } from "../data/badges";
 import { EDIBILITY_LABEL, FUNGI } from "../data/fungi";
-import { FUNGUS_PHOTOS } from "../data/fungus-photos";
 import { CONCEPTS, POLLINATOR_ENTRIES } from "../data/journal";
-import { PLANT_PHOTOS } from "../data/plant-photos";
+import { photoFor } from "../data/plant-photos";
 import { describeHomes, PLANTS } from "../data/plants";
 import { countUnlocked, useGameStore } from "../state/game-store";
 import { MAX_PHOTOS, usePhotoStore } from "../state/photo-store";
+import { ParkPicker } from "./park-picker";
 import { PARK_LIST, PARKS } from "../world/terrain";
 import { allAreas } from "../world/park";
 import type { Home } from "../data/plants";
@@ -31,6 +31,23 @@ const AREA_BLURB: Record<string, string> = {
     "Steep enough that the soil barely holds. Hemlocks, and the spring ephemerals that flower and vanish before the canopy closes over them.",
   "fern-hollow":
     "Deep shade, closed canopy, and ferns that from your height are small trees. Spicebush flowers here before it bothers growing leaves.",
+
+  phipps:
+    "A Victorian glasshouse on the edge of the plateau, and a hundred thousand panes of glass to fly around. It has been growing things nobody in Pittsburgh could otherwise see since 1893.",
+  "flagstaff-hill":
+    "Mown, treeless, and the most open ground in either park. Half of Pittsburgh sledges down it the first day it snows. From the top you can see the whole city, which is the point of a flagstaff.",
+  "schenley-oval":
+    "A running track on a plateau, flat because it has to be. The rough at its margins is the only thing growing here that nobody planted.",
+  westinghouse:
+    "A curved bronze wall around a still pond, put up by the people who worked for a man who electrified things. Fly into the middle of it: that is the only place you can read what it says.",
+  "panther-hollow":
+    "The ground opens. A hundred feet down, with a stream at the bottom and a bridge over the top of it carrying four bronze panthers, and it is as wild as anything in Frick. This is the reason to come to Schenley.",
+  "panther-hollow-lake":
+    "A lake at the bottom end of the hollow, ringed with pickerelweed and buttonbush. Everything that flowers here has its feet in the water.",
+  "junction-hollow":
+    "The other ravine, deep and shaded, with a railway running down the length of it. Nothing about it is scenic, and the fungi do not care.",
+  "phipps-run":
+    "The stream ravine below the conservatory. Damp, shaded, and full of spring ephemerals that are up, flowered and gone before the canopy closes over them.",
 };
 
 type Tab =
@@ -142,6 +159,10 @@ export function Journal() {
         </div>
       </section>
 
+      <section className={styles.parks} aria-label="Parks">
+        <ParkPicker />
+      </section>
+
       <nav className={styles.tabs} aria-label="Journal sections">
         {TABS.map((entry) => (
           <button
@@ -161,7 +182,7 @@ export function Journal() {
           {PLANTS.map((plant) => {
             const found = Boolean(discovered[plant.id]);
             const done = Boolean(pollinated[plant.id]);
-            const photo = PLANT_PHOTOS[plant.id];
+            const photo = photoFor(plant.id);
 
             return (
               <li className={styles.card} data-locked={!found} key={plant.id}>
@@ -240,7 +261,7 @@ export function Journal() {
           {FUNGI.map((fungus) => {
             const found = Boolean(foundFungi[fungus.id]);
             const learned = Boolean(quizPassed[fungus.id]);
-            const photo = FUNGUS_PHOTOS[fungus.id];
+            const photo = photoFor(fungus.id);
 
             return (
               <li className={styles.card} data-locked={!found} key={fungus.id}>

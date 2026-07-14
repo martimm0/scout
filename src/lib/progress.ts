@@ -20,6 +20,7 @@ export type SavedProgress = {
   pollinator: Record<string, unknown>;
   discoveredPlants: Record<string, boolean>;
   discoveredFungi: Record<string, boolean>;
+  unlockedParks: Record<string, boolean>;
   quizPassed: Record<string, boolean>;
   seenPhases: Record<string, boolean>;
   pollinatedPlants: Record<string, boolean>;

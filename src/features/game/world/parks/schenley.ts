@@ -87,9 +87,11 @@ export const SCHENLEY: Park = {
   // Panther Hollow Lake and Westinghouse Pond both sit at this surface.
   waterLevel: -96,
   ceiling: 260,
-  // On Flagstaff Hill, looking down the open grass with Phipps behind you. The
-  // most Schenley thing there is, and nothing to fly into for two hundred units.
-  start: [-150, 68, 140],
+  // High on Flagstaff Hill, on the open grass, with two hundred and forty units
+  // of clear air ahead and the nearest tree eighty-five units away. The most
+  // Schenley thing there is: you can see the whole park, and then you find out
+  // that the best part of it is the bit you cannot see, under your feet.
+  start: [-120, 89, 30],
 
   areas: [
     { id: "phipps", label: "Phipps Conservatory", center: [-250, -140] },
@@ -121,6 +123,8 @@ export const SCHENLEY: Park = {
     area: { id: "panther-hollow", label: "Panther Hollow", center: [0, 0] },
     halfWidth: 58,
     centreLine: run,
+    // Measured. The hollow is genuinely this steep.
+    bankSlopeLimit: 2.6,
   },
 
   height,
@@ -204,7 +208,8 @@ export const SCHENLEY: Park = {
     "junction-hollow": 0.72,
     westinghouse: 0.34,
     phipps: 0.26,
-    "flagstaff-hill": 0.12,
+    // Half of Pittsburgh sledges down this. It is mown, and it is bare.
+    "flagstaff-hill": 0.04,
     "schenley-oval": 0.1,
   },
 };

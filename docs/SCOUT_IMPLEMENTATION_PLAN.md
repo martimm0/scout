@@ -51,6 +51,65 @@ The one link never exercised by a machine is a human typing a Google password. E
 | 24 | The park keeps Pittsburgh time | ✅ Done |
 | 25 | The saved game is behind a sign-in | ✅ Done |
 | 26 | Photographs | ✅ Done |
+| 27 | Schenley Park, and a Park abstraction under the world | ✅ Done |
+
+---
+
+## Two parks
+
+Frick was the only park for the game's whole life, and the code said so: the
+world bounds, the height function, the creek, the areas and the landmarks were
+module-level constants in `terrain.ts`, and every function in `world/` read them
+straight out of file scope. A `Park` is data now, and `terrain.ts` is a facade
+over whichever one is active.
+
+**Schenley** is deliberately not Frick with different numbers. Frick is a wood
+with a creek at the bottom of it, and it asks you to go down into it. Schenley is
+a city park: Phipps Conservatory on the plateau in a hundred thousand panes of
+glass, Flagstaff Hill mown bare and open where half of Pittsburgh goes sledding,
+the Oval's running track, and then the ground simply falls away into **Panther
+Hollow**, a hundred feet deep and as wild as anything in Frick, with Schenley
+Drive carried over the top of it on a bridge with four bronze panthers on the
+corners. At bee scale each panther is the size of a house. Flying the length of
+the hollow underneath the bridge is the best thing in this park.
+
+It is **earned**: Schenley opens when you have found half of Frick's plants, eight
+of the sixteen. There are two ways in, a picker in the journal and a warp from
+inside the park itself, because a park you have earned should be somewhere you can
+simply go.
+
+**Species: mostly new, some shared.** Ten plants and four fungi that are Schenley's
+alone, and six species that genuinely grow in both. A shared species keeps ONE id,
+ONE journal entry and ONE photograph, and carries a list of `homes` rather than a
+single area, because goldenrod is goldenrod: it has two addresses, not two
+identities, and finding it in one park means you have found it.
+
+### Three bugs this shape would have caused, all of which would have failed silently
+
+- **The collision caches** were module singletons guarded by `if (grid) return;`,
+  so the first park to load won for the entire page session. Crossing to Schenley
+  would have given you Schenley's terrain with Frick's oaks still solid in the air
+  around you: no crash, no error, just a park full of invisible trees. They are
+  keyed by park id now. A cache you invalidate is a cache somebody forgets to
+  invalidate; a cache you key cannot be wrong.
+- **The scatter decided what grows where by matching the string `"fern-hollow"`.**
+  Every Schenley area would have fallen through to the mown-lawn case and the
+  wildest ravine in the city would have come out planted with clover and acorns.
+  An area's ecology is a property of the area, not of its name.
+- **Panther Hollow Lake sits inside the valley corridor**, so `areaAt` called it
+  "Panther Hollow" and every lake plant placed "at the lake" was rejected for
+  standing somewhere else. That is precisely the bug that once left Frick's four
+  creekside plants nowhere in the world at all. Parks can now declare **basins**
+  that override the valley they sit in, and the same probe that caught it the
+  first time caught it again: it asks each park whether every species it claims
+  actually exists in the world, and it is run on every change.
+
+Also measured rather than guessed: Panther Hollow's banks run at slope 1.4 to 2.4
+where Nine Mile Run's run at 1.0 to 1.3, so the bank slope limit is a property of
+the valley. Holding Schenley to Frick's number left seven species in the data and
+nowhere on the ground.
+
+---
 
 ---
 

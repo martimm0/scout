@@ -4,6 +4,7 @@ import { FUNGI } from "@/features/game/data/fungi";
 import { FUNGUS_PHOTOS } from "@/features/game/data/fungus-photos";
 import { PLANT_PHOTOS } from "@/features/game/data/plant-photos";
 import { PLANTS } from "@/features/game/data/plants";
+import { SCHENLEY_PHOTOS } from "@/features/game/data/schenley-photos";
 import styles from "./credits.module.css";
 
 type Credit = {
@@ -86,6 +87,17 @@ export default function CreditsPage() {
     }),
   );
 
+  // Schenley's species. Nearly every one of these photographs is CC BY-SA, so
+  // shipping them uncredited would be a licence breach rather than an oversight.
+  const schenley: Credit[] = [...PLANTS, ...FUNGI]
+    .filter((species) => SCHENLEY_PHOTOS[species.id])
+    .map((species) => ({
+      id: species.id,
+      commonName: species.commonName,
+      scientificName: species.scientificName,
+      photo: SCHENLEY_PHOTOS[species.id],
+    }));
+
   return (
     <main className="page-container">
       <p className="eyebrow">Credits</p>
@@ -137,6 +149,18 @@ export default function CreditsPage() {
         </p>
 
         <PhotoTable heading="Fungus" rows={fungi} />
+      </section>
+
+      <section>
+        <h2>Schenley Park photographs</h2>
+        <p className={styles.note}>
+          The species Schenley shares with Frick Park reuse the photographs above,
+          because they are the same organism. These are the ones you will only
+          find in Schenley. Two are public domain; every other one on this list
+          requires attribution.
+        </p>
+
+        <PhotoTable heading="Species" rows={schenley} />
       </section>
 
       <section>

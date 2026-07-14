@@ -80,6 +80,7 @@ export const FRICK: Park = {
     area: { id: "nine-mile-run", label: "Nine Mile Run", center: [0, 0] },
     halfWidth: 68,
     centreLine: creek,
+    bankSlopeLimit: 1.4,
   },
 
   height,

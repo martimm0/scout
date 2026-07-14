@@ -125,8 +125,56 @@ export async function signIn(context: BrowserContext, subject = "e2e-player") {
   ]);
 }
 
+/**
+ * Wipe the signed-in player's save, on the SERVER as well as in the browser.
+ *
+ * Clearing localStorage is not enough and never was. The account is signed in, so
+ * cloud sync pulls the server's copy back down and unions it with whatever is
+ * local: a suite that has been flying all afternoon leaves areas and plants
+ * behind in Postgres, and the next run starts in a park it has already explored.
+ * That is how "you begin in one area" started seeing two.
+ */
+export async function resetProgress(page: Page) {
+  await page.request.post("/api/progress", {
+    data: {
+      // NOT an empty object. The pollinator is merged, and an empty one used to
+      // strip the bee of its colours and crash the renderer.
+      pollinator: {
+        name: "Scout",
+        type: "bee",
+        bodyColor: "#f2bb42",
+        wingColor: "#dcefff",
+        wingStyle: "round",
+        accessory: "none",
+        accentColor: "#c0413b",
+      },
+      discoveredPlants: {},
+      discoveredFungi: {},
+      quizPassed: {},
+      seenPhases: {},
+      pollinatedPlants: {},
+      unlockedMapAreas: {},
+      unlockedParks: {},
+      unlockedBadges: {},
+      unlockedJournalEntries: {},
+      stats: {
+        pollinationAttempts: 0,
+        pollinationSuccesses: 0,
+        streak: 0,
+        bestStreak: 0,
+        quizzesTaken: 0,
+        quizzesPassed: 0,
+        questionsCorrect: 0,
+      },
+      tutorialSeen: false,
+      savedAt: Date.now(),
+    },
+  });
+}
+
 export async function enterGame(page: Page, hour: number = TEST_HOUR) {
   await signIn(page.context());
+  await resetProgress(page);
   await page.addInitScript(() => window.localStorage.clear());
   await page.goto(`/play?debug=1&hour=${hour}`);
   await page.waitForTimeout(2500);

@@ -3,6 +3,9 @@
 // Human-readable attribution table: public/images/plants/CREDITS.md
 // Generated from the Wikimedia Commons API - edit with care.
 
+import { FUNGUS_PHOTOS } from "./fungus-photos";
+import { SCHENLEY_PHOTOS } from "./schenley-photos";
+
 export type PlantPhoto = {
   src: string;
   title: string;
@@ -142,3 +145,14 @@ export const PLANT_PHOTOS: Record<string, PlantPhoto> = {
     sourceUrl: "https://commons.wikimedia.org/wiki/File:Cercis_canadensis,_2021-04-24,_Fox_Chapel,_01.jpg",
   },
 };
+
+/**
+ * The photograph for any species, from either park.
+ *
+ * One place to ask, so no component has to know that Schenley's images live in a
+ * different folder. A shared species (goldenrod, spicebush) resolves to the
+ * original Frick photograph, which is correct: it is the same organism.
+ */
+export function photoFor(id: string): PlantPhoto | undefined {
+  return PLANT_PHOTOS[id] ?? FUNGUS_PHOTOS[id] ?? SCHENLEY_PHOTOS[id];
+}

@@ -30,5 +30,15 @@ export default async function PlayPage({
   const raw = Number(params.hour);
   const hour = Number.isFinite(raw) ? ((raw % 24) + 24) % 24 : undefined;
 
-  return <GameScene debug={"debug" in params} hour={hour} />;
+  // `?park=schenley` builds a specific park. Gated behind ?debug so it cannot
+  // become a way for a player to walk past the unlock they have not earned; it
+  // exists so the suite can fly Schenley without first discovering eight flowers.
+  const debug = "debug" in params;
+  const requested = String(params.park ?? "");
+  const park =
+    debug && (requested === "frick" || requested === "schenley")
+      ? requested
+      : undefined;
+
+  return <GameScene debug={debug} hour={hour} park={park} />;
 }

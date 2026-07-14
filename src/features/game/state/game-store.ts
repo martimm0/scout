@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import { PLANTS } from "../data/plants";
+import { setActivePark, type ParkId } from "../world/terrain";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 export type PollinatorType = "bee" | "hoverfly" | "butterfly";
@@ -98,6 +100,15 @@ export type GameState = {
   seenPhases: BooleanRecord;
   pollinatedPlants: BooleanRecord;
   unlockedMapAreas: BooleanRecord;
+  /** The park you are flying. Not progress: just where you are. */
+  currentPark: ParkId;
+  /**
+   * Schenley is earned, not given. It opens when you have found half of Frick's
+   * plants, which is a real threshold rather than a timer: it means you have
+   * actually learned to look, and it gives the second park something to be a
+   * reward FOR.
+   */
+  unlockedParks: BooleanRecord;
   unlockedBadges: BooleanRecord;
   unlockedJournalEntries: BooleanRecord;
   offlineRun: OfflineRunState;
@@ -119,6 +130,7 @@ export type GameActions = {
   setPlayerFlightState: (player: Partial<PlayerState>) => void;
   updatePollinator: (pollinator: Partial<Pollinator>) => void;
   discoverPlant: (plantId: string) => void;
+  enterPark: (park: ParkId) => void;
   pollinatePlant: (plantId: string) => void;
   unlockMapArea: (areaId: string) => void;
   unlockBadge: (badgeId: string) => void;
@@ -204,12 +216,60 @@ const initialStats: Stats = {
   questionsCorrect: 0,
 };
 
+/** Half of Frick's plants. Find eight of the sixteen and the second park opens. */
+export const SCHENLEY_UNLOCK_FRACTION = 0.5;
+
+export function frickPlantsNeeded() {
+  return Math.ceil(
+    PLANTS.filter((plant) => plant.homes.some((home) => home.park === "frick"))
+      .length * SCHENLEY_UNLOCK_FRACTION,
+  );
+}
+
+/** How many of Frick's plants this player has found. */
+export function frickPlantsFound(discovered: BooleanRecord) {
+  return PLANTS.filter(
+    (plant) =>
+      plant.homes.some((home) => home.park === "frick") && discovered[plant.id],
+  ).length;
+}
+
+export function schenleyUnlocked(state: {
+  discoveredPlants: BooleanRecord;
+}): boolean {
+  return frickPlantsFound(state.discoveredPlants) >= frickPlantsNeeded();
+}
+
+/**
+ * May this player fly this park?
+ *
+ * Deliberately OR'd with the derived check rather than trusting the stored flag
+ * alone. Every save file that existed before today has no `unlockedParks` in it,
+ * and a player who has already found twelve of Frick's sixteen plants must not be
+ * shut out of a park they earned months ago because a field was added after they
+ * earned it. The stored flag is a record of the moment it happened; the derived
+ * check is the truth.
+ */
+export function parkUnlocked(
+  state: { unlockedParks: BooleanRecord; discoveredPlants: BooleanRecord },
+  park: ParkId,
+): boolean {
+  if (park === "frick") {
+    return true;
+  }
+
+  return Boolean(state.unlockedParks[park]) || schenleyUnlocked(state);
+}
+
 const initialProgress = {
   discoveredPlants: {},
   discoveredFungi: {},
   quizPassed: {},
   seenPhases: {},
   pollinatedPlants: {},
+  currentPark: "frick" as ParkId,
+  // Frick is where you start. Schenley has to be earned.
+  unlockedParks: { frick: true } as BooleanRecord,
   unlockedMapAreas: {
     // Where the player starts: the lawn outside the Frick Environmental Center.
     "environmental-center": true,
@@ -257,16 +317,42 @@ export const useGameStore = create<GameStore>()(
         return state;
       }
 
+      const discoveredPlants = { ...state.discoveredPlants, [plantId]: true };
+
+      // Crossing halfway through Frick's plants opens Schenley, in the same
+      // update that discovered the flower. Anywhere else and the player finds
+      // their eighth and is told about it later, or worse, on the next reload.
+      const unlockedParks = schenleyUnlocked({ discoveredPlants })
+        ? { ...state.unlockedParks, schenley: true }
+        : state.unlockedParks;
+
       return {
-        discoveredPlants: {
-          ...state.discoveredPlants,
-          [plantId]: true,
-        },
+        discoveredPlants,
+        unlockedParks,
         unlockedJournalEntries: {
           ...state.unlockedJournalEntries,
           [`plant:${plantId}`]: true,
         },
       };
+    }),
+
+  /**
+   * Change park.
+   *
+   * The world module is told first and the store second, because everything the
+   * scene builds on mount (terrain, scatter, collision) reads the active park at
+   * build time. Setting the store first would render one frame of Schenley's bee
+   * standing in Frick.
+   */
+  enterPark: (park) =>
+    set((state) => {
+      if (!parkUnlocked(state, park)) {
+        return state;
+      }
+
+      setActivePark(park);
+
+      return { currentPark: park };
     }),
 
   pollinatePlant: (plantId) =>
@@ -299,7 +385,10 @@ export const useGameStore = create<GameStore>()(
       }
 
       return {
-        unlockedMapAreas: {
+        currentPark: "frick" as ParkId,
+  // Frick is where you start. Schenley has to be earned.
+  unlockedParks: { frick: true } as BooleanRecord,
+  unlockedMapAreas: {
           ...state.unlockedMapAreas,
           [areaId]: true,
         },
@@ -527,6 +616,8 @@ export const useGameStore = create<GameStore>()(
         seenPhases: state.seenPhases,
         pollinatedPlants: state.pollinatedPlants,
         unlockedMapAreas: state.unlockedMapAreas,
+        unlockedParks: state.unlockedParks,
+        currentPark: state.currentPark,
         unlockedBadges: state.unlockedBadges,
         unlockedJournalEntries: state.unlockedJournalEntries,
         settings: state.settings,
