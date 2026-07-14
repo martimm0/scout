@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 
+import { signIn } from "./helpers";
 import { FUNGUS_PHOTOS } from "../src/features/game/data/fungus-photos";
 import { PLANT_PHOTOS } from "../src/features/game/data/plant-photos";
 
@@ -45,6 +46,7 @@ test("customize offers all three species, and each one really renders", async ({
 });
 
 test("each species can be selected and flown", async ({ page }) => {
+  await signIn(page.context());
   test.setTimeout(180_000);
 
   for (const species of ["Hoverfly", "Butterfly", "Bee"]) {
@@ -127,6 +129,7 @@ test("offline mode frames the run and starts a clock", async ({ page }) => {
 test("the debug overlay is hidden from players, and the stats panel is renamed", async ({
   page,
 }) => {
+  await signIn(page.context());
   await page.addInitScript(() => window.localStorage.clear());
 
   // Plain /play — what a player actually loads.
@@ -163,4 +166,118 @@ test("every page has a working skip link", async ({ browserName, page }) => {
 
   await page.keyboard.press("Tab");
   await expect(skip).toBeFocused();
+});
+
+test.describe("the saved game is behind a sign-in", () => {
+  test("pressing Fly without an account asks for one", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("link", { name: "Fly", exact: true }).click();
+
+    // Not the park. The park belongs to somebody.
+    await expect(
+      page.getByRole("heading", { name: "Sign in to fly" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Sign in with Google/ }),
+    ).toBeVisible();
+    await expect(page.locator("canvas")).toHaveCount(0);
+  });
+
+  test("the journal and the profile are behind it too", async ({ page }) => {
+    for (const route of ["/journal", "/profile"]) {
+      await page.goto(route);
+      await expect(
+        page.getByRole("heading", { name: "Sign in to fly" }),
+      ).toBeVisible();
+    }
+  });
+
+  test("but the ten-minute run needs no account, and the gate says so", async ({
+    page,
+  }) => {
+    await page.goto("/play");
+
+    // The way in for somebody who will not hand over a Google account to look at
+    // some flowers. It saves nothing, so it can ask nothing.
+    await page.getByRole("link", { name: /ten-minute run/i }).click();
+    await expect(page).toHaveURL(/\/offline/);
+
+    await page.getByRole("button", { name: "Begin" }).click();
+    await page.waitForTimeout(2500);
+
+    await expect(page.locator("canvas")).toBeVisible();
+  });
+
+  test("signed in, Fly goes straight to the park", async ({ page }) => {
+    await signIn(page.context());
+    await page.goto("/play");
+    await page.waitForTimeout(2500);
+
+    await expect(page.locator("canvas")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Sign in to fly" }),
+    ).toHaveCount(0);
+  });
+});
+
+test("a photograph taken in the park lands in the journal, and is of the park", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+
+  // No addInitScript(localStorage.clear) here: it re-runs on EVERY navigation,
+  // so it would wipe the album on the way to the journal and the photo would be
+  // gone before it was ever looked at. The context is fresh anyway.
+  await signIn(page.context());
+  await page.goto("/play?hour=13");
+  await page.waitForTimeout(4000);
+
+  const skip = page.getByRole("button", { name: "Skip", exact: true });
+  if (await skip.count()) await skip.first().click();
+  await page.waitForTimeout(1500);
+
+  await page.getByRole("button", { name: /Take a photo/ }).click();
+  await page.waitForTimeout(600);
+
+  await page.goto("/journal");
+  await page.getByRole("button", { name: "Photos" }).click();
+
+  const shot = page.locator("li img").first();
+  await expect(shot).toBeVisible();
+
+  const src = await shot.getAttribute("src");
+  expect(src).toMatch(/^data:image\/jpeg/);
+
+  // It has to be a picture OF SOMETHING. The GL context is created with
+  // preserveDrawingBuffer, and the day that quietly changes, toDataURL starts
+  // handing back a blank rectangle and every photo in the album is an empty
+  // frame that still passes a "the image is there" assertion.
+  const spread = await page.evaluate(async (source) => {
+    const image = new Image();
+    image.src = source!;
+    await image.decode();
+
+    const canvas = document.createElement("canvas");
+    canvas.width = image.width;
+    canvas.height = image.height;
+
+    const context = canvas.getContext("2d")!;
+    context.drawImage(image, 0, 0);
+
+    const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+    const values: number[] = [];
+
+    for (let i = 0; i < data.length; i += 4 * 97) {
+      values.push((data[i] + data[i + 1] + data[i + 2]) / 3);
+    }
+
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    const variance =
+      values.reduce((a, b) => a + (b - mean) ** 2, 0) / values.length;
+
+    return Math.sqrt(variance);
+  }, src);
+
+  console.log("photo pixel spread:", spread.toFixed(1));
+  expect(spread).toBeGreaterThan(8);
 });

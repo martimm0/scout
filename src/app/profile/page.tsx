@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { requireSignIn } from "@/features/auth/components/sign-in-required";
 import { Profile } from "@/features/game/components/profile";
 import { authConfigured } from "@/lib/env";
 
@@ -8,7 +9,13 @@ export const metadata: Metadata = {
   description: "Your pollinator, your progress, and the badges you've earned.",
 };
 
-export default function ProfilePage() {
+export default async function ProfilePage() {
+  const gate = await requireSignIn();
+
+  if (gate) {
+    return gate;
+  }
+
   return (
     <main className="page-container">
       <p className="eyebrow">Profile</p>

@@ -10,6 +10,7 @@ import { CONCEPTS, POLLINATOR_ENTRIES } from "../data/journal";
 import { PLANT_PHOTOS } from "../data/plant-photos";
 import { PLANTS } from "../data/plants";
 import { countUnlocked, useGameStore } from "../state/game-store";
+import { MAX_PHOTOS, usePhotoStore } from "../state/photo-store";
 import { AREAS, RAVINE_AREA } from "../world/terrain";
 import styles from "./journal.module.css";
 
@@ -29,11 +30,19 @@ const AREA_BLURB: Record<string, string> = {
     "Deep shade, closed canopy, and ferns that from your height are small trees. Spicebush flowers here before it bothers growing leaves.",
 };
 
-type Tab = "plants" | "fungi" | "pollinators" | "areas" | "concepts" | "badges";
+type Tab =
+  | "plants"
+  | "fungi"
+  | "photos"
+  | "pollinators"
+  | "areas"
+  | "concepts"
+  | "badges";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "plants", label: "Plants" },
   { id: "fungi", label: "Fungi" },
+  { id: "photos", label: "Photos" },
   { id: "pollinators", label: "Pollinators" },
   { id: "areas", label: "Map areas" },
   { id: "concepts", label: "Ecology" },
@@ -58,6 +67,8 @@ export function Journal() {
   const entries = useGameStore((state) => state.unlockedJournalEntries);
   const badges = useGameStore((state) => state.unlockedBadges);
   const stats = useGameStore((state) => state.stats);
+  const photos = usePhotoStore((state) => state.photos);
+  const removePhoto = usePhotoStore((state) => state.remove);
 
   const discoveredCount = countUnlocked(discovered);
   const pollinatedCount = countUnlocked(pollinated);
@@ -99,6 +110,10 @@ export function Journal() {
         <div>
           <dt>Quizzes passed</dt>
           <dd>{stats.quizzesPassed}</dd>
+        </div>
+        <div>
+          <dt>Photographs</dt>
+          <dd>{photos.length}</dd>
         </div>
         <div>
           <dt>Badges</dt>
@@ -281,6 +296,66 @@ export function Journal() {
             );
           })}
         </ul>
+      ) : null}
+
+      {tab === "photos" ? (
+        photos.length === 0 ? (
+          <p className={styles.empty}>
+            No photographs yet. Press <kbd>P</kbd> while you are flying, or use
+            the Take a photo button, and whatever is on screen at that moment
+            lands here. The park is worth photographing at dawn, and it is a
+            different park entirely after dark.
+          </p>
+        ) : (
+          <>
+            <p className={styles.empty}>
+              Kept on this device, not in your account: a photograph is a
+              thousand times the size of everything else in your save file, and
+              it is not worth posting back to the server every time you find a
+              flower. The last {MAX_PHOTOS} are held, and the oldest drops off
+              the end.
+            </p>
+
+            <ul className={styles.grid}>
+              {photos.map((photo) => (
+                <li className={styles.card} key={photo.id}>
+                  {/* Not next/image: this is a data URL that exists only in this
+                      browser, and there is nothing for the optimiser to do to it. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    alt={`Frick Park, ${photo.area}, ${photo.clock}`}
+                    className={styles.thumb}
+                    src={photo.src}
+                  />
+
+                  <div className={styles.cardBody}>
+                    <p className={styles.cardTitle}>{photo.area}</p>
+                    <p className={styles.meta}>
+                      {photo.clock} · {photo.phase}
+                    </p>
+
+                    <div className={styles.photoActions}>
+                      <a
+                        className={styles.link}
+                        download={`scout-${photo.id}.jpg`}
+                        href={photo.src}
+                      >
+                        Download
+                      </a>
+                      <button
+                        className={styles.remove}
+                        onClick={() => removePhoto(photo.id)}
+                        type="button"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        )
       ) : null}
 
       {tab === "pollinators" ? (

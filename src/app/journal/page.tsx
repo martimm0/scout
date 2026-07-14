@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { requireSignIn } from "@/features/auth/components/sign-in-required";
 import { Journal } from "@/features/game/components/journal";
 
 export const metadata: Metadata = {
@@ -8,7 +9,13 @@ export const metadata: Metadata = {
     "Your record of Frick Park: the plants you've found, the places you've been, and what you've learned.",
 };
 
-export default function JournalPage() {
+export default async function JournalPage() {
+  const gate = await requireSignIn();
+
+  if (gate) {
+    return gate;
+  }
+
   return (
     <main className="page-container">
       <p className="eyebrow">Journal</p>

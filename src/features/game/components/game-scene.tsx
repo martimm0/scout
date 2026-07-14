@@ -2,7 +2,14 @@
 
 import { Sky } from "@react-three/drei";
 import { createRoot, extend, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import * as THREE from "three";
 import type { DirectionalLight, Group } from "three";
 import { Vector3 } from "three";
@@ -27,6 +34,7 @@ import { PollinationMinigame } from "./pollination-minigame";
 import { ProgressionWatcher } from "./progression-watcher";
 import { SoundToggle } from "./sound-toggle";
 import { CloudSyncBadge } from "./cloud-sync-badge";
+import { usePhotoStore } from "../state/photo-store";
 import { PLANTS } from "../data/plants";
 import {
   scatterSpecies,
@@ -106,6 +114,7 @@ const BOOST = ["ShiftLeft", "ShiftRight"];
 const GREET_KEY = "KeyF";
 const DANCE_KEY = "KeyG";
 const READ_KEY = "KeyR";
+const PHOTO_KEY = "KeyP";
 
 const STEER_CODES = new Set([
   ...TURN_LEFT,
@@ -122,6 +131,7 @@ const ACTION_CODES = new Set([
   GREET_KEY,
   DANCE_KEY,
   READ_KEY,
+  PHOTO_KEY,
 ]);
 
 export type Gesture = "none" | "greet" | "dance";
@@ -148,13 +158,14 @@ function axis(keys: Set<string>, negative: string[], positive: string[]) {
 }
 
 function R3FViewport({
+  canvasRef,
   daylight,
   onDebugChange,
 }: {
+  canvasRef: React.RefObject<HTMLCanvasElement | null>;
   daylight: Daylight;
   onDebugChange: (state: DebugState) => void;
 }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   /**
    * The scene lives in an imperative R3F root, so it does not re-render when the
    * outer component does. When the hour ticks over, the new daylight has to be
@@ -1024,6 +1035,22 @@ export function GameScene({
     return () => window.clearInterval(tick);
   }, [hour]);
 
+  /**
+   * The shutter.
+   *
+   * The canvas is reached by ref, never by `document.querySelector("canvas")`.
+   * There is a second canvas on this page (the pollinator preview), and a
+   * querySelector grabs whichever one happens to be first in the document. That
+   * exact bug has already been in this file once.
+   *
+   * The capture works at all only because the GL context is created with
+   * `preserveDrawingBuffer: true`. Without it the drawing buffer is thrown away
+   * after each frame and `toDataURL` hands back a blank rectangle.
+   */
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const capturePhoto = usePhotoStore((state) => state.capture);
+  const [flashing, setFlashing] = useState(false);
+
   const [debugState, setDebugState] = useState<DebugState>({
     areaId: "environmental-center",
     area: "Environmental Center",
@@ -1036,10 +1063,69 @@ export function GameScene({
     input: "none",
   });
 
+  const takePhoto = useCallback(() => {
+    const canvas = canvasRef.current;
+
+    if (!canvas) {
+      return;
+    }
+
+    // Downscale on the way out. A full retina buffer is a 2560px JPEG, which is
+    // most of a megabyte of base64, and about four of those would fill the whole
+    // localStorage budget for the origin.
+    const width = 720;
+    const ratio = canvas.clientHeight / (canvas.clientWidth || 1);
+    const height = Math.max(1, Math.round(width * (ratio || 0.5625)));
+
+    const scaled = document.createElement("canvas");
+    scaled.width = width;
+    scaled.height = height;
+
+    const context = scaled.getContext("2d");
+
+    if (!context) {
+      return;
+    }
+
+    context.drawImage(canvas, 0, 0, width, height);
+
+    capturePhoto({
+      src: scaled.toDataURL("image/jpeg", 0.72),
+      area: debugState.area,
+      clock: daylight.clock,
+      phase: daylight.label,
+    });
+
+    playSound("ui");
+    setFlashing(true);
+    window.setTimeout(() => setFlashing(false), 240);
+  }, [capturePhoto, daylight.clock, daylight.label, debugState.area]);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.code !== PHOTO_KEY || event.repeat) {
+        return;
+      }
+
+      event.preventDefault();
+      takePhoto();
+    };
+
+    window.addEventListener("keydown", onKey);
+
+    return () => window.removeEventListener("keydown", onKey);
+  }, [takePhoto]);
+
   return (
     <section className={styles.shell} aria-label="Scout 3D game scene">
       <div className={styles.canvasWrap}>
-        <R3FViewport daylight={daylight} onDebugChange={setDebugState} />
+        <R3FViewport
+          canvasRef={canvasRef}
+          daylight={daylight}
+          onDebugChange={setDebugState}
+        />
+        {flashing ? <div className={styles.flash} aria-hidden /> : null}
+
         {ready ? null : (
           <div className={styles.loading} role="status">
             <span className={styles.loadingBee} aria-hidden>
@@ -1120,6 +1206,9 @@ export function GameScene({
                 <kbd>R</kbd> reads its full entry
               </li>
               <li>
+                <kbd>P</kbd> takes a photograph, kept in your journal
+              </li>
+              <li>
                 <kbd>F</kbd> look at me · <kbd>G</kbd> dance
               </li>
               <li>
@@ -1136,6 +1225,13 @@ export function GameScene({
               type="button"
             >
               View pollinator
+            </button>
+            <button
+              className={styles.shutter}
+              onClick={takePhoto}
+              type="button"
+            >
+              Take a photo <kbd>P</kbd>
             </button>
             <SoundToggle />
             <CloudSyncBadge />

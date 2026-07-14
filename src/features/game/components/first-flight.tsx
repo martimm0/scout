@@ -26,7 +26,7 @@ const STEPS = [
   {
     title: "Land on it.",
     body: "Space sets you down. From there you can pollinate the flower, or let it quiz you on what you just read. About one visit in five comes to nothing: wind, timing, or somebody got there first. That's not you failing. That's the job. Fly to the next one. Nothing pollinates a mushroom, but a mushroom will still test you.",
-    keys: ["Space to land", "R to read"],
+    keys: ["Space to land", "R to read", "P for a photo"],
   },
 ];
 

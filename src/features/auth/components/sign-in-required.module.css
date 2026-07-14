@@ -1,0 +1,40 @@
+.gate {
+  max-width: 42rem;
+  padding: 2.5rem 0 4rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.primary {
+  padding: 0.85rem 1.6rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-accent, #1f6b3b);
+  color: #fffdf6;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.primary:hover {
+  filter: brightness(1.08);
+}
+
+.secondary {
+  color: var(--color-ink-soft, #5c5a50);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.note {
+  margin-top: 1.5rem;
+  color: var(--color-ink-soft, #6b6960);
+  font-size: 0.95rem;
+}

@@ -1,4 +1,7 @@
-import type { Page } from "@playwright/test";
+import { readFileSync } from "node:fs";
+
+import type { BrowserContext, Page } from "@playwright/test";
+import { encode } from "next-auth/jwt";
 
 import { isActive } from "../src/features/game/world/daylight";
 import { scatterSpecies } from "../src/features/game/world/species-scatter";
@@ -70,7 +73,60 @@ function heading(state: Readout) {
  */
 export const TEST_HOUR = 12;
 
+/**
+ * The secret the running dev server is using.
+ *
+ * `.env.local` is loaded by Next, not by Playwright, so the test process has to
+ * read it itself. The fallback matches the placeholder Auth.js uses in local
+ * mode, where there is no gate to get past anyway.
+ */
+function authSecret() {
+  try {
+    const file = readFileSync(".env.local", "utf8");
+    const match = /^AUTH_SECRET=(.*)$/m.exec(file);
+
+    if (match) {
+      return match[1].trim().replace(/^["']|["']$/g, "");
+    }
+  } catch {
+    // No .env.local. Local mode, then.
+  }
+
+  return "scout-local-mode-no-signin-possible";
+}
+
+/**
+ * Sign the test in.
+ *
+ * The saved game is behind a sign-in now, so a suite that does not authenticate
+ * tests the sign-in wall and nothing else. Rather than punching a hole in the
+ * app for tests to crawl through (a dev-only bypass is a dev-only bypass right
+ * up until it ships), the test mints the same JWT session cookie Auth.js would
+ * have issued after a real Google round-trip. The app cannot tell the difference,
+ * which is the point: this exercises the actual signed-in path.
+ */
+export async function signIn(context: BrowserContext) {
+  const token = await encode({
+    token: { sub: "e2e-player", name: "E2E Player", email: "e2e@example.com" },
+    secret: authSecret(),
+    salt: "authjs.session-token",
+    maxAge: 60 * 60,
+  });
+
+  await context.addCookies([
+    {
+      name: "authjs.session-token",
+      value: token,
+      domain: "localhost",
+      path: "/",
+      httpOnly: true,
+      sameSite: "Lax",
+    },
+  ]);
+}
+
 export async function enterGame(page: Page, hour: number = TEST_HOUR) {
+  await signIn(page.context());
   await page.addInitScript(() => window.localStorage.clear());
   await page.goto(`/play?debug=1&hour=${hour}`);
   await page.waitForTimeout(2500);

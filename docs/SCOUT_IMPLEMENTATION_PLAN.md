@@ -49,6 +49,8 @@ The one link never exercised by a machine is a human typing a Google password. E
 | 22 | Solid park (collision) | ✅ Done |
 | 23 | Landing, and trivia | ✅ Done |
 | 24 | The park keeps Pittsburgh time | ✅ Done |
+| 25 | The saved game is behind a sign-in | ✅ Done |
+| 26 | Photographs | ✅ Done |
 
 ---
 
@@ -69,6 +71,47 @@ So after dark there is nothing to pollinate anywhere in the park, and the only t
 A shut flower is still *drawn*, dimmed and inert, and its card tells you when to come back. A fungus that is not fruiting is genuinely gone. Badges follow: **Night Shift**, **Dawn Chorus**, **All Hours** (every one of the six phases), **Something Glowing** (find the jack-o'-lantern lit).
 
 `?hour=13.5` pins the clock. It is not a player-facing feature: it exists so the e2e suite can find an open flower at three in the morning.
+
+## The saved game is behind a sign-in
+
+The park keeps a record of you, and a record has to belong to somebody. `/play`,
+`/journal` and `/profile` ask for a Google account, and pressing **Fly** on the
+landing page without one lands you on a page that explains why rather than a
+redirect that does not.
+
+**The ten-minute run is not behind it.** It saves nothing by design, so there is
+nothing to own and nobody to ask, and it is the way in for a player who will not
+hand over a Google account to look at some flowers. The gate says so, and links
+straight to it.
+
+The gate does not exist when auth is not configured. On a fresh clone with an
+empty `.env` there is no sign-in to offer, and gating the game behind one would
+simply make it unplayable, which is the opposite of what local mode is for.
+
+The e2e suite signs in for real: it mints the same JWT session cookie Auth.js
+would have issued after a Google round-trip, so the tests exercise the actual
+signed-in path. There is deliberately **no dev-only bypass in the app**, because
+a dev-only bypass is a dev-only bypass right up until the day it ships.
+
+## Photographs
+
+**P**, or the button on the HUD, and whatever is on screen is kept. Each one
+remembers where you were and what the park's clock said, so an album is a record
+of a day rather than a pile of pictures.
+
+They live in their own localStorage key and **not** in the save file. The save
+file is a few hundred bytes of booleans that goes to Postgres as a single JSONB
+row on every autosave; a photograph is fifty kilobytes. Putting them together
+would mean posting the whole album back to the server every time you found a
+flower. So the album stays on the device, the journal says so plainly, and the
+last twelve are kept with the oldest falling off the end rather than the write
+throwing `QuotaExceededError` halfway through and corrupting the key.
+
+This works at all only because the GL context is created with
+`preserveDrawingBuffer: true`. Without it the drawing buffer is discarded after
+each frame and `toDataURL` hands back a blank rectangle, so the test does not
+merely assert that an image is *present*: it decodes the JPEG and measures the
+spread of its pixels. A blank frame passes "the image is there" and fails that.
 
 ## The park is solid
 
@@ -209,6 +252,7 @@ React Three Fiber scene, lighting, sky, terrain, third-person camera.
 - **Shift** — boost
 - **Space** — land on the nearby plant or fungus. From there you choose: pollinate it, or take its quiz.
 - **R** — read its full entry
+- **P** — take a photograph, kept in your journal
 - **F** — the bee turns around and looks at you
 - **G** — the bee turns around and does a waggle dance
 - **Esc** — release the mouse cursor
@@ -324,7 +368,7 @@ Success shows the plant's fun fact, puts pollen baskets on the bee's hind legs, 
 
 **Status: ✅ Done**
 
-`/journal` has six tabs — Plants, Fungi, Pollinators, Map areas, Ecology, Badges — plus a progress summary (plants found, pollinated, areas, fungi found, quizzes passed, badges, the share of visits that took, best streak).
+`/journal` has seven tabs — Plants, Fungi, Photos, Pollinators, Map areas, Ecology, Badges — plus a progress summary (plants found, pollinated, areas, fungi found, quizzes passed, badges, the share of visits that took, best streak).
 
 Locked entries show a **hint**, not a row of question marks. A locked entry that says nothing teaches nothing and tempts nobody; one that says *"there's a darker wood than the one you know"* sends somebody flying.
 

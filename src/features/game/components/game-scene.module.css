@@ -430,3 +430,54 @@
   font-weight: 500;
   color: var(--muted);
 }
+
+/* The shutter, and the flash it makes. */
+.shutter {
+  width: 100%;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid rgba(60, 52, 36, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 253, 246, 0.9);
+  color: #3c3424;
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.shutter:hover {
+  background: #fff;
+}
+
+.shutter kbd {
+  margin-left: 0.35rem;
+  padding: 0.05rem 0.35rem;
+  border: 1px solid rgba(60, 52, 36, 0.25);
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.flash {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: #fffdf6;
+  pointer-events: none;
+  animation: shutterFlash 240ms ease-out forwards;
+}
+
+@keyframes shutterFlash {
+  from {
+    opacity: 0.85;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flash {
+    animation: none;
+    opacity: 0;
+  }
+}

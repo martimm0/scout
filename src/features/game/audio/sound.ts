@@ -25,7 +25,8 @@ type Engine = {
   musicGain: GainNode;
   ambienceGain: GainNode;
   musicTimer: number | null;
-  ambience: OscillatorNode[];
+  ambience: AudioScheduledSourceNode[];
+  ambienceTimer: number | null;
 };
 
 let engine: Engine | null = null;
@@ -70,6 +71,7 @@ function ensureEngine(): Engine | null {
     ambienceGain,
     musicTimer: null,
     ambience: [],
+    ambienceTimer: null,
   };
 
   return engine;
@@ -417,20 +419,116 @@ function stopMusic() {
 }
 
 /**
- * Per-area ambience: a drone whose pitch and texture shift with where you are.
- * Deep and close under the canopy, bright and open on the meadow, with a hint of
- * running water down in the creek.
+ * Per-area ambience.
+ *
+ * This used to be two oscillators, held at a fixed pitch and detuned a few cents
+ * against each other, running forever. That is the definition of a drone: a
+ * sustained low tone, beating slowly against itself, never resolving and never
+ * stopping. It played under everything, in the ten-minute mode and in free
+ * flight alike, and no amount of rewriting the *melody* was ever going to fix
+ * it, because the melody was never what you were hearing.
+ *
+ * There is no sustained pitch in here any more. What is left is:
+ *
+ *  - a **noise bed**, filtered, which reads as wind in leaves. Noise has no
+ *    pitch, so it cannot drone, and a slow wobble on the filter makes it breathe
+ *    instead of sitting still.
+ *  - **occasional calls**, sparse and quiet and never on a fixed beat: birds
+ *    over the open ground, something higher and stranger under the canopy, water
+ *    over stones down at the creek.
+ *
+ * The park should sound like somewhere you are, not like a synthesiser that has
+ * been left switched on.
  */
-const AMBIENCE: Record<string, { base: number; type: OscillatorType }> = {
-  "environmental-center": { base: 220, type: "sine" },
-  "blue-slide": { base: 262, type: "sine" },
-  "bowling-green": { base: 247, type: "sine" },
-  "nine-mile-run": { base: 165, type: "triangle" },
-  "falls-ravine": { base: 147, type: "triangle" },
-  "fern-hollow": { base: 131, type: "triangle" },
+type Ambience = {
+  /** Where the noise bed sits. Low and close under a canopy, airy in the open. */
+  filter: number;
+  q: number;
+  gain: number;
+  /** Notes the calls are drawn from, in Hz. */
+  calls: number[];
+  /** Seconds between calls, roughly. Nothing here is on a grid. */
+  every: number;
+};
+
+const AMBIENCE: Record<string, Ambience> = {
+  "environmental-center": {
+    filter: 900,
+    q: 0.7,
+    gain: 0.05,
+    calls: [1319, 1568, 1760, 2093],
+    every: 3.4,
+  },
+  "blue-slide": {
+    filter: 1100,
+    q: 0.6,
+    gain: 0.045,
+    calls: [1568, 1760, 2093, 2349],
+    every: 3.8,
+  },
+  "bowling-green": {
+    filter: 1000,
+    q: 0.6,
+    gain: 0.04,
+    calls: [1319, 1760, 2093],
+    every: 4.2,
+  },
+  // Water over stones: quick, high, irregular.
+  "nine-mile-run": {
+    filter: 1900,
+    q: 1.4,
+    gain: 0.06,
+    calls: [2349, 2637, 3136, 3520],
+    every: 1.5,
+  },
+  "falls-ravine": {
+    filter: 620,
+    q: 1.1,
+    gain: 0.05,
+    calls: [988, 1175, 1319],
+    every: 4.6,
+  },
+  // Deep shade. Fewer voices, further off.
+  "fern-hollow": {
+    filter: 480,
+    q: 1.2,
+    gain: 0.05,
+    calls: [784, 988, 1175],
+    every: 5.5,
+  },
 };
 
 let currentArea: string | null = null;
+
+/** A couple of seconds of noise, looped. The bed everything else sits on. */
+function noiseBuffer(context: AudioContext) {
+  const length = context.sampleRate * 2;
+  const buffer = context.createBuffer(1, length, context.sampleRate);
+  const data = buffer.getChannelData(0);
+
+  for (let i = 0; i < length; i += 1) {
+    data[i] = Math.random() * 2 - 1;
+  }
+
+  return buffer;
+}
+
+function clearAmbience(active: Engine) {
+  for (const source of active.ambience) {
+    try {
+      source.stop();
+    } catch {
+      // Already stopped. Nothing to do.
+    }
+  }
+
+  active.ambience = [];
+
+  if (active.ambienceTimer !== null) {
+    window.clearInterval(active.ambienceTimer);
+    active.ambienceTimer = null;
+  }
+}
 
 export function setAreaAmbience(areaId: string) {
   if (areaId === currentArea) {
@@ -445,31 +543,61 @@ export function setAreaAmbience(areaId: string) {
     return;
   }
 
-  for (const osc of active.ambience) {
-    try {
-      osc.stop();
-    } catch {
-      // Already stopped. Nothing to do.
-    }
-  }
-
-  active.ambience = [];
+  clearAmbience(active);
 
   const preset = AMBIENCE[areaId] ?? AMBIENCE["environmental-center"];
   const { context, ambienceGain } = active;
   const now = context.currentTime;
 
-  // Two oscillators, detuned a hair. The beat between them is what makes a
-  // drone sound like a place instead of a test tone.
-  for (const detune of [-4, 4]) {
-    const osc = context.createOscillator();
-    osc.type = preset.type;
-    osc.frequency.setValueAtTime(preset.base, now);
-    osc.detune.setValueAtTime(detune, now);
-    osc.connect(ambienceGain);
-    osc.start(now);
-    active.ambience.push(osc);
-  }
+  const bed = context.createBufferSource();
+  bed.buffer = noiseBuffer(context);
+  bed.loop = true;
+
+  const filter = context.createBiquadFilter();
+  filter.type = "bandpass";
+  filter.frequency.setValueAtTime(preset.filter, now);
+  filter.Q.setValueAtTime(preset.q, now);
+
+  const level = context.createGain();
+  level.gain.setValueAtTime(0, now);
+  level.gain.linearRampToValueAtTime(preset.gain, now + 1.2);
+
+  // A very slow wobble on the filter, so the wind rises and falls instead of
+  // standing still. This is the one oscillator left in the ambience, and it is
+  // not audible: it never reaches the output, it only moves the filter.
+  const breath = context.createOscillator();
+  const breathDepth = context.createGain();
+  breath.frequency.setValueAtTime(0.06, now);
+  breathDepth.gain.setValueAtTime(preset.filter * 0.35, now);
+  breath.connect(breathDepth);
+  breathDepth.connect(filter.frequency);
+  breath.start(now);
+
+  bed.connect(filter);
+  filter.connect(level);
+  level.connect(ambienceGain);
+  bed.start(now);
+
+  active.ambience.push(bed, breath);
+
+  // The calls. Deliberately probabilistic: a bird that sings exactly every four
+  // seconds is a metronome with feathers.
+  active.ambienceTimer = window.setInterval(() => {
+    if (!enabled || !engine || Math.random() > 0.55) {
+      return;
+    }
+
+    const at = engine.context.currentTime;
+    const note = preset.calls[Math.floor(Math.random() * preset.calls.length)];
+
+    blip(at, note, 0.09, "sine", 0.05, engine.ambienceGain);
+
+    // Half of them answer themselves.
+    if (Math.random() < 0.5) {
+      const answer = preset.calls[Math.floor(Math.random() * preset.calls.length)];
+      blip(at + 0.12, answer, 0.12, "sine", 0.04, engine.ambienceGain);
+    }
+  }, preset.every * 1000);
 }
 
 export function stopAllAudio() {
@@ -479,13 +607,7 @@ export function stopAllAudio() {
     return;
   }
 
-  for (const osc of engine.ambience) {
-    try {
-      osc.stop();
-    } catch {
-      // Already stopped.
-    }
-  }
+  clearAmbience(engine);
 
   engine.ambience = [];
   currentArea = null;
