@@ -439,11 +439,23 @@ test.describe("Schenley Park", () => {
     await signIn(page.context(), "e2e-newcomer");
     await page.goto("/journal");
 
+    // Wait for the picker itself before asserting anything about it. It is
+    // client-rendered off a hydrated store, so under load the assertions can beat
+    // it onto the page, and "the lock note is missing" and "the lock note has not
+    // arrived yet" look identical from here.
+    const picker = page.getByRole("list", { name: "Parks" });
+    await expect(picker).toBeVisible({ timeout: 20_000 });
+
+    const schenley = picker.getByRole("listitem").filter({ hasText: "Schenley" });
+    await expect(schenley).toBeVisible();
+
     // A locked door that will not say what opens it is just a wall.
-    await expect(page.getByText(/Find/).first()).toBeVisible();
-    await expect(page.getByText(/Schenley opens/)).toBeVisible();
+    await expect(schenley).toContainText("Schenley opens");
+    await expect(schenley).toContainText("Find 8 of Frick Park's plants");
+
+    // And no way through it.
     await expect(
-      page.getByRole("button", { name: /Fly Schenley Park/ }),
+      schenley.getByRole("button", { name: /Fly Schenley Park/ }),
     ).toHaveCount(0);
   });
 
@@ -495,5 +507,62 @@ test.describe("Schenley Park", () => {
     // Down below the waterline of the hill you started on. The top of Schenley is
     // mown and the wild part is a hundred feet underneath it.
     expect(Number.parseFloat(after.Altitude)).toBeLessThan(0);
+  });
+});
+
+test.describe("the about page and the site chrome", () => {
+  test("about explains the game, the plan, and who it is for", async ({ page }) => {
+    await page.goto("/about");
+
+    await expect(
+      page.getByRole("heading", { name: /A game about being very small/ }),
+    ).toBeVisible();
+
+    // What it is, how to play, where it is going, why, and who for.
+    await expect(page.getByRole("heading", { name: "How to play" })).toBeVisible();
+    await expect(page.getByText(/MMORPG/)).toBeVisible();
+    await expect(page.getByText(/raining outside/)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "For Dawn" })).toBeVisible();
+    await expect(page.getByText(/birthday present/)).toBeVisible();
+
+    // The card headings render as headings. They used to be passed as a `title`
+    // prop that nothing rendered, so they only ever appeared as a tooltip.
+    await expect(page.getByRole("heading", { name: "Fly", exact: true })).toBeVisible();
+  });
+
+  test("the footer credits 3sb and describes the game", async ({ page }) => {
+    await page.goto("/");
+
+    await expect(page.getByText("A pollinator RPG based in Pittsburgh, PA")).toBeVisible();
+
+    const link = page.getByRole("link", { name: "A 3sb Original" });
+    await expect(link).toBeVisible();
+    await expect(link).toHaveAttribute("href", "https://www.3sb.io/");
+  });
+
+  test("dark mode dresses the pages around the game, and is remembered", async ({
+    page,
+  }) => {
+    await page.goto("/about");
+
+    const background = () =>
+      page.evaluate(() =>
+        getComputedStyle(document.body).backgroundColor,
+      );
+
+    const light = await background();
+
+    await page.getByRole("button", { name: /Switch to dark mode/ }).click();
+    const dark = await background();
+
+    expect(dark).not.toBe(light);
+
+    // It survives a navigation, and it is applied before the first paint rather
+    // than after, so nobody gets a white flash on the way to a dark page.
+    await page.goto("/credits");
+    expect(await background()).toBe(dark);
+    expect(
+      await page.evaluate(() => document.documentElement.dataset.theme),
+    ).toBe("dark");
   });
 });

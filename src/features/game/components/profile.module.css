@@ -11,7 +11,7 @@
   padding: 24px;
   border-radius: 16px;
   border: 1px solid var(--border);
-  background: linear-gradient(180deg, #fffdf5, #fff4dd);
+  background: var(--card-bg);
 }
 
 @media (max-width: 640px) {
@@ -30,25 +30,25 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #b08428;
+  color: var(--card-accent-ink);
 }
 
 .name {
   margin: 2px 0 2px;
   font-size: 1.7rem;
-  color: #33291a;
+  color: var(--card-ink);
 }
 
 .species {
   margin: 0;
-  color: #8a7a5e;
+  color: var(--card-ink-soft);
 }
 
 .signedIn,
 .signedOut {
   margin: 10px 0 0;
   font-size: 0.88rem;
-  color: #6f5f43;
+  color: var(--card-ink-soft);
 }
 
 .signedOut {
@@ -134,7 +134,7 @@
   height: 32px;
   border-radius: 50%;
   background: linear-gradient(180deg, #f7c855, #eeae2f);
-  color: #3b2c0e;
+  color: var(--card-ink);
 }
 
 .badgeName {

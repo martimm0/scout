@@ -18,7 +18,7 @@
   padding: 22px;
   border-radius: 14px;
   border: 1px solid var(--border);
-  background: linear-gradient(180deg, #fffdf5, #fff4dd);
+  background: var(--card-bg);
   text-align: center;
 }
 
@@ -32,13 +32,13 @@
   margin: 12px 0 0;
   font-weight: 700;
   font-size: 1.1rem;
-  color: #33291a;
+  color: var(--card-ink);
 }
 
 .previewNote {
   margin: 4px 0 0;
   font-size: 0.8rem;
-  color: #8a7a5e;
+  color: var(--card-ink-soft);
 }
 
 /* Form. */

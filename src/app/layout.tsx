@@ -7,6 +7,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import { AuthProvider } from "@/features/auth/components/session-provider";
 import { SignIn } from "@/features/auth/components/sign-in";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { authConfigured } from "@/lib/env";
 import "./globals.css";
 
@@ -25,12 +26,12 @@ export const metadata: Metadata = {
     default: "Scout",
     template: "%s | Scout",
   },
-  description:
-    "A desktop-first pollinator RPG set in a simplified Frick Park.",
+  description: "A pollinator RPG based in Pittsburgh, PA",
 };
 
 const navItems = [
   { href: "/play", label: "Play" },
+  { href: "/about", label: "About" },
   { href: "/offline", label: "Offline" },
   { href: "/customize", label: "Customize" },
   { href: "/journal", label: "Journal" },
@@ -43,7 +44,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Runs before first paint. Without it, somebody who has chosen dark gets
+            a full white page for one frame on every navigation, which is the one
+            thing a dark mode exists to prevent. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('scout-theme');if(!t){t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.dataset.theme=t;}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <AuthProvider>
         <a className="skip-link" href="#main">
@@ -66,6 +77,7 @@ export default function RootLayout({
                 ))}
                 {/* Renders nothing at all when Google isn't configured. */}
                 <SignIn configured={authConfigured} />
+                <ThemeToggle />
               </nav>
             </div>
           </header>
@@ -77,10 +89,17 @@ export default function RootLayout({
           </div>
           <footer className="site-footer">
             <div className="site-footer__inner">
-              <span>
-                A pollinator RPG set in Frick Park, Pittsburgh.
+              <span>A pollinator RPG based in Pittsburgh, PA</span>
+              <span className="site-footer__links">
+                <a
+                  href="https://www.3sb.io/"
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  A 3sb Original
+                </a>
+                <Link href="/credits">Credits &amp; licences</Link>
               </span>
-              <Link href="/credits">Credits &amp; licences</Link>
             </div>
           </footer>
         </div>

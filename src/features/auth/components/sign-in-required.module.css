@@ -15,7 +15,7 @@
   padding: 0.85rem 1.6rem;
   border: none;
   border-radius: 999px;
-  background: var(--color-accent, #1f6b3b);
+  background: var(--color-accent, var(--primary));
   color: #fffdf6;
   font: inherit;
   font-weight: 650;
@@ -27,7 +27,7 @@
 }
 
 .secondary {
-  color: var(--color-ink-soft, #5c5a50);
+  color: var(--card-ink-soft);
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -35,6 +35,6 @@
 
 .note {
   margin-top: 1.5rem;
-  color: var(--color-ink-soft, #6b6960);
+  color: var(--card-ink-soft);
   font-size: 0.95rem;
 }

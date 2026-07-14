@@ -1197,7 +1197,7 @@ export function GameScene({
         )}
       </div>
 
-      {/* Not shown to players. Open /play?debug=1 to bring it back — the e2e
+      {/* Not shown to players. Open /play?debug=1 to bring it back. The e2e
           suite reads flight state (area, heading, position) out of this panel,
           and deleting it outright would blind the tests as well as tidy the HUD. */}
       {debugVisible ? (

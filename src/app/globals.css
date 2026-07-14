@@ -11,6 +11,81 @@
   --accent-soft: #faebc8;
   --focus: #1d6fb8;
   --shadow: 0 18px 45px rgba(32, 37, 29, 0.1);
+  /* The header is a translucent pane over the page, so its tint is its own token. */
+  --header-tint: rgba(245, 247, 239, 0.88);
+  --card-bg: linear-gradient(180deg, #fffdf5, #fff4dd);
+  --card-ink: #33291a;
+  --card-ink-soft: #8a7a5e;
+  --card-accent-ink: #b08428;
+  --card-border: rgba(60, 52, 36, 0.16);
+  --accent-border: #e6c981;
+  --accent-ink: #4d3510;
+  --accent-soft-hover: #f6dfa7;
+}
+
+
+/**
+ * Dark mode, for everything that is not the park itself.
+ *
+ * The game keeps its own light: it is a sunlit meadow, and a meadow rendered in
+ * charcoal is not a dark theme, it is a broken one. The park has its OWN night
+ * already, and it runs on Pittsburgh time. So this dresses the pages around the
+ * game (the landing, the about page, the journal, the credits) and stops at the
+ * canvas.
+ *
+ * The theme follows the system by default and can be overridden by the toggle in
+ * the header, which stamps `data-theme` on the root element. The explicit
+ * attribute has to win in BOTH directions, so a player who prefers dark
+ * everywhere can still choose light here.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: #14180f;
+    --foreground: #e7ecdf;
+    --muted: #9aa691;
+    --surface: #1c2117;
+    --surface-soft: #232a1d;
+    --border: #333c2b;
+    --primary: #6aa877;
+    --primary-dark: #8fc79a;
+    --accent: #e0b355;
+    --accent-soft: #3a3221;
+    --focus: #6fb6f5;
+    --shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
+    --header-tint: rgba(20, 24, 15, 0.88);
+    --card-bg: linear-gradient(180deg, #1f251b, #262e20);
+    --card-ink: #e7ecdf;
+    --card-ink-soft: #9aa691;
+    --card-accent-ink: #e0b355;
+    --card-border: rgba(220, 230, 205, 0.14);
+    --accent-border: #6a5a30;
+    --accent-ink: #f0d69a;
+    --accent-soft-hover: #4a3f27;
+  }
+}
+
+:root[data-theme="dark"] {
+  --background: #14180f;
+  --foreground: #e7ecdf;
+  --muted: #9aa691;
+  --surface: #1c2117;
+  --surface-soft: #232a1d;
+  --border: #333c2b;
+  --primary: #6aa877;
+  --primary-dark: #8fc79a;
+  --accent: #e0b355;
+  --accent-soft: #3a3221;
+  --focus: #6fb6f5;
+  --shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
+  --header-tint: rgba(20, 24, 15, 0.88);
+  --card-bg: linear-gradient(180deg, #1f251b, #262e20);
+  --card-ink: #e7ecdf;
+  --card-ink-soft: #9aa691;
+  --card-accent-ink: #e0b355;
+  --card-border: rgba(220, 230, 205, 0.14);
+  --accent-border: #6a5a30;
+  --accent-ink: #f0d69a;
+  --accent-soft-hover: #4a3f27;
 }
 
 * {
@@ -58,7 +133,7 @@ textarea:focus-visible {
 
 .site-header {
   border-bottom: 1px solid var(--border);
-  background: rgba(245, 247, 239, 0.88);
+  background: var(--header-tint);
   backdrop-filter: blur(16px);
   position: sticky;
   top: 0;
@@ -306,4 +381,31 @@ p {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Light or dark, for everything that is not the park. */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--foreground);
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.theme-toggle:hover {
+  background: var(--surface-soft);
+}
+
+.site-footer__links {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.25rem;
 }

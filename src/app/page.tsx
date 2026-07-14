@@ -44,10 +44,11 @@ export default function HomePage() {
       <section>
         <h2>What you do</h2>
         <div className="grid">
-          <Card title="Find sixteen native plants">
-            Milkweed, wild bergamot, trout lily, cardinal flower. Real species,
-            in the habitats where they actually grow: spring ephemerals under
-            the ravine, jewelweed down by the creek, goldenrod in the rough.
+          <Card title="Find twenty-six native plants">
+            Milkweed, wild bergamot, trout lily, cardinal flower, pickerelweed.
+            Real species, in the habitats where they actually grow: spring
+            ephemerals under the ravine, jewelweed down by the creek, goldenrod in
+            the rough. Twelve fungi too, and you cannot pollinate any of them.
           </Card>
           <Card title="Pollinate them, mostly">
             About one flower visit in five comes to nothing. Wind, timing, or

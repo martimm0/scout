@@ -59,8 +59,9 @@ export function ParkPicker({ onEnter }: { onEnter?: () => void }) {
             ) : (
               <div className={styles.locked}>
                 <p className={styles.lockNote}>
-                  Find <strong>{needed}</strong> of Frick Park&apos;s plants and
-                  Schenley opens. You have found <strong>{found}</strong>.
+                  Find <strong>{needed}</strong>{" "}
+                  of Frick Park&apos;s plants and Schenley opens. You have found{" "}
+                  <strong>{found}</strong>.
                 </p>
                 <div
                   aria-hidden

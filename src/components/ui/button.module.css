@@ -33,12 +33,12 @@
 
 .secondary {
   background: var(--accent-soft);
-  border-color: #e6c981;
-  color: #4d3510;
+  border-color: var(--accent-border);
+  color: var(--accent-ink);
 }
 
 .secondary:hover {
-  background: #f6dfa7;
+  background: var(--accent-soft-hover);
 }
 
 .ghost {

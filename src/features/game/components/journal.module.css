@@ -64,7 +64,7 @@
 .tab[aria-current="true"] {
   border-color: #d8a12c;
   background: linear-gradient(180deg, #f7c855, #eeae2f);
-  color: #3b2c0e;
+  color: var(--card-ink);
 }
 
 /* Plants grid. */
@@ -161,7 +161,7 @@
 .link {
   font-size: 0.84rem;
   font-weight: 600;
-  color: #8a6a1e;
+  color: var(--card-accent-ink);
 }
 
 .hint {
@@ -247,7 +247,7 @@
   height: 34px;
   border-radius: 50%;
   background: linear-gradient(180deg, #f7c855, #eeae2f);
-  color: #3b2c0e;
+  color: var(--card-ink);
 }
 
 .badge[data-locked="true"] .badgeIcon {
@@ -262,7 +262,7 @@
 }
 
 .meta strong[data-risk="toxic"] {
-  color: #c07020;
+  color: var(--card-accent-ink);
   font-weight: 700;
 }
 
@@ -275,7 +275,7 @@
 /* Photographs taken in the park. */
 .empty {
   margin: 0 0 1.25rem;
-  color: var(--color-ink-soft, #6b6960);
+  color: var(--card-ink-soft);
   line-height: 1.6;
 }
 

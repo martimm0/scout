@@ -238,7 +238,7 @@
 }
 
 /* The card takes focus on open so Esc works, but it shouldn't announce that
-   with a ring — it isn't an interactive control. */
+   with a ring, and it isn't an interactive control. */
 .card:focus {
   outline: none;
 }
