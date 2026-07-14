@@ -480,6 +480,29 @@ test.describe("Schenley Park", () => {
     ).toBeVisible();
   });
 
+  test("can be opened straight from a link, without the debug overlay", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+
+    await signIn(page.context());
+
+    // The link you would hand somebody to show them the second park. It builds
+    // Schenley without granting the unlock and without a developer overlay
+    // stapled over the screen.
+    await page.goto("/play?park=schenley");
+    await page.waitForTimeout(5000);
+
+    const skip = page.getByRole("button", { name: "Skip", exact: true });
+    if (await skip.count()) await skip.first().click();
+
+    await expect(page.getByText("Debug Overlay")).toHaveCount(0);
+    await expect(page.locator("canvas").first()).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Fly to Frick Park/ }),
+    ).toBeVisible();
+  });
+
   test("Panther Hollow really is down there", async ({ page }) => {
     test.setTimeout(120_000);
 
@@ -552,7 +575,14 @@ test.describe("the about page and the site chrome", () => {
 
     const light = await background();
 
-    await page.getByRole("button", { name: /Switch to dark mode/ }).click();
+    // The control must be findable, not merely present. The first version was an
+    // unlabelled circle with a sun glyph at the end of a row of nav links, and it
+    // read as decoration: it was on the page and nobody could find it.
+    const toggle = page.getByRole("button", { name: /Switch to dark mode/ });
+    await expect(toggle).toBeVisible();
+    await expect(toggle).toContainText("Light");
+
+    await toggle.click();
     const dark = await background();
 
     expect(dark).not.toBe(light);

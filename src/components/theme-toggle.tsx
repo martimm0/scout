@@ -44,14 +44,23 @@ export function ThemeToggle() {
 
   const next = theme === "dark" ? "light" : "dark";
 
+  // Labelled, not just a glyph. The first version of this was a small unlabelled
+  // circle with a sun in it, sitting at the end of a row of navigation links, and
+  // it read as decoration rather than as a control: it was on the page and nobody
+  // could find it. An icon on its own is a puzzle, and a theme switch is not
+  // supposed to be one.
   return (
     <button
       aria-label={`Switch to ${next} mode`}
       className="theme-toggle"
       onClick={() => setTheme(next)}
+      title={`Switch to ${next} mode`}
       type="button"
     >
       <span aria-hidden>{theme === "dark" ? "☾" : "☀"}</span>
+      <span className="theme-toggle__label">
+        {theme === "dark" ? "Dark" : "Light"}
+      </span>
     </button>
   );
 }
