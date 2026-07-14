@@ -58,7 +58,22 @@ function ensureEngine(): Engine | null {
 
   const musicGain = context.createGain();
   musicGain.gain.value = 0.18;
-  musicGain.connect(master);
+
+  // A wall under the music. Nothing below ~300Hz reaches the output, whatever
+  // anybody writes into the loop later, including me. Twice now I have "fixed"
+  // this soundtrack by rewriting what plays on top and left something throbbing
+  // underneath it; a filter is a guarantee, and a good intention is not.
+  const musicFloor = context.createBiquadFilter();
+  musicFloor.type = "highpass";
+  musicFloor.frequency.value = 300;
+  // Two poles, so the rolloff is steep enough to actually mean it.
+  const musicFloor2 = context.createBiquadFilter();
+  musicFloor2.type = "highpass";
+  musicFloor2.frequency.value = 300;
+
+  musicGain.connect(musicFloor);
+  musicFloor.connect(musicFloor2);
+  musicFloor2.connect(master);
 
   const ambienceGain = context.createGain();
   ambienceGain.gain.value = 0.1;
@@ -260,6 +275,9 @@ const RHYTHMS = [
 /** C major pentatonic across two octaves. There is no wrong note in here. */
 const PENTATONIC = [72, 74, 76, 79, 81, 84, 86, 88, 91, 93];
 
+/** Chords are voiced up here, clear of the floor and out of the way of the tune. */
+const CHORD_OCTAVE = 12;
+
 function chordTones(chord: Chord) {
   return [chord.root, chord.root + (chord.minor ? 3 : 4), chord.root + 7];
 }
@@ -330,18 +348,18 @@ function startMusic() {
     const rhythm = RHYTHMS[bar % RHYTHMS.length];
     const tones = chordTones(chord);
 
-    // Bass: short and plucked, an octave up from where a bassline would normally
-    // sit. Present, but nothing to lean on.
-    for (const eighth of [0, 3, 6]) {
-      blip(
-        nextBarAt + eighth * EIGHTH,
-        hz(chord.root - 12),
-        0.16,
-        "triangle",
-        0.05,
-        musicGain,
-      );
-    }
+    // There is NO BASS. Not a quiet one, not a tasteful one: none.
+    //
+    // The last version had a short plucked root three times a bar, which I
+    // described to myself as "present, but nothing to lean on". Measured at the
+    // output, the 140-260Hz band was running level with the entire midrange and
+    // swinging 6.6dB, over and over, on the beat. That is a bass pulse. It does
+    // not matter that each note was short and quiet: a low note on a grid,
+    // repeating forever, IS the throb, and no amount of rewriting the tune above
+    // it was ever going to help.
+    //
+    // The root of the chord is still heard. It is heard in the chord, up where
+    // the stabs are, which is where a small bright loop belongs.
 
     for (let eighth = 0; eighth < 8; eighth += 1) {
       const at = nextBarAt + eighth * EIGHTH;
@@ -353,7 +371,14 @@ function startMusic() {
       // Chord stabs pushed onto the off-beat.
       if (eighth === 1 || eighth === 5) {
         for (const tone of tones) {
-          blip(at, hz(tone), 0.22, "triangle", 0.035, musicGain);
+          blip(at, hz(tone + CHORD_OCTAVE), 0.22, "triangle", 0.035, musicGain);
+        }
+
+        // A bell an octave above the chord on the second stab. It costs almost
+        // nothing, and it is the difference between a loop that repeats and a
+        // loop that goes somewhere: the ear follows the top voice.
+        if (eighth === 5) {
+          blip(at, hz(chord.root + CHORD_OCTAVE + 12), 0.3, "sine", 0.03, musicGain);
         }
       }
 
