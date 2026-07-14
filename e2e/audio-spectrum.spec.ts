@@ -85,10 +85,25 @@ test("nothing throbs: the low end is inaudible against the midrange", async ({
   await page.waitForTimeout(9000);
 
   const lows = await page.evaluate(() => (window as any).__lows as any[]);
-  const clean = lows.filter((l) => Number.isFinite(l.bass) && l.bass > -200);
+
+  /**
+   * Keep the frames where the music is actually PLAYING, judged on the midrange.
+   *
+   * This used to gate on the bass band being above -200dB, which was a way of
+   * skipping the silent frames before the sound is switched on. Then the bass was
+   * removed, that band fell to -147dB and below, every frame was discarded as
+   * "silence", and the test reported zero samples. The fix succeeding is what
+   * broke it. Judge silence by the band that is supposed to have something in it.
+   */
+  const clean = lows.filter((l) => Number.isFinite(l.mid) && l.mid > -200);
+
+  // A band with nothing in it reads as -Infinity, which is the correct answer and
+  // an unusable number. Floor it: -200dB and "nothing at all" are the same thing
+  // to an ear.
+  const floor = (value: number) => (Number.isFinite(value) ? value : -200);
   const avg = (k: string) =>
-    clean.reduce((a, b) => a + b[k], 0) / Math.max(1, clean.length);
-  const peak = (k: string) => Math.max(...clean.map((l) => l[k]));
+    clean.reduce((a, b) => a + floor(b[k]), 0) / Math.max(1, clean.length);
+  const peak = (k: string) => Math.max(...clean.map((l) => floor(l[k])));
 
   console.log("samples:", clean.length);
   console.log(`SUB   40-140Hz  avg ${avg("sub").toFixed(1)} dB  peak ${peak("sub").toFixed(1)}`);

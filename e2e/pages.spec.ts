@@ -191,8 +191,11 @@ test.describe("the saved game is behind a sign-in", () => {
     await expect(
       page.getByRole("heading", { name: "Sign in to fly" }),
     ).toBeVisible();
+    // Scoped to the page body, not the whole document: there is a Sign in button
+    // in the nav on every page, so an unscoped locator matches two and Playwright
+    // rightly refuses to guess which one the test meant.
     await expect(
-      page.getByRole("button", { name: /Sign in with Google/ }),
+      page.getByRole("main").getByRole("button", { name: /Sign in with Google/ }),
     ).toBeVisible();
     await expect(page.locator("canvas")).toHaveCount(0);
   });
