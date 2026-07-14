@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { signIn } from "./helpers";
+
 declare global {
   interface Window {
     __notes: { freq: number; type: string; at: number; stop: number }[];
@@ -102,6 +104,9 @@ test("the music is varied, and there is nothing droning under it", async ({ page
     };
   });
 
+  // /play is behind the sign-in now, and a signed-out visit lands on the wall,
+  // where there is no Sound button to click and no music to listen to.
+  await signIn(page.context());
   await page.goto("/play");
   await page.waitForTimeout(2000);
 

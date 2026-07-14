@@ -74,6 +74,9 @@ test("each species can be selected and flown", async ({ page }) => {
 test("journal shows locked entries as hints, not as question marks", async ({
   page,
 }) => {
+  // The journal is behind the sign-in. Without this the test does not read the
+  // journal at all: it reads the sign-in wall, and says the journal is broken.
+  await signIn(page.context());
   await page.addInitScript(() => window.localStorage.clear());
   await page.goto("/journal");
 
