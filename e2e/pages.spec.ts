@@ -294,6 +294,20 @@ test("a photograph taken in the park lands in the journal, and is of the park", 
   console.log("photo pixel spread:", spread.toFixed(1));
   expect(spread).toBeGreaterThan(8);
 
+  // The way out. A photograph you can only look at inside somebody else's
+  // website is not really yours, and the album is capped, so the player will
+  // eventually have to delete one of these to take another.
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("link", { name: "Download" }).first().click(),
+  ]);
+
+  // Named after the moment it was taken, not after a UUID.
+  expect(download.suggestedFilename()).toMatch(/^scout-[a-z0-9-]+\.jpg$/);
+
+  const saved = await download.path();
+  expect(saved).toBeTruthy();
+
   // Clean up after ourselves. These rows are in the real database.
   await page.getByRole("button", { name: "Remove" }).first().click();
   await expect(page.locator("li img")).toHaveCount(0);
@@ -331,4 +345,69 @@ test("one player cannot read another player's photographs", async ({ page }) => 
   await page.context().clearCookies();
   await signIn(page.context());
   await page.request.delete(src!);
+});
+
+test("the album fills up, and a full album refuses rather than quietly binning the oldest", async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+
+  // A dedicated player, so this cannot trip over the other photo tests.
+  await signIn(page.context(), "e2e-album-filler");
+  await page.goto("/journal");
+
+  // Start clean, whatever a previous run left behind.
+  const existing = await (await page.request.get("/api/photos")).json();
+  for (const photo of existing.photos as { id: string }[]) {
+    await page.request.delete(`/api/photos/${photo.id}`);
+  }
+
+  // The smallest real JPEG, posted straight at the API. Flying fifty laps of
+  // Frick Park to fill an album is not what is under test here.
+  const jpeg = await page.evaluate(async () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 8;
+    canvas.height = 8;
+
+    const context = canvas.getContext("2d")!;
+    context.fillStyle = "#f7c948";
+    context.fillRect(0, 0, 8, 8);
+
+    return canvas.toDataURL("image/jpeg", 0.5);
+  });
+
+  const post = () =>
+    page.request.post("/api/photos", {
+      data: { src: jpeg, area: "Fern Hollow", clock: "9:00 am", phase: "Morning" },
+    });
+
+  for (let i = 0; i < 50; i += 1) {
+    expect((await post()).status()).toBe(200);
+  }
+
+  // The fifty-first. Refused, and told why.
+  const overflow = await post();
+  expect(overflow.status()).toBe(409);
+  expect(await overflow.json()).toMatchObject({ error: "album-full", limit: 50 });
+
+  // And the cap is a wall, not a conveyor: the fiftieth photo is still there.
+  const after = await (await page.request.get("/api/photos")).json();
+  expect(after.photos).toHaveLength(50);
+
+  // The journal says so, and offers the way out.
+  await page.reload();
+  await page.getByRole("button", { name: "Photos" }).click();
+  await expect(page.getByText(/Your album is full/)).toBeVisible();
+  await expect(page.getByRole("link", { name: "Download" }).first()).toBeVisible();
+
+  // Delete one, and there is room again.
+  await page.getByRole("button", { name: "Remove" }).first().click();
+  await expect(page.locator("li img")).toHaveCount(49);
+  expect((await post()).status()).toBe(200);
+
+  // Tidy up: these are rows in the real database.
+  const left = await (await page.request.get("/api/photos")).json();
+  for (const photo of left.photos as { id: string }[]) {
+    await page.request.delete(`/api/photos/${photo.id}`);
+  }
 });

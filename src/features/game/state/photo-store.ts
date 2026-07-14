@@ -60,12 +60,15 @@ function writeLocal(photos: Photo[]) {
   }
 }
 
+/** What happened when the shutter fired. The HUD says so either way. */
+export type CaptureResult = "saved" | "album-full";
+
 type PhotoState = {
   photos: Photo[];
   mode: Mode;
   loaded: boolean;
   load: () => Promise<void>;
-  capture: (photo: Omit<Photo, "id" | "takenAt">) => Promise<void>;
+  capture: (photo: Omit<Photo, "id" | "takenAt">) => Promise<CaptureResult>;
   remove: (id: string) => Promise<void>;
 };
 
@@ -107,15 +110,22 @@ export const usePhotoStore = create<PhotoState>()((set, get) => ({
   },
 
   capture: async (photo) => {
-    // The shutter fires while the player is flying, and the game must not wait
-    // on a round-trip to find out where the album lives. Post it; if the server
-    // will not have it, it goes on the device instead.
     try {
       const response = await fetch("/api/photos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(photo),
       });
+
+      // The album is full. Emphatically NOT a reason to fall back to saving on
+      // the device: that would route around the very cap we just enforced, and
+      // the player would be told the photo was kept when it was kept somewhere
+      // they will never look for it.
+      if (response.status === 409) {
+        set({ mode: "cloud" });
+
+        return "album-full";
+      }
 
       if (response.ok) {
         const { id, takenAt } = (await response.json()) as {
@@ -128,13 +138,23 @@ export const usePhotoStore = create<PhotoState>()((set, get) => ({
           photos: [
             { ...photo, id, takenAt, src: `/api/photos/${id}` },
             ...state.photos,
-          ].slice(0, MAX_PHOTOS),
+          ],
         }));
 
-        return;
+        return "saved";
       }
     } catch {
-      // Offline, or no server. Fall through and keep it here.
+      // Offline, or no server at all. Fall through and keep it here.
+    }
+
+    // Local mode: no account, so no album to fill. The same cap applies, and it
+    // refuses in the same way rather than quietly binning the oldest.
+    const existing = readLocal();
+
+    if (existing.length >= MAX_PHOTOS) {
+      set({ photos: existing, mode: "local" });
+
+      return "album-full";
     }
 
     const local: Photo = {
@@ -143,9 +163,11 @@ export const usePhotoStore = create<PhotoState>()((set, get) => ({
       takenAt: Date.now(),
     };
 
-    const photos = [local, ...readLocal()].slice(0, MAX_PHOTOS);
+    const photos = [local, ...existing];
     writeLocal(photos);
     set({ photos, mode: "local" });
+
+    return "saved";
   },
 
   remove: async (id) => {

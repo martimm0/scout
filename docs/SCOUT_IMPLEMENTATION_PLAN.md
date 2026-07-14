@@ -124,8 +124,22 @@ Decisions worth keeping:
   pasted into a JSON payload is re-downloaded every time the journal is opened.
 - **Listing the album does not select the image column.** Otherwise the captions
   drag a megabyte of JPEG through the database behind them.
-- **The cap is enforced server-side.** A client that forgets, or a second tab
-  that does not know about the first, would otherwise grow the album without end.
+- **The cap is fifty, and it is a wall rather than a conveyor.** A full album
+  *refuses* the photograph and says so. It used to keep the newest twelve and
+  drop the oldest off the end, which looks friendlier and is worse: the shutter
+  clicks, the flash fires, and a picture somebody flew across the park for is
+  deleted without anyone being told. Silent data loss dressed up as a feature.
+  Now the player is told, and chooses what goes, having first had the chance to
+  download it. Every photograph carries a **Download** link, named after the
+  moment it was taken rather than after a UUID, because a photograph you can only
+  look at inside somebody else's website is not really yours.
+- **The cap is enforced in the INSERT itself**, not by reading the count and then
+  writing. Two tabs, or two quick presses of P, would both read forty-nine and
+  both insert. A `WHERE (SELECT count(*) ...) < 50` on the insert means the
+  database decides, once, and the loser writes nothing.
+- **A refusal never falls back to localStorage.** That would route around the cap
+  we just enforced and file the photograph somewhere the player will never look
+  for it.
 - **Ownership is in the SQL**, not a filter after the fact. An id is an
   unguessable UUID, but "unguessable" is not an access control policy: somebody
   else's photograph is a 404 even to somebody holding its id, and there is a test

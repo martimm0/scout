@@ -319,9 +319,15 @@ export function Journal() {
         ) : (
           <>
             <p className={styles.empty}>
+              <strong>
+                {photos.length} of {MAX_PHOTOS}
+              </strong>{" "}
               {photoMode === "cloud"
-                ? `Kept in your account, so they are here whatever you are sitting at. The last ${MAX_PHOTOS} are held, and the oldest drops off the end.`
-                : `Kept on this device only, because there is no account to keep them in. They will not follow you to another browser. The last ${MAX_PHOTOS} are held, and the oldest drops off the end.`}
+                ? "kept in your account, so they are here whatever you are sitting at."
+                : "kept on this device only, because there is no account to keep them in. They will not follow you to another browser."}{" "}
+              {photos.length >= MAX_PHOTOS
+                ? "Your album is full. Nothing is thrown away to make room, so to take another you have to delete one of these. Download it first if you want to keep it."
+                : "Nothing is ever deleted to make room: when the album is full, you choose what goes."}
             </p>
 
             <ul className={styles.grid}>
@@ -343,9 +349,13 @@ export function Journal() {
                     </p>
 
                     <div className={styles.photoActions}>
+                      {/* The way out. A photograph you can only look at inside
+                          somebody else's website is not really yours, and the
+                          delete button below is a great deal less alarming when
+                          this one sits next to it. */}
                       <a
                         className={styles.link}
-                        download={`scout-${photo.id}.jpg`}
+                        download={downloadName(photo)}
                         href={photo.src}
                       >
                         Download
@@ -452,6 +462,17 @@ export function Journal() {
       ) : null}
     </div>
   );
+}
+
+/** "scout-falls-ravine-7-12-am.jpg" rather than a UUID. */
+function downloadName(photo: { area: string; clock: string }) {
+  const slug = (text: string) =>
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+
+  return `scout-${slug(photo.area)}-${slug(photo.clock)}.jpg`;
 }
 
 function AREA_LABEL(id: string) {

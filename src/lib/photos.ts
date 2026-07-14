@@ -34,8 +34,20 @@ import { databaseConfigured } from "./env";
  * a compact `bytea` at rest.
  */
 
-/** Kept per player. The oldest falls off the end. */
-export const MAX_PHOTOS = 12;
+/**
+ * The album is full at fifty, and a full album REFUSES the photograph.
+ *
+ * It used to keep the newest twelve and quietly drop the oldest off the end,
+ * which is the friendlier-looking behaviour and the worse one: the shutter still
+ * clicks, the flash still fires, and a picture the player may have flown across
+ * the park for is deleted without anybody being told. Silent data loss dressed up
+ * as a feature.
+ *
+ * So the cap is a wall, not a conveyor. When it is full the game says so and the
+ * player decides which photograph to lose, having first had the chance to
+ * download it.
+ */
+export const MAX_PHOTOS = 50;
 
 /** A generous ceiling for a 720px JPEG, which really lands around 50KB. */
 export const MAX_PHOTO_BYTES = 400_000;
@@ -109,41 +121,51 @@ export async function listPhotos(userId: string): Promise<PhotoMeta[]> {
   }));
 }
 
-export async function savePhoto(
-  userId: string,
-  photo: Omit<PhotoMeta, "takenAt"> & { image: Buffer },
-) {
+export async function countPhotos(userId: string): Promise<number> {
   if (!databaseConfigured) {
-    return;
+    return 0;
   }
 
   await ensureSchema();
 
-  await sql`
+  const { rows } = await sql<{ count: string }>`
+    SELECT count(*) AS count FROM player_photos WHERE user_id = ${userId}
+  `;
+
+  return Number(rows[0]?.count ?? 0);
+}
+
+export type SaveResult = { ok: true } | { ok: false; reason: "album-full" };
+
+export async function savePhoto(
+  userId: string,
+  photo: Omit<PhotoMeta, "takenAt"> & { image: Buffer },
+): Promise<SaveResult> {
+  if (!databaseConfigured) {
+    return { ok: true };
+  }
+
+  await ensureSchema();
+
+  // The cap is enforced HERE, in the same statement that does the insert, rather
+  // than by reading the count and then writing. Two tabs, or two quick presses of
+  // P, would both read forty-nine and both insert. The `WHERE ... < MAX` on the
+  // INSERT means the database decides, once, and the loser inserts nothing.
+  const { rowCount } = await sql`
     INSERT INTO player_photos (id, user_id, area, clock, phase, image)
-    VALUES (
+    SELECT
       ${photo.id},
       ${userId},
       ${photo.area},
       ${photo.clock},
       ${photo.phase},
       decode(${photo.image.toString("hex")}, 'hex')
-    )
+    WHERE (
+      SELECT count(*) FROM player_photos WHERE user_id = ${userId}
+    ) < ${MAX_PHOTOS}
   `;
 
-  // Keep the newest MAX_PHOTOS and drop the rest. Done here rather than trusting
-  // the client to police its own album: a client that forgets, or a second tab
-  // that does not know about the first, would otherwise grow it without limit.
-  await sql`
-    DELETE FROM player_photos
-    WHERE user_id = ${userId}
-      AND id NOT IN (
-        SELECT id FROM player_photos
-        WHERE user_id = ${userId}
-        ORDER BY taken_at DESC
-        LIMIT ${MAX_PHOTOS}
-      )
-  `;
+  return rowCount === 1 ? { ok: true } : { ok: false, reason: "album-full" };
 }
 
 /** The bytes, but only if they belong to the person asking. */

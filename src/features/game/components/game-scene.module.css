@@ -481,3 +481,21 @@
     opacity: 0;
   }
 }
+
+/* Said out loud when the shutter refuses, rather than a flash that lies. */
+.notice {
+  position: absolute;
+  bottom: 2.2rem;
+  left: 50%;
+  z-index: 25;
+  max-width: min(34rem, calc(100% - 3rem));
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0.85rem 1.3rem;
+  border-radius: 14px;
+  background: rgba(44, 38, 26, 0.92);
+  color: #fffdf6;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  text-align: center;
+}

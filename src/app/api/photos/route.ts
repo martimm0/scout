@@ -5,6 +5,7 @@ import { cloudSaveConfigured } from "@/lib/env";
 import {
   listPhotos,
   savePhoto,
+  MAX_PHOTOS,
   MAX_PHOTO_BYTES,
 } from "@/lib/photos";
 
@@ -83,13 +84,23 @@ export async function POST(request: Request) {
 
   // The owner comes from the session, never from the payload. Otherwise anyone
   // could file a photograph in somebody else's album.
-  await savePhoto(session.user.id, {
+  const result = await savePhoto(session.user.id, {
     id,
     area: String(body.area ?? "Frick Park").slice(0, 80),
     clock: String(body.clock ?? "").slice(0, 20),
     phase: String(body.phase ?? "").slice(0, 20),
     image,
   });
+
+  // The album is full. This is a 409 rather than a 507 or a silent success:
+  // there is a conflict with the state of the album, the player can resolve it,
+  // and the only honest thing to do is tell them so.
+  if (!result.ok) {
+    return NextResponse.json(
+      { error: result.reason, limit: MAX_PHOTOS },
+      { status: 409 },
+    );
+  }
 
   return NextResponse.json({ id, takenAt: Date.now() });
 }

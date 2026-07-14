@@ -34,7 +34,7 @@ import { PollinationMinigame } from "./pollination-minigame";
 import { ProgressionWatcher } from "./progression-watcher";
 import { SoundToggle } from "./sound-toggle";
 import { CloudSyncBadge } from "./cloud-sync-badge";
-import { usePhotoStore } from "../state/photo-store";
+import { MAX_PHOTOS, usePhotoStore } from "../state/photo-store";
 import { PLANTS } from "../data/plants";
 import {
   scatterSpecies,
@@ -1050,6 +1050,7 @@ export function GameScene({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const capturePhoto = usePhotoStore((state) => state.capture);
   const [flashing, setFlashing] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const [debugState, setDebugState] = useState<DebugState>({
     areaId: "environmental-center",
@@ -1089,18 +1090,29 @@ export function GameScene({
 
     context.drawImage(canvas, 0, 0, width, height);
 
-    // Fire and forget. The upload must not block the flight loop, and a photo
-    // that fails to reach the server falls back to the device inside the store.
+    // Deliberately NOT fire-and-forget. The flash is a promise that the picture
+    // was kept, and firing it before the album has accepted the photograph would
+    // make that promise on the album's behalf without asking.
     void capturePhoto({
       src: scaled.toDataURL("image/jpeg", 0.72),
       area: debugState.area,
       clock: daylight.clock,
       phase: daylight.label,
-    });
+    }).then((result) => {
+      if (result === "album-full") {
+        playSound("pollinateFail");
+        setNotice(
+          `Your album is full at ${MAX_PHOTOS}. Delete one in your journal to make room, and download it first if you want to keep it.`,
+        );
+        window.setTimeout(() => setNotice(null), 5200);
 
-    playSound("ui");
-    setFlashing(true);
-    window.setTimeout(() => setFlashing(false), 240);
+        return;
+      }
+
+      playSound("ui");
+      setFlashing(true);
+      window.setTimeout(() => setFlashing(false), 240);
+    });
   }, [capturePhoto, daylight.clock, daylight.label, debugState.area]);
 
   useEffect(() => {
@@ -1127,6 +1139,12 @@ export function GameScene({
           onDebugChange={setDebugState}
         />
         {flashing ? <div className={styles.flash} aria-hidden /> : null}
+
+        {notice ? (
+          <p className={styles.notice} role="status">
+            {notice}
+          </p>
+        ) : null}
 
         {ready ? null : (
           <div className={styles.loading} role="status">
