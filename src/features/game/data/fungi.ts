@@ -1,5 +1,6 @@
 import type { TimeWindow } from "../world/daylight";
-import type { AreaId } from "../world/terrain";
+import type { AreaId, ParkId } from "../world/terrain";
+import type { Home } from "./plants";
 
 /**
  * Fungi.
@@ -28,7 +29,7 @@ export type Fungus = {
   id: string;
   commonName: string;
   scientificName: string;
-  area: AreaId;
+  homes: Home[];
   /** When it can be found. */
   window: TimeWindow;
   season: string;
@@ -79,7 +80,7 @@ export const FUNGI: Fungus[] = [
     id: "turkey-tail",
     commonName: "Turkey Tail",
     scientificName: "Trametes versicolor",
-    area: "falls-ravine",
+    homes: [{ park: "frick", area: "falls-ravine" }],
     window: DAY,
     season: "All year",
     hook: "Rings of colour, like a bird's fanned tail.",
@@ -98,7 +99,7 @@ export const FUNGI: Fungus[] = [
     id: "chicken-of-the-woods",
     commonName: "Chicken of the Woods",
     scientificName: "Laetiporus sulphureus",
-    area: "fern-hollow",
+    homes: [{ park: "frick", area: "fern-hollow" }],
     window: DAY,
     season: "Summer to autumn",
     hook: "A shelf of orange you can see from a hundred feet.",
@@ -117,7 +118,7 @@ export const FUNGI: Fungus[] = [
     id: "oyster-mushroom",
     commonName: "Oyster Mushroom",
     scientificName: "Pleurotus ostreatus",
-    area: "fern-hollow",
+    homes: [{ park: "frick", area: "fern-hollow" }],
     window: DAWN,
     season: "Autumn to spring",
     hook: "Grows in shelves on dead wood, and eats worms.",
@@ -135,7 +136,7 @@ export const FUNGI: Fungus[] = [
     id: "morel",
     commonName: "Yellow Morel",
     scientificName: "Morchella esculenta",
-    area: "nine-mile-run",
+    homes: [{ park: "frick", area: "nine-mile-run" }],
     window: DAWN,
     season: "April to May",
     hook: "A honeycomb on a stalk. Two weeks a year.",
@@ -154,7 +155,7 @@ export const FUNGI: Fungus[] = [
     id: "giant-puffball",
     commonName: "Giant Puffball",
     scientificName: "Calvatia gigantea",
-    area: "bowling-green",
+    homes: [{ park: "frick", area: "bowling-green" }],
     window: DAY,
     season: "Late summer to autumn",
     hook: "A white boulder in the grass. Full of spores.",
@@ -173,7 +174,7 @@ export const FUNGI: Fungus[] = [
     id: "jack-o-lantern",
     commonName: "Jack-o'-Lantern",
     scientificName: "Omphalotus illudens",
-    area: "falls-ravine",
+    homes: [{ park: "frick", area: "falls-ravine" }],
     window: NIGHT,
     season: "Late summer to autumn",
     hook: "It glows in the dark. Genuinely.",
@@ -193,7 +194,7 @@ export const FUNGI: Fungus[] = [
     id: "dryads-saddle",
     commonName: "Dryad's Saddle",
     scientificName: "Cerioporus squamosus",
-    area: "environmental-center",
+    homes: [{ park: "frick", area: "environmental-center" }],
     window: DAY,
     season: "Spring to autumn",
     hook: "Smells of watermelon rind. Really.",
@@ -212,7 +213,7 @@ export const FUNGI: Fungus[] = [
     id: "eastern-destroying-angel",
     commonName: "Eastern Destroying Angel",
     scientificName: "Amanita bisporigera",
-    area: "fern-hollow",
+    homes: [{ park: "frick", area: "fern-hollow" }],
     window: DUSK,
     season: "Summer to autumn",
     hook: "Pure white, and the deadliest thing in the wood.",

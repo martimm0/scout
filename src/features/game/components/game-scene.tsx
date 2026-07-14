@@ -51,11 +51,11 @@ import {
 } from "../world/daylight";
 import {
   areaAt,
+  ceiling,
+  startPosition,
   terrainHeight,
-  CEILING,
+  world,
   GROUND_CLEARANCE,
-  START_POSITION,
-  WORLD,
 } from "../world/terrain";
 import styles from "./game-scene.module.css";
 
@@ -291,7 +291,7 @@ function ScoutScene({
   const forwardRef = useRef(new Vector3());
   const renderPositionRef = useRef(new Vector3());
   const rightRef = useRef(new Vector3());
-  const targetPositionRef = useRef(new Vector3(...START_POSITION));
+  const targetPositionRef = useRef(new Vector3(...startPosition()));
   const velocityRef = useRef(new Vector3());
   /** Scratch vector for the collision slide. Reused so the loop allocates nothing. */
   const pushOutRef = useRef(new Vector3());
@@ -541,8 +541,8 @@ function ScoutScene({
     targetPosition.addScaledVector(velocity, delta);
     targetPosition.y += altitudeInput * ALTITUDE_SPEED * delta;
 
-    targetPosition.x = clamp(targetPosition.x, WORLD.minX + 2, WORLD.maxX - 2);
-    targetPosition.z = clamp(targetPosition.z, WORLD.minZ + 2, WORLD.maxZ - 2);
+    targetPosition.x = clamp(targetPosition.x, world().minX + 2, world().maxX - 2);
+    targetPosition.z = clamp(targetPosition.z, world().minZ + 2, world().maxZ - 2);
 
     // The floor follows the ground rather than sitting at a fixed altitude, so
     // the bee can drop all the way down into the ravine and skim the creek.
@@ -550,7 +550,7 @@ function ScoutScene({
     targetPosition.y = clamp(
       targetPosition.y,
       ground + GROUND_CLEARANCE,
-      CEILING,
+      ceiling(),
     );
 
     // The park is solid. Push out of anything the bee is inside, then re-clamp
@@ -860,7 +860,7 @@ function ScoutScene({
       ) : null}
 
       {/* Actual bee size, near enough. The world grew around it instead. */}
-      <group ref={pollinatorRef} position={START_POSITION} scale={1}>
+      <group ref={pollinatorRef} position={startPosition()} scale={1}>
         <PollinatorModel
           animationState={
             playerMovement === "Pollinating"

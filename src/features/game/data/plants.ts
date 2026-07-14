@@ -1,5 +1,5 @@
 import type { TimeWindow } from "../world/daylight";
-import type { AreaId } from "../world/terrain";
+import type { AreaId, ParkId } from "../world/terrain";
 
 /**
  * When a flower is open.
@@ -36,11 +36,22 @@ const DAYLIGHT: TimeWindow = {
 
 export type PlantArchetype = "daisy" | "spike" | "umbel" | "low" | "shrub" | "tree";
 
+
+/**
+ * Where a species lives.
+ *
+ * A list, not a single area, because a species can genuinely grow in both parks:
+ * goldenrod is goldenrod, and it is in the rough at Frick and on Flagstaff Hill
+ * at Schenley. It is the SAME organism, so finding it in one park means you have
+ * found it, and the journal keeps one entry for it with both homes listed.
+ */
+export type Home = { park: ParkId; area: AreaId };
+
 export type Plant = {
   id: string;
   commonName: string;
   scientificName: string;
-  area: AreaId;
+  homes: Home[];
   bloom: string;
   /** The hours of the day this flower is actually open. */
   window: TimeWindow;
@@ -67,7 +78,7 @@ export const PLANTS: Plant[] = [
     id: "common-milkweed",
     commonName: "Common Milkweed",
     scientificName: "Asclepias syriaca",
-    area: "blue-slide",
+    homes: [{ park: "frick", area: "blue-slide" }],
     bloom: "June to August",
     window: DAYLIGHT,
     hook: "Hands out pollen like luggage.",
@@ -84,7 +95,7 @@ export const PLANTS: Plant[] = [
     id: "wild-bergamot",
     commonName: "Wild Bergamot",
     scientificName: "Monarda fistulosa",
-    area: "blue-slide",
+    homes: [{ park: "frick", area: "blue-slide" }],
     bloom: "July to September",
     window: DAYLIGHT,
     hook: "Smells like Earl Grey. It's a mint.",
@@ -101,7 +112,7 @@ export const PLANTS: Plant[] = [
     id: "canada-goldenrod",
     commonName: "Canada Goldenrod",
     scientificName: "Solidago canadensis",
-    area: "bowling-green",
+    homes: [{ park: "frick", area: "bowling-green" }],
     bloom: "August to October",
     window: DAYLIGHT,
     hook: "Blamed for hay fever it doesn't cause.",
@@ -118,7 +129,7 @@ export const PLANTS: Plant[] = [
     id: "new-england-aster",
     commonName: "New England Aster",
     scientificName: "Symphyotrichum novae-angliae",
-    area: "bowling-green",
+    homes: [{ park: "frick", area: "bowling-green" }],
     bloom: "August to October",
     window: DAYLIGHT,
     hook: "The meadow's last supper before frost.",
@@ -135,7 +146,7 @@ export const PLANTS: Plant[] = [
     id: "purple-coneflower",
     commonName: "Purple Coneflower",
     scientificName: "Echinacea purpurea",
-    area: "environmental-center",
+    homes: [{ park: "frick", area: "environmental-center" }],
     bloom: "June to August",
     window: DAYLIGHT,
     hook: "That cone is hundreds of tiny flowers.",
@@ -152,7 +163,7 @@ export const PLANTS: Plant[] = [
     id: "black-eyed-susan",
     commonName: "Black-eyed Susan",
     scientificName: "Rudbeckia hirta",
-    area: "environmental-center",
+    homes: [{ park: "frick", area: "environmental-center" }],
     bloom: "June to September",
     window: DAYLIGHT,
     hook: "Wears a bullseye only bees can see.",
@@ -169,7 +180,7 @@ export const PLANTS: Plant[] = [
     id: "virginia-bluebell",
     commonName: "Virginia Bluebell",
     scientificName: "Mertensia virginica",
-    area: "nine-mile-run",
+    homes: [{ park: "frick", area: "nine-mile-run" }],
     bloom: "March to May",
     window: EPHEMERAL,
     hook: "Opens pink, then turns blue.",
@@ -186,7 +197,7 @@ export const PLANTS: Plant[] = [
     id: "joe-pye-weed",
     commonName: "Joe-Pye Weed",
     scientificName: "Eutrochium purpureum",
-    area: "nine-mile-run",
+    homes: [{ park: "frick", area: "nine-mile-run" }],
     bloom: "July to September",
     window: DAYLIGHT,
     hook: "Head-high, and crawling with butterflies.",
@@ -203,7 +214,7 @@ export const PLANTS: Plant[] = [
     id: "jewelweed",
     commonName: "Jewelweed",
     scientificName: "Impatiens capensis",
-    area: "nine-mile-run",
+    homes: [{ park: "frick", area: "nine-mile-run" }],
     bloom: "July to September",
     window: DAYLIGHT,
     hook: "Its seed pods explode at a touch.",
@@ -220,7 +231,7 @@ export const PLANTS: Plant[] = [
     id: "cardinal-flower",
     commonName: "Cardinal Flower",
     scientificName: "Lobelia cardinalis",
-    area: "nine-mile-run",
+    homes: [{ park: "frick", area: "nine-mile-run" }],
     bloom: "July to September",
     window: DAYLIGHT,
     hook: "A red built for hummingbirds, not bees.",
@@ -237,7 +248,7 @@ export const PLANTS: Plant[] = [
     id: "mayapple",
     commonName: "Mayapple",
     scientificName: "Podophyllum peltatum",
-    area: "falls-ravine",
+    homes: [{ park: "frick", area: "falls-ravine" }],
     bloom: "April to May",
     window: EPHEMERAL,
     hook: "Hides its flower under an umbrella.",
@@ -254,7 +265,7 @@ export const PLANTS: Plant[] = [
     id: "trout-lily",
     commonName: "Trout Lily",
     scientificName: "Erythronium americanum",
-    area: "falls-ravine",
+    homes: [{ park: "frick", area: "falls-ravine" }],
     bloom: "March to May",
     window: EPHEMERAL,
     hook: "Leaves mottled like a brook trout.",
@@ -271,7 +282,7 @@ export const PLANTS: Plant[] = [
     id: "wild-geranium",
     commonName: "Wild Geranium",
     scientificName: "Geranium maculatum",
-    area: "falls-ravine",
+    homes: [{ park: "frick", area: "falls-ravine" }],
     bloom: "April to June",
     window: EPHEMERAL,
     hook: "Its petals are painted with runways.",
@@ -288,7 +299,7 @@ export const PLANTS: Plant[] = [
     id: "white-trillium",
     commonName: "White Trillium",
     scientificName: "Trillium grandiflorum",
-    area: "falls-ravine",
+    homes: [{ park: "frick", area: "falls-ravine" }],
     bloom: "April to May",
     window: EPHEMERAL,
     hook: "Seven years from seed to first flower.",
@@ -305,7 +316,7 @@ export const PLANTS: Plant[] = [
     id: "spicebush",
     commonName: "Spicebush",
     scientificName: "Lindera benzoin",
-    area: "fern-hollow",
+    homes: [{ park: "frick", area: "fern-hollow" }],
     bloom: "March to April",
     window: DAYLIGHT,
     hook: "Flowers before it bothers with leaves.",
@@ -322,7 +333,7 @@ export const PLANTS: Plant[] = [
     id: "eastern-redbud",
     commonName: "Eastern Redbud",
     scientificName: "Cercis canadensis",
-    area: "fern-hollow",
+    homes: [{ park: "frick", area: "fern-hollow" }],
     bloom: "March to May",
     window: DAYLIGHT,
     hook: "Blooms straight out of its own trunk.",
@@ -338,3 +349,20 @@ export const PLANTS: Plant[] = [
 ];
 
 export const PLANTS_BY_ID = new Map(PLANTS.map((plant) => [plant.id, plant]));
+
+/**
+ * Where a species can be found, in words.
+ *
+ * A species with homes in both parks says so. This is the payoff of `homes`
+ * being a list: goldenrod is one plant with one journal entry and two addresses,
+ * rather than two goldenrods that happen to share a name.
+ */
+export function describeHomes(
+  homes: Home[],
+  labelOf: (areaId: string) => string,
+  parkLabelOf: (park: ParkId) => string,
+): string {
+  return homes
+    .map((home) => `${labelOf(home.area)} (${parkLabelOf(home.park)})`)
+    .join(", and ");
+}

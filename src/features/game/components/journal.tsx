@@ -8,13 +8,16 @@ import { EDIBILITY_LABEL, FUNGI } from "../data/fungi";
 import { FUNGUS_PHOTOS } from "../data/fungus-photos";
 import { CONCEPTS, POLLINATOR_ENTRIES } from "../data/journal";
 import { PLANT_PHOTOS } from "../data/plant-photos";
-import { PLANTS } from "../data/plants";
+import { describeHomes, PLANTS } from "../data/plants";
 import { countUnlocked, useGameStore } from "../state/game-store";
 import { MAX_PHOTOS, usePhotoStore } from "../state/photo-store";
-import { AREAS, RAVINE_AREA } from "../world/terrain";
+import { PARK_LIST, PARKS } from "../world/terrain";
+import { allAreas } from "../world/park";
+import type { Home } from "../data/plants";
 import styles from "./journal.module.css";
 
-const ALL_AREAS = [...AREAS, RAVINE_AREA];
+/** Every area in every park. The journal spans both. */
+const ALL_AREAS = PARK_LIST.flatMap((park) => allAreas(park));
 
 const AREA_BLURB: Record<string, string> = {
   "environmental-center":
@@ -222,7 +225,7 @@ export function Journal() {
                     </>
                   ) : (
                     <p className={styles.hint}>
-                      Somewhere in the {AREA_LABEL(plant.area)}. {plant.window.note}
+                      Somewhere in {WHERE(plant.homes)}. {plant.window.note}
                     </p>
                   )}
                 </div>
@@ -296,7 +299,7 @@ export function Journal() {
                     </>
                   ) : (
                     <p className={styles.hint}>
-                      Somewhere in the {AREA_LABEL(fungus.area)}. {fungus.window.note}
+                      Somewhere in {WHERE(fungus.homes)}. {fungus.window.note}
                     </p>
                   )}
                 </div>
@@ -473,6 +476,15 @@ function downloadName(photo: { area: string; clock: string }) {
       .replace(/^-|-$/g, "");
 
   return `scout-${slug(photo.area)}-${slug(photo.clock)}.jpg`;
+}
+
+/** "Fern Hollow (Frick Park), and Panther Hollow (Schenley Park)". */
+function WHERE(homes: Home[]) {
+  return describeHomes(
+    homes,
+    (id) => AREA_LABEL(id),
+    (park) => PARKS[park].label,
+  );
 }
 
 function AREA_LABEL(id: string) {

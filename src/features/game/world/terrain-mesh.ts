@@ -5,9 +5,9 @@ import {
   sample,
   terrainHeight,
   trailStrength,
-  WATER_LEVEL,
-  WORLD,
-  type AreaId,
+  activePark,
+  waterLevel,
+  world,
 } from "./terrain";
 
 /**
@@ -17,20 +17,6 @@ import {
  */
 const RESOLUTION = 4;
 
-const BIOME_COLOR: Record<AreaId, string> = {
-  // Mown lawn around the centre.
-  "environmental-center": "#8cc063",
-  // Trampled grass and wood chips around the playground.
-  "blue-slide": "#9dbb62",
-  // The bowling green: manicured to within an inch of its life.
-  "bowling-green": "#7fc457",
-  // The valley floor — silt, gravel and wet meadow.
-  "nine-mile-run": "#5d8052",
-  // Steep hemlock slopes.
-  "falls-ravine": "#456f42",
-  // Deep shade under a closed canopy.
-  "fern-hollow": "#39632f",
-};
 
 const ROCK = "#8a8175";
 const SHALLOWS = "#6d6a52";
@@ -43,6 +29,7 @@ const TRAIL = "#a68b63";
  * and turning to silt as it drops toward the creek.
  */
 export function buildTerrainGeometry(): BufferGeometry {
+  const park = activePark();
   const positions: number[] = [];
   const normals: number[] = [];
   const colors: number[] = [];
@@ -59,8 +46,8 @@ export function buildTerrainGeometry(): BufferGeometry {
   const ac = new Vector3();
   const normal = new Vector3();
 
-  const columns = Math.ceil((WORLD.maxX - WORLD.minX) / RESOLUTION);
-  const rows = Math.ceil((WORLD.maxZ - WORLD.minZ) / RESOLUTION);
+  const columns = Math.ceil((world().maxX - world().minX) / RESOLUTION);
+  const rows = Math.ceil((world().maxZ - world().minZ) / RESOLUTION);
 
   // Sample the height field ONCE per grid corner and reuse it.
   //
@@ -74,8 +61,8 @@ export function buildTerrainGeometry(): BufferGeometry {
   for (let column = 0; column <= columns; column += 1) {
     for (let row = 0; row <= rows; row += 1) {
       heights[column * (rows + 1) + row] = terrainHeight(
-        WORLD.minX + column * RESOLUTION,
-        WORLD.minZ + row * RESOLUTION,
+        world().minX + column * RESOLUTION,
+        world().minZ + row * RESOLUTION,
       );
     }
   }
@@ -108,14 +95,17 @@ export function buildTerrainGeometry(): BufferGeometry {
     const cy = (p.y + q.y + r.y) / 3;
     const cz = (p.z + q.z + r.z) / 3;
 
-    base.set(BIOME_COLOR[areaAt(cx, cz).id]).convertSRGBToLinear();
+    // A park that forgot to colour one of its areas gets grass, not black.
+    base
+      .set(park.biomeColor[areaAt(cx, cz).id] ?? "#6f8f52")
+      .convertSRGBToLinear();
 
     // Steep ground goes to rock. Falls Ravine's walls are genuinely too steep to
     // hold much, so this reads as accurate rather than as a shader trick.
     base.lerp(rock, Math.min(1, Math.max(0, (slope - 0.5) * 1.6)));
 
     // Silt and gravel where the ground drops toward Nine Mile Run.
-    const depth = cy - WATER_LEVEL;
+    const depth = cy - waterLevel();
     base.lerp(shallows, Math.min(1, Math.max(0, 1 - depth / 22)));
 
     // The trails. Frick Park is a trail network with a wood around it, and from
@@ -134,8 +124,8 @@ export function buildTerrainGeometry(): BufferGeometry {
 
   for (let column = 0; column < columns; column += 1) {
     for (let row = 0; row < rows; row += 1) {
-      const x0 = WORLD.minX + column * RESOLUTION;
-      const z0 = WORLD.minZ + row * RESOLUTION;
+      const x0 = world().minX + column * RESOLUTION;
+      const z0 = world().minZ + row * RESOLUTION;
       const x1 = x0 + RESOLUTION;
       const z1 = z0 + RESOLUTION;
 

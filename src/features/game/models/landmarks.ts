@@ -327,7 +327,218 @@ function slag(): Box[] {
   ];
 }
 
+
+/* ------------------------------------------------------------------------- *
+ * Schenley Park.
+ * ------------------------------------------------------------------------- */
+
+const GLASS = "#9fd3e0";
+const GLASS_DARK = "#7ab0c4";
+const BRONZE = "#6f5a3a";
+const BRONZE_LIT = "#8d7346";
+
+/**
+ * Phipps Conservatory: a Victorian glasshouse, which is to say a building made
+ * almost entirely of the thing buildings are usually not made of.
+ *
+ * The real one is a spine with wings off it and a dome in the middle. At bee
+ * scale you can fly between the wings, and you should: it is the only building
+ * in either park you can get inside the shape of.
+ */
+function phipps(): Box[] {
+  const boxes: Box[] = [
+    // The stone base it all sits on.
+    { position: [0, 3, 0], size: [130, 6, 60], color: STONE },
+  ];
+
+  // Three glass houses in a row, the middle one taller.
+  for (const [x, w, h, d] of [
+    [-34, 44, 30, 52],
+    [0, 38, 42, 38],
+    [34, 44, 26, 52],
+  ] as const) {
+    boxes.push({ position: [x, 6 + h / 2, 0], size: [w, h, d], color: GLASS });
+    // A ridge along the top of each.
+    boxes.push({
+      position: [x, 6 + h + 2, 0],
+      size: [w * 0.5, 4, d * 0.5],
+      color: GLASS_DARK,
+    });
+  }
+
+  // The dome over the middle house.
+  boxes.push({ position: [0, 54, 0], size: [22, 10, 22], color: GLASS });
+  boxes.push({ position: [0, 61, 0], size: [10, 6, 10], color: GLASS_DARK });
+  // The white glazing bars, which are what makes it read as glass and not ice.
+  for (const z of [-26, 26]) {
+    boxes.push({ position: [0, 20, z], size: [130, 1.5, 1.5], color: "#f2f2ea" });
+  }
+
+  return boxes;
+}
+
+/**
+ * The Panther Hollow Bridge: Schenley Drive, carried clean over the hollow.
+ *
+ * Longer and higher than the Fern Hollow Bridge, and it has to be, because the
+ * hollow is deeper. Flying the length of it from underneath is the best thing in
+ * this park.
+ */
+function pantherHollowBridge(): Box[] {
+  const boxes: Box[] = [
+    // The deck.
+    { position: [0, 100, 0], size: [260, 6, 40], color: SLATE },
+    // Parapets.
+    { position: [0, 106, -19], size: [260, 8, 3], color: STONE },
+    { position: [0, 106, 19], size: [260, 8, 3], color: STONE },
+  ];
+
+  // The stone abutments at each end, dropping to the floor of the hollow.
+  for (const x of [-112, 112]) {
+    boxes.push({ position: [x, 30, 0], size: [26, 150, 30], color: STONE_DARK });
+  }
+
+  // The arch under the middle, which is the shape everybody actually pictures.
+  for (const [x, y, h] of [
+    [-70, 86, 26],
+    [-36, 78, 42],
+    [0, 74, 50],
+    [36, 78, 42],
+    [70, 86, 26],
+  ] as const) {
+    boxes.push({ position: [x, y - h / 2, 0], size: [16, h, 22], color: STONE });
+  }
+
+  // Lamp posts along the deck.
+  for (const x of [-84, -28, 28, 84]) {
+    boxes.push({ position: [x, 114, -19], size: [2, 12, 2], color: "#3a3a34" });
+    boxes.push({ position: [x, 121, -19], size: [4, 3, 4], color: "#f4e6b0" });
+  }
+
+  return boxes;
+}
+
+/**
+ * A bronze panther, crouched on a corner of the bridge.
+ *
+ * There are four of them on the real thing, and at this scale each one is the
+ * size of a house. Being looked at by a cat the size of a house is worth the
+ * flight on its own.
+ */
+function panther(): Box[] {
+  return [
+    // Plinth.
+    { position: [0, 3, 0], size: [16, 6, 26], color: STONE_DARK },
+    // Body, long and low.
+    { position: [0, 11, 0], size: [10, 8, 22], color: BRONZE },
+    // Haunches, higher than the shoulders. It is about to go somewhere.
+    { position: [0, 14, 8], size: [11, 7, 8], color: BRONZE_LIT },
+    // Chest and shoulders.
+    { position: [0, 12, -7], size: [10, 7, 7], color: BRONZE_LIT },
+    // Head, thrust forward and down.
+    { position: [0, 13, -13], size: [7, 6, 6], color: BRONZE },
+    // Ears.
+    { position: [-2.5, 17, -12], size: [2, 3, 2], color: BRONZE },
+    { position: [2.5, 17, -12], size: [2, 3, 2], color: BRONZE },
+    // Muzzle.
+    { position: [0, 11, -17], size: [4, 3, 4], color: BRONZE_LIT },
+    // Forelegs, straight down.
+    { position: [-3.5, 8, -10], size: [3, 8, 3], color: BRONZE },
+    { position: [3.5, 8, -10], size: [3, 8, 3], color: BRONZE },
+    // The tail, curling out behind.
+    { position: [0, 9, 12], size: [2.5, 2.5, 8], color: BRONZE },
+    { position: [4, 10, 15], size: [8, 2.5, 2.5], color: BRONZE },
+  ];
+}
+
+/** The boathouse at Panther Hollow Lake. */
+function boathouse(): Box[] {
+  return [
+    { position: [0, 1, 0], size: [48, 2, 34], color: TIMBER },
+    { position: [0, 10, 0], size: [40, 16, 26], color: "#c2a878" },
+    { position: [0, 20, 0], size: [46, 4, 32], color: "#8a4f3a" },
+    // The dock, running out over the water.
+    { position: [0, 1, 24], size: [16, 1.5, 20], color: TIMBER },
+  ];
+}
+
+/** Schenley Oval: a running track, and the tennis courts beside it. */
+function oval(): Box[] {
+  const boxes: Box[] = [
+    { position: [0, 0.6, 0], size: [150, 1.2, 96], color: "#b4614a" },
+    // The infield.
+    { position: [0, 1, 0], size: [120, 1.4, 66], color: "#6fbf4c" },
+  ];
+
+  // A fence around the whole thing.
+  for (const [x, z, w, d] of [
+    [0, -48, 150, 3],
+    [0, 48, 150, 3],
+    [-75, 0, 3, 96],
+    [75, 0, 3, 96],
+  ] as const) {
+    boxes.push({ position: [x, 6, z], size: [w, 12, d], color: "#5a5a52" });
+  }
+
+  return boxes;
+}
+
+/**
+ * The Westinghouse Memorial: a curved bronze screen around a still pond.
+ *
+ * Two panels with a gap, so a bee can get into the middle of it, which is the
+ * only place from which you can read what is written on it.
+ */
+function westinghouseMemorial(): Box[] {
+  const boxes: Box[] = [
+    // The pond.
+    { position: [0, 0.4, 20], size: [90, 0.8, 60], color: "#4a6f86" },
+  ];
+
+  // The screen, as a shallow arc of panels with a gap in the middle.
+  for (const step of [-3, -2, -1, 1, 2, 3]) {
+    const angle = step * 0.26;
+    boxes.push({
+      position: [Math.sin(angle) * 46, 13, -Math.cos(angle) * 46 + 26],
+      size: [16, 26, 4],
+      color: step % 2 === 0 ? BRONZE : BRONZE_LIT,
+    });
+  }
+
+  // The plinths under it.
+  boxes.push({ position: [0, 1.5, -14], size: [96, 3, 16], color: STONE });
+
+  return boxes;
+}
+
+/** The visitor centre, up on the drive. */
+function visitorCenter(): Box[] {
+  return [
+    { position: [0, 9, 0], size: [54, 18, 38], color: "#c9b48c" },
+    { position: [0, 20, 0], size: [60, 4, 44], color: "#7a5f3e" },
+    { position: [0, 9, 20], size: [30, 12, 2], color: GLASS },
+  ];
+}
+
+/** The flagpole on top of Flagstaff Hill, which is what the hill is named for. */
+function flagpole(): Box[] {
+  return [
+    { position: [0, 2, 0], size: [10, 4, 10], color: STONE },
+    { position: [0, 36, 0], size: [3, 68, 3], color: "#e8e4d8" },
+    // The flag, stiff in the wind, because a voxel flag has no choice.
+    { position: [7, 62, 0], size: [12, 8, 1], color: "#b8493c" },
+  ];
+}
+
 export type LandmarkKind =
+  | "phipps"
+  | "pantherHollowBridge"
+  | "panther"
+  | "boathouse"
+  | "oval"
+  | "westinghouseMemorial"
+  | "visitorCenter"
+  | "flagpole"
   | "blueSlide"
   | "gatehouse"
   | "environmentalCenter"
@@ -344,6 +555,14 @@ export type LandmarkKind =
   | "slag";
 
 const BUILDERS: Record<LandmarkKind, () => Box[]> = {
+  phipps,
+  pantherHollowBridge,
+  panther,
+  boathouse,
+  oval,
+  westinghouseMemorial,
+  visitorCenter,
+  flagpole,
   blueSlide,
   gatehouse,
   environmentalCenter,

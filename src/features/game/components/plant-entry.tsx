@@ -6,13 +6,14 @@ import { useEffect, useRef } from "react";
 import { EDIBILITY_LABEL, FUNGI_BY_ID } from "../data/fungi";
 import { FUNGUS_PHOTOS } from "../data/fungus-photos";
 import { PLANT_PHOTOS } from "../data/plant-photos";
-import { PLANTS_BY_ID } from "../data/plants";
+import { describeHomes, PLANTS_BY_ID } from "../data/plants";
 import { useGameStore } from "../state/game-store";
-import { AREAS, RAVINE_AREA } from "../world/terrain";
+import { PARK_LIST, PARKS } from "../world/terrain";
+import { allAreas } from "../world/park";
 import styles from "./plant-entry.module.css";
 
 const AREA_LABEL = new Map(
-  [...AREAS, RAVINE_AREA].map((area) => [area.id, area.label]),
+  PARK_LIST.flatMap((park) => allAreas(park)).map((area) => [area.id, area.label]),
 );
 
 /**
@@ -83,7 +84,7 @@ export function PlantEntry() {
 
   const name = plant?.commonName ?? fungus!.commonName;
   const scientific = plant?.scientificName ?? fungus!.scientificName;
-  const area = plant?.area ?? fungus!.area;
+  const homes = plant?.homes ?? fungus!.homes;
   const fact = plant?.fact ?? fungus!.fact;
   const note = plant?.pollinatorNote ?? fungus!.roleNote;
   const wikipedia = plant?.wikipedia ?? fungus!.wikipedia;
@@ -91,7 +92,11 @@ export function PlantEntry() {
 
   const pollinated = plant ? Boolean(pollinatedPlants[plant.id]) : false;
   const learned = Boolean(quizPassed[activeEntry.id]);
-  const where = AREA_LABEL.get(area) ?? "Frick Park";
+  const where = describeHomes(
+    homes,
+    (id) => AREA_LABEL.get(id) ?? "the park",
+    (park) => PARKS[park].label,
+  );
 
   const status = plant
     ? pollinated

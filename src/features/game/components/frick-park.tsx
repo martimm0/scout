@@ -7,7 +7,13 @@ import { buildFoliageGeometry, type FoliageKind } from "../models/foliage";
 import { buildLandmarkGeometry, type LandmarkKind } from "../models/landmarks";
 import { scatterFoliage, scatterGrass, type Placement } from "../world/scatter";
 import { buildTerrainGeometry } from "../world/terrain-mesh";
-import { LANDMARKS, terrainHeight, WATER_LEVEL, WORLD } from "../world/terrain";
+import {
+  activePark,
+  terrainHeight,
+  waterLevel,
+  world,
+} from "../world/terrain";
+import { PROPS_BY_PARK } from "../world/parks/props";
 
 /** Instanced copies of one prop, placed once and never touched again. */
 function Instances({
@@ -74,9 +80,9 @@ export function Terrain() {
  */
 export function Creek() {
   return (
-    <mesh position={[0, WATER_LEVEL, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+    <mesh position={[0, waterLevel(), 0]} rotation={[-Math.PI / 2, 0, 0]}>
       <planeGeometry
-        args={[WORLD.maxX - WORLD.minX, WORLD.maxZ - WORLD.minZ]}
+        args={[world().maxX - world().minX, world().maxZ - world().minZ]}
       />
       <meshLambertMaterial
         color="#4d90b8"
@@ -120,11 +126,12 @@ export function Foliage() {
 }
 
 /**
- * The things that make this Frick Park and nowhere else. Each is placed by hand
- * — they're landmarks, and a landmark you scattered randomly isn't one.
+ * The things that make a park itself and nowhere else. Each is placed by hand:
+ * they are landmarks, and a landmark you scattered randomly is not one.
  */
 export function Landmarks() {
   const geometry = useMemo(() => buildLandmarkGeometry(), []);
+  const props = PROPS_BY_PARK[activePark().id] ?? [];
 
   useEffect(
     () => () => {
@@ -135,61 +142,28 @@ export function Landmarks() {
     [geometry],
   );
 
-  const at = (
-    kind: LandmarkKind,
-    [x, z]: [number, number],
-    rotation = 0,
-    sink = 1,
-  ) => (
-    <mesh
-      castShadow
-      geometry={geometry[kind]}
-      key={`${kind}-${x}-${z}`}
-      position={[x, terrainHeight(x, z) - sink, z]}
-      receiveShadow
-      rotation={[0, rotation, 0]}
-    >
-      <meshLambertMaterial vertexColors />
-    </mesh>
-  );
-
   return (
     <>
-      {at("blueSlide", LANDMARKS.blueSlide, 0.25)}
-      {at("environmentalCenter", LANDMARKS.center, -0.15)}
-      {at("gatehouse", LANDMARKS.gatehouse, 0.55)}
-      {at("bowlingGreen", LANDMARKS.bowlingGreen)}
-      {at("tennisCourts", LANDMARKS.tennisCourts, 0.1)}
-      {at("swings", LANDMARKS.swings, -0.3)}
-      {at("pavilion", LANDMARKS.pavilion, 0.4)}
-      {at("stoneSteps", LANDMARKS.stoneSteps, 1.2)}
-      {at("culvert", LANDMARKS.culvert, -1.4, 4)}
+      {props.map((prop, index) => {
+        const [x, z] = prop.at;
+        // A bridge spans the hollow rather than sitting on the floor of it, so
+        // anything with a hang height ignores the terrain underneath entirely.
+        const y =
+          prop.hangAt ?? terrainHeight(x, z) - (prop.sink ?? 1);
 
-      {/* The bridge is the exception: it spans the hollow rather than sitting on
-          the ground, so it hangs from a fixed height instead of following the
-          terrain under it. */}
-      <mesh
-        castShadow
-        geometry={geometry.fernHollowBridge}
-        position={[LANDMARKS.fernHollowBridge[0], 0, LANDMARKS.fernHollowBridge[1]]}
-        receiveShadow
-        rotation={[0, 0.12, 0]}
-      >
-        <meshLambertMaterial vertexColors />
-      </mesh>
-
-      {/* Benches and trail posts along the way, for orientation. */}
-      {at("bench", [-190, 168], 0.4)}
-      {at("bench", [150, 120], -0.7)}
-      {at("bench", [232, 22], 1.2)}
-      {at("trailPost", [-150, 100], 0.2)}
-      {at("trailPost", [-60, -120], 1.1)}
-      {at("trailPost", [120, -160], -0.4)}
-
-      {/* Stepping stones across Nine Mile Run. */}
-      {at("steppingStone", [-6, 40], 0.3, 2)}
-      {at("steppingStone", [14, 44], -0.2, 2)}
-      {at("steppingStone", [34, 48], 0.5, 2)}
+        return (
+          <mesh
+            castShadow
+            geometry={geometry[prop.kind]}
+            key={`${prop.kind}-${x}-${z}-${index}`}
+            position={[x, y, z]}
+            receiveShadow
+            rotation={[0, prop.rotation ?? 0, 0]}
+          >
+            <meshLambertMaterial vertexColors />
+          </mesh>
+        );
+      })}
     </>
   );
 }

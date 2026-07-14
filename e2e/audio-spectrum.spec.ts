@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any --
+ * This file monkey-patches the Web Audio prototypes from inside the page to tap
+ * the master output. Re-typing BaseAudioContext.destination as something other
+ * than an AudioDestinationNode is the entire trick, and it cannot be expressed
+ * honestly in the types it is subverting. */
 import { expect, test } from "@playwright/test";
 import { signIn } from "./helpers";
 

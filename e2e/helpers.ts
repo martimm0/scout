@@ -5,7 +5,7 @@ import { encode } from "next-auth/jwt";
 
 import { isActive } from "../src/features/game/world/daylight";
 import { scatterSpecies } from "../src/features/game/world/species-scatter";
-import { START_POSITION } from "../src/features/game/world/terrain";
+import { startPosition } from "../src/features/game/world/terrain";
 
 /**
  * Shared driving for the game tests.
@@ -149,7 +149,7 @@ export async function enterGame(page: Page, hour: number = TEST_HOUR) {
  * do with the game.
  */
 export function nearestPlantToSpawn() {
-  const [sx, , sz] = START_POSITION;
+  const [sx, , sz] = startPosition();
 
   // A PLANT specifically, and one that is actually open at the hour the suite
   // flies at. Reaching a shut flower would find a card that says "come back at

@@ -2,14 +2,14 @@ import { FUNGI, type Fungus } from "../data/fungi";
 import { PLANTS, type Plant } from "../data/plants";
 import type { TimeWindow } from "./daylight";
 import {
+  activePark,
   areaAt,
+  areas,
   creekX,
   sample,
   terrainHeight,
   terrainSlope,
-  WATER_LEVEL,
-  AREAS,
-  RAVINE_AREA,
+  waterLevel,
 } from "./terrain";
 
 /**
@@ -57,11 +57,14 @@ export const DISCOVERY_RADIUS = 9;
 const BANK_SLOPE_LIMIT = 1.4;
 
 function homeOf(areaId: string) {
-  if (areaId === "nine-mile-run") {
-    return RAVINE_AREA;
-  }
+  const all = areas();
 
-  return AREAS.find((area) => area.id === areaId) ?? AREAS[0];
+  return all.find((area) => area.id === areaId) ?? all[0];
+}
+
+/** True if this area is the park's water corridor: the creek, or the hollow. */
+function isValley(areaId: string) {
+  return areaId === activePark().valley.area.id;
 }
 
 /**
@@ -89,11 +92,12 @@ function place(
     let x: number;
     let z: number;
 
-    if (areaId === "nine-mile-run") {
-      // Hug the creek: a point along it, then out to one bank. Starting at 34
-      // rather than 26 keeps them out of the water: inside about 30 units of the
-      // channel the ground is still below the waterline.
-      const along = -240 + sample(seed, count, 11) * 480;
+    if (isValley(areaId)) {
+      // Hug the water: a point along it, then out to one bank. Starting at 34
+      // rather than 26 keeps them out of it: inside about 30 units of the channel
+      // the ground is still below the waterline.
+      const { minZ, maxZ } = activePark().world;
+      const along = minZ + sample(seed, count, 11) * (maxZ - minZ);
       const side = sample(seed, count, 12) < 0.5 ? -1 : 1;
       const offset = 34 + sample(seed, count, 13) * 52;
       x = creekX(along) + side * offset;
@@ -111,15 +115,15 @@ function place(
 
     const height = terrainHeight(x, z);
 
-    // Nine Mile Run is a ravine, and its banks run steeper than anywhere else in
-    // the park. Holding them to the meadow's slope limit rejected every single
-    // candidate, which quietly left jewelweed, cardinal flower, Joe-Pye weed and
-    // the bluebells nowhere in the world at all: four plants in the journal that
-    // could never be found, and an "all sixteen" badge nobody could ever earn.
-    // Creekside plants grow on banks. That is the entire point of them.
-    const limit = areaId === "nine-mile-run" ? BANK_SLOPE_LIMIT : slopeLimit;
+    // A ravine's banks run steeper than anywhere else in the park. Holding them
+    // to the meadow's slope limit rejected every single candidate, which quietly
+    // left jewelweed, cardinal flower, Joe-Pye weed and the bluebells nowhere in
+    // the world at all: four plants in the journal that could never be found, and
+    // an "all sixteen" badge nobody could ever earn. Creekside plants grow on
+    // banks. That is the entire point of them.
+    const limit = isValley(areaId) ? BANK_SLOPE_LIMIT : slopeLimit;
 
-    if (height < WATER_LEVEL + 6 || terrainSlope(x, z) > limit) {
+    if (height < waterLevel() + 6 || terrainSlope(x, z) > limit) {
       continue;
     }
 
@@ -133,8 +137,18 @@ function place(
 export function scatterSpecies(): SpeciesInstance[] {
   const instances: SpeciesInstance[] = [];
 
+  const park = activePark().id;
+
   for (const plant of PLANTS) {
-    const spots = place(plant.area, plant.count, 0, 0.75);
+    // Only the homes in THIS park. A species with no home here simply does not
+    // grow here, which is the whole point of two parks with different flora.
+    const home = plant.homes.find((entry) => entry.park === park);
+
+    if (!home) {
+      continue;
+    }
+
+    const spots = place(home.area, plant.count, 0, 0.75);
 
     spots.forEach((spot, index) => {
       instances.push({
@@ -153,9 +167,15 @@ export function scatterSpecies(): SpeciesInstance[] {
   }
 
   for (const fungus of FUNGI) {
+    const home = fungus.homes.find((entry) => entry.park === park);
+
+    if (!home) {
+      continue;
+    }
+
     // Fungi live on rotting wood and shaded ground, so they tolerate steeper,
     // rougher places than a flower will.
-    const spots = place(fungus.area, fungus.count, 1, 0.95);
+    const spots = place(home.area, fungus.count, 1, 0.95);
 
     spots.forEach((spot, index) => {
       instances.push({

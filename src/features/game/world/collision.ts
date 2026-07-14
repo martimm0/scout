@@ -1,4 +1,6 @@
-import { LANDMARKS, terrainHeight } from "./terrain";
+import { activePark, terrainHeight } from "./terrain";
+import type { Obstacle as ParkObstacle } from "./parks/obstacles";
+import { OBSTACLES_BY_PARK } from "./parks/obstacles";
 import { scatterFoliage, type Placement } from "./scatter";
 
 /**
@@ -73,15 +75,25 @@ const PASS_THROUGH = new Set([
   "cattail",
 ]);
 
-let cylinders: Cylinder[] | null = null;
-let obstacles: Obstacle[] | null = null;
+/**
+ * Keyed by park, not merely rebuilt on switch.
+ *
+ * These three were plain module-level singletons with an `if (grid) return;`
+ * guard, which meant the FIRST park to load won for the whole page session. Fly
+ * Frick, walk to Schenley, and you would have got Schenley's terrain with Frick's
+ * trees still solid in the air around you: no error, no crash, just a park full
+ * of invisible oaks. A cache you invalidate is a cache somebody forgets to
+ * invalidate. A cache you key cannot be wrong.
+ */
+const CYLINDERS = new Map<string, Cylinder[]>();
+const OBSTACLES = new Map<string, Obstacle[]>();
+const GRIDS = new Map<string, Map<number, Cylinder[]>>();
 
 /**
  * A uniform grid over the world, so a lookup checks a dozen candidates instead
  * of two thousand.
  */
 const CELL = 40;
-let grid: Map<number, Cylinder[]> | null = null;
 
 function key(x: number, z: number) {
   return Math.floor(x / CELL) * 100000 + Math.floor(z / CELL);
@@ -137,57 +149,37 @@ function boxAt(
   };
 }
 
+/** The park's buildings and bridges, as boxes. */
 function buildObstacles(): Obstacle[] {
-  const bridge = LANDMARKS.fernHollowBridge;
+  const park = activePark();
 
-  return [
-    // The Environmental Center. The building body (76 x 46), not the roof
-    // overhang: an overhang you cannot fly under is not an overhang.
-    boxAt(LANDMARKS.center, 76, 28, 46),
-    // The gatehouse: two piers with a gap between them you can fly through, so
-    // it is modelled as two boxes rather than one, which would wall it off.
-    boxAt([LANDMARKS.gatehouse[0] - 26, LANDMARKS.gatehouse[1]], 18, 46, 18),
-    boxAt([LANDMARKS.gatehouse[0] + 26, LANDMARKS.gatehouse[1]], 18, 46, 18),
-    // The Blue Slide.
-    boxAt(LANDMARKS.blueSlide, 64, 38, 100),
-    // The bowling green clubhouse. The green itself is flat, so no collider.
-    boxAt([LANDMARKS.bowlingGreen[0], LANDMARKS.bowlingGreen[1] - 74], 34, 24, 22),
-    // The tennis court fence. A wall, from here.
-    boxAt(LANDMARKS.tennisCourts, 80, 20, 112),
-    // The pavilion.
-    boxAt(LANDMARKS.pavilion, 72, 32, 56),
-    // The culvert.
-    boxAt(LANDMARKS.culvert, 32, 20, 16, -4),
-    // The bridge deck. It hangs at a fixed height rather than on the ground, so
-    // its box is absolute: you can fly UNDER it, which is most of the point.
-    {
-      minX: bridge[0] - 152,
-      maxX: bridge[0] + 152,
-      minY: 84,
-      maxY: 112,
-      minZ: bridge[1] - 24,
-      maxZ: bridge[1] + 24,
-    },
-    // And its piers.
-    ...[-96, -32, 32, 96].map((offset) => ({
-      minX: bridge[0] + offset - 9,
-      maxX: bridge[0] + offset + 9,
-      minY: -100,
-      maxY: 92,
-      minZ: bridge[1] - 12,
-      maxZ: bridge[1] + 12,
-    })),
-  ];
+  return (OBSTACLES_BY_PARK[park.id] ?? []).map((spec: ParkObstacle) =>
+    spec.absolute
+      ? {
+          minX: spec.at[0] - spec.width / 2,
+          maxX: spec.at[0] + spec.width / 2,
+          minY: spec.absolute[0],
+          maxY: spec.absolute[1],
+          minZ: spec.at[1] - spec.depth / 2,
+          maxZ: spec.at[1] + spec.depth / 2,
+        }
+      : boxAt(spec.at, spec.width, spec.height, spec.depth, spec.lift ?? 0),
+  );
 }
 
 function ensureBuilt() {
-  if (grid) {
+  const parkId = activePark().id;
+
+  if (GRIDS.has(parkId)) {
     return;
   }
 
-  cylinders = buildCylinders();
-  obstacles = buildObstacles();
-  grid = new Map();
+  const cylinders = buildCylinders();
+  CYLINDERS.set(parkId, cylinders);
+  OBSTACLES.set(parkId, buildObstacles());
+
+  const grid = new Map<number, Cylinder[]>();
+  GRIDS.set(parkId, grid);
 
   for (const cylinder of cylinders) {
     // A tree can straddle cell boundaries, so register it in every cell its
@@ -229,12 +221,14 @@ export function resolveCollision(
 ): Resolved {
   ensureBuilt();
 
+  const parkId = activePark().id;
+
   let outX = x;
   let outZ = z;
   let hit = false;
 
   // Trees and the like: push out horizontally, unless you are over the top.
-  const candidates = grid!.get(key(x, z));
+  const candidates = GRIDS.get(parkId)!.get(key(x, z));
 
   if (candidates) {
     for (const cylinder of candidates) {
@@ -271,7 +265,7 @@ export function resolveCollision(
   // way to slide along a wall rather than stick to it.
   let outY = y;
 
-  for (const box of obstacles!) {
+  for (const box of OBSTACLES.get(parkId)!) {
     if (
       outX < box.minX - clearance ||
       outX > box.maxX + clearance ||

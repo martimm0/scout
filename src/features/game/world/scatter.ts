@@ -1,15 +1,17 @@
 import type { FoliageKind } from "../models/foliage";
 import {
+  activePark,
   areaAt,
   creekX,
   sample,
   terrainHeight,
   terrainSlope,
   trailStrength,
-  WATER_LEVEL,
-  WORLD,
+  waterLevel,
+  world,
   type AreaId,
 } from "./terrain";
+import type { Biome } from "./park";
 
 export type Placement = {
   position: [number, number, number];
@@ -28,14 +30,6 @@ const GRASS_CELL = 7;
  * the bowling green stays clipped, because a bowling green with a tree on it
  * isn't a bowling green.
  */
-const DENSITY: Record<AreaId, number> = {
-  "fern-hollow": 0.85,
-  "falls-ravine": 0.68,
-  "nine-mile-run": 0.4,
-  "environmental-center": 0.3,
-  "blue-slide": 0.3,
-  "bowling-green": 0.14,
-};
 
 /** Anything steeper than this is bare — trees don't grow on the cliff faces. */
 const MAX_SLOPE = 0.9;
@@ -48,8 +42,8 @@ const MAX_SLOPE = 0.9;
  * lawns get clover and acorns. Reading the ground should tell you where you are
  * before you look up.
  */
-function pickKind(area: AreaId, roll: number): FoliageKind {
-  if (area === "fern-hollow") {
+function pickKind(biome: Biome, roll: number): FoliageKind {
+  if (biome === "deep-woods") {
     if (roll < 0.22) return "hemlock";
     if (roll < 0.36) return "oak";
     if (roll < 0.54) return "fern";
@@ -61,7 +55,7 @@ function pickKind(area: AreaId, roll: number): FoliageKind {
     return "snag";
   }
 
-  if (area === "falls-ravine") {
+  if (biome === "slope-woods") {
     if (roll < 0.3) return "hemlock";
     if (roll < 0.45) return "oak";
     if (roll < 0.56) return "fern";
@@ -74,7 +68,7 @@ function pickKind(area: AreaId, roll: number): FoliageKind {
     return "snag";
   }
 
-  if (area === "nine-mile-run") {
+  if (biome === "valley-floor") {
     // The valley floor. Damp, disturbed, and losing ground to knotweed.
     if (roll < 0.2) return "oak";
     if (roll < 0.32) return "shrub";
@@ -123,10 +117,11 @@ function empty(): FoliageScatter {
  * Nothing is placed underwater, on a cliff, or in the creek channel itself.
  */
 export function scatterFoliage(): FoliageScatter {
+  const park = activePark();
   const result = empty();
 
-  for (let x = WORLD.minX; x <= WORLD.maxX; x += CELL) {
-    for (let z = WORLD.minZ; z <= WORLD.maxZ; z += CELL) {
+  for (let x = world().minX; x <= world().maxX; x += CELL) {
+    for (let z = world().minZ; z <= world().maxZ; z += CELL) {
       // Jitter off the grid, or the forest lines up in rows.
       const px = x + (sample(x, z, 1) - 0.5) * CELL * 0.9;
       const pz = z + (sample(x, z, 2) - 0.5) * CELL * 0.9;
@@ -139,7 +134,7 @@ export function scatterFoliage(): FoliageScatter {
       if (
         area === "nine-mile-run" &&
         channel < 34 &&
-        height > WATER_LEVEL - 6 &&
+        height > waterLevel() - 6 &&
         sample(x, z, 6) < 0.42
       ) {
         result.rock.push({
@@ -156,7 +151,7 @@ export function scatterFoliage(): FoliageScatter {
         area === "nine-mile-run" &&
         channel >= 12 &&
         channel < 30 &&
-        height > WATER_LEVEL + 1
+        height > waterLevel() + 1
       ) {
         const bank = sample(x, z, 11);
 
@@ -169,7 +164,7 @@ export function scatterFoliage(): FoliageScatter {
       }
 
       // Keep the creek channel clear so the valley stays flyable.
-      if (channel < 22 || height < WATER_LEVEL + 4) {
+      if (channel < 22 || height < waterLevel() + 4) {
         continue;
       }
 
@@ -183,11 +178,11 @@ export function scatterFoliage(): FoliageScatter {
         continue;
       }
 
-      if (sample(x, z, 3) > DENSITY[area]) {
+      if (sample(x, z, 3) > (park.density[area] ?? 0.3)) {
         continue;
       }
 
-      const kind = pickKind(area, sample(x, z, 4));
+      const kind = pickKind(park.biome[area] ?? "mown", sample(x, z, 4));
 
       result[kind].push({
         position: [px, height - 1.5, pz],
@@ -206,16 +201,17 @@ export function scatterFoliage(): FoliageScatter {
  * without it you have no sense of how small you are.
  */
 export function scatterGrass(): Placement[] {
+  const park = activePark();
   const blades: Placement[] = [];
 
-  for (let x = WORLD.minX; x <= WORLD.maxX; x += GRASS_CELL) {
-    for (let z = WORLD.minZ; z <= WORLD.maxZ; z += GRASS_CELL) {
+  for (let x = world().minX; x <= world().maxX; x += GRASS_CELL) {
+    for (let z = world().minZ; z <= world().maxZ; z += GRASS_CELL) {
       const px = x + (sample(x, z, 21) - 0.5) * GRASS_CELL;
       const pz = z + (sample(x, z, 22) - 0.5) * GRASS_CELL;
 
       const height = terrainHeight(px, pz);
 
-      if (height < WATER_LEVEL + 2) {
+      if (height < waterLevel() + 2) {
         continue;
       }
 

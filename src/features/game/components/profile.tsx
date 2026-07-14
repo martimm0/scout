@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import { BADGES } from "../data/badges";
 import { PLANTS } from "../data/plants";
 import { countUnlocked, useGameStore } from "../state/game-store";
-import { AREAS } from "../world/terrain";
+import { PARK_LIST } from "../world/terrain";
+import { allAreas } from "../world/park";
 import { CloudSyncBadge } from "./cloud-sync-badge";
 import { StarterVisual } from "./starter-selection";
 import styles from "./profile.module.css";
 
-const AREA_COUNT = AREAS.length + 1;
+const AREA_COUNT = PARK_LIST.flatMap((park) => allAreas(park)).length;
 
 export function Profile({ authConfigured }: { authConfigured: boolean }) {
   const { data: session, status } = useSession();
