@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { requireSignIn } from "@/features/auth/components/sign-in-required";
 import { GameScene } from "@/features/game/components/game-scene";
 import { weatherPreset } from "@/features/game/world/weather";
+import { PARKS, type ParkId } from "@/features/game/world/terrain";
 
 export const metadata: Metadata = {
   title: "Play · Scout",
@@ -47,9 +48,12 @@ export default async function PlayPage({
    * otherwise.
    */
   const debug = "debug" in params;
+
+  // Checked against the park registry rather than a hand-written list. The list
+  // said `frick | schenley`, so the day Highland was added `?park=highland`
+  // silently loaded Frick instead: no error, no warning, just the wrong park.
   const requested = String(params.park ?? "");
-  const park =
-    requested === "frick" || requested === "schenley" ? requested : undefined;
+  const park = requested in PARKS ? (requested as ParkId) : undefined;
 
   // `?weather=rain` pins the sky. Same idea as `?hour=`: the real weather is the
   // real weather, so on a fine day there is otherwise no way to look at the rain,

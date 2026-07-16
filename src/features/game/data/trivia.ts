@@ -1410,6 +1410,422 @@ export const TRIVIA: Record<string, Question[]> = {
         "Styptic. It was once packed onto wounds to stop them bleeding. The bitterness is real too, and nobody eats it twice.",
     },
   ],
+
+  // --- Highland Park ---
+
+  "great-blue-lobelia": [
+    {
+      ask: "Great blue lobelia is Lobelia siphilitica. Where did that name come from?",
+      options: [
+        "The flower is shaped like a medical instrument",
+        "A Mohawk remedy was sold to Europe as a syphilis cure, and Linnaeus believed it",
+        "It was first found growing outside a hospital",
+        "Its sap was used to treat the sores",
+      ],
+      answer: 1,
+      because:
+        "The remedy did not work. Linnaeus wrote the claim into the species name anyway, and botanical names do not come off. The plant has been carrying somebody else's mistake ever since.",
+    },
+    {
+      ask: "How does a bumblebee get into a great blue lobelia?",
+      options: [
+        "She hovers at the mouth and reaches in with her tongue",
+        "She chews through the base",
+        "She forces in headfirst, and comes out with pollen on her back",
+        "She cannot. It is pollinated by hummingbirds",
+      ],
+      answer: 2,
+      because:
+        "The tube is long and tight, so she has to shove. The plant loads her back on the way in, which is the point of making her work for it.",
+    },
+    {
+      ask: "Lobelia and cardinal flower are built almost identically. So what is different?",
+      options: [
+        "The colour, and therefore the customer",
+        "The season. One is spring, one is autumn",
+        "One has nectar and the other does not",
+        "One is a mint and the other is a daisy",
+      ],
+      answer: 0,
+      because:
+        "Same shape, different paint. Red is aimed at a hummingbird, blue at a bumblebee. Two sisters advertising to two entirely different species.",
+    },
+  ],
+
+  "common-chicory": [
+    {
+      ask: "Linnaeus put chicory in his flower clock. What time does it tell?",
+      options: [
+        "It opens at dusk and shuts at dawn",
+        "It opens and shuts with the temperature",
+        "It stays open for exactly three days",
+        "Open at five in the morning, shut by midday",
+      ],
+      answer: 3,
+      because:
+        "Every day, whatever the weather is doing. Linnaeus planted a garden that could be read as a clock, and this is one of its more reliable hands.",
+    },
+    {
+      ask: "Why did settlers bring chicory across the Atlantic?",
+      options: [
+        "To roast the root for coffee",
+        "For the blue dye in the petals",
+        "As a hedge plant",
+        "For the seeds, as a grain",
+      ],
+      answer: 0,
+      because:
+        "Roasted chicory root has stood in for coffee for centuries, and still does in New Orleans. The plant escaped the garden and now lines every gravel edge and kerb in the city.",
+    },
+    {
+      ask: "What does chicory's habit mean for the bees that use it?",
+      options: [
+        "They must be able to see ultraviolet",
+        "They have to keep its hours. By lunchtime the trade is over",
+        "They can only work it after rain",
+        "Nothing. It is wind pollinated",
+      ],
+      answer: 1,
+      because:
+        "A morning flower keeps morning customers. Turn up at two in the afternoon and there is nothing there at all, which is a hard rule to argue with.",
+    },
+  ],
+
+  "heal-all": [
+    {
+      ask: "You mow a lawn full of heal-all every fortnight. What does it do?",
+      options: [
+        "It dies out within a season",
+        "It stops flowering and spreads by root instead",
+        "It flowers again at two inches instead of twelve",
+        "It goes dormant until autumn",
+      ],
+      answer: 2,
+      because:
+        "It just blooms shorter, hugging the ground under the blades. It has worked out how to live on a mown lawn, which almost nothing else has.",
+    },
+    {
+      ask: "Which family does heal-all belong to?",
+      options: ["The mints", "The daisies", "The mustards", "The peas"],
+      answer: 0,
+      because:
+        "A mint, hooded violet flowers and all. The square stem gives it away if the shape does not.",
+    },
+    {
+      ask: "The violet flowers come out of what?",
+      options: [
+        "A flat plate, like an elder",
+        "A squat purple cone that looks like a small pineapple",
+        "A drooping tassel",
+        "A single bare stalk",
+      ],
+      answer: 1,
+      because:
+        "A stubby purple cone, and the hooded flowers push out of it a few at a time. On a mown Pittsburgh lawn half the bees are working this and nothing else.",
+    },
+  ],
+
+  "virginia-waterleaf": [
+    {
+      ask: "The young leaves look water-stained. What is actually going on?",
+      options: [
+        "It is a fungus growing in the leaf",
+        "The plant is drought-stressed",
+        "Rain really does bleach the leaf",
+        "The pale blotches are the plant's own markings, and they fade",
+      ],
+      answer: 3,
+      because:
+        "Nothing is wrong with it. The blotches are simply how the young leaves come up, they fade as the season goes on, and the whole name rests on the resemblance.",
+    },
+    {
+      ask: "What is odd about waterleaf's stamens?",
+      options: [
+        "They shoot well out past the petals, like a fistful of pins",
+        "They are hidden deep in the tube",
+        "There are only two of them",
+        "They open only after dark",
+      ],
+      answer: 0,
+      because:
+        "Well clear of the flower. They dust the underside of a bumblebee that never quite has to land, which saves her the trouble of climbing in.",
+    },
+    {
+      ask: "When would you find waterleaf flowering on the slope?",
+      options: ["August to October", "May to June", "March, before anything else", "All summer"],
+      answer: 1,
+      because:
+        "Late spring, and it is one of the better nectar plants on a wooded slope while it lasts.",
+    },
+  ],
+
+  "wild-columbine": [
+    {
+      ask: "Wild columbine opens at a very particular moment. Which?",
+      options: [
+        "The first frost",
+        "The night the canopy closes",
+        "When the ruby-throated hummingbirds get back to Pennsylvania",
+        "The peak of the monarch migration",
+      ],
+      answer: 2,
+      because:
+        "Five red horns hanging upside down with the nectar sealed in the tips, opening exactly as the birds arrive. The timing is not a coincidence.",
+    },
+    {
+      ask: "A bumblebee cannot reach the tip of the spur. What does she do?",
+      options: [
+        "She gives up and works something else",
+        "She waits for a hummingbird to open it",
+        "She reaches in from the mouth and gets a little",
+        "She chews through the side of the spur and drinks",
+      ],
+      answer: 3,
+      because:
+        "Nectar robbing. She takes the drink without going anywhere near the pollen, and the plant gets nothing at all for it.",
+    },
+    {
+      ask: "Why does columbine grow out of cracks in bare rock?",
+      options: [
+        "It cannot root in soil",
+        "That is where the competition is not",
+        "The rock keeps its roots warm",
+        "Hummingbirds will not visit anything at ground level",
+      ],
+      answer: 1,
+      because:
+        "A crack in a cliff is a bad address that nothing else wants, which makes it a very good address indeed if you can survive there.",
+    },
+  ],
+
+  pawpaw: [
+    {
+      ask: "A pawpaw flower is maroon, hangs upside down, and smells faintly of rotting meat. Why?",
+      options: [
+        "To warn deer off the young fruit",
+        "Because bees are not the customer. It wants carrion flies and beetles",
+        "It is a by-product of the fruit ripening",
+        "To keep other trees from growing near it",
+      ],
+      answer: 1,
+      because:
+        "The smell is an advertisement, and it is aimed at flies and beetles that expect to find a corpse. They find a flower instead.",
+    },
+    {
+      ask: "What is a pawpaw, exactly?",
+      options: [
+        "An escaped tropical fruit tree",
+        "A wild relative of the banana",
+        "The largest edible fruit native to North America",
+        "An imported ornamental with inedible fruit",
+      ],
+      answer: 2,
+      because:
+        "Native, and the biggest edible fruit on the continent. It tastes roughly like a mango that has been talked into being a banana, and it grows wild on the Allegheny flats.",
+    },
+    {
+      ask: "Pawpaw growers often hand-pollinate with a paintbrush. Why bother?",
+      options: [
+        "It is bad at attracting its own pollinators, and fruit set is poor",
+        "The flowers open for only one hour",
+        "Its pollinators are extinct",
+        "It cannot pollinate itself at all without help",
+      ],
+      answer: 0,
+      because:
+        "The carrion trick works, but badly. Too few flies turn up, so growers do the job themselves rather than wait on an advertisement nobody is answering.",
+    },
+  ],
+
+  wingstem: [
+    {
+      ask: "Run a thumb up a wingstem stalk. What do you feel?",
+      options: [
+        "Stiff downward-pointing hairs",
+        "Thin flanges of green tissue running down it",
+        "A perfectly square stem",
+        "Milky sap on your thumb",
+      ],
+      answer: 1,
+      because:
+        "Wings, running down the stalk. You can feel them, which is the whole of the name and one of the easier identifications on the flats.",
+    },
+    {
+      ask: "Why does wingstem matter on the river flats in September?",
+      options: [
+        "Its seeds feed birds through the winter",
+        "It shades out invasive plants",
+        "It is enormous quantities of late nectar, when little else is open",
+        "It is the only plant deer will not eat",
+      ],
+      answer: 2,
+      because:
+        "Head high and then some, flowering hard when the floodplain has otherwise finished. Late nectar is worth more than early nectar, because there is less of it.",
+    },
+    {
+      ask: "Which butterfly lays its eggs on wingstem?",
+      options: [
+        "The silvery checkerspot",
+        "The monarch",
+        "The zebra swallowtail",
+        "The West Virginia white",
+      ],
+      answer: 0,
+      because:
+        "The silvery checkerspot, on the leaves. The flowers feed the adults and the leaves feed the caterpillars, which is a plant doing two jobs at once.",
+    },
+  ],
+
+  "common-elderberry": [
+    {
+      ask: "Elderberry has been wine and syrup and pie for centuries. What is the catch?",
+      options: [
+        "The fruit only ripens every second year",
+        "Raw, the stems and leaves carry compounds that release cyanide",
+        "The berries are safe but the flowers are not",
+        "There is no catch. All of it is edible raw",
+      ],
+      answer: 1,
+      because:
+        "Cooking is not a preference here, it is the point. The same shrub is dinner or a bad mistake depending entirely on whether you heated it.",
+    },
+    {
+      ask: "Who gets fed by a flat, wide-open plate of elder flowers?",
+      options: [
+        "Only long-tongued bumblebees",
+        "Hummingbirds",
+        "The flies, small bees and beetles that cannot manage a deep flower",
+        "Night-flying moths, exclusively",
+      ],
+      answer: 2,
+      because:
+        "Nothing to climb into and nowhere to hide the nectar. A deep flower is a private club. This is a canteen.",
+    },
+    {
+      ask: "The fruit ripens near black in September. How long does it last?",
+      options: [
+        "Days. The birds strip it almost at once",
+        "All winter. Nothing will touch it",
+        "Until the first hard frost",
+        "A month or so, until it drops",
+      ],
+      answer: 0,
+      because:
+        "Days, and the birds do not leave much. If you want elderberries you are competing with everything that has wings, and you will usually lose.",
+    },
+  ],
+
+  "smooth-chanterelle": [
+    {
+      ask: "Look under a smooth chanterelle. What do you find?",
+      options: [
+        "Deep crowded gills",
+        "Fine pores, like a sponge",
+        "A ring of spines",
+        "Almost nothing: a blunt, faintly wrinkled face",
+      ],
+      answer: 3,
+      because:
+        "As though someone took sandpaper to it. That smooth face is the quickest way to tell it from the golden chanterelle growing right beside it.",
+    },
+    {
+      ask: "Nobody has ever farmed a smooth chanterelle. Why not?",
+      options: [
+        "It is mycorrhizal, and cannot live without the oak",
+        "It fruits too rarely to be worth it",
+        "It loses its flavour in cultivation",
+        "It has been farmed, just not at scale",
+      ],
+      answer: 0,
+      because:
+        "Its threads sheathe the oak's finest roots and trade minerals and water for sugar made up in the canopy. Take away the tree and there is no mushroom, so you cannot grow it in a shed.",
+    },
+    {
+      ask: "What does it smell of?",
+      options: ["Aniseed", "Apricot", "Watermelon rind", "Nothing at all"],
+      answer: 1,
+      because:
+        "Apricot, which is also roughly its colour. Between the smell and the sanded-off underside it is one of the more honest mushrooms in the wood.",
+    },
+  ],
+
+  "shaggy-mane": [
+    {
+      ask: "Pick a shaggy mane at breakfast. What have you got by lunch?",
+      options: [
+        "A dried, papery cap",
+        "Black ink",
+        "A cap that has doubled in size",
+        "Exactly what you picked. It keeps for days",
+      ],
+      answer: 1,
+      because:
+        "It digests itself. The cap dissolves into a black liquid that drips off the edge, and people genuinely used to write with it.",
+    },
+    {
+      ask: "Why would a mushroom destroy its own cap?",
+      options: [
+        "To stop insects eating the spores",
+        "To recover the nutrients before it dies",
+        "So the spores drip clear of the grass instead of waiting on wind that may not come",
+        "It is a disease, not a strategy",
+      ],
+      answer: 2,
+      because:
+        "The self-destruction is the whole trick. A still autumn afternoon is no use to a spore, so this one arranges its own delivery.",
+    },
+    {
+      ask: "Which way does a shaggy mane dissolve?",
+      options: [
+        "From the rim upward",
+        "From the stalk outward",
+        "From the top down",
+        "All at once, evenly",
+      ],
+      answer: 0,
+      because:
+        "The rim goes first and the ruin creeps up. It comes up overnight through gravel and mown grass and is gone inside a day.",
+    },
+  ],
+
+  "witches-butter": [
+    {
+      ask: "Witches' butter sits on a dead branch. What is it eating?",
+      options: [
+        "The wood, like any other rot fungus",
+        "The bark only",
+        "Nothing. It photosynthesises",
+        "Another fungus, which is eating the wood",
+      ],
+      answer: 3,
+      because:
+        "It is a parasite on Peniophora, the flat crust fungus doing the actual rotting. It drives its threads into that fungus and takes the sugar. A fungus feeding on a fungus feeding on a tree.",
+    },
+    {
+      ask: "The jelly dries to a hard scab. Is that the end of it?",
+      options: [
+        "No. It swells back from the same spot with the next rain, for years",
+        "Yes. It fruits once and dies",
+        "It is dead, but the spores stay in the scab",
+        "It survives, but never fruits twice on one branch",
+      ],
+      answer: 0,
+      because:
+        "Rain, orange jelly. Dry, black scab. It will do this on the same branch for years on end, which is why you can go back and find it again.",
+    },
+    {
+      ask: "Where does the name come from?",
+      options: [
+        "It was churned into butter in hard winters",
+        "Find it on your gate and somebody had cursed the house",
+        "It only grows where lightning has struck",
+        "Its colour was thought to mark poisoned ground",
+      ],
+      answer: 1,
+      because:
+        "Older names blamed witches. A gate that suddenly grows orange jelly overnight is an unsettling thing if you do not know about Peniophora, and nobody did.",
+    },
+  ],
 };
 
 export function triviaFor(id: string): Question[] {

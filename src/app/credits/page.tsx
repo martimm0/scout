@@ -4,6 +4,7 @@ import { FUNGI } from "@/features/game/data/fungi";
 import { FUNGUS_PHOTOS } from "@/features/game/data/fungus-photos";
 import { PLANT_PHOTOS } from "@/features/game/data/plant-photos";
 import { PLANTS } from "@/features/game/data/plants";
+import { HIGHLAND_PHOTOS } from "@/features/game/data/highland-photos";
 import { SCHENLEY_PHOTOS } from "@/features/game/data/schenley-photos";
 import styles from "./credits.module.css";
 
@@ -87,16 +88,21 @@ export default function CreditsPage() {
     }),
   );
 
-  // Schenley's species. Nearly every one of these photographs is CC BY-SA, so
-  // shipping them uncredited would be a licence breach rather than an oversight.
-  const schenley: Credit[] = [...PLANTS, ...FUNGI]
-    .filter((species) => SCHENLEY_PHOTOS[species.id])
-    .map((species) => ({
-      id: species.id,
-      commonName: species.commonName,
-      scientificName: species.scientificName,
-      photo: SCHENLEY_PHOTOS[species.id],
-    }));
+  // The species that belong to one park only. Nearly every one of these
+  // photographs is CC BY-SA, so shipping them uncredited would be a licence
+  // breach rather than an oversight.
+  const from = (photos: Record<string, (typeof PLANT_PHOTOS)[string]>): Credit[] =>
+    [...PLANTS, ...FUNGI]
+      .filter((species) => photos[species.id])
+      .map((species) => ({
+        id: species.id,
+        commonName: species.commonName,
+        scientificName: species.scientificName,
+        photo: photos[species.id],
+      }));
+
+  const schenley = from(SCHENLEY_PHOTOS);
+  const highland = from(HIGHLAND_PHOTOS);
 
   return (
     <main className="page-container">
@@ -161,6 +167,17 @@ export default function CreditsPage() {
         </p>
 
         <PhotoTable heading="Species" rows={schenley} />
+      </section>
+
+      <section>
+        <h2>Highland Park photographs</h2>
+        <p className={styles.note}>
+          The species Highland shares with the other two parks reuse the
+          photographs above, because they are the same organism. These are the
+          ones you will only find in Highland.
+        </p>
+
+        <PhotoTable heading="Species" rows={highland} />
       </section>
 
       <section>

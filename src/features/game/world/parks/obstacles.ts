@@ -1,5 +1,6 @@
 import type { ParkId } from "../park";
 import { FRICK } from "./frick";
+import { HIGHLAND } from "./highland";
 import { SCHENLEY } from "./schenley";
 
 /**
@@ -23,6 +24,7 @@ export type Obstacle = {
 
 const frick = FRICK.landmarks;
 const schenley = SCHENLEY.landmarks;
+const highland = HIGHLAND.landmarks;
 
 const FRICK_OBSTACLES: Obstacle[] = [
   // The Environmental Center. The building body (76 x 46), not the roof
@@ -151,7 +153,34 @@ const SCHENLEY_OBSTACLES: Obstacle[] = [
   { at: schenley.andersonPlayground, width: 60, height: 20, depth: 44 },
 ];
 
+/**
+ * Highland's furniture.
+ *
+ * The reservoirs are deliberately NOT walled off with a collider ring. The
+ * terrain already raises the embankment, so the wall is real ground and the bee
+ * has to climb it, which is the experience: you come over the top and there is a
+ * lake. A box ring on top of that would be an invisible wall in the air above a
+ * hill that is already there.
+ */
+const HIGHLAND_OBSTACLES: Obstacle[] = [
+  // The gate piers, with the gap between them you can fly through.
+  { at: [highland.gates[0] - 34, highland.gates[1]], width: 20, height: 48, depth: 20 },
+  { at: [highland.gates[0] + 34, highland.gates[1]], width: 20, height: 48, depth: 20 },
+  { at: highland.pumpHouse, width: 42, height: 26, depth: 32 },
+  // The pool bath house. The water itself is flat, so no collider.
+  { at: [highland.pool[0] - 70, highland.pool[1]], width: 32, height: 22, depth: 48 },
+  // The zoo: a fence, and a very large cage.
+  { at: [highland.zoo[0] - 30, highland.zoo[1]], width: 58, height: 42, depth: 58 },
+  { at: [highland.zoo[0], highland.zoo[1] - 60], width: 182, height: 18, depth: 5 },
+  { at: [highland.zoo[0] + 40, highland.zoo[1] + 20], width: 52, height: 30, depth: 42 },
+  { at: highland.superPlayground, width: 60, height: 20, depth: 44 },
+  { at: highland.slopeShelter, width: 72, height: 32, depth: 56 },
+  // The fountain plinth, in the middle of its basin.
+  { at: highland.fountain, width: 24, height: 46, depth: 24 },
+];
+
 export const OBSTACLES_BY_PARK: Record<ParkId, Obstacle[]> = {
   frick: FRICK_OBSTACLES,
   schenley: SCHENLEY_OBSTACLES,
+  highland: HIGHLAND_OBSTACLES,
 };

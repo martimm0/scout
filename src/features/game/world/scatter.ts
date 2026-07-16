@@ -215,13 +215,32 @@ export function scatterGrass(): Placement[] {
         continue;
       }
 
-      // Bare on the cliffs, thin in deep shade, thick on the mown grass.
+      /**
+       * Bare on the cliffs, thin in deep shade, thick on the mown grass.
+       *
+       * Keyed off the BIOME, not off Frick's area names. This still read
+       * `area === "fern-hollow"` after `pickKind` had been fixed, which meant
+       * every area of every other park fell through to 0.7 and grew grass. In
+       * Highland that put a lawn on the surface of the city's drinking water:
+       * the reservoirs are declared at density 0 and the foliage scatter honours
+       * that, but the grass scatter had never heard of it.
+       */
+      const park = activePark();
       const area = areaAt(px, pz).id;
+      const biome = park.biome[area] ?? "mown";
+      const planted = park.density[area] ?? 0.3;
+
+      // Nothing grows where nothing grows. A park that says an area is bare
+      // means it.
+      if (planted <= 0) {
+        continue;
+      }
+
       const density =
-        area === "fern-hollow" || area === "falls-ravine"
+        biome === "deep-woods" || biome === "slope-woods"
           ? 0.35
-          : area === "bowling-green"
-            ? 0.95
+          : biome === "mown"
+            ? Math.min(0.95, 0.5 + planted)
             : 0.7;
 
       // Grass gets worn off the trails too, though not as completely.
@@ -235,9 +254,10 @@ export function scatterGrass(): Placement[] {
       blades.push({
         position: [px, height - 0.5, pz],
         rotation: sample(x, z, 24) * Math.PI * 2,
-        // The bowling green is clipped short. Everywhere else runs wild.
+        // A mown lawn is clipped short. Everywhere else runs wild.
         scale:
-          (area === "bowling-green" ? 0.35 : 0.7) + sample(x, z, 25) * 0.75,
+          (biome === "mown" && planted < 0.25 ? 0.35 : 0.7) +
+          sample(x, z, 25) * 0.75,
       });
     }
   }

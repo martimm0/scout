@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { PLANTS, PLANTS_BY_ID } from "../data/plants";
-import { setActivePark, type ParkId } from "../world/terrain";
+import { PARKS, PARK_LIST, setActivePark, type ParkId } from "../world/terrain";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 export type PollinatorType = "bee" | "hoverfly" | "butterfly";
@@ -216,30 +216,12 @@ const initialStats: Stats = {
   questionsCorrect: 0,
 };
 
-/** Half of Frick's plants. Find eight of the sixteen and the second park opens. */
-export const SCHENLEY_UNLOCK_FRACTION = 0.5;
-
-export function frickPlantsNeeded() {
-  return Math.ceil(
-    PLANTS.filter((plant) => plant.homes.some((home) => home.park === "frick"))
-      .length * SCHENLEY_UNLOCK_FRACTION,
-  );
-}
-
-/** How many of Frick's plants this player has found. */
-export function frickPlantsFound(discovered: BooleanRecord) {
-  return PLANTS.filter(
-    (plant) =>
-      plant.homes.some((home) => home.park === "frick") && discovered[plant.id],
-  ).length;
-}
-
 /**
  * May this player work this flower?
  *
  * Most flowers: yes, always. A handful in every park are difficult, and a
- * difficult flower will not let you at it until you have passed its quiz. That
- * is not a lock for the sake of one: every plant marked demanding has a real
+ * difficult flower will not let you at it until you have passed its quiz. That is
+ * not a lock for the sake of one: every plant marked demanding has a real
  * mechanism that a real insect has to learn, and failing at it is what an
  * inexperienced bee actually does.
  */
@@ -256,31 +238,74 @@ export function canPollinate(
   return Boolean(state.quizPassed[plantId]);
 }
 
-export function schenleyUnlocked(state: {
-  discoveredPlants: BooleanRecord;
-}): boolean {
-  return frickPlantsFound(state.discoveredPlants) >= frickPlantsNeeded();
+/**
+ * How many of a park's plants you have found, and how many you need.
+ *
+ * Both derived from the park's own `requires`, so the chain (Frick opens
+ * Schenley, Schenley opens Highland) is declared next to the parks rather than
+ * hard-coded here. Adding a fourth park is a data change.
+ */
+export function plantsIn(park: ParkId) {
+  return PLANTS.filter((plant) => plant.homes.some((home) => home.park === park));
+}
+
+export function plantsFoundIn(discovered: BooleanRecord, park: ParkId) {
+  return plantsIn(park).filter((plant) => discovered[plant.id]).length;
+}
+
+/** What this park asks of you, or null if it is where you start. */
+export function requirementFor(park: ParkId, discovered: BooleanRecord) {
+  const requires = PARKS[park]?.requires;
+
+  if (!requires) {
+    return null;
+  }
+
+  return {
+    from: PARKS[requires.park],
+    needed: Math.ceil(plantsIn(requires.park).length * requires.fraction),
+    found: plantsFoundIn(discovered, requires.park),
+  };
 }
 
 /**
  * May this player fly this park?
  *
  * Deliberately OR'd with the derived check rather than trusting the stored flag
- * alone. Every save file that existed before today has no `unlockedParks` in it,
- * and a player who has already found twelve of Frick's sixteen plants must not be
- * shut out of a park they earned months ago because a field was added after they
- * earned it. The stored flag is a record of the moment it happened; the derived
- * check is the truth.
+ * alone. Every save file that existed before the parks were added has no
+ * `unlockedParks` in it, and a player who has already found twelve of Frick's
+ * sixteen plants must not be shut out of a park they earned months ago because a
+ * field was added after they earned it. The stored flag is a record of the moment
+ * it happened; the derived check is the truth.
  */
 export function parkUnlocked(
   state: { unlockedParks: BooleanRecord; discoveredPlants: BooleanRecord },
   park: ParkId,
 ): boolean {
-  if (park === "frick") {
+  const requirement = requirementFor(park, state.discoveredPlants);
+
+  if (!requirement) {
     return true;
   }
 
-  return Boolean(state.unlockedParks[park]) || schenleyUnlocked(state);
+  return (
+    Boolean(state.unlockedParks[park]) || requirement.found >= requirement.needed
+  );
+}
+
+/** Every park this player has just earned but does not yet have the flag for. */
+function earnedParks(
+  state: { unlockedParks: BooleanRecord; discoveredPlants: BooleanRecord },
+): BooleanRecord {
+  let next = state.unlockedParks;
+
+  for (const park of PARK_LIST) {
+    if (!next[park.id] && parkUnlocked(state, park.id)) {
+      next = { ...next, [park.id]: true };
+    }
+  }
+
+  return next;
 }
 
 const initialProgress = {
@@ -341,12 +366,13 @@ export const useGameStore = create<GameStore>()(
 
       const discoveredPlants = { ...state.discoveredPlants, [plantId]: true };
 
-      // Crossing halfway through Frick's plants opens Schenley, in the same
+      // Crossing halfway through a park's plants opens the next one, in the same
       // update that discovered the flower. Anywhere else and the player finds
       // their eighth and is told about it later, or worse, on the next reload.
-      const unlockedParks = schenleyUnlocked({ discoveredPlants })
-        ? { ...state.unlockedParks, schenley: true }
-        : state.unlockedParks;
+      const unlockedParks = earnedParks({
+        unlockedParks: state.unlockedParks,
+        discoveredPlants,
+      });
 
       return {
         discoveredPlants,

@@ -16,7 +16,7 @@
  * stream. They should be built out of the same rock.
  */
 
-export type ParkId = "frick" | "schenley";
+export type ParkId = "frick" | "schenley" | "highland";
 
 export type Area = {
   id: string;
@@ -29,6 +29,21 @@ export type Park = {
   label: string;
   /** Shown on the park picker. One sentence, in the game's voice. */
   blurb: string;
+  /**
+   * What it takes to get in.
+   *
+   * A property of the PARK, not a rule buried in the store. Schenley opens when
+   * you have found half of Frick's plants; Highland opens when you have found
+   * half of Schenley's. That chain is the progression, and it belongs next to the
+   * park it lets you into rather than in a growing pile of `if (park === ...)`.
+   *
+   * A park with no requirement is where you start.
+   */
+  requires?: {
+    /** Half of this park's plants, found. */
+    park: ParkId;
+    fraction: number;
+  };
 
   world: { minX: number; maxX: number; minZ: number; maxZ: number };
   /** The surface of whatever water the park has. */

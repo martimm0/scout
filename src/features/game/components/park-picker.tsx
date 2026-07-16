@@ -1,9 +1,8 @@
 "use client";
 
 import {
-  frickPlantsFound,
-  frickPlantsNeeded,
   parkUnlocked,
+  requirementFor,
   useGameStore,
 } from "../state/game-store";
 import { PARK_LIST } from "../world/terrain";
@@ -23,9 +22,6 @@ export function ParkPicker({ onEnter }: { onEnter?: () => void }) {
   const discoveredPlants = useGameStore((state) => state.discoveredPlants);
   const enterPark = useGameStore((state) => state.enterPark);
 
-  const found = frickPlantsFound(discoveredPlants);
-  const needed = frickPlantsNeeded();
-
   return (
     <ul className={styles.parks} aria-label="Parks">
       {PARK_LIST.map((park) => {
@@ -34,6 +30,7 @@ export function ParkPicker({ onEnter }: { onEnter?: () => void }) {
           park.id,
         );
         const here = park.id === currentPark;
+        const requirement = requirementFor(park.id, discoveredPlants);
 
         return (
           <li
@@ -59,14 +56,18 @@ export function ParkPicker({ onEnter }: { onEnter?: () => void }) {
             ) : (
               <div className={styles.locked}>
                 <p className={styles.lockNote}>
-                  Find <strong>{needed}</strong>{" "}
-                  of Frick Park&apos;s plants and Schenley opens. You have found{" "}
-                  <strong>{found}</strong>.
+                  Find <strong>{requirement!.needed}</strong>{" "}
+                  of {requirement!.from.label}&apos;s plants and {park.label}{" "}
+                  opens. You have found <strong>{requirement!.found}</strong>.
                 </p>
                 <div
                   aria-hidden
                   className={styles.bar}
-                  style={{ "--progress": `${Math.min(100, (found / needed) * 100)}%` } as React.CSSProperties}
+                  style={
+                    {
+                      "--progress": `${Math.min(100, (requirement!.found / requirement!.needed) * 100)}%`,
+                    } as React.CSSProperties
+                  }
                 />
               </div>
             )}

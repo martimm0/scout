@@ -1,5 +1,5 @@
 import type { GameState } from "../state/game-store";
-import { schenleyUnlocked } from "../state/game-store";
+import { parkUnlocked } from "../state/game-store";
 import { PARKS } from "../world/terrain";
 import { allAreas } from "../world/park";
 import { FUNGI } from "./fungi";
@@ -7,6 +7,7 @@ import { PLANTS } from "./plants";
 
 const FRICK_AREAS = allAreas(PARKS.frick).map((area) => area.id);
 const SCHENLEY_AREAS = allAreas(PARKS.schenley).map((area) => area.id);
+const HIGHLAND_AREAS = allAreas(PARKS.highland).map((area) => area.id);
 
 /**
  * Badges.
@@ -38,7 +39,7 @@ const count = (record: Record<string, boolean>) =>
  * parks would satisfy between them without either being finished. A badge that
  * silently changes what it means is worse than no badge.
  */
-const speciesOf = (park: "frick" | "schenley") => ({
+const speciesOf = (park: "frick" | "schenley" | "highland") => ({
   plants: PLANTS.filter((p) => p.homes.some((h) => h.park === park)),
   fungi: FUNGI.filter((f) => f.homes.some((h) => h.park === park)),
 });
@@ -200,7 +201,7 @@ export const BADGES: Badge[] = [
     name: "A Second Park",
     description: "Half of Frick's flowers found, and Schenley opened.",
     hint: "There is another park in this city.",
-    earned: (state) => schenleyUnlocked(state),
+    earned: (state) => parkUnlocked(state, "schenley"),
   },
   {
     id: "schenley-explorer",
@@ -235,12 +236,51 @@ export const BADGES: Badge[] = [
   },
   {
     id: "both-parks",
-    name: "Two Parks, One City",
-    description: "Every plant and every fungus in both parks. All of it.",
-    hint: "Everything. Everywhere. Both of them.",
+    name: "Three Parks, One City",
+    description: "Every plant and every fungus in all three parks. All of it.",
+    hint: "Everything. Everywhere. All of them.",
     earned: (state) =>
       foundAll(state.discoveredPlants, PLANTS) &&
       foundAll(state.discoveredFungi, FUNGI),
+  },
+  {
+    id: "third-park",
+    name: "A Third Park",
+    description: "Half of Schenley's flowers found, and Highland opened.",
+    hint: "There is a park in this city with a lake on top of a hill.",
+    earned: (state) => parkUnlocked(state, "highland"),
+  },
+  {
+    id: "highland-explorer",
+    name: "Highland Park Explorer",
+    description: "The reservoirs, the fountain, the zoo edge and the river. All of it.",
+    hint: "Fly every corner of the third park.",
+    earned: (state) =>
+      HIGHLAND_AREAS.every((area) => state.unlockedMapAreas[area]),
+  },
+  {
+    id: "highland-botanist",
+    name: "Highland Botanist",
+    description: "Every plant Highland has, found.",
+    hint: "The reservoir walk, the lawns, the slope and the river flats.",
+    earned: (state) =>
+      foundAll(state.discoveredPlants, speciesOf("highland").plants),
+  },
+  {
+    id: "over-the-wall",
+    name: "Over the Wall",
+    description:
+      "You went over the embankment and found a lake on top of a hill.",
+    hint: "In Highland the hill has a wall around it. There is a reason.",
+    earned: (state) => Boolean(state.unlockedMapAreas["reservoir-one"]),
+  },
+  {
+    id: "ink-cap",
+    name: "Written in Ink",
+    description:
+      "You found the shaggy mane before it turned itself into a puddle of ink.",
+    hint: "One mushroom on the reservoir walk does not last the day.",
+    earned: (state) => Boolean(state.discoveredFungi["shaggy-mane"]),
   },
   {
     id: "ecologist",

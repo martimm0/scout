@@ -8,6 +8,7 @@ import {
   type ParkId,
 } from "./park";
 import { FRICK } from "./parks/frick";
+import { HIGHLAND } from "./parks/highland";
 import { SCHENLEY } from "./parks/schenley";
 
 /**
@@ -27,9 +28,10 @@ import { SCHENLEY } from "./parks/schenley";
 export const PARKS: Record<ParkId, Park> = {
   frick: FRICK,
   schenley: SCHENLEY,
+  highland: HIGHLAND,
 };
 
-export const PARK_LIST: Park[] = [FRICK, SCHENLEY];
+export const PARK_LIST: Park[] = [FRICK, SCHENLEY, HIGHLAND];
 
 let active: Park = FRICK;
 

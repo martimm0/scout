@@ -53,6 +53,61 @@ The one link never exercised by a machine is a human typing a Google password. E
 | 26 | Photographs | ✅ Done |
 | 27 | Schenley Park, and a Park abstraction under the world | ✅ Done |
 | 28 | Real Pittsburgh weather | ✅ Done |
+| 29 | Highland Park, and the difficult flowers | ✅ Done |
+
+---
+
+## Three parks
+
+**Highland Park** inverts both of the others. Frick is a wood with a creek at the
+bottom of it. Schenley is a lawn with a hollow torn out of it. In Highland the
+water is not down in a ravine, it is UP: two enormous walled reservoirs holding
+the city's drinking water, a hundred and fifty feet above the Allegheny. You fly
+over the rim of a wall and there is a lake on the other side of it, at the top,
+where a lake has no business being. Then the ground falls away north to the river,
+and that slope is the wildest ground in the park, with the zoo along the edge.
+
+It has **no valley**, which the Park type wanted, because both of the other parks
+are organised around a stream in a ravine. Rather than invent a creek that is not
+there, its valley is the Allegheny itself, along the bottom edge of the map.
+
+### The difficult flowers
+
+A tenth of each park's flowers will not let you pollinate them until you have
+passed their quiz: Frick 2 of 16, Schenley 2 of 14, Highland 2 of 12. They are
+hand-picked rather than hashed, because the gate has to mean something. Every one
+has a real mechanism a real insect has to learn: milkweed clips its pollen onto
+your foot and a small bee can lose a leg in the slot; Dutchman's breeches is
+locked and only a bumblebee queen can force it; columbine seals its nectar out of
+reach and bumblebees resort to chewing through the side of the spur, which
+pollinates nothing; pawpaw is not advertising to bees at all.
+
+The rule lives in the store, not on the button: `startMinigame` consults
+`canPollinate` and refuses whoever calls it. The tag over the flower says so from
+the air, and passing the quiz lands you back ON the flower rather than dumping you
+in the sky.
+
+### Three bugs found building it, all of which failed silently
+
+- **The discovery loop scaled world height.** It computed the bloom as
+  `landingHeight * 0.88`, which only works where the ground is at zero. In the
+  creek, where the ground is at -70, it put the bloom of a cardinal flower eight
+  units ABOVE the top of the plant, and the discovery radius is nine. Every flower
+  in every ravine in every park was harder to find than intended. The meadow
+  flowers sit near zero and were fine, which is why nobody noticed.
+- **The grass scatter still matched Frick's area names.** `pickKind` had been
+  fixed; its sibling `scatterGrass` had not, so every area of every other park
+  fell through to a default and grew a lawn. In Highland that put grass on the
+  surface of the city's drinking water.
+- **`?park=` was a hand-written whitelist** of `frick | schenley`, so the day
+  Highland was added the link silently loaded Frick instead. It is checked against
+  the park registry now.
+
+The unlock chain is declared on the parks themselves (`requires: { park, fraction }`)
+rather than as a growing pile of conditionals in the store: Frick opens Schenley,
+Schenley opens Highland, and a fourth park is a data change.
+
+---
 
 ---
 
@@ -93,6 +148,61 @@ catching.
 
 ---
 | 28 | Real Pittsburgh weather | ✅ Done |
+| 29 | Highland Park, and the difficult flowers | ✅ Done |
+
+---
+
+## Three parks
+
+**Highland Park** inverts both of the others. Frick is a wood with a creek at the
+bottom of it. Schenley is a lawn with a hollow torn out of it. In Highland the
+water is not down in a ravine, it is UP: two enormous walled reservoirs holding
+the city's drinking water, a hundred and fifty feet above the Allegheny. You fly
+over the rim of a wall and there is a lake on the other side of it, at the top,
+where a lake has no business being. Then the ground falls away north to the river,
+and that slope is the wildest ground in the park, with the zoo along the edge.
+
+It has **no valley**, which the Park type wanted, because both of the other parks
+are organised around a stream in a ravine. Rather than invent a creek that is not
+there, its valley is the Allegheny itself, along the bottom edge of the map.
+
+### The difficult flowers
+
+A tenth of each park's flowers will not let you pollinate them until you have
+passed their quiz: Frick 2 of 16, Schenley 2 of 14, Highland 2 of 12. They are
+hand-picked rather than hashed, because the gate has to mean something. Every one
+has a real mechanism a real insect has to learn: milkweed clips its pollen onto
+your foot and a small bee can lose a leg in the slot; Dutchman's breeches is
+locked and only a bumblebee queen can force it; columbine seals its nectar out of
+reach and bumblebees resort to chewing through the side of the spur, which
+pollinates nothing; pawpaw is not advertising to bees at all.
+
+The rule lives in the store, not on the button: `startMinigame` consults
+`canPollinate` and refuses whoever calls it. The tag over the flower says so from
+the air, and passing the quiz lands you back ON the flower rather than dumping you
+in the sky.
+
+### Three bugs found building it, all of which failed silently
+
+- **The discovery loop scaled world height.** It computed the bloom as
+  `landingHeight * 0.88`, which only works where the ground is at zero. In the
+  creek, where the ground is at -70, it put the bloom of a cardinal flower eight
+  units ABOVE the top of the plant, and the discovery radius is nine. Every flower
+  in every ravine in every park was harder to find than intended. The meadow
+  flowers sit near zero and were fine, which is why nobody noticed.
+- **The grass scatter still matched Frick's area names.** `pickKind` had been
+  fixed; its sibling `scatterGrass` had not, so every area of every other park
+  fell through to a default and grew a lawn. In Highland that put grass on the
+  surface of the city's drinking water.
+- **`?park=` was a hand-written whitelist** of `frick | schenley`, so the day
+  Highland was added the link silently loaded Frick instead. It is checked against
+  the park registry now.
+
+The unlock chain is declared on the parks themselves (`requires: { park, fraction }`)
+rather than as a growing pile of conditionals in the store: Frick opens Schenley,
+Schenley opens Highland, and a fourth park is a data change.
+
+---
 
 ---
 

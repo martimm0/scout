@@ -591,6 +591,82 @@ const AMBIENCE: Record<string, Ambience> = {
     calls: [988, 1175, 1397],
     every: 4.6,
   },
+
+  /* ----------------------------------------------------------------------- *
+   * Highland Park. Open at the top and wooded at the bottom, which is the
+   * opposite way round from both of the others.
+   * ----------------------------------------------------------------------- */
+
+  // Gravel, wind, and the whole East End walking round in circles.
+  "reservoir-rim": {
+    filter: 1150,
+    q: 0.6,
+    gain: 0.05,
+    calls: [1568, 1976, 2349],
+    every: 3.8,
+  },
+  // A large flat sheet of water with a wall round it. Almost nothing lives here,
+  // and it sounds like it: wind off open water, and no voices at all.
+  "reservoir-one": {
+    filter: 900,
+    q: 0.5,
+    gain: 0.06,
+    calls: [1319, 1568],
+    every: 8,
+  },
+  "reservoir-two": {
+    filter: 900,
+    q: 0.5,
+    gain: 0.06,
+    calls: [1319, 1568],
+    every: 8,
+  },
+  // A fountain, going constantly.
+  "lake-carnegie": {
+    filter: 1700,
+    q: 1.2,
+    gain: 0.06,
+    calls: [2093, 2349, 2637],
+    every: 1.8,
+  },
+  "highland-gates": {
+    filter: 1000,
+    q: 0.6,
+    gain: 0.045,
+    calls: [1568, 1760, 2093],
+    every: 4,
+  },
+  // Oak and hickory going down to the river.
+  "allegheny-slope": {
+    filter: 560,
+    q: 1.1,
+    gain: 0.055,
+    calls: [880, 1047, 1319],
+    every: 4,
+  },
+  // The floodplain. Wet, and full of things.
+  "riverside-flats": {
+    filter: 780,
+    q: 1.2,
+    gain: 0.06,
+    calls: [587, 784, 1175, 1568],
+    every: 2.6,
+  },
+  "allegheny-shore": {
+    filter: 950,
+    q: 1,
+    gain: 0.06,
+    calls: [523, 659, 1319],
+    every: 3,
+  },
+  // The fence, and whatever is on the other side of it.
+  "zoo-edge": {
+    filter: 820,
+    q: 0.9,
+    gain: 0.05,
+    calls: [392, 494, 1319, 1760],
+    every: 3.4,
+  },
 };
 
 let currentArea: string | null = null;

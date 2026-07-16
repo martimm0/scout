@@ -4,6 +4,7 @@
 // Generated from the Wikimedia Commons API - edit with care.
 
 import { FUNGUS_PHOTOS } from "./fungus-photos";
+import { HIGHLAND_PHOTOS } from "./highland-photos";
 import { SCHENLEY_PHOTOS } from "./schenley-photos";
 
 export type PlantPhoto = {
@@ -154,5 +155,10 @@ export const PLANT_PHOTOS: Record<string, PlantPhoto> = {
  * original Frick photograph, which is correct: it is the same organism.
  */
 export function photoFor(id: string): PlantPhoto | undefined {
-  return PLANT_PHOTOS[id] ?? FUNGUS_PHOTOS[id] ?? SCHENLEY_PHOTOS[id];
+  return (
+    PLANT_PHOTOS[id] ??
+    FUNGUS_PHOTOS[id] ??
+    SCHENLEY_PHOTOS[id] ??
+    HIGHLAND_PHOTOS[id]
+  );
 }

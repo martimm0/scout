@@ -530,7 +530,194 @@ function flagpole(): Box[] {
   ];
 }
 
+
+/* ------------------------------------------------------------------------- *
+ * Highland Park.
+ * ------------------------------------------------------------------------- */
+
+const WATER = "#3f6f96";
+const WATER_DEEP = "#2f5c80";
+
+/**
+ * A reservoir: a ring of stone embankment with a lake inside it.
+ *
+ * Drawn as a ring of wall segments rather than a cylinder, because the voxel
+ * park has no cylinders in it and a smooth ring would be the one round thing in
+ * a world made of boxes. Twenty-four segments reads as a circle from the air and
+ * as masonry from close up, which is both of the things it needs to be.
+ */
+function reservoirRing(radius: number): Box[] {
+  const boxes: Box[] = [];
+  const segments = 28;
+
+  for (let i = 0; i < segments; i += 1) {
+    const angle = (i / segments) * Math.PI * 2;
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
+
+    /**
+     * Axis-aligned, sized by which way the wall is running.
+     *
+     * `Box` has no rotation, on purpose: the whole voxel pipeline is axis-aligned
+     * and adding a rotation to it for one landmark would be a large change to
+     * every model in the game for the sake of a ring. So each segment is a box
+     * stretched along whichever axis the wall happens to be running at that point,
+     * which is a stair-stepped circle. In a park built out of cubes, a
+     * stair-stepped circle is the honest answer.
+     */
+    const along = Math.abs(Math.cos(angle)) > Math.abs(Math.sin(angle));
+    const chord = (Math.PI * 2 * radius) / segments;
+
+    boxes.push({
+      position: [x, 8, z],
+      size: along ? [16, 16, chord * 1.3] : [chord * 1.3, 16, 16],
+      color: i % 2 === 0 ? STONE : STONE_DARK,
+    });
+    // The railing along the top of the walk.
+    boxes.push({
+      position: [x, 18, z],
+      size: along ? [3, 4, chord * 1.3] : [chord * 1.3, 4, 3],
+      color: SLATE,
+    });
+  }
+
+  // The water: a flat slab, a little below the top of the wall.
+  boxes.push({
+    position: [0, 2, 0],
+    size: [radius * 1.72, 4, radius * 1.72],
+    color: WATER,
+  });
+  boxes.push({
+    position: [0, 3, 0],
+    size: [radius * 1.5, 2, radius * 1.5],
+    color: WATER_DEEP,
+  });
+
+  return boxes;
+}
+
+function reservoirOne(): Box[] {
+  return reservoirRing(118);
+}
+
+function reservoirTwo(): Box[] {
+  return reservoirRing(82);
+}
+
+/** The fountain at Lake Carnegie, throwing water it will never get back. */
+function fountain(): Box[] {
+  const boxes: Box[] = [
+    // The basin.
+    { position: [0, 1, 0], size: [90, 2, 90], color: WATER },
+    // Its stone rim.
+    { position: [0, 3, -46], size: [94, 6, 6], color: STONE },
+    { position: [0, 3, 46], size: [94, 6, 6], color: STONE },
+    { position: [-46, 3, 0], size: [6, 6, 94], color: STONE },
+    { position: [46, 3, 0], size: [6, 6, 94], color: STONE },
+    // The plinth.
+    { position: [0, 5, 0], size: [22, 10, 22], color: STONE_DARK },
+    { position: [0, 12, 0], size: [14, 6, 14], color: STONE },
+  ];
+
+  // The jet, as a column of boxes getting smaller. A voxel fountain cannot
+  // spray, so it stacks.
+  for (let i = 0; i < 6; i += 1) {
+    boxes.push({
+      position: [0, 18 + i * 5, 0],
+      size: [6 - i * 0.7, 5, 6 - i * 0.7],
+      color: "#cfe6f2",
+    });
+  }
+
+  return boxes;
+}
+
+/**
+ * The Highland Avenue gates.
+ *
+ * Two enormous stone piers with bronzes on them, and at bee scale the bronzes
+ * are the size of a house and you can fly between the piers, which is the whole
+ * reason to model them.
+ */
+function highlandGates(): Box[] {
+  const boxes: Box[] = [];
+
+  for (const side of [-1, 1]) {
+    const x = side * 34;
+
+    // The pier.
+    boxes.push({ position: [x, 16, 0], size: [18, 32, 18], color: STONE });
+    boxes.push({ position: [x, 33, 0], size: [22, 3, 22], color: STONE_DARK });
+
+    // The bronze on top: a figure, roughly. Enough of one at this scale.
+    boxes.push({ position: [x, 39, 0], size: [7, 9, 5], color: BRONZE });
+    boxes.push({ position: [x, 45, 0], size: [5, 4, 4], color: BRONZE_LIT });
+    boxes.push({
+      position: [x - side * 4, 40, 0],
+      size: [3, 7, 3],
+      color: BRONZE,
+    });
+  }
+
+  // The low wall running out from each pier.
+  for (const side of [-1, 1]) {
+    boxes.push({
+      position: [side * 62, 6, 0],
+      size: [40, 12, 8],
+      color: STONE_DARK,
+    });
+  }
+
+  return boxes;
+}
+
+/** Highland Park Pool: a rectangle of chlorine the size of a small sea. */
+function pool(): Box[] {
+  return [
+    { position: [0, 1, 0], size: [120, 2, 70], color: "#4fa8c8" },
+    { position: [0, 2, 0], size: [104, 2, 56], color: "#6ec4dc" },
+    // The deck.
+    { position: [0, 1.5, -40], size: [130, 3, 12], color: "#d8d2c2" },
+    { position: [0, 1.5, 40], size: [130, 3, 12], color: "#d8d2c2" },
+    // The bath house.
+    { position: [-70, 10, 0], size: [30, 20, 46], color: "#c9b48c" },
+    { position: [-70, 21, 0], size: [34, 3, 50], color: "#7a5f3e" },
+  ];
+}
+
+/** The pump house: the reason any of this is here. */
+function pumpHouse(): Box[] {
+  return [
+    { position: [0, 12, 0], size: [40, 24, 30], color: "#a8442f" },
+    { position: [0, 25, 0], size: [44, 3, 34], color: SLATE },
+    // The stack.
+    { position: [14, 34, 0], size: [8, 22, 8], color: "#8a3a28" },
+  ];
+}
+
+/** The zoo, from over the fence. Roofs, and something moving. */
+function zoo(): Box[] {
+  return [
+    // The perimeter fence, which at this scale is a wall.
+    { position: [0, 9, -60], size: [180, 18, 3], color: "#4a4a44" },
+    { position: [-90, 9, 0], size: [3, 18, 120], color: "#4a4a44" },
+    // The big cage.
+    { position: [-30, 20, 0], size: [56, 40, 56], color: "#6a6a62" },
+    { position: [-30, 41, 0], size: [60, 3, 60], color: "#4a4a44" },
+    // The aquarium block.
+    { position: [40, 14, 20], size: [50, 28, 40], color: "#b8c4cc" },
+    { position: [40, 29, 20], size: [54, 3, 44], color: "#5a6a72" },
+  ];
+}
+
 export type LandmarkKind =
+  | "reservoirOne"
+  | "reservoirTwo"
+  | "fountain"
+  | "highlandGates"
+  | "pool"
+  | "pumpHouse"
+  | "zoo"
   | "phipps"
   | "pantherHollowBridge"
   | "panther"
@@ -555,6 +742,13 @@ export type LandmarkKind =
   | "slag";
 
 const BUILDERS: Record<LandmarkKind, () => Box[]> = {
+  reservoirOne,
+  reservoirTwo,
+  fountain,
+  highlandGates,
+  pool,
+  pumpHouse,
+  zoo,
   phipps,
   pantherHollowBridge,
   panther,

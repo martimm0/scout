@@ -1,6 +1,7 @@
 import type { LandmarkKind } from "../../models/landmarks";
 import type { ParkId } from "../park";
 import { FRICK } from "./frick";
+import { HIGHLAND } from "./highland";
 import { SCHENLEY } from "./schenley";
 
 /**
@@ -25,6 +26,7 @@ export type Prop = {
 
 const f = FRICK.landmarks;
 const s = SCHENLEY.landmarks;
+const h = HIGHLAND.landmarks;
 
 const FRICK_PROPS: Prop[] = [
   { kind: "blueSlide", at: f.blueSlide, rotation: 0.25 },
@@ -80,7 +82,31 @@ const SCHENLEY_PROPS: Prop[] = [
   { kind: "steppingStone", at: [8, -52], rotation: -0.3, sink: 2 },
 ];
 
+const HIGHLAND_PROPS: Prop[] = [
+  // The two walled lakes, sunk so their rims sit at the top of the embankment
+  // the terrain already raises around them.
+  { kind: "reservoirOne", at: h.reservoirOne, sink: 14 },
+  { kind: "reservoirTwo", at: h.reservoirTwo, sink: 14 },
+  { kind: "fountain", at: h.fountain, sink: 2 },
+  { kind: "highlandGates", at: h.gates, rotation: 0.02 },
+  { kind: "pool", at: h.pool, rotation: 0.1 },
+  { kind: "pumpHouse", at: h.pumpHouse, rotation: -0.3 },
+  { kind: "zoo", at: h.zoo, rotation: 0.2 },
+  { kind: "swings", at: h.superPlayground, rotation: 0.4 },
+  { kind: "pavilion", at: h.slopeShelter, rotation: -0.5 },
+
+  { kind: "bench", at: [-150, 70], rotation: 0.9 },
+  { kind: "bench", at: [40, 120], rotation: -0.4 },
+  { kind: "bench", at: [-96, -140], rotation: 1.1 },
+  { kind: "trailPost", at: [-30, 40], rotation: 0.2 },
+  { kind: "trailPost", at: [60, -160], rotation: -0.8 },
+  { kind: "trailPost", at: [-200, -140], rotation: 0.5 },
+  { kind: "steppingStone", at: [10, -244], rotation: 0.3, sink: 2 },
+  { kind: "steppingStone", at: [28, -240], rotation: -0.2, sink: 2 },
+];
+
 export const PROPS_BY_PARK: Record<ParkId, Prop[]> = {
   frick: FRICK_PROPS,
   schenley: SCHENLEY_PROPS,
+  highland: HIGHLAND_PROPS,
 };

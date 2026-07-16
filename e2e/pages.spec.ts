@@ -9,11 +9,24 @@ import {
   signIn,
 } from "./helpers";
 import { PLANTS } from "../src/features/game/data/plants";
+import { FUNGI } from "../src/features/game/data/fungi";
+import {
+  areaAt,
+  PARKS,
+  setActivePark,
+  terrainHeight,
+} from "../src/features/game/world/terrain";
+import {
+  scatterFoliage,
+  scatterGrass,
+} from "../src/features/game/world/scatter";
+import { scatterSpecies } from "../src/features/game/world/species-scatter";
 import { canPollinate } from "../src/features/game/state/game-store";
 import { triviaFor } from "../src/features/game/data/trivia";
 import { FUNGUS_PHOTOS } from "../src/features/game/data/fungus-photos";
 import { PLANT_PHOTOS } from "../src/features/game/data/plant-photos";
 import { SCHENLEY_PHOTOS } from "../src/features/game/data/schenley-photos";
+import { HIGHLAND_PHOTOS } from "../src/features/game/data/highland-photos";
 
 /** The pages around the game: landing, customize, journal, credits, offline. */
 
@@ -111,7 +124,8 @@ test("credits page names every photographer and links every licence", async ({
   await expect(rows).toHaveCount(
     Object.keys(PLANT_PHOTOS).length +
       Object.keys(FUNGUS_PHOTOS).length +
-      Object.keys(SCHENLEY_PHOTOS).length,
+      Object.keys(SCHENLEY_PHOTOS).length +
+      Object.keys(HIGHLAND_PHOTOS).length,
   );
 
   // Named, not just counted: assert the actual photographers are on the page.
@@ -119,6 +133,7 @@ test("credits page names every photographer and links every licence", async ({
     ...Object.values(PLANT_PHOTOS),
     ...Object.values(FUNGUS_PHOTOS),
     ...Object.values(SCHENLEY_PHOTOS),
+    ...Object.values(HIGHLAND_PHOTOS),
   ]) {
     await expect(page.getByText(photo.author, { exact: false }).first()).toBeVisible();
   }
@@ -456,11 +471,15 @@ test.describe("Schenley Park", () => {
     const picker = page.getByRole("list", { name: "Parks" });
     await expect(picker).toBeVisible({ timeout: 20_000 });
 
-    const schenley = picker.getByRole("listitem").filter({ hasText: "Schenley" });
+    // By NAME, not by "contains the word Schenley": Highland's card also says
+    // Schenley, because Schenley is what opens it, and the filter matched both.
+    const schenley = picker
+      .getByRole("listitem")
+      .filter({ has: page.getByText("Schenley Park", { exact: true }) });
     await expect(schenley).toBeVisible();
 
     // A locked door that will not say what opens it is just a wall.
-    await expect(schenley).toContainText("Schenley opens");
+    await expect(schenley).toContainText("Schenley Park opens");
     await expect(schenley).toContainText("Find 8 of Frick Park's plants");
 
     // And no way through it.
@@ -852,7 +871,7 @@ test.describe("the weather is Pittsburgh's weather", () => {
 
 test.describe("the difficult flowers", () => {
   test("about a tenth of each park's flowers are gated, and they are the hard ones", async () => {
-    for (const park of ["frick", "schenley"] as const) {
+    for (const park of ["frick", "schenley", "highland"] as const) {
       const plants = PLANTS.filter((plant) =>
         plant.homes.some((home) => home.park === park),
       );
@@ -919,5 +938,88 @@ test.describe("the difficult flowers", () => {
 
     // And an ordinary flower is never gated, quiz or no quiz.
     expect(canPollinate({ quizPassed: {} }, ordinary.id)).toBe(true);
+  });
+});
+
+test.describe("Highland Park", () => {
+  test("is a park about water on a hilltop, not a valley", async ({ page }) => {
+    test.setTimeout(120_000);
+
+    await signIn(page.context());
+    await page.goto("/play?debug=1&hour=13&park=highland&weather=clear");
+    await page.waitForTimeout(5000);
+
+    const skip = page.getByRole("button", { name: "Skip", exact: true });
+    if (await skip.count()) await skip.first().click();
+
+    const state = await readout(page);
+
+    // You start at the gates, at the bottom, looking up at a hill with a wall
+    // round it.
+    expect(state.Area).toBe("The Entrance Gates");
+    await expect(page.locator("canvas").first()).toBeVisible();
+  });
+
+  test("the reservoir really is a lake on top of a hill", () => {
+    setActivePark("highland");
+
+    const [cx, cz] = PARKS.highland.landmarks.reservoirOne;
+
+    // Inside the ring: the basin. Outside and a little further: the embankment,
+    // standing well above it. That difference IS the park.
+    const water = terrainHeight(cx, cz);
+    const rim = terrainHeight(cx + 130, cz);
+
+    expect(rim).toBeGreaterThan(water + 15);
+
+    // And the whole thing is far above the river at the bottom of the map.
+    const river = terrainHeight(0, -272);
+    expect(water - river).toBeGreaterThan(100);
+
+    setActivePark("frick");
+  });
+
+  test("nothing grows in the drinking water", () => {
+    setActivePark("highland");
+
+    const inWater = (x: number, z: number) =>
+      ["reservoir-one", "reservoir-two"].includes(areaAt(x, z).id);
+
+    // The grass scatter used to key off Frick's area names, so every area of
+    // every other park fell through to a default and grew a lawn. That put grass
+    // on the surface of the city's drinking water.
+    const grassOnWater = scatterGrass().filter((blade) =>
+      inWater(blade.position[0], blade.position[2]),
+    );
+    expect(grassOnWater).toHaveLength(0);
+
+    const scatter = scatterFoliage();
+    const treesOnWater = Object.values(scatter)
+      .flat()
+      .filter((prop) => inWater(prop.position[0], prop.position[2]));
+    expect(treesOnWater).toHaveLength(0);
+
+    setActivePark("frick");
+  });
+
+  test("every species each park claims actually exists in the world", () => {
+    for (const park of ["frick", "schenley", "highland"] as const) {
+      setActivePark(park);
+
+      const placed = new Set(scatterSpecies().map((instance) => instance.id));
+      const claimed = [...PLANTS, ...FUNGI].filter((species) =>
+        species.homes.some((home) => home.park === park),
+      );
+      const missing = claimed.filter((species) => !placed.has(species.id));
+
+      // A species in the data and nowhere on the ground is a journal entry
+      // nobody can fill and a badge nobody can earn. This has bitten twice.
+      expect(
+        missing.map((species) => species.id),
+        `${park} claims species it does not place`,
+      ).toEqual([]);
+    }
+
+    setActivePark("frick");
   });
 });

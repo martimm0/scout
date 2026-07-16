@@ -48,6 +48,25 @@ const AREA_BLURB: Record<string, string> = {
     "The other ravine, deep and shaded, with a railway running down the length of it. Nothing about it is scenic, and the fungi do not care.",
   "phipps-run":
     "The stream ravine below the conservatory. Damp, shaded, and full of spring ephemerals that are up, flowered and gone before the canopy closes over them.",
+
+  "reservoir-rim":
+    "A gravel loop around the top of an embankment, and the most walked ground in the East End. It goes round and round and arrives nowhere, which is the point of it. Chicory and shaggy manes come up through the gravel at the edge.",
+  "reservoir-one":
+    "Reservoir No. 1: a walled lake on top of a hill, holding the drinking water for a large part of Pittsburgh. Nothing grows in it. It is not that kind of water.",
+  "reservoir-two":
+    "The smaller of the two, and the same idea. Fly over the wall and there is simply a lake up there, where a lake has no business being.",
+  "lake-carnegie":
+    "The fountain at the bottom of the park, throwing water it will never get back, ringed with mown grass. Heal-all grows here by being shorter than the mower.",
+  "highland-gates":
+    "The Highland Avenue entrance, with two enormous stone piers and a bronze on each. At your size the bronzes are the size of houses and you can fly between them.",
+  "allegheny-slope":
+    "The whole north edge of the park falls away toward the river, a hundred and fifty feet down from the reservoir rim. Oak and hickory, columbine growing out of the bare rock, and the wildest ground in Highland.",
+  "riverside-flats":
+    "The floodplain at the bottom, where the Allegheny leaves things. Wingstem over your head, jewelweed, and pawpaw: the largest edible fruit on the continent, growing wild on a Pittsburgh riverbank.",
+  "allegheny-shore":
+    "The river itself. The only water in this park at the bottom of the hill rather than the top.",
+  "zoo-edge":
+    "The fence, and whatever is on the other side of it. Elderberry colonises the damp margin, and nobody in the zoo is looking at the elderberry.",
 };
 
 type Tab =
