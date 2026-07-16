@@ -1126,6 +1126,91 @@ test.describe("customization", () => {
     ).toHaveAttribute("aria-pressed", "true");
   });
 
+  test("the preview draws the bee, and redraws it when you change one", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+
+    await signIn(page.context());
+    await page.goto("/customize");
+    await page.waitForTimeout(4000);
+
+    // A bee, explicitly. The pollinator is saved to the account, so this player
+    // arrives as whatever the last test left them, and a butterfly is mostly
+    // wings that are deliberately NOT tinted by the body colour: the model barely
+    // responds, and the test fails for a reason that is not the preview.
+    await page.getByRole("button", { name: /Bee/ }).first().click();
+    await page.waitForTimeout(1200);
+
+    /**
+     * The average colour of the model, ignoring the cream background.
+     *
+     * Asserting the canvas is VISIBLE is what the other tests do, and it is what
+     * let a preview that drew absolutely nothing pass for as long as it did: the
+     * element was there, sized, and transparent. The only way to know a canvas
+     * drew something is to read the pixels back out of it.
+     */
+    const beeColor = () =>
+      page.evaluate(() => {
+        const canvas = document.querySelector("canvas") as HTMLCanvasElement;
+        const scaled = document.createElement("canvas");
+        scaled.width = 120;
+        scaled.height = 120;
+
+        const context = scaled.getContext("2d")!;
+        context.drawImage(canvas, 0, 0, 120, 120);
+
+        const { data } = context.getImageData(0, 0, 120, 120);
+        let r = 0;
+        let g = 0;
+        let b = 0;
+        let n = 0;
+
+        for (let i = 0; i < data.length; i += 4) {
+          // Skip the cream background and anything near white.
+          if (data[i] > 240 && data[i + 1] > 235 && data[i + 2] > 210) continue;
+
+          r += data[i];
+          g += data[i + 1];
+          b += data[i + 2];
+          n += 1;
+        }
+
+        return n === 0 ? null : { r: r / n, g: g / n, b: b / n, pixels: n };
+      });
+
+    const hex = page.getByLabel("Body colour, hex code");
+
+    const paint = async (color: string) => {
+      await hex.fill(color);
+      await hex.press("Enter");
+      await page.waitForTimeout(1500);
+
+      return beeColor();
+    };
+
+    // Deliberately no assumption about the colour it starts on. The pollinator is
+    // saved to the ACCOUNT now, so the shared test player arrives wearing
+    // whatever the last test left it in, and a check against "the default yellow"
+    // fails for a reason that has nothing to do with the preview.
+    const red = await paint("ee2222");
+
+    // There is a bee there at all. Asserting the canvas is visible is what the
+    // other tests do, and it is exactly what let a preview that drew absolutely
+    // nothing pass for as long as it did: the element was present, sized, and
+    // completely transparent. Reading the pixels is the only way to know.
+    expect(red, "the preview drew nothing").not.toBeNull();
+    expect(red!.pixels).toBeGreaterThan(200);
+    expect(red!.r).toBeGreaterThan(red!.b + 25);
+
+    const blue = await paint("2222ee");
+
+    // The whole point of a live preview. The GL root is created once and the bee
+    // is re-rendered into it, and if that re-render ever stops reaching the
+    // screen, this is the assertion that notices.
+    expect(blue!.b).toBeGreaterThan(blue!.r + 25);
+  });
+
   test("customization reaches the account, not just the browser", async ({
     page,
   }) => {
