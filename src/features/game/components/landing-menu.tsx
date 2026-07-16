@@ -58,6 +58,12 @@ export function LandingMenu() {
   const alreadyQuizzed = Boolean(quizPassed[landedOn.id]);
   const hasQuiz = triviaFor(landedOn.id).length > 0;
 
+  // A difficult flower, and you have not learned it yet. The button stays on the
+  // card and stays dead, with the reason next to it, because a control that
+  // vanishes teaches nothing: you would never find out the flower was hard, only
+  // that the game had quietly stopped offering.
+  const locked = Boolean(plant?.demanding) && !alreadyQuizzed;
+
   return (
     <div className={styles.scrim} onClick={takeOff} role="presentation">
       <section
@@ -72,7 +78,14 @@ export function LandingMenu() {
         <p className={styles.scientific}>{scientific}</p>
 
         <div className={styles.actions}>
-          {isPlant ? (
+          {isPlant && locked ? (
+            <div className={styles.disabled}>
+              <span className={styles.actionTitle}>
+                Learn it before you work it
+              </span>
+              <span className={styles.actionNote}>{plant!.demanding}</span>
+            </div>
+          ) : isPlant ? (
             <button
               className={styles.primary}
               onClick={() => startMinigame(landedOn.id)}
@@ -97,7 +110,7 @@ export function LandingMenu() {
 
           {hasQuiz ? (
             <button
-              className={styles.secondary}
+              className={locked ? styles.primary : styles.secondary}
               onClick={() => startQuiz(landedOn)}
               type="button"
             >
@@ -106,7 +119,11 @@ export function LandingMenu() {
               </span>
               <span className={styles.actionNote}>
                 Three questions. Two right is a pass.
-                {alreadyQuizzed ? " You have passed this one." : ""}
+                {locked
+                  ? " Pass it and this flower opens."
+                  : alreadyQuizzed
+                    ? " You have passed this one."
+                    : ""}
               </span>
             </button>
           ) : null}

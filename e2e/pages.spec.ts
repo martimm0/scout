@@ -1,6 +1,16 @@
 import { expect, test } from "@playwright/test";
 
-import { hold, readout, signIn } from "./helpers";
+import {
+  demandingPlantToSpawn,
+  enterGame,
+  flyToPlant,
+  hold,
+  readout,
+  signIn,
+} from "./helpers";
+import { PLANTS } from "../src/features/game/data/plants";
+import { canPollinate } from "../src/features/game/state/game-store";
+import { triviaFor } from "../src/features/game/data/trivia";
 import { FUNGUS_PHOTOS } from "../src/features/game/data/fungus-photos";
 import { PLANT_PHOTOS } from "../src/features/game/data/plant-photos";
 import { SCHENLEY_PHOTOS } from "../src/features/game/data/schenley-photos";
@@ -837,5 +847,77 @@ test.describe("the weather is Pittsburgh's weather", () => {
     // weather changed were a word in the corner of the HUD, this is the assertion
     // that would catch it.
     expect(storm).toBeLessThan(clear * 0.85);
+  });
+});
+
+test.describe("the difficult flowers", () => {
+  test("about a tenth of each park's flowers are gated, and they are the hard ones", async () => {
+    for (const park of ["frick", "schenley"] as const) {
+      const plants = PLANTS.filter((plant) =>
+        plant.homes.some((home) => home.park === park),
+      );
+      const demanding = plants.filter((plant) => plant.demanding);
+      const share = demanding.length / plants.length;
+
+      console.log(
+        `${park}: ${demanding.length}/${plants.length} gated (${Math.round(share * 100)}%) - ${demanding.map((p) => p.id).join(", ")}`,
+      );
+
+      // Roughly a tenth. Not a fraction of a flower: 10% of 16 is 1.6, and you
+      // cannot gate six tenths of a milkweed.
+      expect(share).toBeGreaterThan(0.05);
+      expect(share).toBeLessThan(0.2);
+    }
+
+    // Every gated flower must SAY why, and must have a quiz to pass. A gate with
+    // no way through it is a wall.
+    for (const plant of PLANTS.filter((p) => p.demanding)) {
+      expect(plant.demanding!.length).toBeGreaterThan(20);
+      expect(triviaFor(plant.id).length).toBeGreaterThan(0);
+    }
+  });
+
+  test("a demanding flower says so from the air, before you fly to it", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+
+    await enterGame(page);
+
+    const gated = demandingPlantToSpawn();
+    expect(await flyToPlant(page, gated)).toBe(true);
+
+    // The tag over the flower warns you BEFORE you land. Flying down to be told
+    // you cannot work it is a wasted trip.
+    await expect(page.getByText("Pass the quiz to pollinate")).toBeVisible();
+
+    await page.keyboard.press("Space");
+
+    const menu = page.getByRole("dialog", { name: /Landed/ });
+    await expect(menu).toBeVisible();
+
+    // The button is not there to press, and the card says WHY rather than simply
+    // withholding.
+    await expect(menu.getByText("Learn it before you work it")).toBeVisible();
+    await expect(menu.getByRole("button", { name: /Pollinate/ })).toHaveCount(0);
+
+    // And the quiz is right there, as the way through.
+    await expect(menu.getByRole("button", { name: /quiz/i })).toBeVisible();
+  });
+
+  test("the gate is a rule, not a disabled button", () => {
+    // canPollinate is what startMinigame actually consults, so this is the rule
+    // itself rather than a re-implementation of it. A disabled button is a
+    // suggestion; this is the thing that says no.
+    const gated = PLANTS.find((plant) => plant.demanding)!;
+    const ordinary = PLANTS.find((plant) => !plant.demanding)!;
+
+    expect(canPollinate({ quizPassed: {} }, gated.id)).toBe(false);
+    expect(canPollinate({ quizPassed: { [gated.id]: true } }, gated.id)).toBe(
+      true,
+    );
+
+    // And an ordinary flower is never gated, quiz or no quiz.
+    expect(canPollinate({ quizPassed: {} }, ordinary.id)).toBe(true);
   });
 });

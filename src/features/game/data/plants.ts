@@ -64,6 +64,20 @@ export type Plant = {
   /** Verified — every one of these returns 200. A dead "learn more" is worse
    *  than none, so these are written out rather than guessed from the name. */
   wikipedia: string;
+  /**
+   * A flower you cannot work until you understand it.
+   *
+   * These are the difficult ones, and the gate is not arbitrary: every plant with
+   * this set has a real mechanism that a real pollinator has to learn. Milkweed
+   * clips its pollen onto your foot and small bees get stuck and die there.
+   * Dutchman's breeches is locked, and only a bumblebee queen has the strength and
+   * the tongue. Pickerelweed comes in three builds and refuses two of them. A
+   * naive insect fails at these flowers, which is precisely why they are the ones
+   * you have to pass the quiz for.
+   *
+   * The string is the reason, shown to the player when the button is inert.
+   */
+  demanding?: string;
   archetype: PlantArchetype;
   bloomColor: string;
   leafColor: string;
@@ -85,6 +99,8 @@ export const PLANTS: Plant[] = [
     fact: "Milkweed doesn't dust you with pollen. It hands you luggage. Its pollen comes in waxy saddlebags called pollinia, and a visiting bee's foot slips into a slot that clips a pair on. Small bees sometimes can't pull free.",
     pollinatorNote: "The only plant monarch caterpillars can eat.",
     wikipedia: "https://en.wikipedia.org/wiki/Asclepias_syriaca",
+    demanding:
+      "Milkweed does not dust you with pollen, it hands you luggage, and a bee that does not know how the slot works can lose a leg in it. Learn the flower before you try it.",
     archetype: "umbel",
     bloomColor: "#d9a2b4",
     leafColor: "#5f8a4e",
@@ -238,6 +254,8 @@ export const PLANTS: Plant[] = [
     fact: "An impossible red, on a spike at the water's edge. The colour is not for you and it is not for bees, most of which cannot even see red properly.",
     pollinatorNote: "Built end to end for hummingbirds. Most bees can't reach the nectar at all.",
     wikipedia: "https://en.wikipedia.org/wiki/Lobelia_cardinalis",
+    demanding:
+      "This flower is not built for you. It is built for a bird, and working it as a bee takes knowing exactly what you are looking at.",
     archetype: "spike",
     bloomColor: "#d7263d",
     leafColor: "#4f7d47",
@@ -514,6 +532,8 @@ export const PLANTS: Plant[] = [
     fact: "A row of little white pantaloons hung upside down along an arching stem, over foliage as fine as a fern. The nectar is right up in the toes of the trousers, and the flower is locked shut.",
     pollinatorNote: "Only a queen bumblebee is strong enough to force the petals apart and long enough in the tongue to reach the nectar. Almost nothing else in the wood is invited.",
     wikipedia: "https://en.wikipedia.org/wiki/Dicentra_cucullaria",
+    demanding:
+      "The flower is locked shut and the nectar is up in the toes. Getting in is a technique, not an accident.",
     archetype: "low",
     bloomColor: "#f7f4ea",
     leafColor: "#6f9c58",

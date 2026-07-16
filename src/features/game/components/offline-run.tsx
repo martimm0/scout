@@ -76,7 +76,7 @@ export function OfflineRun() {
         <h2 className={styles.title}>You are a pollinator.</h2>
         <p className={styles.pitch}>
           Your time is short. Ten minutes, no account, nothing saved. Explore
-          Frick Park, pollinate what you can, and learn as much as you&apos;re
+          the park, pollinate what you can, and learn as much as you&apos;re
           able before the light goes.
         </p>
         <p className={styles.note}>

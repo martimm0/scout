@@ -33,6 +33,11 @@ export function SpeciesTag({
   );
 
   const isPlant = instance.species.kind === "plant";
+  // Say it from the air. Flying down to a flower to be told you cannot work it is
+  // a wasted trip; knowing it is a difficult one before you go is the interesting
+  // half of the information.
+  const demanding =
+    instance.species.kind === "plant" && Boolean(instance.species.plant.demanding);
   const open = isActive(instance.window, daylight.hour);
 
   const ref = {
@@ -57,6 +62,9 @@ export function SpeciesTag({
         <div className={styles.badges}>
           {pollinated ? <span className={styles.done}>Pollinated</span> : null}
           {quizPassed ? <span className={styles.done}>Quiz passed</span> : null}
+          {demanding && !quizPassed ? (
+            <span className={styles.demanding}>Pass the quiz to pollinate</span>
+          ) : null}
         </div>
 
         {open ? (

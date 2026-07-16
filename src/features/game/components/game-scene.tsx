@@ -749,9 +749,23 @@ function ScoutScene({
           continue;
         }
 
-        // Measure to the BLOOM or the cap, not the base. A Joe-Pye weed is twenty
-        // units tall and its base is nowhere near where a bee would visit it.
-        const top = landingHeight(instance) * 0.88;
+        /**
+         * Measure to the BLOOM or the cap, not the base. A Joe-Pye weed is twenty
+         * units tall and its base is nowhere near where a bee would visit it.
+         *
+         * The 88% is of the PLANT, not of the world.
+         *
+         * This used to be `landingHeight(instance) * 0.88`, which scales the
+         * absolute world height and so is only correct where the ground happens to
+         * be at zero. Down in the creek, where the ground is at -70, it put the
+         * bloom of a cardinal flower at -46.8: eight units ABOVE the top of the
+         * plant, and the discovery radius is nine. Every flower in the ravine has
+         * been harder to find than it should be, and you had to hover over it
+         * rather than fly up to it. The meadow flowers sit near zero and were
+         * fine, which is exactly why nobody noticed.
+         */
+        const base = instance.position[1];
+        const top = base + (landingHeight(instance) - base) * 0.88;
 
         const distance = Math.hypot(
           instance.position[0] - pollinator.position.x,

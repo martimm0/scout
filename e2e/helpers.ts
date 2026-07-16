@@ -227,7 +227,10 @@ export async function flyTo(page: Page, target: { x: number; z: number }) {
   // Drop to bloom height first; the flowers are on the ground, not in the sky.
   await hold(page, "KeyQ", 6000);
 
-  for (let step = 0; step < 22; step += 1) {
+  // 22 was tuned when every target was ~60 units away. The demanding flowers
+  // are three times that, and a loop that gives up short of the target reports
+  // "the flower is not there" for a flower that is simply further away.
+  for (let step = 0; step < 40; step += 1) {
     const state = await readout(page);
     const here = position(state);
 
@@ -260,18 +263,61 @@ export async function flyTo(page: Page, target: { x: number; z: number }) {
 }
 
 /** Fly to the plant nearest spawn and confirm it is in interaction range. */
-export async function findPlant(page: Page) {
-  const plant = nearestPlantToSpawn();
+/**
+ * The nearest DEMANDING plant: one of the handful that will not let you pollinate
+ * them until you have passed their quiz.
+ */
+export function demandingPlantToSpawn() {
+  const [sx, , sz] = startPosition();
 
+  return scatterSpecies()
+    .filter(
+      (instance) =>
+        instance.species.kind === "plant" &&
+        Boolean(instance.species.plant.demanding) &&
+        isActive(instance.window, TEST_HOUR),
+    )
+    .map((instance) => ({
+      instance,
+      distance: Math.hypot(
+        instance.position[0] - sx,
+        instance.position[2] - sz,
+      ),
+    }))
+    .sort((a, b) => a.distance - b.distance)[0].instance;
+}
+
+/** Fly to a specific plant and get close enough that its tag appears. */
+export async function flyToPlant(
+  page: Page,
+  plant: { position: [number, number, number] },
+) {
   await flyTo(page, { x: plant.position[0], z: plant.position[2] });
 
-  // Settle: the tag appears once the bee is inside the discovery radius.
+  /**
+   * Now go DOWN to it.
+   *
+   * `flyTo` navigates in X and Z only, which was fine while every target was a
+   * meadow flower on level ground. A cardinal flower stands in the creek at the
+   * bottom of the ravine, eighty units below the rim: the bee arrives directly
+   * overhead, well outside the discovery radius, and the old loop then pressed
+   * KeyE and climbed AWAY from it. It reported "the flower is not there" for a
+   * flower it was hovering above.
+   */
   const tag = page.getByRole("button", { name: /^Land/ });
 
-  for (let i = 0; i < 8 && !(await tag.count()); i += 1) {
-    await hold(page, "KeyE", 300);
-    await page.waitForTimeout(400);
+  for (let i = 0; i < 14 && !(await tag.count()); i += 1) {
+    const state = await readout(page);
+    const altitude = Number.parseFloat(state.Altitude ?? "0");
+    const target = plant.position[1];
+
+    await hold(page, altitude > target + 2 ? "KeyQ" : "KeyE", 400);
+    await page.waitForTimeout(300);
   }
 
   return (await tag.count()) > 0;
+}
+
+export async function findPlant(page: Page) {
+  return flyToPlant(page, nearestPlantToSpawn());
 }

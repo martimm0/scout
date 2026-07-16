@@ -16,17 +16,18 @@ export default function AboutPage() {
       <h1>A game about being very small</h1>
       <p className="lead">
         Scout is a pollinator RPG set in the real parks of Pittsburgh. You are a
-        bee, about a centimetre long, in six hundred acres of Frick Park. The
-        grass comes up past your head, an oak is a mountain, and the Blue Slide is
-        a hillside you could spend an afternoon climbing. Everything that grows
-        here is a real species that really grows there.
+        bee, about a centimetre long, in six hundred acres of Frick Park, and then
+        in Schenley, and then in Highland. The grass comes up past your head, an
+        oak is a mountain, and the Blue Slide is a hillside you could spend an
+        afternoon climbing. Everything that grows here is a real species that
+        really grows there.
       </p>
 
       <section>
         <h2>What you actually do</h2>
         <p>
-          You fly, and you look. Twenty-six native plants and twelve fungi are
-          scattered across two parks, in the habitats where they genuinely occur:
+          You fly, and you look. Native plants and fungi are scattered across
+          three Pittsburgh parks, in the habitats where they genuinely occur:
           spring ephemerals under the ravine, jewelweed down by the creek,
           goldenrod out in the rough. Get close enough to one and it introduces
           itself. Land on it and you can pollinate it, or let it test you on what
@@ -77,6 +78,13 @@ export default function AboutPage() {
               a real photograph, or take off again. Nothing pollinates a mushroom,
               but a mushroom will still test you.
             </p>
+            <p>
+              A few flowers in every park will not let you pollinate them until
+              you have passed their quiz. They are the difficult ones: the
+              milkweed that clips its pollen onto your foot, the Dutchman&apos;s
+              breeches that only a bumblebee queen can force open. Real bees have
+              to learn those. So do you.
+            </p>
           </Card>
           <Card title="Keep a record">
             <p>
@@ -88,9 +96,10 @@ export default function AboutPage() {
           <Card title="Earn the second park">
             <p>
               Find half of Frick&apos;s flowers and Schenley Park opens: Phipps in
-              glass on the plateau, Flagstaff Hill mown bare, and then the ground
-              falls a hundred feet into Panther Hollow, with four bronze panthers
-              on the bridge above it.
+              glass on the plateau, and the ground falling a hundred feet into
+              Panther Hollow. Keep going and Highland Park opens too: two walled
+              reservoirs on a hilltop and a wooded slope down to the Allegheny.
+              Each park has its own flora, and a few species live in all of them.
             </p>
           </Card>
         </div>
@@ -103,8 +112,8 @@ export default function AboutPage() {
           immersive maps to pollinate together, with other players working the
           same meadow at the same hour of the same day. A single bee in a single
           park is one afternoon. A thousand bees over a whole city, in real time,
-          in real weather, is a thing worth building. The two parks here are the
-          first two.
+          in real weather, is a thing worth building. The three parks here are the
+          first three, and Pittsburgh has plenty more.
         </p>
       </section>
 

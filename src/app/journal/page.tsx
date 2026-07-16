@@ -6,7 +6,7 @@ import { Journal } from "@/features/game/components/journal";
 export const metadata: Metadata = {
   title: "Journal · Scout",
   description:
-    "Your record of Frick Park: the plants you've found, the places you've been, and what you've learned.",
+    "Your record of Pittsburgh's parks: the plants you've found, the places you've been, and what you've learned.",
 };
 
 export default async function JournalPage() {
@@ -22,7 +22,7 @@ export default async function JournalPage() {
       <h1>Your pollinator record</h1>
       <p className="lead">
         Everything you&apos;ve found, everywhere you&apos;ve been, and what the
-        park has taught you so far.
+        parks have taught you so far.
       </p>
       <Journal />
     </main>

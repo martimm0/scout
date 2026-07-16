@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { PLANTS } from "../data/plants";
+import { PLANTS, PLANTS_BY_ID } from "../data/plants";
 import { setActivePark, type ParkId } from "../world/terrain";
 import { createJSONStorage, persist } from "zustand/middleware";
 
@@ -234,6 +234,28 @@ export function frickPlantsFound(discovered: BooleanRecord) {
   ).length;
 }
 
+/**
+ * May this player work this flower?
+ *
+ * Most flowers: yes, always. A handful in every park are difficult, and a
+ * difficult flower will not let you at it until you have passed its quiz. That
+ * is not a lock for the sake of one: every plant marked demanding has a real
+ * mechanism that a real insect has to learn, and failing at it is what an
+ * inexperienced bee actually does.
+ */
+export function canPollinate(
+  state: { quizPassed: BooleanRecord },
+  plantId: string,
+): boolean {
+  const plant = PLANTS_BY_ID.get(plantId);
+
+  if (!plant?.demanding) {
+    return true;
+  }
+
+  return Boolean(state.quizPassed[plantId]);
+}
+
 export function schenleyUnlocked(state: {
   discoveredPlants: BooleanRecord;
 }): boolean {
@@ -460,9 +482,20 @@ export const useGameStore = create<GameStore>()(
   takeOff: () => set((state) => ({ ui: { ...state.ui, landedOn: null } })),
 
   startMinigame: (plantId) =>
-    set((state) => ({
-      ui: { ...state.ui, minigamePlantId: plantId, landedOn: null },
-    })),
+    set((state) => {
+      // The gate is enforced HERE, not only on the button.
+      //
+      // A disabled button is a suggestion. This is the rule: a demanding flower
+      // does not open its minigame for somebody who has not passed its quiz, no
+      // matter who calls this or from where.
+      if (!canPollinate(state, plantId)) {
+        return state;
+      }
+
+      return {
+        ui: { ...state.ui, minigamePlantId: plantId, landedOn: null },
+      };
+    }),
 
   endMinigame: () =>
     set((state) => ({ ui: { ...state.ui, minigamePlantId: null } })),
@@ -470,7 +503,24 @@ export const useGameStore = create<GameStore>()(
   startQuiz: (ref) =>
     set((state) => ({ ui: { ...state.ui, quiz: ref, landedOn: null } })),
 
-  endQuiz: () => set((state) => ({ ui: { ...state.ui, quiz: null } })),
+  /**
+   * Leave the quiz.
+   *
+   * If you just unlocked a demanding flower, you land back ON it rather than back
+   * in the air. Otherwise passing the quiz for the one flower that required it
+   * would dump you into the sky and make you fly down and land again, which is a
+   * dead end dressed up as a reward.
+   */
+  endQuiz: () =>
+    set((state) => {
+      const ref = state.ui.quiz;
+      const opened =
+        ref?.kind === "plant" &&
+        Boolean(PLANTS_BY_ID.get(ref.id)?.demanding) &&
+        Boolean(state.quizPassed[ref.id]);
+
+      return { ui: { ...state.ui, quiz: null, landedOn: opened ? ref : null } };
+    }),
 
   recordQuiz: (ref, correct, total) =>
     set((state) => {

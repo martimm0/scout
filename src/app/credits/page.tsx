@@ -103,8 +103,8 @@ export default function CreditsPage() {
       <p className="eyebrow">Credits</p>
       <h1>Who made what</h1>
       <p className="lead">
-        Scout is set in Frick Park, Pittsburgh, and every plant and fungus in it
-        is real. The photographs are other people&apos;s work, used under licences
+        Scout is set in the real parks of Pittsburgh, and every plant and fungus
+        in it is real. The photographs are other people&apos;s work, used under licences
         that require them to be credited. So here they are.
       </p>
 
@@ -166,7 +166,8 @@ export default function CreditsPage() {
       <section>
         <h2>The park</h2>
         <p className={styles.note}>
-          Frick Park is a real place, run by the City of Pittsburgh and the{" "}
+          Frick, Schenley and Highland are real places, run by the City of
+          Pittsburgh and the{" "}
           <a
             href="https://pittsburghparks.org"
             rel="noreferrer"

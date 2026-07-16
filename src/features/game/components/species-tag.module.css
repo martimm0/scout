@@ -150,3 +150,13 @@
 @media (prefers-reduced-motion: reduce) {
   .tag { animation: none; }
 }
+
+/* A flower you have to learn before you can work it. */
+.demanding {
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(216, 161, 44, 0.22);
+  color: #7a5a12;
+  font-size: 0.62rem;
+  font-weight: 700;
+}

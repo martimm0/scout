@@ -16,13 +16,14 @@ export default function HomePage() {
     <main className="page-container">
       <section className="home-hero">
         <div className="page-header">
-          <p className="eyebrow">Frick Park, Pittsburgh</p>
+          <p className="eyebrow">Pittsburgh, Pennsylvania</p>
           <h1>You are a bee.</h1>
           <p className="lead">
-            About a centimetre long, in a park that runs to six hundred acres.
-            The grass comes up past your head, an oak is a mountain, and the Blue
-            Slide is a hillside you could spend an afternoon climbing. Go and
-            find out what grows here.
+            About a centimetre long, loose in the real parks of Pittsburgh. The
+            grass comes up past your head, an oak is a mountain, and the Blue
+            Slide is a hillside you could spend an afternoon climbing. Three
+            parks, and every plant in them is a real species that really grows
+            there. Go and find out what.
           </p>
           <div className="actions">
             <Button href="/play">Fly</Button>
@@ -33,7 +34,7 @@ export default function HomePage() {
         </div>
 
         <Image
-          alt="Scout, a bee, over Frick Park"
+          alt="Scout, a bee, over Pittsburgh"
           height={320}
           priority
           src={IMAGE_ASSETS.characterAndBanner}
@@ -64,19 +65,21 @@ export default function HomePage() {
       </section>
 
       <section>
-        <h2>A real park</h2>
+        <h2>Real parks</h2>
         <div className="grid">
-          <Card title="The Blue Slide">
-            The most recognisable thing in Frick Park, and from your height, a
-            concrete mountainside.
+          <Card title="Frick Park">
+            Six hundred acres with a creek at the bottom of it. The Blue Slide,
+            Nine Mile Run dug back out from under a century of slag, and hemlock
+            ravines too steep to hold their own soil.
           </Card>
-          <Card title="Nine Mile Run">
-            Buried under slag for most of the twentieth century, then dug back
-            out in one of the largest urban stream restorations ever attempted.
+          <Card title="Schenley Park">
+            Glass and mown lawns on top, Phipps Conservatory on the plateau, and
+            then the ground opens into Panther Hollow: a hundred feet deep, with
+            four bronze panthers on the bridge above it.
           </Card>
-          <Card title="Falls Ravine and Fern Hollow">
-            Hemlock slopes too steep to hold soil, and shade deep enough that
-            ferns become trees.
+          <Card title="Highland Park">
+            Water on a hilltop. Two enormous walled reservoirs, the fountain at
+            Lake Carnegie, and the wooded slope falling away to the Allegheny.
           </Card>
         </div>
       </section>
