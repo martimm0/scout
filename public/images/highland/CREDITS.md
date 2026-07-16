@@ -14,7 +14,7 @@ those files.
 | Plant | Species | File | Author | License | Source |
 | --- | --- | --- | --- | --- | --- |
 | Great Blue Lobelia | _Lobelia siphilitica_ | `great-blue-lobelia.jpg` | SB_Johnny | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0) | [Commons file page](https://commons.wikimedia.org/wiki/File:Lobelia_siphilitica_001.JPG) |
-| Chicory | _Cichorium intybus_ | `common-chicory.jpg` | Forest Wander from Cross Lanes, USA | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0) | [Commons file page](https://commons.wikimedia.org/wiki/File:Chicory_flower_closeup.jpg) |
+| Ohio Spiderwort | _Tradescantia ohiensis_ | `ohio-spiderwort.jpg` | Andrew C | [CC BY 2.0](https://creativecommons.org/licenses/by/2.0) | [Commons file page](https://commons.wikimedia.org/wiki/File:Ohio_Spiderwort_(Tradescantia_ohiensis)_(19051589310).jpg) |
 | Heal-All | _Prunella vulgaris_ | `heal-all.jpg` | AnRo0002 | [CC0](http://creativecommons.org/publicdomain/zero/1.0/deed.en) | [Commons file page](https://commons.wikimedia.org/wiki/File:20120714Prunella_vulgaris2.jpg) |
 | Virginia Waterleaf | _Hydrophyllum virginianum_ | `virginia-waterleaf.jpg` | H. Zell | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0) | [Commons file page](https://commons.wikimedia.org/wiki/File:Hydrophyllum_virginianum_001.JPG) |
 | Wild Columbine | _Aquilegia canadensis_ | `wild-columbine.jpg` | Fritzflohrreynolds | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0) | [Commons file page](https://commons.wikimedia.org/wiki/File:Aquilegia_canadensis_-_Wild_Columbine.jpg) |

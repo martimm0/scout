@@ -1452,42 +1452,42 @@ export const TRIVIA: Record<string, Question[]> = {
     },
   ],
 
-  "common-chicory": [
+  "ohio-spiderwort": [
     {
-      ask: "Linnaeus put chicory in his flower clock. What time does it tell?",
+      ask: "What happens to a spiderwort flower in the heat of the afternoon?",
       options: [
-        "It opens at dusk and shuts at dawn",
-        "It opens and shuts with the temperature",
-        "It stays open for exactly three days",
-        "Open at five in the morning, shut by midday",
+        "It closes up tight and opens again tomorrow",
+        "It turns from violet to pink",
+        "It collapses into a bead of clear jelly",
+        "It drops its petals one at a time",
       ],
-      answer: 3,
+      answer: 2,
       because:
-        "Every day, whatever the weather is doing. Linnaeus planted a garden that could be read as a clock, and this is one of its more reliable hands.",
+        "Each flower gets one morning. By the afternoon it does not wilt so much as dissolve: touch one and it goes to a bead of clear jelly on your fingers. There will be a new one tomorrow.",
     },
     {
-      ask: "Why did settlers bring chicory across the Atlantic?",
+      ask: "The blue hairs on a spiderwort's stamens turn pink. What makes them?",
       options: [
-        "To roast the root for coffee",
-        "For the blue dye in the petals",
-        "As a hedge plant",
-        "For the seeds, as a grain",
+        "Ionising radiation, or sulphur dioxide",
+        "The plant running short of water",
+        "Being pollinated",
+        "The first frost of the autumn",
       ],
       answer: 0,
       because:
-        "Roasted chicory root has stood in for coffee for centuries, and still does in New Orleans. The plant escaped the garden and now lines every gravel edge and kerb in the city.",
+        "The cells mutate and change colour, and they are one of the very few living tissues that work as a bioassay for ambient radiation. Sulphur dioxide from industry does it too, which is a pointed thing for a plant growing in Pittsburgh.",
     },
     {
-      ask: "What does chicory's habit mean for the bees that use it?",
+      ask: "Why do the bees work a spiderwort in the morning and not later?",
       options: [
-        "They must be able to see ultraviolet",
-        "They have to keep its hours. By lunchtime the trade is over",
-        "They can only work it after rain",
-        "Nothing. It is wind pollinated",
+        "It is too hot for a bee to fly by then",
+        "Because by the afternoon the flower is gone",
+        "Other bees have taken all the nectar by noon",
+        "The flower only smells of anything at dawn",
       ],
       answer: 1,
       because:
-        "A morning flower keeps morning customers. Turn up at two in the afternoon and there is nothing there at all, which is a hard rule to argue with.",
+        "There is nothing to come back to. The Xerces Society rates it as being of special value to native bees and bumblebees, and they collect it while it is there, which is one morning.",
     },
   ],
 

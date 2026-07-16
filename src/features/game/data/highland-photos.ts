@@ -21,13 +21,14 @@ export const HIGHLAND_PHOTOS: Record<string, PlantPhoto> = {
     licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0",
     sourceUrl: "https://commons.wikimedia.org/wiki/File:Lobelia_siphilitica_001.JPG",
   },
-  "common-chicory": {
-    src: "/images/highland/common-chicory.jpg",
-    title: "Chicory",
-    author: "Forest Wander from Cross Lanes, USA",
-    license: "CC BY-SA 3.0",
-    licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0",
-    sourceUrl: "https://commons.wikimedia.org/wiki/File:Chicory_flower_closeup.jpg",
+  "ohio-spiderwort": {
+    src: "/images/highland/ohio-spiderwort.jpg",
+    title: "Ohio Spiderwort",
+    author: "Andrew C",
+    license: "CC BY 2.0",
+    licenseUrl: "https://creativecommons.org/licenses/by/2.0",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Ohio_Spiderwort_(Tradescantia_ohiensis)_(19051589310).jpg",
   },
   "heal-all": {
     src: "/images/highland/heal-all.jpg",
