@@ -1,0 +1,207 @@
+# Scout: architecture
+
+How the thing is put together, and why it is put together that way. For what the
+game IS, see [GAMEPLAN.md](GAMEPLAN.md). For how the data is shaped, see
+[DATA.md](DATA.md).
+
+## Stack
+
+- **Next.js (App Router), React, TypeScript.** No Tailwind: CSS Modules, and a
+  small set of design tokens in `globals.css`.
+- **three.js + React Three Fiber + drei.** The scene uses R3F's *imperative*
+  root (`createRoot` / `configure` / `render`) rather than `<Canvas>`, because
+  the game needs to own its own sizing and lifecycle.
+- **Zustand** for game state, with `persist` to localStorage.
+- **Auth.js v5** with Google, JWT sessions.
+- **Neon Postgres** via `@vercel/postgres`.
+- **Web Audio**, synthesized. No audio files.
+- **Playwright** across Chromium, Firefox and WebKit.
+
+Everything runs on a fresh clone with an empty `.env`. With no Google client and
+no database the game is fully playable in "local mode": progress lives in
+localStorage, sign-in is hidden, and nothing on screen promises a feature that is
+not there. That is a hard requirement, not a nicety, and it is why every
+integration is behind a `configured` boolean rather than an assumption.
+
+## The shape
+
+```
+src/
+  app/                      routes and API
+    api/
+      auth/[...nextauth]/   Auth.js
+      progress/             the save file (GET, POST)
+      photos/, photos/[id]/ the album
+      weather/             the real Pittsburgh sky, cached
+    play/ journal/ customize/ profile/ about/ credits/ offline/
+  components/ui/            Button, Card, Modal, the generic furniture
+  features/
+    auth/components/        sign-in, the gate
+    game/
+      audio/                sound.ts: music, ambience, effects
+      components/           the scene, the HUD, every overlay
+      data/                 plants, fungi, trivia, badges, photos, accessories
+      models/               voxel builders: bee, flora, fungi, landmarks
+      state/                game-store, cloud-sync, photo-store, progression
+      world/                terrain, scatter, collision, daylight, weather
+        parks/              one file per park, plus props and obstacles
+  lib/                      auth, env, progress, photos, analytics
+```
+
+## The load-bearing ideas
+
+### 1. Models are data, not code
+
+Nothing in this game is a 3D asset. Every model is authored as **layered ASCII
+text art** and compiled to merged geometry with colour and ambient occlusion
+baked into vertex colours.
+
+```ts
+head: {
+  palette: { B: "body", D: "dark", E: "eye" },
+  layers: [
+    [".DDDD.",
+     "DDDDDD",
+     "DEEDEE",   // big eyes, set wide: this is where the cuteness lives
+     ".DDDD."],
+  ],
+}
+```
+
+Editing the bee means editing a picture, not tweaking forty `position={[0.32,
+0.16, -0.08]}` triples. `buildVoxelGeometry` handles the fine work (the bee, the
+accessories); `buildBoxGeometry` handles the chunky work (trees, landmarks).
+
+The pipeline is **axis-aligned on purpose**. `Box` has no rotation. When the
+reservoir wanted a ring, it got a stair-stepped circle of axis-aligned segments
+rather than a rotation parameter threaded through every model in the game. In a
+park built out of cubes, a stair-stepped circle is the honest answer.
+
+### 2. Species are specs, not subclasses
+
+Bee, hoverfly and butterfly are three `SpeciesSpec` data objects feeding **one**
+shared model component and **one** animation rig. There is no per-species
+branching anywhere in the render path. A hoverfly is different because its spec
+says two wings and halteres, not because a component checks `if (type ===
+"hoverfly")`.
+
+### 3. A park is data, and `terrain.ts` is a facade
+
+This is the biggest structural idea in the codebase, and it was retrofitted.
+
+For most of the project's life there was one park, and it showed: world bounds,
+the height function, the creek, the areas and the landmarks all sat as module
+constants in `terrain.ts`, and every function in `world/` read them out of file
+scope. Nothing took a park as an argument because there was only ever one.
+
+Now a `Park` is a data object (`world/park.ts`) and each park is one file
+(`world/parks/frick.ts`, `schenley.ts`, `highland.ts`). `terrain.ts` keeps the
+names it always had (`terrainHeight`, `areaAt`, `creekX`) and reads whichever
+park is active, so the frame loop, the scatter and the collision grid never had
+to learn about parks.
+
+**Adding a park is a data change.** A park declares its own bounds, height
+function, areas, valley, basins, landmarks, trails, biome colours, densities, and
+what it costs to unlock.
+
+### 4. Caches are keyed by park, never invalidated
+
+The collision cylinders, the obstacle boxes and the spatial grid are all keyed by
+park id in a `Map`.
+
+This is not fussiness. They used to be module singletons guarded by `if (grid)
+return;`, which meant the **first park to load won for the whole page session**:
+cross from Frick to Schenley and you would get Schenley's terrain with Frick's
+oaks still solid in the air around you. No crash, no error, just a park full of
+invisible trees.
+
+A cache you invalidate is a cache somebody forgets to invalidate. A cache you key
+cannot be wrong.
+
+### 5. Rules live in the store, not on the button
+
+A disabled button is a suggestion. Every rule that matters is enforced in the
+state layer, where it cannot be routed around:
+
+- `canPollinate` is what `startMinigame` consults. A demanding flower refuses
+  whoever calls it.
+- `accessoryUnlocked` is what `updatePollinator` consults. It also catches the
+  case nobody clicks: a save arriving from the cloud wearing something this
+  player never earned falls back to bare.
+- `parkUnlocked` gates travel, and is OR'd with a derived check so a save file
+  written before the field existed still honours a park the player earned months
+  ago.
+
+### 6. The scene is an imperative R3F root
+
+`game-scene.tsx` creates the GL root by hand. Two rules come with that, and both
+were learned the hard way:
+
+- **Create the root once.** Anything that changes (the hour, the weather, the
+  bee) is *re-rendered into* the existing root. Putting a value in the effect's
+  dependency array rebuilds the whole WebGL context on every change, and R3F
+  warns "createRoot should only be called once" into a console nobody reads while
+  the canvas renders transparent.
+- **Never touch `canvas.width/height`.** three owns the drawing buffer and sizes
+  it as CSS size times pixel ratio. Forcing it to CSS size leaves the GL viewport
+  at twice the buffer, so you render the bottom-left quadrant blown up 2x, on
+  retina displays only.
+- **`extend(THREE)` is not boilerplate.** R3F only knows the classes it has been
+  handed. Any file that renders `<color>` or `<ambientLight>` into its own root
+  must extend, or it throws into a canvas nobody is watching.
+
+### 7. The world is deterministic
+
+No `Math.random` anywhere in world generation. Scatter, terrain and placement are
+all seeded hash noise, so the park is laid out identically every visit and a
+player can learn where things are and come back to them.
+
+This is also what lets the e2e suite *import the scatter* and fly to a known
+plant, instead of flying a random spiral and hoping.
+
+## The frame loop
+
+`ScoutScene` in `game-scene.tsx`. Per frame, in order:
+
+1. Read held keys, derive yaw from mouse and arrows (one yaw: the bee's nose, the
+   camera and the flight direction are the same thing).
+2. Integrate velocity, clamp to world bounds and to the terrain.
+3. `resolveCollision` pushes out of anything solid. Only the velocity going
+   *into* a surface is killed; whatever runs along it survives, so you slide
+   around a trunk rather than sticking to it.
+4. Discovery: nearest active species within `DISCOVERY_RADIUS`, measured to the
+   bloom, in 3D.
+5. Camera follow, area detection, ambience, debug readout.
+
+## Testing
+
+The suite drives a real browser, because **every serious bug in this project's
+history typechecked cleanly**. A partial list of what only surfaced when
+something actually flew the bee: the mirrored steering, the retina quadrant crop,
+the invisible terrain (backface-culled by triangle winding), Safari's dead mouse
+look, grass growing on a reservoir, and a preview that rendered nothing at all.
+
+The rule that follows: **assert the thing, not the proxy for it.**
+
+- "The canvas is visible" was true the entire time the preview drew nothing. The
+  test reads the pixels back.
+- "The label says Rain" would pass if weather changed nothing but a word. The
+  test renders the park clear and stormy and compares mean brightness.
+- "The music has no drone" cannot be read off a source file. The test taps the
+  master output and measures the spectrum.
+
+Test hooks are query params on `/play`, and they exist because the real world is
+not reproducible: `?hour=13` pins the clock (half the flowers are shut at night),
+`?weather=rain` pins the sky (there is no rain in Pittsburgh today),
+`?park=schenley` pins the park, `?debug=1` shows the readout. None of them grant
+progress.
+
+## Deployment
+
+Vercel. Analytics and Speed Insights are first-party, cookieless, and therefore
+need no consent banner.
+
+**Do not run `vercel env pull` over `.env.local`.** Vercel marks integration
+secrets as write-only, so the pull returns every key with an empty value and
+silently wipes working credentials. There is a warning comment at the top of the
+file.
