@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { InstancedMesh, Object3D, type BufferGeometry } from "three";
 
 import { buildFoliageGeometry, type FoliageKind } from "../models/foliage";
-import { buildLandmarkGeometry, type LandmarkKind } from "../models/landmarks";
+import { buildLandmarkGeometry } from "../models/landmarks";
 import { scatterFoliage, scatterGrass, type Placement } from "../world/scatter";
 import { buildTerrainGeometry } from "../world/terrain-mesh";
 import {

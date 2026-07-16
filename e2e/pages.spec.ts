@@ -6,6 +6,7 @@ import {
   flyToPlant,
   hold,
   readout,
+  resetProgress,
   signIn,
 } from "./helpers";
 import { PLANTS } from "../src/features/game/data/plants";
@@ -22,6 +23,11 @@ import {
 } from "../src/features/game/world/scatter";
 import { scatterSpecies } from "../src/features/game/world/species-scatter";
 import { canPollinate } from "../src/features/game/state/game-store";
+import {
+  ACCESSORY_INFO,
+  accessoryUnlocked,
+} from "../src/features/game/data/accessories";
+import { BADGES_BY_ID } from "../src/features/game/data/badges";
 import { triviaFor } from "../src/features/game/data/trivia";
 import { FUNGUS_PHOTOS } from "../src/features/game/data/fungus-photos";
 import { PLANT_PHOTOS } from "../src/features/game/data/plant-photos";
@@ -1021,5 +1027,144 @@ test.describe("Highland Park", () => {
     }
 
     setActivePark("frick");
+  });
+});
+
+test.describe("customization", () => {
+  test("the accessories you have not earned are shown, locked, and named", async ({
+    page,
+  }) => {
+    await signIn(page.context(), "e2e-newcomer");
+    await resetProgress(page);
+    await page.goto("/customize");
+
+    // Free from the start: you have to be able to make the bee yours before you
+    // have earned anything.
+    await expect(page.getByRole("button", { name: /^Cap/ })).toBeEnabled();
+
+    // Earned. Visible, disabled, and it says what earns it, because a reward you
+    // cannot see is not a reward.
+    const lantern = page.getByRole("button", { name: /Foxfire Lantern/ });
+    await expect(lantern).toBeVisible();
+    await expect(lantern).toBeDisabled();
+    await expect(lantern).toContainText("Earned with Foxfire");
+  });
+
+  test("the gate is a rule: you cannot wear what you have not earned", () => {
+    // What updatePollinator actually consults, rather than a restatement of it.
+    expect(accessoryUnlocked({}, "lantern")).toBe(false);
+    expect(accessoryUnlocked({ foxfire: true }, "lantern")).toBe(true);
+
+    // The free ones are always free.
+    expect(accessoryUnlocked({}, "cap")).toBe(true);
+    expect(accessoryUnlocked({}, "none")).toBe(true);
+
+    // Every locked accessory names a badge that actually exists. A gate that
+    // points at a badge nobody can earn is a gate with no key.
+    for (const info of ACCESSORY_INFO) {
+      if (info.badge) {
+        expect(
+          BADGES_BY_ID.get(info.badge),
+          `${info.id} points at a badge that does not exist: ${info.badge}`,
+        ).toBeTruthy();
+      }
+    }
+  });
+
+  test("the customize page previews the real model, and takes a hex code", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+
+    await signIn(page.context());
+    await page.goto("/customize");
+    await page.waitForTimeout(2500);
+
+    // The actual 3D model, not a flat drawing of it.
+    await expect(page.locator("canvas").first()).toBeVisible();
+
+    // Type a colour nobody put in the swatches.
+    const hex = page.getByLabel("Body colour, hex code");
+    await hex.fill("ff00aa");
+    await hex.press("Enter");
+
+    await expect
+      .poll(async () =>
+        page.evaluate(
+          () =>
+            JSON.parse(localStorage.getItem("scout-game-state") ?? "{}")?.state
+              ?.pollinator?.bodyColor,
+        ),
+      )
+      .toBe("#ff00aa");
+  });
+
+  test("a change made while the save is loading is not clobbered by it", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+
+    await signIn(page.context(), "e2e-racer");
+
+    // Put a bee on the server, then arrive and immediately ask for a butterfly.
+    await page.goto("/customize");
+    await page.waitForTimeout(2500);
+    await page.getByRole("button", { name: /Bee/ }).first().click();
+    await page.waitForTimeout(2500);
+
+    // Reload, and pick something else the instant the page is interactive, while
+    // the resume request for that stored bee is still in the air.
+    await page.goto("/customize");
+    await page.getByRole("button", { name: /Butterfly/ }).first().click();
+
+    // Give the load every chance to land and stamp on it.
+    await page.waitForTimeout(4000);
+
+    // Your click is newer than a request that was already in flight.
+    await expect(
+      page.getByRole("button", { name: /Butterfly/ }).first(),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("customization reaches the account, not just the browser", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+
+    await signIn(page.context(), "e2e-customizer");
+    await resetProgress(page);
+
+    await page.goto("/customize");
+    await page.waitForTimeout(2000);
+
+    const hex = page.getByLabel("Body colour, hex code");
+    await hex.fill("00cc88");
+    await hex.press("Enter");
+
+    /**
+     * The whole point of this test.
+     *
+     * The customize page did not mount the cloud sync, so a change went to the
+     * store, and to localStorage, and nowhere else: you could recolour your bee,
+     * pick up another device, and find the old one waiting. Checking the SERVER
+     * is the only way to catch that; checking localStorage would have passed
+     * happily the whole time it was broken.
+     */
+    await expect
+      .poll(
+        async () => {
+          const response = await page.request.get("/api/progress");
+
+          if (!response.ok()) {
+            return null;
+          }
+
+          const body = await response.json();
+
+          return body.progress?.pollinator?.bodyColor ?? null;
+        },
+        { timeout: 20_000 },
+      )
+      .toBe("#00cc88");
   });
 });

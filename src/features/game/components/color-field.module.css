@@ -1,0 +1,98 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.label {
+  margin: 0;
+  font-weight: 650;
+  font-size: 0.95rem;
+  color: var(--card-ink, #2f2a20);
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.swatch {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 2px solid var(--card-border, rgba(60, 52, 36, 0.16));
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.swatch[aria-pressed="true"] {
+  border-color: var(--primary, #1f6b3b);
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary, #1f6b3b);
+}
+
+.custom {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.wheelLabel,
+.hexLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--card-ink-soft, #6b6960);
+}
+
+.wheel {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 2px solid var(--card-border, rgba(60, 52, 36, 0.16));
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+}
+
+.hexLabel {
+  padding: 0 0.5rem;
+  border: 1px solid var(--card-border, rgba(60, 52, 36, 0.16));
+  border-radius: 8px;
+  background: var(--surface, #fff);
+}
+
+.hexHash {
+  color: var(--card-ink-soft, #8a7a5e);
+}
+
+.hex {
+  width: 6.5rem;
+  padding: 0.4rem 0;
+  border: none;
+  background: none;
+  color: var(--card-ink, #2f2a20);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.85rem;
+}
+
+.hex:focus {
+  outline: none;
+}
+
+.hexLabel:focus-within {
+  border-color: var(--primary, #1f6b3b);
+  box-shadow: 0 0 0 1px var(--primary, #1f6b3b);
+}
+
+.hex[aria-invalid="true"] {
+  color: #b8342a;
+}
+
+.bad {
+  margin: 0;
+  color: #b8342a;
+  font-size: 0.8rem;
+}

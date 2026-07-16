@@ -5,9 +5,16 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { trackEvent } from "@/lib/analytics";
 import { playSound } from "../audio/sound";
-import { ACCESSORIES, SPECIES_LIST, WING_STYLES, speciesFor } from "../models/pollinators";
+import { SPECIES_LIST, WING_STYLES, speciesFor } from "../models/pollinators";
+import {
+  ACCESSORY_INFO,
+  accessoryRequirement,
+  accessoryUnlocked,
+} from "../data/accessories";
+import { CloudSyncBadge } from "./cloud-sync-badge";
+import { ColorField } from "./color-field";
+import { PollinatorPreview } from "./pollinator-preview";
 import { useGameStore } from "../state/game-store";
-import { StarterVisual } from "./starter-selection";
 import styles from "./customize.module.css";
 
 const BODY_COLORS = [
@@ -44,13 +51,6 @@ const WING_STYLE_NOTES: Record<string, string> = {
   stubby: "Short and round. Bumblebee energy.",
 };
 
-const ACCESSORY_NOTES: Record<string, string> = {
-  none: "Nothing at all.",
-  cap: "A little cap.",
-  flower: "A blossom, tucked behind the antennae.",
-  scarf: "A scarf. It's cold up there.",
-};
-
 /** Names are trimmed, capped, and must not be empty or all whitespace. */
 function validateName(raw: string) {
   const name = raw.trim();
@@ -81,6 +81,7 @@ function validateName(raw: string) {
 export function Customize() {
   const pollinator = useGameStore((state) => state.pollinator);
   const updatePollinator = useGameStore((state) => state.updatePollinator);
+  const unlockedBadges = useGameStore((state) => state.unlockedBadges);
 
   const [name, setName] = useState(pollinator.name);
   const [saved, setSaved] = useState(false);
@@ -109,16 +110,28 @@ export function Customize() {
   return (
     <div className={styles.layout}>
       <aside className={styles.previewPane}>
+        {/* The actual model, turning. This used to be a flat drawing under a line
+            reading "Fly to see the model", which is a strange thing to tell
+            somebody on the page whose whole job is looking at their bee. */}
         <div className={styles.preview}>
-          <StarterVisual pollinator={pollinator} />
+          <PollinatorPreview pollinator={pollinator} />
         </div>
         <p className={styles.previewName}>
           {validation.valid ? name.trim() : pollinator.name} the{" "}
           {species.label.toLowerCase()}
         </p>
         <p className={styles.previewNote}>
-          The 2D preview shows your colours. Fly to see the model.
+          Everything you change shows up here.
         </p>
+
+        {/*
+          The autosave lives in this badge, and this page did not have it.
+          Customization was written to the store, persisted to localStorage, and
+          never sent anywhere: you could change your bee, walk to another device,
+          and find the old one. The scene and the profile mounted the sync; the
+          one page whose entire job is changing your pollinator did not.
+        */}
+        <CloudSyncBadge />
       </aside>
 
       <div className={styles.form}>
@@ -161,7 +174,7 @@ export function Customize() {
           </p>
         </section>
 
-        <Swatches
+        <ColorField
           colors={BODY_COLORS}
           label="Body colour"
           onPick={(bodyColor) => set({ bodyColor })}
@@ -171,7 +184,7 @@ export function Customize() {
         {/* A butterfly's wings carry their own pattern in the vertex colours, so
             a "wing colour" would only smear it. Hidden rather than ignored. */}
         {species.wings.tinted ? (
-          <Swatches
+          <ColorField
             colors={WING_COLORS}
             label="Wing colour"
             onPick={(wingColor) => set({ wingColor })}
@@ -191,15 +204,41 @@ export function Customize() {
           />
         ) : null}
 
-        <Options
-          label="Accessory"
-          notes={ACCESSORY_NOTES}
-          onPick={(accessory) => set({ accessory })}
-          options={[...ACCESSORIES]}
-          value={pollinator.accessory}
-        />
+        <section className={styles.field}>
+          <p className={styles.label}>Accessory</p>
+          <div className={styles.options}>
+            {ACCESSORY_INFO.map((option) => {
+              const unlocked = accessoryUnlocked(unlockedBadges, option.id);
+              const badge = accessoryRequirement(option.id);
 
-        <Swatches
+              return (
+                <button
+                  aria-pressed={pollinator.accessory === option.id}
+                  className={styles.option}
+                  data-locked={!unlocked}
+                  disabled={!unlocked}
+                  key={option.id}
+                  onClick={() => set({ accessory: option.id })}
+                  type="button"
+                >
+                  <span className={styles.optionName}>
+                    {unlocked ? "" : "🔒 "}
+                    {option.label}
+                  </span>
+                  <span className={styles.optionNote}>
+                    {/* A locked thing names the badge that earns it. A reward you
+                        cannot see is not a reward, and a player who does not know
+                        the lantern exists has no reason to look for the thing
+                        that glows. */}
+                    {unlocked ? option.note : `Earned with ${badge}.`}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <ColorField
           colors={ACCENT_COLORS}
           label="Accent colour"
           onPick={(accentColor) => set({ accentColor })}
@@ -235,37 +274,6 @@ export function Customize() {
         </div>
       </div>
     </div>
-  );
-}
-
-function Swatches({
-  colors,
-  label,
-  onPick,
-  value,
-}: {
-  colors: string[];
-  label: string;
-  onPick: (color: string) => void;
-  value: string;
-}) {
-  return (
-    <section className={styles.field}>
-      <p className={styles.label}>{label}</p>
-      <div className={styles.swatches}>
-        {colors.map((color) => (
-          <button
-            aria-label={`${label}: ${color}`}
-            aria-pressed={value.toLowerCase() === color.toLowerCase()}
-            className={styles.swatch}
-            key={color}
-            onClick={() => onPick(color)}
-            style={{ background: color }}
-            type="button"
-          />
-        ))}
-      </div>
-    </section>
   );
 }
 

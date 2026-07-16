@@ -17,13 +17,13 @@ import {
   countUnlocked,
   parkUnlocked,
   useGameStore,
-  type Pollinator,
   type PlayerMovementState,
 } from "@/features/game/state/game-store";
 import { trackEvent } from "@/lib/analytics";
 import { playSound, setAreaAmbience } from "../audio/sound";
 import { speciesFor } from "../models/pollinators";
 import { PollinatorModel } from "./pollinator-model";
+import { PollinatorPreview } from "./pollinator-preview";
 import { Creek, Foliage, Landmarks, Terrain } from "./frick-park";
 import { SpeciesField } from "./species-field";
 import { WeatherLayer } from "./weather";
@@ -935,95 +935,6 @@ function ScoutScene({
   );
 }
 
-function PollinatorPreviewScene({ pollinator }: { pollinator: Pollinator }) {
-  const pollinatorRef = useRef<Group>(null);
-
-  useFrame(({ camera, clock }) => {
-    const pollinatorGroup = pollinatorRef.current;
-
-    if (!pollinatorGroup) {
-      return;
-    }
-
-    const elapsed = clock.getElapsedTime();
-    // The bee models face -Z (the flight loop's forward vector), and the preview
-    // camera sits on +Z, so turn it around to show its face rather than its back.
-    pollinatorGroup.rotation.y = Math.PI - 0.34 + Math.sin(elapsed * 0.55) * 0.12;
-    pollinatorGroup.position.y = Math.sin(elapsed * 1.8) * 0.045;
-    camera.position.set(0.7, 0.36, 3.55);
-    camera.lookAt(0, 0.04, 0);
-  });
-
-  return (
-    <>
-      <color attach="background" args={["#fff6dc"]} />
-      <ambientLight intensity={1.7} />
-      <directionalLight intensity={2.5} position={[-2, 3, -4]} />
-      <hemisphereLight args={["#f2fbff", "#f1d68e", 1.2]} />
-      <group ref={pollinatorRef} scale={1.45}>
-        <PollinatorModel animationState="hovering" pollinator={pollinator} />
-      </group>
-    </>
-  );
-}
-
-function PollinatorPreviewViewport({ pollinator }: { pollinator: Pollinator }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useLayoutEffect(() => {
-    const canvas = canvasRef.current;
-    const container = canvas?.parentElement;
-
-    if (!canvas || !container) {
-      return;
-    }
-
-    const root = createRoot(canvas);
-    let mounted = true;
-
-    const configure = async () => {
-      const rect = container.getBoundingClientRect();
-
-      if (!mounted || rect.width <= 0 || rect.height <= 0) {
-        return;
-      }
-
-      // Same as the main viewport: three owns the drawing buffer. Setting it by
-      // hand desyncs the GL viewport from the buffer on retina screens.
-      await root.configure({
-        camera: { fov: 38, position: [0.7, 0.36, 3.55] },
-        dpr: Math.min(window.devicePixelRatio, 2),
-        gl: { antialias: false, alpha: false, preserveDrawingBuffer: true },
-        size: {
-          height: rect.height,
-          left: rect.left,
-          top: rect.top,
-          width: rect.width,
-        },
-      });
-
-      if (mounted) {
-        root.render(<PollinatorPreviewScene pollinator={pollinator} />);
-      }
-    };
-
-    void configure();
-
-    const observer = new ResizeObserver(() => {
-      void configure();
-    });
-    observer.observe(container);
-
-    return () => {
-      mounted = false;
-      observer.disconnect();
-      root.unmount();
-    };
-  }, [pollinator]);
-
-  return <canvas className={styles.previewCanvas} ref={canvasRef} />;
-}
-
 export function GameScene({
   debug = false,
   hour,
@@ -1489,7 +1400,7 @@ export function GameScene({
             </div>
             <div className={styles.previewStage}>
               <div className={styles.previewCanvasWrap}>
-                <PollinatorPreviewViewport pollinator={selectedPollinator} />
+                <PollinatorPreview pollinator={selectedPollinator} />
               </div>
               <dl className={styles.previewDetails}>
                 <div>

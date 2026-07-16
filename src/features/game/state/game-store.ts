@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import { accessoryUnlocked } from "../data/accessories";
+import type { Accessory } from "../models/species";
 import { PLANTS, PLANTS_BY_ID } from "../data/plants";
 import { PARKS, PARK_LIST, setActivePark, type ParkId } from "../world/terrain";
 import { createJSONStorage, persist } from "zustand/middleware";
@@ -351,12 +353,26 @@ export const useGameStore = create<GameStore>()(
     })),
 
   updatePollinator: (pollinator) =>
-    set((state) => ({
-      pollinator: {
-        ...state.pollinator,
-        ...pollinator,
-      },
-    })),
+    set((state) => {
+      const next = { ...state.pollinator, ...pollinator };
+
+      /**
+       * You cannot wear what you have not earned.
+       *
+       * Enforced here rather than only by disabling the button, for the same
+       * reason the pollination gate is: a disabled button is a suggestion. This
+       * also catches the case nobody clicks, which is a save file that arrives
+       * from the cloud, or from an older version, wearing something this player
+       * has no badge for. It falls back to bare rather than refusing the whole
+       * update, because losing your hat is a smaller surprise than losing your
+       * name.
+       */
+      if (!accessoryUnlocked(state.unlockedBadges, next.accessory as Accessory)) {
+        next.accessory = "none";
+      }
+
+      return { pollinator: next };
+    }),
 
   discoverPlant: (plantId) =>
     set((state) => {

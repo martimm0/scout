@@ -54,6 +54,58 @@ The one link never exercised by a machine is a human typing a Google password. E
 | 27 | Schenley Park, and a Park abstraction under the world | ✅ Done |
 | 28 | Real Pittsburgh weather | ✅ Done |
 | 29 | Highland Park, and the difficult flowers | ✅ Done |
+| 30 | Customization: earned accessories, the whole colour wheel, a real preview | ✅ Done |
+
+---
+
+## Customization
+
+**Ten accessories, six of them earned.** Four are free, because a new player has
+to be able to make the bee theirs on the first screen and before they have done
+anything. The rest hang off badges, each tied to the badge it belongs to rather
+than handed out in an arbitrary order: the foxfire lantern for finding the thing
+that glows, the flying goggles for having been out at every hour there is, the
+bronze crown (the same bronze as the panthers on the bridge) for having seen all
+three parks.
+
+Locked ones are SHOWN, greyed, naming the badge that earns them. A reward you
+cannot see is not a reward, and a player who does not know the lantern exists has
+no reason to go looking for the bitter oyster. The rule is enforced in
+`updatePollinator`, not only by disabling the button, which also covers the case
+nobody clicks: a save arriving from the cloud wearing something this player never
+earned falls back to bare rather than taking the whole update down.
+
+**The whole colour wheel, and a hex box.** The swatches stay, because most people
+want a good colour rather than a specific one, but they were the only way to
+choose: eight body colours existed and no others. The wheel is the platform's own
+picker, which brings an eyedropper, keyboard access and localisation for free.
+
+**A real preview.** The customize page used to show a flat drawing under a line
+reading "Fly to see the model", which is a strange thing to tell somebody on the
+page whose entire job is looking at their bee. It is the actual model now, and it
+is the same component the in-game modal uses. One preview: two would drift.
+
+### Three bugs found building it
+
+- **Customization never reached the account.** The autosave lives in the cloud
+  sync hook, which was mounted by the scene and the profile and NOT by the
+  customize page. Changes went to the store, and to localStorage, and nowhere
+  else: you could recolour your bee, pick up another device, and find the old one.
+  The test reads the colour back from the SERVER, because a test against
+  localStorage would have passed happily the entire time it was broken.
+- **The preview never drew.** `createRoot` was called with `[pollinator]` in the
+  effect's deps, so every colour change built a second GL root on the same canvas.
+  React's development double invoke was enough to trigger it alone. R3F says
+  exactly what it thinks of that in a console warning nobody was reading, and the
+  canvas rendered transparent while the browser drew a broken-image icon in the
+  corner. No errors. It simply did not draw. The root is created once now and the
+  bee is re-rendered into it, which is the same fix the main scene already had.
+- **`extend(THREE)` is not boilerplate.** It was called at module scope in the
+  scene file, so the preview worked for exactly as long as it lived there and
+  broke the moment it moved out: "Color is not part of the THREE namespace",
+  thrown into a canvas nobody was watching.
+
+---
 
 ---
 
@@ -149,6 +201,58 @@ catching.
 ---
 | 28 | Real Pittsburgh weather | ✅ Done |
 | 29 | Highland Park, and the difficult flowers | ✅ Done |
+| 30 | Customization: earned accessories, the whole colour wheel, a real preview | ✅ Done |
+
+---
+
+## Customization
+
+**Ten accessories, six of them earned.** Four are free, because a new player has
+to be able to make the bee theirs on the first screen and before they have done
+anything. The rest hang off badges, each tied to the badge it belongs to rather
+than handed out in an arbitrary order: the foxfire lantern for finding the thing
+that glows, the flying goggles for having been out at every hour there is, the
+bronze crown (the same bronze as the panthers on the bridge) for having seen all
+three parks.
+
+Locked ones are SHOWN, greyed, naming the badge that earns them. A reward you
+cannot see is not a reward, and a player who does not know the lantern exists has
+no reason to go looking for the bitter oyster. The rule is enforced in
+`updatePollinator`, not only by disabling the button, which also covers the case
+nobody clicks: a save arriving from the cloud wearing something this player never
+earned falls back to bare rather than taking the whole update down.
+
+**The whole colour wheel, and a hex box.** The swatches stay, because most people
+want a good colour rather than a specific one, but they were the only way to
+choose: eight body colours existed and no others. The wheel is the platform's own
+picker, which brings an eyedropper, keyboard access and localisation for free.
+
+**A real preview.** The customize page used to show a flat drawing under a line
+reading "Fly to see the model", which is a strange thing to tell somebody on the
+page whose entire job is looking at their bee. It is the actual model now, and it
+is the same component the in-game modal uses. One preview: two would drift.
+
+### Three bugs found building it
+
+- **Customization never reached the account.** The autosave lives in the cloud
+  sync hook, which was mounted by the scene and the profile and NOT by the
+  customize page. Changes went to the store, and to localStorage, and nowhere
+  else: you could recolour your bee, pick up another device, and find the old one.
+  The test reads the colour back from the SERVER, because a test against
+  localStorage would have passed happily the entire time it was broken.
+- **The preview never drew.** `createRoot` was called with `[pollinator]` in the
+  effect's deps, so every colour change built a second GL root on the same canvas.
+  React's development double invoke was enough to trigger it alone. R3F says
+  exactly what it thinks of that in a console warning nobody was reading, and the
+  canvas rendered transparent while the browser drew a broken-image icon in the
+  corner. No errors. It simply did not draw. The root is created once now and the
+  bee is re-rendered into it, which is the same fix the main scene already had.
+- **`extend(THREE)` is not boilerplate.** It was called at module scope in the
+  scene file, so the preview worked for exactly as long as it lived there and
+  broke the moment it moved out: "Color is not part of the THREE namespace",
+  thrown into a canvas nobody was watching.
+
+---
 
 ---
 

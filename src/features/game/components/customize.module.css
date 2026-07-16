@@ -22,10 +22,18 @@
   text-align: center;
 }
 
+/**
+ * The preview needs a REAL height, not a min-height.
+ *
+ * The canvas measures its parent to size the drawing buffer. A grid box with
+ * only a min-height and a canvas inside it that is sized off the box resolves to
+ * nothing at all: the pane laid out fine and rendered an empty rectangle.
+ */
 .preview {
-  display: grid;
-  place-items: center;
-  min-height: 170px;
+  height: 220px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff6dc;
 }
 
 .previewName {

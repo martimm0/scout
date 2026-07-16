@@ -18,6 +18,21 @@ type Theme = "light" | "dark";
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme | null>(null);
 
+  /**
+   * Read the theme AFTER mounting, deliberately.
+   *
+   * The lint rule objects to setting state in an effect, and it is right to, in
+   * general. It is wrong here, and the alternative it pushes you toward is worse:
+   * a lazy `useState` initialiser runs on the SERVER too, where there is no
+   * document, so the server renders no button and the client renders one, and the
+   * whole tree fails to hydrate. That is not theoretical, it is what happened when
+   * I tried it.
+   *
+   * Both renders have to agree, and the server cannot know the theme, so the
+   * first client render must not either. This is the mount-once read that makes
+   * them agree, and the rule cannot tell it apart from a cascade.
+   */
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     const stored = window.localStorage.getItem("scout-theme") as Theme | null;
     const system = window.matchMedia("(prefers-color-scheme: dark)").matches

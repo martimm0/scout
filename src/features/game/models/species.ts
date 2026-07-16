@@ -17,7 +17,18 @@ import { buildVoxelGeometry, shade, tint, type VoxelPalette } from "./voxel";
 export const WING_STYLES = ["round", "long", "stubby"] as const;
 export type WingStyle = (typeof WING_STYLES)[number];
 
-export const ACCESSORIES = ["none", "cap", "flower", "scarf"] as const;
+export const ACCESSORIES = [
+  "none",
+  "cap",
+  "flower",
+  "scarf",
+  "lantern",
+  "crown",
+  "goggles",
+  "backpack",
+  "antennaeBow",
+  "raincoat",
+] as const;
 export type Accessory = (typeof ACCESSORIES)[number];
 
 export type PartName =
@@ -128,6 +139,14 @@ export function basePalette({ accentColor, bodyColor, wingColor }: Colors): Voxe
     R: "#e4759b",
     Y: "#f7e07a",
     N: "#5f9a45",
+    // The foxfire lantern glows whatever the bitter oyster glows.
+    O: "#8ef07a",
+    // Bronze, for the crown. Same bronze as the panthers on the bridge.
+    Z: "#8d7346",
+    // Glass, for the goggles.
+    V: "#a8d8e8",
+    // Waxed canvas.
+    U: "#d8b24a",
   };
 }
 
@@ -149,11 +168,62 @@ const SCARF_LAYERS = [
   [".XXXXX.", "..XXX.."],
 ];
 
+/**
+ * A foxfire lantern, carried like a satchel.
+ *
+ * The bitter oyster glows green on rotting wood at night, and this is a piece of
+ * it in a jar. Earned by finding the thing itself, which is the only way anybody
+ * would have got one.
+ */
+const LANTERN_LAYERS = [
+  ["..ZZZ..", "..Z.Z..", ".......", ".......", "......."],
+  ["..ZZZ..", ".ZOOOZ.", ".ZOOOZ.", ".ZOOOZ.", "..ZZZ.."],
+  ["..ZZZ..", ".ZOOOZ.", ".ZOOOZ.", ".ZOOOZ.", "..ZZZ.."],
+];
+
+/** A little bronze crown. For having seen the whole city. */
+const CROWN_LAYERS = [
+  ["Z.Z.Z.Z", "ZZZZZZZ", "ZZZZZZZ"],
+  [".......", "Z.Z.Z.Z", "ZZZZZZZ"],
+];
+
+/** Flying goggles, for a bee who has been out in all weathers. */
+const GOGGLES_LAYERS = [
+  ["ZZ...ZZ", "ZVVZVVZ", "ZVVZVVZ", "ZZ...ZZ"],
+  ["ZZZZZZZ", ".......", ".......", "ZZZZZZZ"],
+];
+
+/** A field naturalist's satchel, in waxed canvas, with a strap. */
+const BACKPACK_LAYERS = [
+  [".UUUUU.", "UUUUUUU", "UUUUUUU", ".UUUUU."],
+  ["..UUU..", ".UUUUU.", ".UUUUU.", "..UUU.."],
+  ["...X...", "...X...", "...X...", "...X..."],
+];
+
+/** A bow, on the antennae. Purely and unashamedly for fun. */
+const ANTENNAE_BOW_LAYERS = [
+  ["RR.R.RR", "RRRRRRR", "RR.R.RR"],
+  [".R...R.", ".RRYRR.", ".R...R."],
+];
+
+/** A tiny sou'wester, for somebody who kept flying in the rain. */
+const RAINCOAT_LAYERS = [
+  ["YYYYYYY", "YYYYYYY", "YYYYYYY", "YYYYYYY"],
+  [".YYYYY.", ".YYYYY.", ".YYYYY.", ".YYYYY."],
+  ["..YYY..", "..YYY..", "..YYY..", "..YYY.."],
+];
+
 const ACCESSORY_LAYERS: Record<Accessory, string[][] | null> = {
   none: null,
   cap: CAP_LAYERS,
   flower: FLOWER_LAYERS,
   scarf: SCARF_LAYERS,
+  lantern: LANTERN_LAYERS,
+  crown: CROWN_LAYERS,
+  goggles: GOGGLES_LAYERS,
+  backpack: BACKPACK_LAYERS,
+  antennaeBow: ANTENNAE_BOW_LAYERS,
+  raincoat: RAINCOAT_LAYERS,
 };
 
 const ACCESSORY_OFFSET: Record<Accessory, [number, number, number]> = {
@@ -161,6 +231,13 @@ const ACCESSORY_OFFSET: Record<Accessory, [number, number, number]> = {
   cap: [0, 0.2, -0.2],
   flower: [0.12, 0.21, -0.2],
   scarf: [0, -0.04, -0.11],
+  // Slung at the side, where a satchel hangs.
+  lantern: [0.22, -0.02, 0.06],
+  crown: [0, 0.24, -0.2],
+  goggles: [0, 0.14, -0.3],
+  backpack: [0, 0.06, 0.16],
+  antennaeBow: [0, 0.3, -0.24],
+  raincoat: [0, 0.22, -0.19],
 };
 
 export function accessoryOffset(accessory: Accessory) {

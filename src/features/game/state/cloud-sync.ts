@@ -130,6 +130,9 @@ export function useCloudSync(
     loaded.current = true;
     onStatus?.("loading");
 
+    // What the bee looked like when the request went out.
+    const before = useGameStore.getState().pollinator;
+
     void (async () => {
       try {
         const response = await fetch("/api/progress");
@@ -150,7 +153,24 @@ export function useCloudSync(
         const { progress } = await response.json();
 
         if (progress) {
-          useGameStore.setState((state) => mergeInto(state, progress));
+          useGameStore.setState((state) => {
+            const merged = mergeInto(state, progress);
+
+            /**
+             * Do not overwrite a bee the player has changed while we were asking.
+             *
+             * Progress is monotonic, so a union is always right for it: you never
+             * un-discover a plant, and it does not matter who wins. The pollinator
+             * is not. It is a value that gets replaced, and the remote wins the
+             * merge, so a player who landed on the customize page and picked
+             * butterfly before this request came back would watch it silently
+             * turn into whatever the server had. The load was already in flight;
+             * their click is newer than it.
+             */
+            return state.pollinator === before
+              ? merged
+              : { ...merged, pollinator: state.pollinator };
+          });
         }
 
         onStatus?.("synced");
