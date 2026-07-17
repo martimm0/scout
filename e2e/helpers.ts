@@ -370,7 +370,7 @@ export async function findPlant(page: Page) {
  * gone away (because the game resolved while we were playing it) waits forever,
  * and the test dies at its own 240s limit with nothing useful to say.
  */
-export async function playMinigame(page: Page, seconds = 4) {
+export async function playMinigame(page: Page, seconds = 14) {
   const kind = await page
     .locator("[data-minigame]")
     .getAttribute("data-minigame", { timeout: 5_000 })
@@ -384,29 +384,34 @@ export async function playMinigame(page: Page, seconds = 4) {
       break;
     }
 
-    if (kind === "hover") {
-      const ring = await page
-        .locator('[data-target="hover"]')
-        .boundingBox({ timeout: 1_000 })
-        .catch(() => null);
+    if (kind === "memory") {
+      // Click a couple of tiles. Some of it matches, most of it does not: this
+      // is the flailing player, not the optimal one.
+      const tiles = page.locator('[data-minigame="memory"] button');
+      const count = await tiles.count().catch(() => 0);
 
-      if (ring) {
-        await page.mouse.move(ring.x + ring.width / 2, ring.y + ring.height / 2);
+      if (count > 1) {
+        await tiles
+          .nth(Math.floor((Date.now() / 200) % count))
+          .click({ timeout: 500 })
+          .catch(() => {});
       }
     }
 
-    if (kind === "taps") {
-      await page.keyboard.press("Space");
+    if (kind === "seeds") {
+      // Jink left and right. Dodges some, eats some.
+      await page.keyboard.press(
+        Math.floor(Date.now() / 300) % 2 ? "ArrowLeft" : "ArrowRight",
+      );
     }
 
-    if (kind === "cue") {
-      // Whatever it is asking for, one of these is it.
-      for (const arrow of ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]) {
-        await page.keyboard.press(arrow);
-      }
+    if (kind === "anagram") {
+      // Nothing typeable off the cuff, so this one just runs the clock out. The
+      // point of the test is that it RESOLVES whatever you do, not that it is won.
+      await page.waitForTimeout(200);
     }
 
-    await page.waitForTimeout(80);
+    await page.waitForTimeout(120);
   }
 
   return kind;

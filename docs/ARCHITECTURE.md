@@ -150,7 +150,31 @@ were learned the hard way:
   handed. Any file that renders `<color>` or `<ambientLight>` into its own root
   must extend, or it throws into a canvas nobody is watching.
 
-### 7. The world is deterministic
+### 7. A popover owns the keyboard
+
+The scene listens for keys on `window` and `preventDefault`s every one it uses,
+which is most of the alphabet including both common vowels. So while any popover
+is open (`inputSuspended` in `game-scene.tsx`), the scene takes its hands off the
+keyboard entirely, and the popover, including a text input, gets the keys. Without
+this you could not type anywhere in the game, and two keys had their own copies of
+the bug: P photographed the dialog you were reading, and G made the bee dance
+behind it. Escape is handled before the gate, because it is how popovers close.
+
+### 8. The minigame shell
+
+`pollination-minigame.tsx` is a shell that owns the frame (scrim, panel, name,
+clock, timer, resolve, outcome) and nothing about how any game is played. Each
+game is a component under `minigames/` behind one contract (`minigames/types.ts`),
+registered in `minigames/index.ts`. It was one component holding all three games'
+state at once.
+
+Three details of the contract each avoid a bug: it passes a `duration` number, not
+a `performance.now()` deadline (recovering a duration from a deadline is an impure
+read during render); `reportScore` writes a ref, not state (or the shell
+re-renders the board at 60fps); and `finish` guards on a synchronous ref, because
+a game ending early can race the clock in one frame and double-count the attempt.
+
+### 9. The world is deterministic
 
 No `Math.random` anywhere in world generation. Scatter, terrain and placement are
 all seeded hash noise, so the park is laid out identically every visit and a

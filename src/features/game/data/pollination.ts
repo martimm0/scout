@@ -7,9 +7,29 @@
  * someone else got to first. That's what pollinating is actually like.
  */
 
-import type { PlantArchetype } from "./plants";
+import { ANAGRAM_WORDS } from "./anagram-words";
+import type { Plant, PlantArchetype } from "./plants";
 
-export type MinigameKind = "hover" | "taps" | "cue";
+/**
+ * The games.
+ *
+ * Every one of them must meet the same curve, and this is not a style note. The
+ * score feeds one resolver, so a game whose ceiling cannot be reached would make
+ * its archetype permanently harder to pollinate than the others, invisibly, and
+ * nobody would ever see why.
+ *
+ *   no play         0.0
+ *   flailing        about 0.35
+ *   competent       about 0.75
+ *   excellent       1.0, and genuinely REACHABLE
+ *
+ * The last line is the one that bites. The three games this replaced all had
+ * ceilings any awake player hit, which sounds like the opposite problem and is
+ * the same one: everybody scored 1.0, so the resolver's 8% floor became the real
+ * failure rate and the "one visit in five" the game is built on was never true.
+ * A test plays each game optimally and asserts it can be maxed.
+ */
+export type MinigameKind = "memory" | "seeds" | "anagram";
 
 /**
  * Which game each archetype plays. Learnable, not random.
@@ -18,19 +38,36 @@ export type MinigameKind = "hover" | "taps" | "cue";
  * a compile error here rather than a silent fallback to whatever the `??` said.
  */
 export const MINIGAME_FOR_ARCHETYPE: Record<PlantArchetype, MinigameKind> = {
-  // Big open landing pads — settle on them and hold still.
-  daisy: "hover",
-  // Dozens of tiny florets up a stalk. Work them one at a time.
-  spike: "taps",
-  // A dome of florets; follow the ones that open.
-  umbel: "cue",
-  // Low woodland flowers you have to hold yourself over.
-  low: "hover",
-  // A whole shrub of tiny blooms to work through.
-  shrub: "taps",
-  // A tree in flower — follow the blossoms.
-  tree: "cue",
+  // Dozens of tiny florets up a stalk, and a dome of them: keep track of which
+  // you have already worked.
+  spike: "memory",
+  umbel: "memory",
+  // Woody things drop things on you.
+  shrub: "seeds",
+  tree: "seeds",
+  // Big open flowers you can take your time over.
+  daisy: "anagram",
+  low: "anagram",
 };
+
+/**
+ * Which game this plant actually plays.
+ *
+ * Almost always the archetype's game. The exception is the anagram, which needs a
+ * name that can make words: `ANAGRAM_WORDS` only has an entry for a plant whose
+ * name clears the bar, so pawpaw (three distinct letters, makes "PAPA"),
+ * jewelweed, heal-all and joe-pye-weed fall back rather than shipping a game that
+ * cannot be won. Use this, never the map directly.
+ */
+export function minigameFor(plant: Plant): MinigameKind {
+  const kind = MINIGAME_FOR_ARCHETYPE[plant.archetype];
+
+  if (kind === "anagram" && !ANAGRAM_WORDS[plant.id]) {
+    return "memory";
+  }
+
+  return kind;
+}
 
 /**
  * The failure rate. Deliberately about one in five: often enough that success
@@ -71,20 +108,20 @@ export type MinigameSpec = {
 };
 
 export const MINIGAME_SPEC: Record<MinigameKind, MinigameSpec> = {
-  hover: {
-    kind: "hover",
-    duration: 4,
-    instruction: "Hold the bee steady inside the ring.",
+  memory: {
+    kind: "memory",
+    duration: 12,
+    instruction: "Match the florets in pairs. Remember where you have been.",
   },
-  taps: {
-    kind: "taps",
-    duration: 5,
-    instruction: "Tap Space to work each floret.",
+  seeds: {
+    kind: "seeds",
+    duration: 12,
+    instruction: "Work the flower without getting hit. Arrows, or the pointer.",
   },
-  cue: {
-    kind: "cue",
-    duration: 6,
-    instruction: "Press the arrow the open flower points to.",
+  anagram: {
+    kind: "anagram",
+    duration: 16,
+    instruction: "Make three words from the flower's name. Four letters or more.",
   },
 };
 

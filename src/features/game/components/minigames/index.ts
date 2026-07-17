@@ -1,7 +1,7 @@
 import type { MinigameKind } from "../../data/pollination";
-import { CueGame } from "./cue";
-import { HoverGame } from "./hover";
-import { TapsGame } from "./taps";
+import { AnagramGame } from "./anagram";
+import { MemoryGame } from "./memory";
+import { SeedsGame } from "./seeds";
 import type { MinigameProps } from "./types";
 
 /**
@@ -14,9 +14,9 @@ export const MINIGAMES: Record<
   MinigameKind,
   (props: MinigameProps) => React.ReactNode
 > = {
-  hover: HoverGame,
-  taps: TapsGame,
-  cue: CueGame,
+  memory: MemoryGame,
+  seeds: SeedsGame,
+  anagram: AnagramGame,
 };
 
 export type { MinigameProps } from "./types";

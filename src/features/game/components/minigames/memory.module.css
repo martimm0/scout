@@ -1,0 +1,50 @@
+.board {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto;
+  aspect-ratio: 4 / 3;
+}
+
+.tile {
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: #d8c9a8;
+  cursor: pointer;
+  transition:
+    transform 120ms ease,
+    background 160ms ease;
+}
+
+.tile:hover:not([data-up="true"]) {
+  transform: translateY(-2px);
+}
+
+.tile[data-up="true"] {
+  cursor: default;
+}
+
+.tile[data-matched="true"] {
+  outline: 2px solid rgba(122, 92, 38, 0.35);
+  opacity: 0.85;
+}
+
+.hint {
+  margin: 0.75rem 0 0;
+  text-align: center;
+  color: #8a7a5e;
+  font-size: 0.9rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile {
+    transition: background 160ms ease;
+  }
+
+  .tile:hover:not([data-up="true"]) {
+    transform: none;
+  }
+}

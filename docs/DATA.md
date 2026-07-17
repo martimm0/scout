@@ -239,6 +239,45 @@ whether they were right or wrong, so it teaches rather than scolds. Wrong option
 have to be *plausible*: a question with three silly answers teaches nothing and
 insults the player.
 
+## Minigames
+
+Pollinating a flower is a quick game, chosen by the plant's `archetype` so a
+species always plays the same way (`MINIGAME_FOR_ARCHETYPE` in `pollination.ts`):
+a dome of florets is `memory`, a woody plant is `seeds`, an open flower is
+`anagram`. Every game feeds one 0 to 1 score into `resolvePollination`, so the
+failure rate lives in exactly one place.
+
+Because they share a resolver, they share a **calibration contract**, and it is
+not a style note: a game whose top score cannot be reached in the time would make
+its archetype permanently harder to pollinate than the others, invisibly. No play
+scores 0, flailing about 0.35, competent about 0.75, and excellent scores 1.0 and
+must be genuinely REACHABLE. A test plays each game optimally and asserts it maxes.
+
+The three games this replaced all failed that last line by having ceilings any
+awake player hit: everyone scored 1.0, so the resolver's floor became the real
+rate and "one visit in five" was quietly a lie. If a new game is ever added, the
+`score` in the debug readout (`?debug=1`) and on the `pollination_resolved`
+analytics event is how you check it.
+
+### The anagram word list
+
+`anagram` needs to know whether a typed word is real and makeable from the plant's
+name. Rather than ship a dictionary, `scripts/build-anagram-words.ts` precomputes,
+per plant, every word its name can make, into `data/anagram-words.ts` (generated,
+committed).
+
+The dictionary is the **intersection** of ENABLE (real words) and a popularity
+list (words people know). Both halves matter, and I got this wrong first: ENABLE
+alone made the table 278KB, larger than the dictionary it was avoiding, and it
+counted words like HALLAL that no player could produce, so the "can this name
+support the game" check lied (it said Heal-All had eleven words; Heal-All has
+three). The intersection is 60KB and the check tells the truth.
+
+A plant qualifies at 8 or more makeable words. Below that, `minigameFor(plant)`
+(NOT the raw archetype map) falls back to `memory`. This is load-bearing: pawpaw's
+name makes only "PAPA", and jewelweed, heal-all and joe-pye-weed are also too thin.
+A test asserts every plant resolves to a game that exists and can be won.
+
 ## Adding things
 
 **A species:** add the record with its `homes`, source a licensed photograph and
@@ -254,3 +293,8 @@ The type system catches the three registries. Nothing else needs to change.
 
 **A badge:** one predicate. **An accessory:** text art, a palette entry, an
 offset, and an `ACCESSORY_INFO` row naming the badge.
+
+**A minigame:** a component under `components/minigames/` behind the `MinigameProps`
+contract, a `MinigameKind` in `pollination.ts`, a `MINIGAME_SPEC` entry, a registry
+row, and the archetypes it serves. Then meet the calibration contract above, and
+prove it with a test: idle near zero, optimal exactly 1.0.

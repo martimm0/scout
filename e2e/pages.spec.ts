@@ -1327,7 +1327,16 @@ test.describe("a popover owns the keyboard", () => {
     await page.waitForTimeout(500);
 
     const after = await readout(page);
+
+    // Position is exact: none of those keys moved the bee horizontally. Altitude
+    // gets a hair of tolerance because the bee bobs gently in place even while
+    // landed, and that idle sway is not the scene reading a keystroke: a fifth of
+    // a unit is the bob, a flight input would be several units a second.
     expect(after.Position).toBe(before.Position);
-    expect(after.Altitude).toBe(before.Altitude);
+    expect(
+      Math.abs(
+        Number.parseFloat(after.Altitude) - Number.parseFloat(before.Altitude),
+      ),
+    ).toBeLessThan(0.5);
   });
 });

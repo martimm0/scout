@@ -6,9 +6,9 @@ import { trackEvent } from "@/lib/analytics";
 import { playSound } from "../audio/sound";
 import {
   FAILURE_MESSAGES,
-  MINIGAME_FOR_ARCHETYPE,
   MINIGAME_SPEC,
   SUCCESS_MESSAGES,
+  minigameFor,
   pickMessage,
   resolvePollination,
 } from "../data/pollination";
@@ -56,12 +56,16 @@ function MinigameRun({ plant }: { plant: Plant }) {
   const recordAttempt = useGameStore((state) => state.recordPollinationAttempt);
   const recordScore = useGameStore((state) => state.recordMinigameScore);
 
-  const kind = MINIGAME_FOR_ARCHETYPE[plant.archetype];
+  // minigameFor, not the raw map: it falls back off the anagram for names that
+  // cannot make enough words.
+  const kind = minigameFor(plant);
   const spec = MINIGAME_SPEC[kind];
   const Game = MINIGAMES[kind];
 
   const [progress, setProgress] = useState(0);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
+  /** Escape asks before it bails, because bailing forfeits the flower. */
+  const [confirming, setConfirming] = useState(false);
 
   /** The latest score a game has reported. Written, never rendered. */
   const scoreRef = useRef(0);
@@ -75,6 +79,9 @@ function MinigameRun({ plant }: { plant: Plant }) {
    * the stats and double-counting the streak.
    */
   const resolvedRef = useRef(false);
+  /** Seconds already elapsed. Carried across pauses so the confirm dialog does
+   *  not hand the clock back to full every time it is opened and cancelled. */
+  const elapsedRef = useRef(0);
 
   useEffect(() => {
     trackEvent({
@@ -146,15 +153,15 @@ function MinigameRun({ plant }: { plant: Plant }) {
    * yet" when the answer is always yes by the time anything reads it.
    */
   useEffect(() => {
-    if (outcome) {
+    if (outcome || confirming) {
       return;
     }
 
     let raf = 0;
-    const started = performance.now();
+    const resumed = performance.now();
 
     const tick = (now: number) => {
-      const elapsed = (now - started) / 1000;
+      const elapsed = elapsedRef.current + (now - resumed) / 1000;
       setProgress(Math.min(1, elapsed / spec.duration));
 
       if (elapsed >= spec.duration) {
@@ -168,14 +175,28 @@ function MinigameRun({ plant }: { plant: Plant }) {
 
     raf = requestAnimationFrame(tick);
 
-    return () => cancelAnimationFrame(raf);
-  }, [outcome, spec.duration, finish]);
+    return () => {
+      cancelAnimationFrame(raf);
+      // Bank the time spent this run, so a pause resumes rather than restarts.
+      elapsedRef.current += (performance.now() - resumed) / 1000;
+    };
+  }, [outcome, confirming, spec.duration, finish]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.code === "Escape") {
         event.preventDefault();
-        endMinigame();
+
+        // Escape does not leave. It asks. Bailing on a hard board used to be a
+        // free reroll: no attempt recorded, streak protected, so the smart play
+        // was to quit any board you did not like until an easy one came up, and
+        // the difficulty would have been decoration. Leaving now forfeits, so it
+        // is worth a question first.
+        if (outcome) {
+          endMinigame();
+        } else {
+          setConfirming((was) => !was);
+        }
 
         return;
       }
@@ -238,6 +259,30 @@ function MinigameRun({ plant }: { plant: Plant }) {
             >
               {outcome.success ? "Carry on" : "Try another"}
             </button>
+          </div>
+        ) : confirming ? (
+          <div className={styles.confirm}>
+            <p className={styles.confirmTitle}>Give up on this flower?</p>
+            <p className={styles.confirmNote}>
+              Leaving now counts as a visit, and most unfinished visits come to
+              nothing. You can keep going instead.
+            </p>
+            <div className={styles.confirmButtons}>
+              <button
+                className={styles.dismiss}
+                onClick={() => setConfirming(false)}
+                type="button"
+              >
+                Keep going
+              </button>
+              <button
+                className={styles.giveUp}
+                onClick={() => finish(scoreRef.current)}
+                type="button"
+              >
+                Give up
+              </button>
+            </div>
           </div>
         ) : (
           <>

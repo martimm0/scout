@@ -42,6 +42,13 @@ arithmetic the whole system runs on, and a honeybee visits thousands of flowers 
 day precisely because so many of them do not take. The game never scolds you for
 it. It tells you what happened and points at the next flower.
 
+This one is load-bearing enough that it was, for a while, quietly false. The
+pollination minigames all had ceilings any awake player hit, so everybody scored
+top marks, so the real failure rate was one in twelve rather than one in five.
+The game was making a claim its own mechanics did not honour. The current games
+have a genuine spread between playing well and playing badly, which is what lets
+the one in five be true.
+
 ## What you do
 
 Fly, and look. Get close to a plant and it introduces itself. Land on it and you
@@ -50,6 +57,12 @@ real photograph, or take off.
 
 - **Space** lands you. **R** reads the entry. **P** takes a photograph.
 - Pollen motes drift over anything you have not met.
+- Pollinating is a quick minigame, chosen by the flower's shape so a species
+  always plays the same way. A dome of florets is a **memory** match (keep track
+  of which you have worked); a woody plant drops acorns and leaves you have to
+  work around, a **dodge**; an open flower gives you its **name to make words
+  from**. Play well and the flower is more likely to take. None of them lasts
+  more than a few seconds.
 - A handful of flowers in every park will not let you pollinate them until you
   have passed their quiz. They are the difficult ones, and the gate is the point:
   milkweed clips its pollen onto your foot and a small bee can lose a leg in the
@@ -111,7 +124,7 @@ Everything above is built and playable. As of the last update:
 - 147 hand-written trivia questions, three for every species
 - 49 photographs, every one licensed and credited
 - 32 badges, 10 accessories, 6 of them earned
-- 159 tests across Chromium, Firefox and WebKit
+- 189 tests across Chromium, Firefox and WebKit
 
 ## Deliberately not doing
 

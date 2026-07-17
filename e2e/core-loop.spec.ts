@@ -163,13 +163,15 @@ test.describe("core loop", () => {
     const minigame = page.getByRole("dialog", { name: /Pollinating/ });
     await expect(minigame).toBeVisible();
 
-    // Play whichever game came up, driven by the kind it says it is.
-    await playMinigame(page, 4);
+    // Play whichever game came up, driven by the kind it says it is. The new
+    // games run 12 to 16 seconds and none of them can be lost or won by flailing,
+    // so this plays right up to the clock.
+    await playMinigame(page, 18);
 
-    // Every attempt resolves within the minigame's duration. It must never hang.
+    // Every attempt resolves. It must never hang, whatever you did.
     await expect(
       minigame.getByText(/Pollinated|Not this time/),
-    ).toBeVisible({ timeout: 12_000 });
+    ).toBeVisible({ timeout: 20_000 });
 
     // Both outcomes teach something, and neither scolds.
     await expect(
