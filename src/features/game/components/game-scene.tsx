@@ -148,6 +148,38 @@ const ACTION_CODES = new Set([
   PHOTO_KEY,
 ]);
 
+/**
+ * True when a popover owns the keyboard.
+ *
+ * The scene listens on WINDOW and calls preventDefault on every key it knows,
+ * which is A, D, W, S, E, Q, F, G, R, P, Space and Shift. Ungated, that means
+ * two things, and both were live bugs:
+ *
+ *  - You cannot type. Both common vowels are in that set, so an input inside a
+ *    popover never sees most letters. There is no way to write PETAL.
+ *  - The keys still FIRE. P during the quiz took a photograph. G during the quiz
+ *    made the bee waggle-dance behind the dialog.
+ *
+ * So while anything is open, the scene takes its hands off the keyboard
+ * entirely. Escape is handled before this gate, because it is how the popovers
+ * are closed.
+ */
+function inputSuspended(ui: {
+  activeEntry: unknown;
+  landedOn: unknown;
+  minigamePlantId: unknown;
+  pollinatorPreviewOpen: boolean;
+  quiz: unknown;
+}) {
+  return Boolean(
+    ui.activeEntry ||
+      ui.landedOn ||
+      ui.minigamePlantId ||
+      ui.quiz ||
+      ui.pollinatorPreviewOpen,
+  );
+}
+
 export type Gesture = "none" | "greet" | "dance";
 
 /** How long the bee holds an about-face before turning back to fly on. */
@@ -356,12 +388,21 @@ function ScoutScene({
       // layout, or with a modifier held, event.key for the D key is not "d".
       const code = event.code;
 
-      if (STEER_CODES.has(code) || ACTION_CODES.has(code)) {
-        event.preventDefault();
-      }
-
+      // Escape first, and always: it is how the popovers are dismissed, so it
+      // has to work even while one of them owns everything else.
       if (code === "Escape") {
         useGameStore.getState().closeEntry();
+
+        return;
+      }
+
+      // A popover is up. Not our keyboard.
+      if (inputSuspended(useGameStore.getState().ui)) {
+        return;
+      }
+
+      if (STEER_CODES.has(code) || ACTION_CODES.has(code)) {
+        event.preventDefault();
       }
 
       // Gestures. Ignore auto-repeat, and don't let one interrupt another
@@ -481,6 +522,12 @@ function ScoutScene({
     };
 
     const handleWheel = (event: WheelEvent) => {
+      // Registered passive:false, so this preventDefault stops the page
+      // scrolling. A popover taller than the viewport could not be scrolled.
+      if (inputSuspended(useGameStore.getState().ui)) {
+        return;
+      }
+
       event.preventDefault();
       scrollAltitudeRef.current += clamp(-event.deltaY * 0.006, -1, 1);
     };
@@ -1168,6 +1215,12 @@ export function GameScene({
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.code !== PHOTO_KEY || event.repeat) {
+        return;
+      }
+
+      // Its own listener, and it had its own copy of the bug: P during the quiz
+      // took a photograph of the dialog you were reading.
+      if (inputSuspended(useGameStore.getState().ui)) {
         return;
       }
 

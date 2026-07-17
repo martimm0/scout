@@ -1,5 +1,4 @@
 import type { TimeWindow } from "../world/daylight";
-import type { AreaId, ParkId } from "../world/terrain";
 import type { Home } from "./plants";
 
 /**

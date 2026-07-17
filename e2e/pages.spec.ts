@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import {
   demandingPlantToSpawn,
   enterGame,
+  findPlant,
   flyToPlant,
   hold,
   readout,
@@ -1251,5 +1252,91 @@ test.describe("customization", () => {
         { timeout: 20_000 },
       )
       .toBe("#00cc88");
+  });
+});
+
+test.describe("a popover owns the keyboard", () => {
+  test("P during the quiz does not take a photograph", async ({ page }) => {
+    test.setTimeout(180_000);
+
+    // enterGame signs in as the default player, so signing in as somebody else
+    // first is pointless: it silently overwrites the cookie.
+    await enterGame(page);
+
+    // Clear the album AFTER that, and as the account that will actually take the
+    // photograph. The album is its own table, so resetProgress does not touch it,
+    // and without this the test is not idempotent: a run that legitimately
+    // catches the bug leaves a photo behind and every later run fails for that
+    // instead of for the bug.
+    const existing = await (await page.request.get("/api/photos")).json();
+    for (const photo of existing.photos as { id: string }[]) {
+      await page.request.delete(`/api/photos/${photo.id}`);
+    }
+
+    expect(await findPlant(page)).toBe(true);
+    await page.keyboard.press("Space");
+    await page.getByRole("button", { name: /quiz/i }).click();
+    await expect(page.getByRole("dialog", { name: /Quiz/i })).toBeVisible();
+
+    // The scene listens on window and this handler had no modal gate at all, so
+    // reading a question and pressing P photographed the dialog.
+    await page.keyboard.press("KeyP");
+    await page.waitForTimeout(800);
+
+    const album = await (await page.request.get("/api/photos")).json();
+    expect(album.photos).toHaveLength(0);
+  });
+
+  test("G during the quiz does not make the bee dance", async ({ page }) => {
+    test.setTimeout(180_000);
+
+    await enterGame(page);
+
+    expect(await findPlant(page)).toBe(true);
+    await page.keyboard.press("Space");
+    await page.getByRole("button", { name: /quiz/i }).click();
+    await expect(page.getByRole("dialog", { name: /Quiz/i })).toBeVisible();
+
+    // The gesture branch checked only "not a repeat, not already gesturing".
+    // The bee waggled behind the dialog you were reading.
+    await page.keyboard.press("KeyG");
+    await page.waitForTimeout(600);
+
+    // Movement is the readout's word for what the bee is doing. A gesture is not
+    // hovering.
+    const state = await readout(page);
+    expect(state.Movement).toBe("Hovering");
+  });
+
+  test("you can type into a popover: the scene stops eating the letters", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+
+    await enterGame(page);
+
+    // The scene preventDefaults A, D, W, S, E, Q, F, G, R, P, Space and Shift on
+    // window, which is most of the alphabet you need and both common vowels.
+    // Nothing in the game could contain a text input until this was gated. Prove
+    // it with the input that already exists on /customize while the scene is not
+    // mounted, and then prove the gate itself here by pressing the same letters
+    // into a popover and checking they do not reach the scene.
+    expect(await findPlant(page)).toBe(true);
+    await page.keyboard.press("Space");
+
+    const menu = page.getByRole("dialog", { name: /Landed/ });
+    await expect(menu).toBeVisible();
+
+    const before = await readout(page);
+
+    // Every key the scene used to swallow. None of them should move the bee.
+    for (const code of ["KeyW", "KeyA", "KeyS", "KeyD", "KeyE", "KeyQ"]) {
+      await page.keyboard.press(code);
+    }
+    await page.waitForTimeout(500);
+
+    const after = await readout(page);
+    expect(after.Position).toBe(before.Position);
+    expect(after.Altitude).toBe(before.Altitude);
   });
 });

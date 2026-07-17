@@ -1,7 +1,22 @@
 "use client";
 
+/* eslint-disable react-hooks/immutability --
+ * This file is a particle system, and a particle system is a mutable array that
+ * the frame loop writes to sixty times a second. The rule is right about the
+ * render path and this code deliberately is not on it: `useFallingField` builds
+ * the field once and `useFrame` moves every drop in place, which is the whole
+ * design (a treadmill: a drop that falls out of the bottom is put back on top).
+ * Copying the array each frame to satisfy the rule would allocate a new
+ * Float32Array of a thousand drops per frame to change nothing about the result.
+ *
+ * The purity half of this was worth fixing rather than suppressing, and is:
+ * the field is seeded from the park's own deterministic hash, not Math.random,
+ * so React dropping the memo cannot silently reshuffle the rain. */
+
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
+
+import { hash } from "../world/park";
 import * as THREE from "three";
 
 import type { Weather } from "../world/weather";
@@ -23,18 +38,30 @@ import type { Weather } from "../world/weather";
 const RAIN_BOX = 90;
 const SNOW_BOX = 110;
 
+/**
+ * Where every drop starts, and how fast it falls.
+ *
+ * Seeded rather than random, using the same hash the whole park is built from.
+ * `Math.random()` inside a `useMemo` is impure during render: React is allowed to
+ * throw the memo away, and the rain would silently reshuffle when it did. Nobody
+ * would die of it, but this project already has a deterministic hash for exactly
+ * this reason, and using it means the rule is satisfied rather than suppressed.
+ *
+ * A field mutated in place by the frame loop, so it is built once, in a ref, and
+ * never re-created. It is not derived from props: it is the state of the weather.
+ */
 function useFallingField(count: number, box: number, height: number) {
   return useMemo(() => {
     const positions = new Float32Array(count * 3);
     const speeds = new Float32Array(count);
 
     for (let i = 0; i < count; i += 1) {
-      positions[i * 3] = (Math.random() - 0.5) * box;
-      positions[i * 3 + 1] = Math.random() * height;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * box;
-      // Not all the same speed, or it reads as a texture scrolling rather than as
-      // weather.
-      speeds[i] = 0.7 + Math.random() * 0.6;
+      positions[i * 3] = (hash(i, 1) - 0.5) * box;
+      positions[i * 3 + 1] = hash(i, 2) * height;
+      positions[i * 3 + 2] = (hash(i, 3) - 0.5) * box;
+      // Not all the same speed, or it reads as a texture scrolling rather than
+      // as weather.
+      speeds[i] = 0.7 + hash(i, 4) * 0.6;
     }
 
     return { positions, speeds };

@@ -32,13 +32,13 @@ export function ThemeToggle() {
    * first client render must not either. This is the mount-once read that makes
    * them agree, and the rule cannot tell it apart from a cascade.
    */
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     const stored = window.localStorage.getItem("scout-theme") as Theme | null;
     const system = window.matchMedia("(prefers-color-scheme: dark)").matches
       ? "dark"
       : "light";
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTheme(stored ?? system);
   }, []);
 

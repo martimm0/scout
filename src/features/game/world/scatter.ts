@@ -9,7 +9,6 @@ import {
   trailStrength,
   waterLevel,
   world,
-  type AreaId,
 } from "./terrain";
 import type { Biome } from "./park";
 
@@ -225,7 +224,6 @@ export function scatterGrass(): Placement[] {
        * the reservoirs are declared at density 0 and the foliage scatter honours
        * that, but the grass scatter had never heard of it.
        */
-      const park = activePark();
       const area = areaAt(px, pz).id;
       const biome = park.biome[area] ?? "mown";
       const planted = park.density[area] ?? 0.3;

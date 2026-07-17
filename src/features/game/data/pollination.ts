@@ -7,10 +7,17 @@
  * someone else got to first. That's what pollinating is actually like.
  */
 
+import type { PlantArchetype } from "./plants";
+
 export type MinigameKind = "hover" | "taps" | "cue";
 
-/** Which game each archetype plays. Learnable, not random. */
-export const MINIGAME_FOR_ARCHETYPE: Record<string, MinigameKind> = {
+/**
+ * Which game each archetype plays. Learnable, not random.
+ *
+ * Typed against `PlantArchetype` rather than `string`, so adding an archetype is
+ * a compile error here rather than a silent fallback to whatever the `??` said.
+ */
+export const MINIGAME_FOR_ARCHETYPE: Record<PlantArchetype, MinigameKind> = {
   // Big open landing pads — settle on them and hold still.
   daisy: "hover",
   // Dozens of tiny florets up a stalk. Work them one at a time.

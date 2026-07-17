@@ -62,7 +62,7 @@ function MinigameRun({ plant }: { plant: Plant }) {
   const recordAttempt = useGameStore((state) => state.recordPollinationAttempt);
   const recordScore = useGameStore((state) => state.recordMinigameScore);
 
-  const kind: MinigameKind = MINIGAME_FOR_ARCHETYPE[plant.archetype] ?? "hover";
+  const kind: MinigameKind = MINIGAME_FOR_ARCHETYPE[plant.archetype];
   const spec = MINIGAME_SPEC[kind];
 
   useEffect(() => {

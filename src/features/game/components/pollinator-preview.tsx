@@ -131,7 +131,6 @@ export function PollinatorPreview({ pollinator }: { pollinator: Pollinator }) {
       root.unmount();
     };
     // Deliberately empty: the root outlives every change to the bee.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // The bee changed. Re-render it into the root that already exists; React
