@@ -11,19 +11,11 @@ import {
   SUCCESS_MESSAGES,
   pickMessage,
   resolvePollination,
-  type MinigameKind,
 } from "../data/pollination";
 import { PLANTS_BY_ID, type Plant } from "../data/plants";
 import { useGameStore } from "../state/game-store";
+import { MINIGAMES } from "./minigames";
 import styles from "./pollination-minigame.module.css";
-
-const ARROWS = ["ArrowUp", "ArrowRight", "ArrowDown", "ArrowLeft"] as const;
-const ARROW_GLYPH: Record<string, string> = {
-  ArrowUp: "↑",
-  ArrowRight: "→",
-  ArrowDown: "↓",
-  ArrowLeft: "←",
-};
 
 type Outcome = {
   success: boolean;
@@ -33,15 +25,17 @@ type Outcome = {
 /**
  * The pollination minigames.
  *
- * Three of them, chosen by the plant's shape so a species always plays the same
- * way and you can learn its rhythm:
+ * One game per plant shape, so a species always plays the same way and you can
+ * learn its rhythm. Every one feeds a single 0 to 1 score into one resolver, so
+ * the failure rate lives in exactly one place.
  *
- *   hover — settle inside a ring and hold still (daisies, woodland flowers)
- *   taps  — work the florets one at a time (spikes, shrubs)
- *   cue   — follow the flower that's open (umbels, flowering trees)
+ * This file is the SHELL. It owns the frame around the game (the scrim, the
+ * panel, the name, the clock, the timer, the resolve, the outcome) and nothing
+ * about how any game is played. Each game is its own component under
+ * `minigames/`, behind the contract in `minigames/types.ts`.
  *
- * All three feed a single 0–1 performance score into one resolver, so the ~20%
- * failure rate lives in exactly one place.
+ * It was one component holding all three games' state at once, which was already
+ * awkward at three.
  */
 export function PollinationMinigame() {
   const plantId = useGameStore((state) => state.ui.minigamePlantId);
@@ -62,8 +56,25 @@ function MinigameRun({ plant }: { plant: Plant }) {
   const recordAttempt = useGameStore((state) => state.recordPollinationAttempt);
   const recordScore = useGameStore((state) => state.recordMinigameScore);
 
-  const kind: MinigameKind = MINIGAME_FOR_ARCHETYPE[plant.archetype];
+  const kind = MINIGAME_FOR_ARCHETYPE[plant.archetype];
   const spec = MINIGAME_SPEC[kind];
+  const Game = MINIGAMES[kind];
+
+  const [progress, setProgress] = useState(0);
+  const [outcome, setOutcome] = useState<Outcome | null>(null);
+
+  /** The latest score a game has reported. Written, never rendered. */
+  const scoreRef = useRef(0);
+  /**
+   * Set synchronously, before anything else, on the first call to `finish`.
+   *
+   * The old guard read the `outcome` STATE, which was safe only because nothing
+   * could call finish twice. Games can end early now, so a deadline tick can race
+   * a completion click inside one frame, and React would batch both: two
+   * `pollinatePlant` calls and two `recordPollinationAttempt` calls, corrupting
+   * the stats and double-counting the streak.
+   */
+  const resolvedRef = useRef(false);
 
   useEffect(() => {
     trackEvent({
@@ -73,109 +84,81 @@ function MinigameRun({ plant }: { plant: Plant }) {
     });
   }, [plant.id, kind]);
 
-  const [progress, setProgress] = useState(0);
-  const [outcome, setOutcome] = useState<Outcome | null>(null);
-
-  // Hover: a drifting target you keep the bee inside of.
-  const [driftX, setDriftX] = useState(0);
-  const [driftY, setDriftY] = useState(0);
-  const [holding, setHolding] = useState(false);
-
-  // Taps: florets worked.
-  const [taps, setTaps] = useState(0);
-  const TAP_TARGET = 14;
-
-  // Cue: the arrow the open flower points to.
-  const [cue, setCue] = useState<string>("ArrowUp");
-  const [cueHits, setCueHits] = useState(0);
-  const [cueMisses, setCueMisses] = useState(0);
-  const CUE_TARGET = 6;
-
-  const scoreRef = useRef(0);
-  // Stamped in an effect, not during render — performance.now() is impure and
-  // React may render this component more than once before it commits.
-  const startedRef = useRef(0);
-
-  useEffect(() => {
-    startedRef.current = performance.now();
+  const reportScore = useCallback((score: number) => {
+    scoreRef.current = Math.max(0, Math.min(1, score));
   }, []);
 
-  /** Fold whatever the player did into one 0–1 number. */
-  const performanceScore = useCallback(() => {
-    if (kind === "hover") {
-      return Math.min(1, scoreRef.current / (spec.duration * 0.75));
-    }
+  const finish = useCallback(
+    (score: number) => {
+      if (resolvedRef.current) {
+        return;
+      }
 
-    if (kind === "taps") {
-      return Math.min(1, taps / TAP_TARGET);
-    }
+      resolvedRef.current = true;
 
-    const attempts = cueHits + cueMisses;
+      // Deterministic-ish per attempt, but genuinely variable: this is the one
+      // place chance enters the game.
+      const roll = Math.random();
+      const success = resolvePollination(score, roll);
 
-    return attempts === 0 ? 0 : Math.min(1, cueHits / CUE_TARGET);
-  }, [kind, spec.duration, taps, cueHits, cueMisses]);
+      recordAttempt(success);
+      recordScore(score);
+      trackEvent({
+        name: "pollination_resolved",
+        plant: plant.id,
+        success,
+        minigame: kind,
+        score: Number(score.toFixed(3)),
+      });
 
-  const finish = useCallback(() => {
-    if (outcome) {
-      return;
-    }
+      if (success) {
+        pollinatePlant(plant.id);
+        playSound("pollinateSuccess");
+      } else {
+        playSound("pollinateFail");
+      }
 
-    const score = performanceScore();
+      setOutcome({
+        success,
+        message: pickMessage(
+          success ? SUCCESS_MESSAGES : FAILURE_MESSAGES,
+          Math.random(),
+        ),
+      });
+    },
+    [plant.id, kind, recordAttempt, recordScore, pollinatePlant],
+  );
 
-    // Deterministic-ish per attempt, but genuinely variable — this is the one
-    // place chance enters the game.
-    const roll = Math.random();
-    const success = resolvePollination(score, roll);
+  const finishEarly = useCallback(
+    (score: number) => finish(score),
+    [finish],
+  );
 
-    recordAttempt(success);
-    recordScore(score);
-    trackEvent({
-      name: "pollination_resolved",
-      plant: plant.id,
-      success,
-      minigame: kind,
-      score: Number(score.toFixed(3)),
-    });
-
-    if (success) {
-      pollinatePlant(plant.id);
-      playSound("pollinateSuccess");
-    } else {
-      playSound("pollinateFail");
-    }
-
-    setOutcome({
-      success,
-      message: pickMessage(
-        success ? SUCCESS_MESSAGES : FAILURE_MESSAGES,
-        Math.random(),
-      ),
-    });
-  }, [plant, kind, outcome, performanceScore, recordAttempt, recordScore, pollinatePlant]);
-
-  // The clock.
+  /**
+   * The clock. It drives the timer bar and nothing else.
+   *
+   * A game that wants the clock starts its own, so the board is not re-rendered
+   * sixty times a second to move a bar it does not draw.
+   *
+   * The start time lives in this effect rather than a ref stamped on mount:
+   * effects run after paint, so the effect IS the start, and a separate ref plus
+   * a `running` flag was two pieces of state to say "has the first effect run
+   * yet" when the answer is always yes by the time anything reads it.
+   */
   useEffect(() => {
     if (outcome) {
       return;
     }
 
     let raf = 0;
+    const started = performance.now();
 
     const tick = (now: number) => {
-      const elapsed = (now - startedRef.current) / 1000;
+      const elapsed = (now - started) / 1000;
       setProgress(Math.min(1, elapsed / spec.duration));
 
-      if (kind === "hover") {
-        // The flower head sways. Chasing it is the game.
-        const t = elapsed;
-        const x = Math.sin(t * 1.7) * 34 + Math.sin(t * 0.7) * 16;
-        const y = Math.cos(t * 1.3) * 26 + Math.sin(t * 2.1) * 10;
-        setDriftX(x);
-        setDriftY(y);
-      }
-
       if (elapsed >= spec.duration) {
-        finish();
+        finish(scoreRef.current);
 
         return;
       }
@@ -186,29 +169,8 @@ function MinigameRun({ plant }: { plant: Plant }) {
     raf = requestAnimationFrame(tick);
 
     return () => cancelAnimationFrame(raf);
-  }, [outcome, kind, spec.duration, finish]);
+  }, [outcome, spec.duration, finish]);
 
-  // Hover: accumulate held time while the pointer is inside the ring.
-  useEffect(() => {
-    if (kind !== "hover" || !holding || outcome) {
-      return;
-    }
-
-    let raf = 0;
-    let last = performance.now();
-
-    const tick = (now: number) => {
-      scoreRef.current += (now - last) / 1000;
-      last = now;
-      raf = requestAnimationFrame(tick);
-    };
-
-    raf = requestAnimationFrame(tick);
-
-    return () => cancelAnimationFrame(raf);
-  }, [kind, holding, outcome]);
-
-  // Keyboard: Space taps, arrows answer cues, Esc/Space dismisses the result.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.code === "Escape") {
@@ -218,53 +180,28 @@ function MinigameRun({ plant }: { plant: Plant }) {
         return;
       }
 
-      if (outcome) {
-        if (event.code === "Space" || event.code === "Enter") {
-          event.preventDefault();
-          endMinigame();
-        }
-
-        return;
-      }
-
-      if (kind === "taps" && event.code === "Space" && !event.repeat) {
+      if (outcome && (event.code === "Space" || event.code === "Enter")) {
         event.preventDefault();
-        setTaps((count) => count + 1);
-        playSound("tap");
-
-        return;
-      }
-
-      if (kind === "cue" && ARROWS.includes(event.code as (typeof ARROWS)[number])) {
-        event.preventDefault();
-
-        if (event.code === cue) {
-          setCueHits((hits) => hits + 1);
-          playSound("tap");
-        } else {
-          setCueMisses((misses) => misses + 1);
-        }
-
-        setCue(ARROWS[Math.floor(Math.random() * ARROWS.length)]);
+        endMinigame();
       }
     };
 
     window.addEventListener("keydown", onKey);
 
     return () => window.removeEventListener("keydown", onKey);
-  }, [kind, cue, outcome, endMinigame]);
+  }, [outcome, endMinigame]);
 
-  const hint = useMemo(() => {
-    if (kind === "taps") {
-      return `${Math.min(taps, TAP_TARGET)} / ${TAP_TARGET} florets`;
-    }
-
-    if (kind === "cue") {
-      return `${Math.min(cueHits, CUE_TARGET)} / ${CUE_TARGET} blossoms`;
-    }
-
-    return holding ? "Holding steady…" : "Get inside the ring";
-  }, [kind, taps, cueHits, holding]);
+  const body = useMemo(
+    () => (
+      <Game
+        duration={spec.duration}
+        finishEarly={finishEarly}
+        plant={plant}
+        reportScore={reportScore}
+      />
+    ),
+    [Game, spec.duration, finishEarly, plant, reportScore],
+  );
 
   return (
     <div className={styles.scrim} role="presentation">
@@ -306,46 +243,7 @@ function MinigameRun({ plant }: { plant: Plant }) {
           <>
             <p className={styles.instruction}>{spec.instruction}</p>
 
-            {/* `data-minigame` is the stable hook the e2e suite drives. It used
-                to find the ring with `[class*="ring"]`, which is a CSS-module
-                hash match: it also caught `.ringCore`, and would catch any
-                future class with "ring" in the middle of it. */}
-            <div className={styles.stage} data-minigame={kind}>
-              {kind === "hover" ? (
-                <div
-                  className={styles.ring}
-                  data-target="hover"
-                  onPointerEnter={() => setHolding(true)}
-                  onPointerLeave={() => setHolding(false)}
-                  style={{
-                    transform: `translate(${driftX}px, ${driftY}px)`,
-                  }}
-                  data-holding={holding}
-                >
-                  <span className={styles.ringCore} />
-                </div>
-              ) : null}
-
-              {kind === "taps" ? (
-                <div className={styles.florets}>
-                  {Array.from({ length: TAP_TARGET }).map((_, index) => (
-                    <span
-                      className={styles.floret}
-                      data-done={index < taps}
-                      key={index}
-                    />
-                  ))}
-                </div>
-              ) : null}
-
-              {kind === "cue" ? (
-                <div className={styles.cue}>
-                  <span className={styles.cueGlyph}>{ARROW_GLYPH[cue]}</span>
-                </div>
-              ) : null}
-            </div>
-
-            <p className={styles.hint}>{hint}</p>
+            {body}
 
             <div className={styles.timer}>
               <span style={{ width: `${(1 - progress) * 100}%` }} />

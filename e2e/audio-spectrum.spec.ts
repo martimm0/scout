@@ -4,7 +4,7 @@
  * than an AudioDestinationNode is the entire trick, and it cannot be expressed
  * honestly in the types it is subverting. */
 import { expect, test } from "@playwright/test";
-import { signIn } from "./helpers";
+import { dismissTutorial, signIn } from "./helpers";
 
 /**
  * The soundtrack has no bass pulse, measured at the output.
@@ -73,8 +73,7 @@ test("nothing throbs: the low end is inaudible against the midrange", async ({
   await page.addInitScript(() => window.localStorage.clear());
   await page.goto("/play");
   await page.waitForTimeout(2500);
-  const skip = page.getByRole("button", { name: "Skip", exact: true });
-  if (await skip.count()) await skip.first().click();
+  await dismissTutorial(page);
   // A real user gesture, on a toggle that is currently OFF. Both halves matter:
   // browsers keep an AudioContext suspended until a gesture, so if a persisted
   // setting has already switched sound "on" at load, nothing is actually audible,

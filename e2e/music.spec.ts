@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { signIn } from "./helpers";
+import { dismissTutorial, signIn } from "./helpers";
 
 declare global {
   interface Window {
@@ -111,8 +111,7 @@ test("the music is varied, and there is nothing droning under it", async ({ page
   await page.goto("/play");
   await page.waitForTimeout(2000);
 
-  const skip = page.getByRole("button", { name: "Skip", exact: true });
-  if (await skip.count()) await skip.first().click();
+  await dismissTutorial(page);
 
   // Turn the sound on, then listen for eight seconds of bars.
   // A real user gesture, on a toggle that is currently OFF. Both halves matter:

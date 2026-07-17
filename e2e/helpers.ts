@@ -172,6 +172,26 @@ export async function resetProgress(page: Page) {
   });
 }
 
+/**
+ * Get the first-flight tutorial out of the way.
+ *
+ * `if (await count()) await click()` is a race, and a lost race is expensive:
+ * this config sets no actionTimeout, so Playwright's default is NO timeout and
+ * the click sits there until the whole test dies at 120s. It has already done
+ * that once, on WebKit, blaming a test about the letter R.
+ *
+ * Bounded, and forgiving: if the tutorial is not up, there is nothing to skip.
+ */
+export async function dismissTutorial(page: Page) {
+  await page
+    .getByRole("button", { name: "Skip", exact: true })
+    .first()
+    .click({ timeout: 8_000 })
+    .catch(() => {
+      // Already dismissed, or never shown. Either is fine.
+    });
+}
+
 export async function enterGame(page: Page, hour: number = TEST_HOUR) {
   await signIn(page.context());
   await resetProgress(page);
@@ -179,11 +199,7 @@ export async function enterGame(page: Page, hour: number = TEST_HOUR) {
   await page.goto(`/play?debug=1&hour=${hour}`);
   await page.waitForTimeout(2500);
 
-  const skip = page.getByRole("button", { name: "Skip", exact: true });
-
-  if (await skip.count()) {
-    await skip.first().click();
-  }
+  await dismissTutorial(page);
 
   await page.waitForTimeout(1200);
 }

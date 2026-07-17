@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   demandingPlantToSpawn,
+  dismissTutorial,
   enterGame,
   findPlant,
   flyToPlant,
@@ -280,8 +281,7 @@ test("a photograph taken in the park lands in the journal, and is of the park", 
   await page.goto("/play?hour=13");
   await page.waitForTimeout(4000);
 
-  const skip = page.getByRole("button", { name: "Skip", exact: true });
-  if (await skip.count()) await skip.first().click();
+  await dismissTutorial(page);
   await page.waitForTimeout(1500);
 
   await page.getByRole("button", { name: /Take a photo/ }).click();
@@ -372,8 +372,7 @@ test("one player cannot read another player's photographs", async ({ page }) => 
   await page.goto("/play?hour=13");
   await page.waitForTimeout(4000);
 
-  const skip = page.getByRole("button", { name: "Skip", exact: true });
-  if (await skip.count()) await skip.first().click();
+  await dismissTutorial(page);
   await page.waitForTimeout(1500);
 
   await page.getByRole("button", { name: /Take a photo/ }).click();
@@ -502,8 +501,7 @@ test.describe("Schenley Park", () => {
     await page.goto("/play?debug=1&hour=13&park=schenley");
     await page.waitForTimeout(5000);
 
-    const skip = page.getByRole("button", { name: "Skip", exact: true });
-    if (await skip.count()) await skip.first().click();
+    await dismissTutorial(page);
 
     const state = await readout(page);
 
@@ -529,8 +527,7 @@ test.describe("Schenley Park", () => {
     await page.goto("/play?park=schenley");
     await page.waitForTimeout(5000);
 
-    const skip = page.getByRole("button", { name: "Skip", exact: true });
-    if (await skip.count()) await skip.first().click();
+    await dismissTutorial(page);
 
     await expect(page.getByText("Debug Overlay")).toHaveCount(0);
     await expect(page.locator("canvas").first()).toBeVisible();
@@ -546,8 +543,7 @@ test.describe("Schenley Park", () => {
     await page.goto("/play?debug=1&hour=13&park=schenley");
     await page.waitForTimeout(5000);
 
-    const skip = page.getByRole("button", { name: "Skip", exact: true });
-    if (await skip.count()) await skip.first().click();
+    await dismissTutorial(page);
 
     const before = await readout(page);
 
@@ -688,8 +684,7 @@ test.describe("the weather is Pittsburgh's weather", () => {
     await page.goto("/play?debug=1&hour=13");
     await page.waitForTimeout(5000);
 
-    const skip = page.getByRole("button", { name: "Skip", exact: true });
-    if (await skip.count()) await skip.first().click();
+    await dismissTutorial(page);
 
     const stats = page.getByRole("complementary", { name: "Scout stats" });
     await expect(stats).toContainText("Heavy snow");
@@ -703,8 +698,7 @@ test.describe("the weather is Pittsburgh's weather", () => {
     await page.goto("/play?hour=13");
     await page.waitForTimeout(4000);
 
-    const skip = page.getByRole("button", { name: "Skip", exact: true });
-    if (await skip.count()) await skip.first().click();
+    await dismissTutorial(page);
 
     const stats = page.getByRole("complementary", { name: "Scout stats" });
 
@@ -732,8 +726,7 @@ test.describe("the weather is Pittsburgh's weather", () => {
       await page.goto(`/play?hour=13&weather=${weather}`);
       await page.waitForTimeout(4500);
 
-      const skip = page.getByRole("button", { name: "Skip", exact: true });
-      if (await skip.count()) await skip.first().click();
+      await dismissTutorial(page);
       await page.waitForTimeout(1200);
 
       return page.evaluate(() => {
@@ -840,8 +833,7 @@ test.describe("the weather is Pittsburgh's weather", () => {
       await page.goto(`/play?hour=13&weather=${weather}`);
       await page.waitForTimeout(4500);
 
-      const skip = page.getByRole("button", { name: "Skip", exact: true });
-      if (await skip.count()) await skip.first().click();
+      await dismissTutorial(page);
       await page.waitForTimeout(1200);
 
       return page.evaluate(() => {
@@ -956,8 +948,7 @@ test.describe("Highland Park", () => {
     await page.goto("/play?debug=1&hour=13&park=highland&weather=clear");
     await page.waitForTimeout(5000);
 
-    const skip = page.getByRole("button", { name: "Skip", exact: true });
-    if (await skip.count()) await skip.first().click();
+    await dismissTutorial(page);
 
     const state = await readout(page);
 
