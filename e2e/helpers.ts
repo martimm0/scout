@@ -224,12 +224,21 @@ export function nearestPlantToSpawn() {
  * seconds of holding an arrow.
  */
 export async function flyTo(page: Page, target: { x: number; z: number }) {
-  // Drop to bloom height first; the flowers are on the ground, not in the sky.
-  await hold(page, "KeyQ", 6000);
+  /**
+   * Climb OVER the park, then navigate. Do not walk through it.
+   *
+   * This used to drop to bloom height first and then fly across at ground level,
+   * which was fine while every target was sixty units away across a lawn. The
+   * park is solid now, so it flew into the first tree it met and ground against
+   * it for the rest of the test: a target 250 units away came out 250 units away,
+   * and the helper reported "the flower is not there" for a flower that was
+   * simply behind a pavilion.
+   *
+   * A player would fly over the wood. So does this. Trees top out near 135 and
+   * the ceiling is 260.
+   */
+  await hold(page, "KeyE", 7000);
 
-  // 22 was tuned when every target was ~60 units away. The demanding flowers
-  // are three times that, and a loop that gives up short of the target reports
-  // "the flower is not there" for a flower that is simply further away.
   for (let step = 0; step < 40; step += 1) {
     const state = await readout(page);
     const here = position(state);
@@ -252,6 +261,12 @@ export async function flyTo(page: Page, target: { x: number; z: number }) {
     if (Math.abs(turn) > 0.08) {
       const ms = Math.min(1400, (Math.abs(turn) / 2) * 1000);
       await hold(page, turn > 0 ? "ArrowRight" : "ArrowLeft", ms);
+    }
+
+    // Stay above the canopy on the way. Losing height mid-crossing is how you
+    // end up inside an oak.
+    if (Number.parseFloat(state.Altitude ?? "0") < 150) {
+      await hold(page, "KeyE", 900);
     }
 
     // Fly at most part of the way, so we don't overshoot and orbit forever.
@@ -306,13 +321,16 @@ export async function flyToPlant(
    */
   const tag = page.getByRole("button", { name: /^Land/ });
 
-  for (let i = 0; i < 14 && !(await tag.count()); i += 1) {
+  // Enough budget to come all the way down from cruising height. `flyTo` now
+  // crosses the park above the canopy, so the descent is 150 units rather than
+  // the 40 it used to be, and altitude is 17 units a second.
+  for (let i = 0; i < 22 && !(await tag.count()); i += 1) {
     const state = await readout(page);
     const altitude = Number.parseFloat(state.Altitude ?? "0");
     const target = plant.position[1];
 
-    await hold(page, altitude > target + 2 ? "KeyQ" : "KeyE", 400);
-    await page.waitForTimeout(300);
+    await hold(page, altitude > target + 2 ? "KeyQ" : "KeyE", 700);
+    await page.waitForTimeout(200);
   }
 
   return (await tag.count()) > 0;
@@ -320,4 +338,60 @@ export async function flyToPlant(
 
 export async function findPlant(page: Page) {
   return flyToPlant(page, nearestPlantToSpawn());
+}
+
+/**
+ * Play whatever minigame came up, badly but earnestly.
+ *
+ * Game-agnostic on purpose. It reads `data-minigame` for the kind and drives the
+ * inputs that kind actually uses, rather than mashing every key in the hope that
+ * one of them lands. The old version found the ring with `[class*="ring"]`, which
+ * is a CSS-module hash match: it also caught `.ringCore`, and would have caught
+ * any future class with "ring" in the middle of it.
+ *
+ * Every lookup here is explicitly bounded. This config sets no `actionTimeout`,
+ * so Playwright's default is NO timeout: a `getAttribute` on an element that has
+ * gone away (because the game resolved while we were playing it) waits forever,
+ * and the test dies at its own 240s limit with nothing useful to say.
+ */
+export async function playMinigame(page: Page, seconds = 4) {
+  const kind = await page
+    .locator("[data-minigame]")
+    .getAttribute("data-minigame", { timeout: 5_000 })
+    .catch(() => null);
+
+  const until = Date.now() + seconds * 1000;
+
+  while (Date.now() < until) {
+    // The game may resolve mid-loop, which takes the stage with it.
+    if ((await page.locator("[data-minigame]").count()) === 0) {
+      break;
+    }
+
+    if (kind === "hover") {
+      const ring = await page
+        .locator('[data-target="hover"]')
+        .boundingBox({ timeout: 1_000 })
+        .catch(() => null);
+
+      if (ring) {
+        await page.mouse.move(ring.x + ring.width / 2, ring.y + ring.height / 2);
+      }
+    }
+
+    if (kind === "taps") {
+      await page.keyboard.press("Space");
+    }
+
+    if (kind === "cue") {
+      // Whatever it is asking for, one of these is it.
+      for (const arrow of ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]) {
+        await page.keyboard.press(arrow);
+      }
+    }
+
+    await page.waitForTimeout(80);
+  }
+
+  return kind;
 }

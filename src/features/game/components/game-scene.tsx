@@ -84,6 +84,8 @@ type DebugState = {
   z: number;
   /** Which physical keys the game is currently seeing held. */
   input: string;
+  /** The last minigame score, 0 to 1. The only window onto the difficulty. */
+  score: number;
 };
 
 /**
@@ -852,6 +854,7 @@ function ScoutScene({
           [...keys]
             .map((code) => code.replace(/^(Key|Arrow|Shift)/, ""))
             .join(" ") || "none",
+        score: store.lastMinigameScore,
       });
     }
   });
@@ -1108,6 +1111,7 @@ export function GameScene({
     x: 0,
     z: 0,
     input: "none",
+    score: 0,
   });
 
   const takePhoto = useCallback(() => {
@@ -1244,6 +1248,10 @@ export function GameScene({
           <div>
             <dt>Speed</dt>
             <dd>{debugState.speed}</dd>
+          </div>
+          <div>
+            <dt>Score</dt>
+            <dd>{debugState.score.toFixed(2)}</dd>
           </div>
           <div>
             <dt>Input</dt>

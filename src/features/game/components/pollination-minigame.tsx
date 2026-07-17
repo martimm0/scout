@@ -60,6 +60,7 @@ function MinigameRun({ plant }: { plant: Plant }) {
   const endMinigame = useGameStore((state) => state.endMinigame);
   const pollinatePlant = useGameStore((state) => state.pollinatePlant);
   const recordAttempt = useGameStore((state) => state.recordPollinationAttempt);
+  const recordScore = useGameStore((state) => state.recordMinigameScore);
 
   const kind: MinigameKind = MINIGAME_FOR_ARCHETYPE[plant.archetype] ?? "hover";
   const spec = MINIGAME_SPEC[kind];
@@ -127,10 +128,13 @@ function MinigameRun({ plant }: { plant: Plant }) {
     const success = resolvePollination(score, roll);
 
     recordAttempt(success);
+    recordScore(score);
     trackEvent({
       name: "pollination_resolved",
       plant: plant.id,
       success,
+      minigame: kind,
+      score: Number(score.toFixed(3)),
     });
 
     if (success) {
@@ -147,7 +151,7 @@ function MinigameRun({ plant }: { plant: Plant }) {
         Math.random(),
       ),
     });
-  }, [plant, outcome, performanceScore, recordAttempt, pollinatePlant]);
+  }, [plant, kind, outcome, performanceScore, recordAttempt, recordScore, pollinatePlant]);
 
   // The clock.
   useEffect(() => {
@@ -302,10 +306,15 @@ function MinigameRun({ plant }: { plant: Plant }) {
           <>
             <p className={styles.instruction}>{spec.instruction}</p>
 
-            <div className={styles.stage}>
+            {/* `data-minigame` is the stable hook the e2e suite drives. It used
+                to find the ring with `[class*="ring"]`, which is a CSS-module
+                hash match: it also caught `.ringCore`, and would catch any
+                future class with "ring" in the middle of it. */}
+            <div className={styles.stage} data-minigame={kind}>
               {kind === "hover" ? (
                 <div
                   className={styles.ring}
+                  data-target="hover"
                   onPointerEnter={() => setHolding(true)}
                   onPointerLeave={() => setHolding(false)}
                   style={{

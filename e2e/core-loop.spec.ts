@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-import { enterGame, findPlant, hold, readout } from "./helpers";
+import {
+  enterGame,
+  findPlant,
+  hold,
+  playMinigame,
+  readout,
+} from "./helpers";
 
 /**
  * The core loop: fly, find, pollinate, learn.
@@ -157,22 +163,8 @@ test.describe("core loop", () => {
     const minigame = page.getByRole("dialog", { name: /Pollinating/ });
     await expect(minigame).toBeVisible();
 
-    // Play whichever game came up: chase the ring, mash Space, answer the cue.
-    for (let i = 0; i < 30; i += 1) {
-      const ring = await page
-        .locator('[class*="ring"]')
-        .first()
-        .boundingBox()
-        .catch(() => null);
-
-      if (ring) {
-        await page.mouse.move(ring.x + ring.width / 2, ring.y + ring.height / 2);
-      }
-
-      await page.keyboard.press("Space");
-      await page.keyboard.press("ArrowUp");
-      await page.waitForTimeout(100);
-    }
+    // Play whichever game came up, driven by the kind it says it is.
+    await playMinigame(page, 4);
 
     // Every attempt resolves within the minigame's duration. It must never hang.
     await expect(

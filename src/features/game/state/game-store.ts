@@ -117,6 +117,12 @@ export type GameState = {
   ui: UIModalState;
   settings: Settings;
   stats: Stats;
+  /**
+   * The last minigame score, 0 to 1. Session-only, deliberately not persisted
+   * and deliberately not in `partialize`: it is a window onto the difficulty,
+   * not progress.
+   */
+  lastMinigameScore: number;
   /** Has the player been shown the first-flight tutorial? */
   tutorialSeen: boolean;
   /** Badges earned but not yet announced on screen. */
@@ -150,6 +156,15 @@ export type GameActions = {
   recordQuiz: (ref: SpeciesRef, correct: number, total: number) => void;
   seePhase: (phase: string) => void;
   recordPollinationAttempt: (succeeded: boolean) => void;
+  /**
+   * The last minigame score, 0 to 1.
+   *
+   * Session-only and never persisted: it exists so the difficulty is observable
+   * from outside. Every game caps at 1.0 for any awake player today, which means
+   * the real failure rate is 8% rather than the 20% the whole game claims, and
+   * nobody noticed because there was no way to look.
+   */
+  recordMinigameScore: (score: number) => void;
   updateSettings: (settings: Partial<Settings>) => void;
   completeTutorial: () => void;
   queueBadges: (badgeIds: string[]) => void;
@@ -311,6 +326,7 @@ function earnedParks(
 }
 
 const initialProgress = {
+  lastMinigameScore: 0,
   discoveredPlants: {},
   discoveredFungi: {},
   quizPassed: {},
@@ -588,6 +604,9 @@ export const useGameStore = create<GameStore>()(
         ? state
         : { seenPhases: { ...state.seenPhases, [phase]: true } },
     ),
+
+  recordMinigameScore: (score) =>
+    set({ lastMinigameScore: Math.max(0, Math.min(1, score)) }),
 
   recordPollinationAttempt: (succeeded) =>
     set((state) => {

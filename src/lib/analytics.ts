@@ -18,7 +18,15 @@ export type GameEvent =
   | { name: "tutorial_completed"; withSound: boolean }
   | { name: "plant_discovered"; plant: string }
   | { name: "pollination_attempted"; plant: string; minigame: string }
-  | { name: "pollination_resolved"; plant: string; success: boolean }
+  | {
+      name: "pollination_resolved";
+      plant: string;
+      success: boolean;
+      /** The minigame score, 0 to 1. Without it we cannot tell a hard game
+       *  from an unfair one, or know whether failure is what drives people off. */
+      minigame: string;
+      score: number;
+    }
   | { name: "badge_earned"; badge: string }
   | { name: "area_entered"; area: string }
   | { name: "offline_run_finished"; pollinated: number; found: number }
