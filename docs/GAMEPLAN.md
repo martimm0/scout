@@ -68,8 +68,19 @@ real photograph, or take off.
   milkweed clips its pollen onto your foot and a small bee can lose a leg in the
   slot; Dutchman's breeches is locked and only a bumblebee queen can force it. A
   naive insect fails at these. So do you, until you understand them.
+- When a flower takes, the bee does a little waggle where you can see it, the
+  moment the panel is out of the way. A real bee dances to tell the hive it found
+  something, so ours dances too.
 - Everything you find goes in the journal: plants, fungi, photographs, places,
   ecology, badges.
+
+You leave a **trail**: a soft fall of pollen or a scatter of sparkle, in a colour
+you pick on the customize page, apart from the rest of the bee. Or none, and you
+fly clean.
+
+And there is one thing in Frick that is not about plants at all. Fly to the top
+of the **Blue Slide** and you ride it down, because a slide is for sliding and it
+would be strange to build the most recognisable thing in the park and not let you.
 
 ## The parks
 

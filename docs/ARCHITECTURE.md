@@ -203,13 +203,29 @@ chrome around it.
 
 1. Read held keys, derive yaw from mouse and arrows (one yaw: the bee's nose, the
    camera and the flight direction are the same thing).
-2. Integrate velocity, clamp to world bounds and to the terrain.
-3. `resolveCollision` pushes out of anything solid. Only the velocity going
+2. The Blue Slide check. Fly into the box at the top of Frick's slide and the
+   frame loop stops integrating flight and instead runs the bee down a scripted
+   line (`world/slide-ride.ts`), which reads the slide's OWN position and rotation
+   off the prop the scene renders, so the ride cannot drift from the model. It
+   owns the bee's position and heading until the run-out, then hands back with a
+   shove and a celebrate gesture. Collision is skipped: the ride is the one time
+   the bee is meant to be inside a landmark.
+3. Otherwise integrate velocity, clamp to world bounds and to the terrain.
+4. `resolveCollision` pushes out of anything solid. Only the velocity going
    *into* a surface is killed; whatever runs along it survives, so you slide
    around a trunk rather than sticking to it.
-4. Discovery: nearest active species within `DISCOVERY_RADIUS`, measured to the
+5. Discovery: nearest active species within `DISCOVERY_RADIUS`, measured to the
    bloom, in 3D.
-5. Camera follow, area detection, ambience, debug readout.
+6. Camera follow, area detection, ambience, debug readout.
+
+Two cosmetic systems hang off the bee's position rather than the loop. The
+**trail** (`pollinator-trail.tsx`) is a particle pool built the same way as the
+weather: a fixed ring of motes dropped into WORLD space at the bee and left
+behind, which is what makes it a trail rather than a cloud pinned to her. Its
+colour is the player's, kept apart from the accent. The **gestures** (`greet`,
+`dance`, `celebrate`) live in a ref the model reads, off the render path; a
+successful pollination bumps a session cue that fires `celebrate` once the panel
+that was covering the bee has closed, so the dance happens where it can be seen.
 
 ## Testing
 

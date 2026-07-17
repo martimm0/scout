@@ -15,6 +15,7 @@ import type { DirectionalLight, Group } from "three";
 import { Vector3 } from "three";
 import {
   countUnlocked,
+  DEFAULT_POLLINATOR,
   parkUnlocked,
   useGameStore,
   type PlayerMovementState,
@@ -23,6 +24,7 @@ import { trackEvent } from "@/lib/analytics";
 import { playSound, setAreaAmbience } from "../audio/sound";
 import { speciesFor } from "../models/pollinators";
 import { PollinatorModel } from "./pollinator-model";
+import { PollinatorTrail } from "./pollinator-trail";
 import { PollinatorPreview } from "./pollinator-preview";
 import { Creek, Foliage, Landmarks, Terrain } from "./frick-park";
 import { SpeciesField } from "./species-field";
@@ -58,6 +60,7 @@ import {
   type Weather,
 } from "../world/weather";
 import {
+  activePark,
   areaAt,
   ceiling,
   setActivePark,
@@ -69,6 +72,7 @@ import {
   PARK_LIST,
   type ParkId,
 } from "../world/terrain";
+import { slideRide, type SlideRide } from "../world/slide-ride";
 import styles from "./game-scene.module.css";
 
 extend(THREE as unknown as Parameters<typeof extend>[0]);
@@ -102,6 +106,15 @@ const MOUSE_SENSITIVITY = 0.0024;
 const TURN_SPEED = 2;
 const CAMERA_DISTANCE = 4.4;
 const CAMERA_HEIGHT = 1.5;
+
+/** The Blue Slide ride: how close to the top catches you, how long the ride
+ *  lasts, how far the bee tips nose-down on the way, and the pause after so the
+ *  run-out does not throw you straight back on. */
+const SLIDE_CATCH_XZ = 12;
+const SLIDE_CATCH_Y = 10;
+const SLIDE_SECONDS = 2.6;
+const SLIDE_PITCH = 0.34;
+const SLIDE_COOLDOWN = 1.5;
 
 /**
  * The control scheme, as physical keys.
@@ -180,13 +193,16 @@ function inputSuspended(ui: {
   );
 }
 
-export type Gesture = "none" | "greet" | "dance";
+export type Gesture = "none" | "greet" | "dance" | "celebrate";
 
 /** How long the bee holds an about-face before turning back to fly on. */
 const GESTURE_DURATION: Record<Gesture, number> = {
   none: 0,
   greet: 1.7,
   dance: 3.4,
+  // A quick joyful hop and barrel roll when a flower takes. Short, so it never
+  // gets in the way of flying on to the next one.
+  celebrate: 1.6,
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -358,6 +374,27 @@ function ScoutScene({
     kind: "none",
     time: 0,
   });
+
+  // A flower just took, and the panel that was covering the bee has closed.
+  // Celebrate now, where it can actually be seen. The cue only ever bumps on a
+  // successful dismissal, so no guard beyond skipping the initial zero.
+  const pollinationCue = useGameStore((state) => state.pollinationCue);
+  useEffect(() => {
+    if (pollinationCue === 0) {
+      return;
+    }
+
+    gestureRef.current = { kind: "celebrate", time: 0 };
+  }, [pollinationCue]);
+  /** The Blue Slide ride, if one is in progress. Kept off React, like the
+   *  gesture: it changes every frame and nothing renders off it. */
+  const slideRef = useRef<{
+    riding: boolean;
+    t: number;
+    cooldown: number;
+    ride: SlideRide | null;
+    forPark: string;
+  }>({ riding: false, t: 0, cooldown: 0, ride: null, forPark: "" });
   const cameraTargetRef = useRef(new Vector3());
   const cameraPositionRef = useRef(new Vector3());
   const directionRef = useRef(new Vector3());
@@ -596,10 +633,52 @@ function ScoutScene({
     const velocity = velocityRef.current;
     const pushOut = pushOutRef.current;
 
-    // Arrows turn the same yaw the mouse turns. There is only one.
+    // The Blue Slide. Fly to the top of Frick's slide and you ride it down: a
+    // silly, discoverable thing the park's most recognisable landmark has always
+    // wanted to let you do. Handled here, before flight, because while riding it
+    // owns the bee's position and heading outright.
+    const slide = slideRef.current;
+    const parkId = activePark().id;
+
+    if (slide.forPark !== parkId) {
+      slide.forPark = parkId;
+      slide.ride = slideRide();
+      slide.riding = false;
+      slide.t = 0;
+    }
+
+    if (slide.cooldown > 0) {
+      slide.cooldown = Math.max(0, slide.cooldown - delta);
+    }
+
+    if (!paused && slide.ride && !slide.riding && slide.cooldown === 0) {
+      const top = slide.ride.top;
+      const caught =
+        Math.hypot(
+          pollinator.position.x - top.x,
+          pollinator.position.z - top.z,
+        ) < SLIDE_CATCH_XZ &&
+        Math.abs(pollinator.position.y - top.y) < SLIDE_CATCH_Y;
+
+      if (caught) {
+        slide.riding = true;
+        slide.t = 0;
+        // Face straight down the slope, at once, and swoosh.
+        yawRef.current = slide.ride.yaw;
+        pollinatorYawRef.current = -slide.ride.yaw;
+        playSound("wing");
+      }
+    }
+
+    const riding = slide.riding && slide.ride !== null;
+
+    // Arrows turn the same yaw the mouse turns. There is only one. The slide
+    // steers for you, so the keys are ignored while you are on it.
     const turnInput = axis(keys, TURN_LEFT, TURN_RIGHT);
 
-    yawRef.current += turnInput * TURN_SPEED * flight.turn * delta;
+    if (!riding) {
+      yawRef.current += turnInput * TURN_SPEED * flight.turn * delta;
+    }
 
     const yaw = yawRef.current;
     const throttle = axis(keys, FLY_BACK, FLY_FORWARD);
@@ -622,59 +701,84 @@ function ScoutScene({
       direction.normalize().multiplyScalar(speed);
     }
 
-    // Responsiveness is what actually separates the species in the hand. A
-    // hoverfly snaps to its target velocity; a butterfly drifts toward it and
-    // keeps drifting after you let go.
-    velocity.lerp(direction, 1 - Math.exp(-delta * 8 * flight.responsiveness));
-    targetPosition.addScaledVector(velocity, delta);
-    targetPosition.y += altitudeInput * ALTITUDE_SPEED * delta;
+    if (riding) {
+      // On the slide, the path owns the bee. Run t down it, accelerating like
+      // gravity (slow at the lip, quick at the bottom), and bounce a little on
+      // every slab. No collision: the ride is the one time the bee is meant to
+      // be inside the landmark.
+      const ride = slide.ride as SlideRide;
+      slide.t += delta / SLIDE_SECONDS;
+      const t = Math.min(1, slide.t);
+      const eased = t * t;
+      const point = ride.at(eased);
+      const bounce = Math.abs(Math.sin(t * Math.PI * 7)) * 0.28;
 
-    targetPosition.x = clamp(targetPosition.x, world().minX + 2, world().maxX - 2);
-    targetPosition.z = clamp(targetPosition.z, world().minZ + 2, world().maxZ - 2);
+      targetPosition.set(point.x, point.y + bounce, point.z);
+      velocity.set(0, 0, 0);
 
-    // The floor follows the ground rather than sitting at a fixed altitude, so
-    // the bee can drop all the way down into the ravine and skim the creek.
-    const ground = terrainHeight(targetPosition.x, targetPosition.z);
-    targetPosition.y = clamp(
-      targetPosition.y,
-      ground + GROUND_CLEARANCE,
-      ceiling(),
-    );
+      if (slide.t >= 1) {
+        // Off the run-out: a shove downhill, a little air, and a cheer.
+        slide.riding = false;
+        slide.cooldown = SLIDE_COOLDOWN;
+        velocity.copy(forward).multiplyScalar(BASE_SPEED * flight.speed * 0.7);
+        velocity.y = 5;
+        gestureRef.current = { kind: "celebrate", time: 0 };
+      }
+    } else {
+      // Responsiveness is what actually separates the species in the hand. A
+      // hoverfly snaps to its target velocity; a butterfly drifts toward it and
+      // keeps drifting after you let go.
+      velocity.lerp(direction, 1 - Math.exp(-delta * 8 * flight.responsiveness));
+      targetPosition.addScaledVector(velocity, delta);
+      targetPosition.y += altitudeInput * ALTITUDE_SPEED * delta;
 
-    // The park is solid. Push out of anything the bee is inside, then re-clamp
-    // to the ground: a push-out can shove you sideways into a hillside, and the
-    // terrain has to win that argument or you end up buried.
-    const resolved = resolveCollision(
-      targetPosition.x,
-      targetPosition.y,
-      targetPosition.z,
-    );
+      targetPosition.x = clamp(targetPosition.x, world().minX + 2, world().maxX - 2);
+      targetPosition.z = clamp(targetPosition.z, world().minZ + 2, world().maxZ - 2);
 
-    if (resolved.hit) {
-      // Which way the world had to shove us. That is the surface normal, near
-      // enough, and it is the only direction the bee is not allowed to travel.
-      pushOut
-        .set(
-          resolved.x - targetPosition.x,
-          resolved.y - targetPosition.y,
-          resolved.z - targetPosition.z,
-        )
-        .normalize();
-
-      targetPosition.set(resolved.x, resolved.y, resolved.z);
-      targetPosition.y = Math.max(
+      // The floor follows the ground rather than sitting at a fixed altitude, so
+      // the bee can drop all the way down into the ravine and skim the creek.
+      const ground = terrainHeight(targetPosition.x, targetPosition.z);
+      targetPosition.y = clamp(
         targetPosition.y,
-        terrainHeight(targetPosition.x, targetPosition.z) + GROUND_CLEARANCE,
+        ground + GROUND_CLEARANCE,
+        ceiling(),
       );
 
-      // Kill only the velocity going INTO the wall, and keep whatever was
-      // running along it, so the bee slides down a trunk rather than sticking to
-      // it. Damping the whole vector instead would cut your speed by two thirds
-      // for every frame you so much as brushed a leaf.
-      const into = velocity.dot(pushOut);
+      // The park is solid. Push out of anything the bee is inside, then re-clamp
+      // to the ground: a push-out can shove you sideways into a hillside, and the
+      // terrain has to win that argument or you end up buried.
+      const resolved = resolveCollision(
+        targetPosition.x,
+        targetPosition.y,
+        targetPosition.z,
+      );
 
-      if (into < 0) {
-        velocity.addScaledVector(pushOut, -into);
+      if (resolved.hit) {
+        // Which way the world had to shove us. That is the surface normal, near
+        // enough, and it is the only direction the bee is not allowed to travel.
+        pushOut
+          .set(
+            resolved.x - targetPosition.x,
+            resolved.y - targetPosition.y,
+            resolved.z - targetPosition.z,
+          )
+          .normalize();
+
+        targetPosition.set(resolved.x, resolved.y, resolved.z);
+        targetPosition.y = Math.max(
+          targetPosition.y,
+          terrainHeight(targetPosition.x, targetPosition.z) + GROUND_CLEARANCE,
+        );
+
+        // Kill only the velocity going INTO the wall, and keep whatever was
+        // running along it, so the bee slides down a trunk rather than sticking
+        // to it. Damping the whole vector instead would cut your speed by two
+        // thirds for every frame you so much as brushed a leaf.
+        const into = velocity.dot(pushOut);
+
+        if (into < 0) {
+          velocity.addScaledVector(pushOut, -into);
+        }
       }
     }
 
@@ -725,7 +829,13 @@ function ScoutScene({
       clamp(-turnInput * 0.2 * (hasMovementInput ? 1 : 0.45), -0.24, 0.24) +
       (hasMovementInput ? 0 : Math.sin(elapsed * 3) * 0.03);
 
-    movementState.current = isPollinating
+    // Nose down along the slope while riding, level otherwise. The model tips
+    // itself for flight; this is the whole body pitching to follow the slide.
+    pollinator.rotation.x = riding ? SLIDE_PITCH : 0;
+
+    movementState.current = riding
+      ? "Flying"
+      : isPollinating
       ? "Pollinating"
       : isBoosting
       ? "Boosting"
@@ -981,6 +1091,16 @@ function ScoutScene({
           pollinator={selectedPollinator}
         />
       </group>
+
+      {/* A sibling, NOT a child of the group above: the motes are dropped into
+          world space and left behind, which is what makes it a trail. It reads
+          the bee's position from the same ref. `burst` puffs on a success. */}
+      <PollinatorTrail
+        burst={pollinationCue}
+        color={selectedPollinator.trailColor ?? DEFAULT_POLLINATOR.trailColor}
+        effect={selectedPollinator.trailEffect}
+        sourceRef={pollinatorRef}
+      />
     </>
   );
 }

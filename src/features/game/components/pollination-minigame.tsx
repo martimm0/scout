@@ -55,6 +55,9 @@ function MinigameRun({ plant }: { plant: Plant }) {
   const pollinatePlant = useGameStore((state) => state.pollinatePlant);
   const recordAttempt = useGameStore((state) => state.recordPollinationAttempt);
   const recordScore = useGameStore((state) => state.recordMinigameScore);
+  const signalPollinationCue = useGameStore(
+    (state) => state.signalPollinationCue,
+  );
 
   // minigameFor, not the raw map: it falls back off the anagram for names that
   // cannot make enough words.
@@ -142,6 +145,21 @@ function MinigameRun({ plant }: { plant: Plant }) {
   );
 
   /**
+   * Close the panel, and if the flower took, ask the scene to celebrate.
+   *
+   * The cue is bumped HERE, on dismissal, not at `finish`: `finish` shows the
+   * "Pollinated" panel, which is exactly what is covering the bee. Firing the
+   * hop the moment the panel is gone is the whole point of it.
+   */
+  const dismiss = useCallback(() => {
+    if (outcome?.success) {
+      signalPollinationCue();
+    }
+
+    endMinigame();
+  }, [outcome, signalPollinationCue, endMinigame]);
+
+  /**
    * The clock. It drives the timer bar and nothing else.
    *
    * A game that wants the clock starts its own, so the board is not re-rendered
@@ -193,7 +211,7 @@ function MinigameRun({ plant }: { plant: Plant }) {
         // the difficulty would have been decoration. Leaving now forfeits, so it
         // is worth a question first.
         if (outcome) {
-          endMinigame();
+          dismiss();
         } else {
           setConfirming((was) => !was);
         }
@@ -203,14 +221,14 @@ function MinigameRun({ plant }: { plant: Plant }) {
 
       if (outcome && (event.code === "Space" || event.code === "Enter")) {
         event.preventDefault();
-        endMinigame();
+        dismiss();
       }
     };
 
     window.addEventListener("keydown", onKey);
 
     return () => window.removeEventListener("keydown", onKey);
-  }, [outcome, endMinigame]);
+  }, [outcome, dismiss]);
 
   const body = useMemo(
     () => (
@@ -254,7 +272,7 @@ function MinigameRun({ plant }: { plant: Plant }) {
             <button
               autoFocus
               className={styles.dismiss}
-              onClick={endMinigame}
+              onClick={dismiss}
               type="button"
             >
               {outcome.success ? "Carry on" : "Try another"}

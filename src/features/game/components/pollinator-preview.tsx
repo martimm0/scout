@@ -5,8 +5,9 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
 import type { Group } from "three";
 
-import type { Pollinator } from "../state/game-store";
+import { DEFAULT_POLLINATOR, type Pollinator } from "../state/game-store";
 import { PollinatorModel } from "./pollinator-model";
+import { PollinatorTrail } from "./pollinator-trail";
 import styles from "./pollinator-preview.module.css";
 
 /**
@@ -57,6 +58,14 @@ function PreviewScene({ pollinator }: { pollinator: Pollinator }) {
       <group ref={pollinatorRef} scale={1.45}>
         <PollinatorModel animationState="hovering" pollinator={pollinator} />
       </group>
+      {/* Everything you change shows up here, the trail included. The motes are
+          scaled to the blown-up preview model. */}
+      <PollinatorTrail
+        color={pollinator.trailColor ?? DEFAULT_POLLINATOR.trailColor}
+        effect={pollinator.trailEffect}
+        scale={1.45}
+        sourceRef={pollinatorRef}
+      />
     </>
   );
 }

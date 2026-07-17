@@ -121,7 +121,7 @@ function WingPair({
   );
 }
 
-export type Gesture = "none" | "greet" | "dance";
+export type Gesture = "none" | "greet" | "dance" | "celebrate";
 
 /**
  * Renders any pollinator.
@@ -281,6 +281,15 @@ export function PollinatorModel({
         root.position.x += Math.sin(gestureTime * 3.5) * 0.28 * settle;
         root.rotation.z = Math.sin(gestureTime * 7) * 0.4 * settle;
         root.rotation.x += Math.sin(gestureTime * 14) * 0.08 * settle;
+      }
+
+      if (gesture?.kind === "celebrate") {
+        // A flower took. Hop up in an arc and spin a single barrel roll on the
+        // way, easing to a stop. Short and unmistakably pleased.
+        const t = Math.min(1, gestureTime / 1.3);
+        const spin = 1 - (1 - t) * (1 - t) * (1 - t); // easeOutCubic
+        root.position.y += Math.sin(t * Math.PI) * 0.42;
+        root.rotation.z = spin * Math.PI * 2;
       }
     }
 

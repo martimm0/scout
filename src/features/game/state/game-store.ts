@@ -13,10 +13,14 @@ export type Pollinator = {
   bodyColor: string;
   wingColor: string;
   wingStyle: string;
+  /** Which trail follows you: "pollen", "sparkle", or "none". */
   trailEffect: string;
+  /** The colour of that trail. Picked apart from the accent, so a gold hat and
+   *  a pink trail are yours to have. */
+  trailColor: string;
   /** Hat, flower, scarf, or nothing. */
   accessory: string;
-  /** The colour of the accessory and the trail. */
+  /** The colour of the accessory. */
   accentColor: string;
 };
 
@@ -123,6 +127,12 @@ export type GameState = {
    * not progress.
    */
   lastMinigameScore: number;
+  /**
+   * Bumped each time a successful pollination's popover is dismissed. Session-
+   * only, never persisted: it is a one-shot cue for the scene to play the
+   * celebration once the panel is out of the way, not a fact about the save.
+   */
+  pollinationCue: number;
   /** Has the player been shown the first-flight tutorial? */
   tutorialSeen: boolean;
   /** Badges earned but not yet announced on screen. */
@@ -156,6 +166,8 @@ export type GameActions = {
   recordQuiz: (ref: SpeciesRef, correct: number, total: number) => void;
   seePhase: (phase: string) => void;
   recordPollinationAttempt: (succeeded: boolean) => void;
+  /** Ask the scene to celebrate: the bee just pollinated and the panel closed. */
+  signalPollinationCue: () => void;
   /**
    * The last minigame score, 0 to 1.
    *
@@ -186,6 +198,7 @@ export const DEFAULT_POLLINATOR: Pollinator = {
   wingColor: "#dcefff",
   wingStyle: "round",
   trailEffect: "pollen",
+  trailColor: "#f6d15a",
   accessory: "none",
   accentColor: "#c0413b",
 };
@@ -327,6 +340,7 @@ function earnedParks(
 
 const initialProgress = {
   lastMinigameScore: 0,
+  pollinationCue: 0,
   discoveredPlants: {},
   discoveredFungi: {},
   quizPassed: {},
@@ -631,6 +645,9 @@ export const useGameStore = create<GameStore>()(
             },
       };
     }),
+
+  signalPollinationCue: () =>
+    set((state) => ({ pollinationCue: state.pollinationCue + 1 })),
 
   updateSettings: (settings) =>
     set((state) => ({ settings: { ...state.settings, ...settings } })),

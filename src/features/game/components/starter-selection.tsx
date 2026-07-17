@@ -68,6 +68,7 @@ export function StarterSelection() {
               bodyColor: starter.bodyColor,
               name: starter.name,
               trailEffect: starter.trailEffect,
+              trailColor: starter.trailColor,
               type: starter.type,
               wingColor: starter.wingColor,
               wingStyle: starter.wingStyle,

@@ -14,6 +14,7 @@ import {
 import { CloudSyncBadge } from "./cloud-sync-badge";
 import { ColorField } from "./color-field";
 import { PollinatorPreview } from "./pollinator-preview";
+import { trailKind } from "./pollinator-trail";
 import { useGameStore } from "../state/game-store";
 import styles from "./customize.module.css";
 
@@ -40,9 +41,18 @@ const ACCENT_COLORS = [
 ];
 
 const TRAILS = [
-  { id: "pollen", label: "Pollen", note: "A soft dust of gold behind you." },
+  { id: "pollen", label: "Pollen", note: "A soft dust behind you." },
   { id: "sparkle", label: "Sparkle", note: "Bright motes, briefly." },
   { id: "none", label: "None", note: "Fly clean." },
+];
+
+const TRAIL_COLORS = [
+  "#f6d15a",
+  "#ffffff",
+  "#dbe6ef",
+  "#f2a9c4",
+  "#8fd6a6",
+  "#c8a2ff",
 ];
 
 const WING_STYLE_NOTES: Record<string, string> = {
@@ -263,6 +273,16 @@ export function Customize() {
           </div>
         </section>
 
+        {/* A colour is meaningless with nothing to colour, so it appears only
+            once a trail is chosen. */}
+        {trailKind(pollinator.trailEffect) !== "none" ? (
+          <ColorField
+            colors={TRAIL_COLORS}
+            label="Trail colour"
+            onPick={(trailColor) => set({ trailColor })}
+            value={pollinator.trailColor ?? "#f6d15a"}
+          />
+        ) : null}
 
         <div className={styles.actions}>
           <Button disabled={!validation.valid} onClick={save} type="button">

@@ -175,7 +175,7 @@ when a plant or badge is added.
 
 ```ts
 type SavedProgress = {
-  pollinator: {...};              // name, species, colours, accessory, trail
+  pollinator: {...};              // name, species, colours, accessory, trail + its own colour
   discoveredPlants, discoveredFungi, quizPassed: Record<string, boolean>;
   pollinatedPlants, unlockedMapAreas, unlockedParks: Record<string, boolean>;
   unlockedBadges, unlockedJournalEntries, seenPhases: Record<string, boolean>;
