@@ -1,0 +1,83 @@
+.gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+
+/* A fixed 928x647 capture, held to that ratio so nothing letterboxes. */
+.frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 928 / 647;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: #c7dfb2;
+  box-shadow: 0 22px 55px rgba(32, 37, 29, 0.22);
+}
+
+.slide {
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 900ms ease;
+}
+
+.slide[data-active="true"] {
+  opacity: 1;
+}
+
+/* Readable on any frame: its own scrim, not the page's tokens. */
+.caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  padding: 34px 20px 16px;
+  color: #ffffff;
+  font-size: 0.98rem;
+  font-weight: 600;
+  line-height: 1.4;
+  background: linear-gradient(180deg, transparent, rgba(16, 20, 12, 0.82));
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+}
+
+.dots {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--border);
+  cursor: pointer;
+  transition:
+    background 200ms ease,
+    transform 200ms ease;
+}
+
+.dot:hover {
+  background: var(--muted);
+}
+
+.dot[data-active="true"] {
+  background: var(--primary);
+  transform: scale(1.25);
+}
+
+.dot:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide {
+    transition: none;
+  }
+}

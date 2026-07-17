@@ -183,6 +183,20 @@ player can learn where things are and come back to them.
 This is also what lets the e2e suite *import the scatter* and fly to a known
 plant, instead of flying a random spiral and hoping.
 
+### 10. The HUD keeps its own light
+
+The park is always lit: the 3D scene has its own day and night and pays no
+attention to the site's light/dark toggle. So the HUD that floats over it stays a
+**light island** whatever the page theme is, by pinning the light-mode design
+tokens as locals on the scene's `.shell`. Everything inside then resolves to light
+values, and the Scout Stats and Controls panels read as dark ink on white even in
+dark mode.
+
+Without this the panels inherited the page's dark tokens and drew pale text on
+their own pale surfaces: light-on-light, unreadable, over a scene that was bright
+regardless. A panel that sits over the game answers to the game, not to the
+chrome around it.
+
 ## The frame loop
 
 `ScoutScene` in `game-scene.tsx`. Per frame, in order:

@@ -4,6 +4,31 @@
   min-height: 560px;
   overflow: hidden;
   background: #c7dfb2;
+
+  /**
+   * The HUD keeps its own light, whatever the page theme is.
+   *
+   * The floating panels are always a pale glass over the park, and the park is
+   * always lit (it has its own night, on Pittsburgh time, but it is never the
+   * page's dark theme). In dark mode the panels stayed pale while their text,
+   * which read `var(--foreground)`, went pale with the theme: pale ink on a pale
+   * panel, which is what the stats and the weather were unreadable against.
+   *
+   * Rather than hand-swap two dozen colours, the scene pins the light palette as
+   * locals, so everything under here resolves to light values and the HUD is a
+   * light-themed island floating over a lit park. This is the same idea as the
+   * scene forcing its own background above.
+   */
+  --foreground: #20251d;
+  --muted: #5c6653;
+  --surface: #ffffff;
+  --surface-soft: #edf4e6;
+  --border: #d6decf;
+  --primary: #3c7d4a;
+  --primary-dark: #255634;
+  --accent: #d69a2d;
+  --accent-soft: #faebc8;
+  --shadow: 0 18px 45px rgba(32, 37, 29, 0.18);
 }
 
 .canvasWrap {
@@ -338,15 +363,26 @@
   font-weight: 600;
 }
 
-/* Collapsible controls overlay. */
+/*
+ * Collapsible controls overlay.
+ *
+ * The old toggle was the "Controls" label with a faint chevron floated to the
+ * right, which did not read as a control: it looked like a heading that happened
+ * to have an arrow near it, and there was nothing to tell you the panel folded
+ * away. The whole header is still the button, but the affordance is now an
+ * explicit "Hide" / "Show" pill with the chevron in it, so it is obviously a
+ * thing you press.
+ */
 .controlsToggle {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   width: 100%;
-  padding: 0;
+  margin: -4px -4px 0;
+  padding: 4px;
   border: 0;
+  border-radius: 8px;
   background: none;
   cursor: pointer;
   color: inherit;
@@ -354,18 +390,41 @@
   text-align: left;
 }
 
-.controlsToggle:hover .controlsChevron {
-  opacity: 1;
+.controlsToggle:hover,
+.controlsToggle:focus-visible {
+  background: var(--surface-soft);
+  outline: none;
+}
+
+.controlsToggleCue {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px 3px 10px;
+  border: 1px solid rgba(37, 86, 52, 0.28);
+  border-radius: 999px;
+  color: var(--primary-dark);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.controlsToggle:hover .controlsToggleCue,
+.controlsToggle:focus-visible .controlsToggleCue {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
 }
 
 .controlsChevron {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   line-height: 1;
-  opacity: 0.55;
-  transition: transform 140ms ease, opacity 140ms ease;
+  transition: transform 140ms ease;
 }
 
-.controlsChevron[data-open="false"] {
+.controlsToggleCue[data-open="false"] .controlsChevron {
   transform: rotate(-90deg);
 }
 

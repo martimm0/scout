@@ -1317,13 +1317,17 @@ export function GameScene({
       <aside className={styles.controlsPanel} aria-label="Flight controls">
         <button
           aria-expanded={controlsOpen}
+          aria-label={controlsOpen ? "Hide the controls" : "Show the controls"}
           className={styles.controlsToggle}
           onClick={() => setControlsOpen((open) => !open)}
           type="button"
         >
           <span className={styles.debugLabel}>Controls</span>
-          <span aria-hidden className={styles.controlsChevron} data-open={controlsOpen}>
-            ▾
+          <span className={styles.controlsToggleCue} data-open={controlsOpen}>
+            <span>{controlsOpen ? "Hide" : "Show"}</span>
+            <span aria-hidden className={styles.controlsChevron}>
+              ▾
+            </span>
           </span>
         </button>
 

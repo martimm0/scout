@@ -1,15 +1,15 @@
-import Image from "next/image";
-
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { IMAGE_ASSETS } from "@/lib/assets";
+
+import { HomeGallery } from "./home-gallery";
 
 /**
  * The landing page.
  *
- * It used to advertise the build status — "Next.js App Router", "Route
- * placeholders" — which is a thing nobody has ever wanted to read. It sells the
- * game now.
+ * It used to advertise the build status ("Next.js App Router", "Route
+ * placeholders"), a thing nobody has ever wanted to read. It sells the game
+ * now: one line, two buttons, and real frames from the game rotating through
+ * the parks, the weather and the clock.
  */
 export default function HomePage() {
   return (
@@ -19,11 +19,9 @@ export default function HomePage() {
           <p className="eyebrow">Pittsburgh, Pennsylvania</p>
           <h1>You are a bee.</h1>
           <p className="lead">
-            About a centimetre long, loose in the real parks of Pittsburgh. The
-            grass comes up past your head, an oak is a mountain, and the Blue
-            Slide is a hillside you could spend an afternoon climbing. Three
-            parks, and every plant in them is a real species that really grows
-            there. Go and find out what.
+            A centimetre long, loose in the real parks of Pittsburgh. Every
+            plant is a real species that really grows there. Go and find out
+            what.
           </p>
           <div className="actions">
             <Button href="/play">Fly</Button>
@@ -33,53 +31,40 @@ export default function HomePage() {
           </div>
         </div>
 
-        <Image
-          alt="Scout, a bee, over Pittsburgh"
-          height={320}
-          priority
-          src={IMAGE_ASSETS.characterAndBanner}
-          width={480}
-        />
+        <HomeGallery />
       </section>
 
       <section>
         <h2>What you do</h2>
         <div className="grid">
-          <Card title="Find twenty-six native plants">
-            Milkweed, wild bergamot, trout lily, cardinal flower, pickerelweed.
-            Real species, in the habitats where they actually grow: spring
-            ephemerals under the ravine, jewelweed down by the creek, goldenrod in
-            the rough. Twelve fungi too, and you cannot pollinate any of them.
+          <Card title="Fly, and look">
+            Get close and a plant introduces itself. Land, and pollinate it,
+            take its quiz, or photograph it.
           </Card>
-          <Card title="Pollinate them, mostly">
-            About one flower visit in five comes to nothing. Wind, timing, or
-            somebody got there first. That isn&apos;t you failing. It is the
-            arithmetic the whole system runs on.
+          <Card title="Pollinate, mostly">
+            One flower visit in five comes to nothing. That is the arithmetic
+            the whole system runs on, not you failing.
           </Card>
-          <Card title="Learn why it matters">
-            Goldenrod doesn&apos;t cause your hay fever. Milkweed hands you pollen
-            like luggage. A trillium takes seven years to reach its first flower.
-            The journal fills as you go.
+          <Card title="Learn why">
+            Milkweed hands you pollen like luggage. Goldenrod is innocent of
+            your hay fever. The journal fills as you go.
           </Card>
         </div>
       </section>
 
       <section>
-        <h2>Real parks</h2>
+        <h2>Three real parks</h2>
         <div className="grid">
-          <Card title="Frick Park">
-            Six hundred acres with a creek at the bottom of it. The Blue Slide,
-            Nine Mile Run dug back out from under a century of slag, and hemlock
-            ravines too steep to hold their own soil.
+          <Card title="Frick">
+            A wood with a creek at the bottom of it. You start here.
           </Card>
-          <Card title="Schenley Park">
-            Glass and mown lawns on top, Phipps Conservatory on the plateau, and
-            then the ground opens into Panther Hollow: a hundred feet deep, with
-            four bronze panthers on the bridge above it.
+          <Card title="Schenley">
+            Mown lawns on top, then the ground tears open into Panther Hollow, a
+            hundred feet deep.
           </Card>
-          <Card title="Highland Park">
-            Water on a hilltop. Two enormous walled reservoirs, the fountain at
-            Lake Carnegie, and the wooded slope falling away to the Allegheny.
+          <Card title="Highland">
+            A lake on top of a hill: two walled reservoirs holding the city&apos;s
+            drinking water.
           </Card>
         </div>
       </section>

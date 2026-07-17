@@ -216,6 +216,18 @@ textarea:focus-visible {
   margin-bottom: 40px;
 }
 
+/* The gallery is the show here, so give it the wider half of the split. */
+.home-hero {
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 560px);
+  gap: 48px;
+  margin-bottom: 56px;
+}
+
+/* Let the sections breathe: the old page ran them together and read crowded. */
+.page-container > section + section {
+  margin-top: 48px;
+}
+
 .home-hero .page-header,
 .placeholder-hero .page-header {
   margin-bottom: 0;
