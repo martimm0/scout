@@ -15,14 +15,19 @@ import { activePark, landmarks, terrainHeight } from "./terrain";
  * there marks the numbers this depends on.
  */
 
-// From blueSlide() in models/landmarks.ts: the slabs run local z -46 (the top,
-// at y 34) to z +46 (the bottom, at y 2), each 4 units tall, so a slab's top
-// face is 2 above its centre. The bee rides a touch above that.
+// From blueSlide() in models/landmarks.ts: STEPS slabs run local z -46 (the top,
+// at y 34) down to z +46 (the bottom, at y 2), each 4 units tall, so a slab's
+// top face is 2 above its centre. The slide is a STAIRCASE, not a ramp, and that
+// is the whole reason this file exists: a straight line from top to bottom cuts
+// UNDER the front of every step, and the bee vanishes into the concrete. So the
+// ride hugs the step it is actually over.
 const TOP_Z = -46;
 const BOTTOM_Z = 46;
 const TOP_Y = 34;
 const DROP = 32;
-const SURFACE = 2 + 0.6;
+const STEPS = 14;
+/** How far above a slab's top face the bee rides. */
+const CLEARANCE = 0.9;
 
 export type SlidePoint = { x: number; y: number; z: number };
 
@@ -53,10 +58,24 @@ export function slideRide(): SlideRide | null {
   // The prop settles `sink` into the ground (default 1), exactly as it renders.
   const base = terrainHeight(x0, z0) - (prop.sink ?? 1);
 
+  // The top face of slab `index`, in local y.
+  const slabTop = (index: number) => TOP_Y - (index / (STEPS - 1)) * DROP + 2;
+
   const at = (t: number): SlidePoint => {
     const clamped = Math.max(0, Math.min(1, t));
     const lz = TOP_Z + clamped * (BOTTOM_Z - TOP_Z);
-    const ly = TOP_Y - clamped * DROP + SURFACE;
+
+    // Which step the bee is over, and how far across it. Hold the near step's
+    // height for most of the tread, then ease down to the next only as the bee
+    // actually reaches it, so the path sits ON the staircase and never dips into
+    // the riser ahead of it.
+    const raw = clamped * (STEPS - 1);
+    const step = Math.min(STEPS - 2, Math.floor(raw));
+    const across = raw - step;
+    const drop = across < 0.55 ? 0 : (across - 0.55) / 0.45;
+    const smooth = drop * drop * (3 - 2 * drop);
+    const ly =
+      slabTop(step) + (slabTop(step + 1) - slabTop(step)) * smooth + CLEARANCE;
 
     return {
       x: x0 + lz * Math.sin(rotation),

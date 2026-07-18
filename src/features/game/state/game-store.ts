@@ -197,7 +197,9 @@ export const DEFAULT_POLLINATOR: Pollinator = {
   bodyColor: "#f2bb42",
   wingColor: "#dcefff",
   wingStyle: "round",
-  trailEffect: "pollen",
+  // Fly clean by default; a trail is something the player opts into. The colour
+  // is still set, so choosing a trail later starts on a sensible gold.
+  trailEffect: "none",
   trailColor: "#f6d15a",
   accessory: "none",
   accentColor: "#c0413b",

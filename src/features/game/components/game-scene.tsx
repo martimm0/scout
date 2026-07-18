@@ -112,7 +112,7 @@ const CAMERA_HEIGHT = 1.5;
  *  run-out does not throw you straight back on. */
 const SLIDE_CATCH_XZ = 12;
 const SLIDE_CATCH_Y = 10;
-const SLIDE_SECONDS = 2.6;
+const SLIDE_SECONDS = 3.6;
 const SLIDE_PITCH = 0.34;
 const SLIDE_COOLDOWN = 1.5;
 
@@ -709,9 +709,13 @@ function ScoutScene({
       const ride = slide.ride as SlideRide;
       slide.t += delta / SLIDE_SECONDS;
       const t = Math.min(1, slide.t);
-      const eased = t * t;
+      // Ease out onto the run-out rather than accelerating like the old t-squared
+      // did: that made the bottom a blur that clipped through the concrete. The
+      // path already hugs the steps, so the bounce only nudges the bee UP, never
+      // down into them.
+      const eased = t * (2 - t);
       const point = ride.at(eased);
-      const bounce = Math.abs(Math.sin(t * Math.PI * 7)) * 0.28;
+      const bounce = Math.abs(Math.sin(t * Math.PI * 7)) * 0.14;
 
       targetPosition.set(point.x, point.y + bounce, point.z);
       velocity.set(0, 0, 0);

@@ -65,8 +65,9 @@ test.describe("the Blue Slide", () => {
 
     const startAltitude = Number.parseFloat((await readout(page)).Altitude ?? "0");
 
-    // Let the ride run. It carries the bee down the slabs to the run-out.
-    await page.waitForTimeout(2600);
+    // Let the ride run its full length. It carries the bee down the slabs to the
+    // run-out with no input from us.
+    await page.waitForTimeout(4200);
     const end = await readout(page);
     const endAltitude = Number.parseFloat(end.Altitude ?? "0");
     const endZ = Number(/z\s*(-?[\d.]+)/.exec(end.Position ?? "")?.[1] ?? "0");
