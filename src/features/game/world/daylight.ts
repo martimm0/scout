@@ -179,8 +179,13 @@ export function daylightForHour(hour: number): Daylight {
     hemiIntensity: lerp(0.85, 1.35, light),
 
     fogColor: mix("#2c3757", "#d2e2f0", light),
-    // Night closes in around you. It should feel smaller and less certain.
-    fogDensity: lerp(0.0022, 0.001, light),
+    // Night closes in around you: it should feel smaller and less certain. A
+    // clear day does the opposite, and the daytime floor is deliberately low so
+    // the far ridge and the opposite bank read as distance rather than dissolving
+    // into haze a few hundred units out. The park is enormous, and on a fine day
+    // you should be able to SEE that it is. Weather still closes it back in: the
+    // fog and rain multipliers in `weather.ts` sit on top of this.
+    fogDensity: lerp(0.0022, 0.00065, light),
     turbidity: lerp(2, 5, light),
     rayleigh: lerp(0.4, 1.2, light),
   };
