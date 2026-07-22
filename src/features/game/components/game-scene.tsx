@@ -1105,10 +1105,10 @@ function ScoutScene({
           than at a hard border. Night closes in tighter. */}
       <fogExp2 args={[sky.fogColor, sky.fogDensity]} attach="fog" />
 
-      <Terrain />
+      <Terrain month={month} />
       <Creek />
       <Landmarks />
-      <Foliage />
+      <Foliage month={month} />
       <SpeciesField hour={daylight.hour} month={month} instances={species} />
 
       {/* What is actually falling on Pittsburgh right now. */}

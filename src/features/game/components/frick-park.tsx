@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { InstancedMesh, Object3D, type BufferGeometry } from "three";
+import { Color, InstancedMesh, Object3D, type BufferGeometry } from "three";
 
 import { buildFoliageGeometry, type FoliageKind } from "../models/foliage";
 import { buildLandmarkGeometry } from "../models/landmarks";
 import { scatterFoliage, scatterGrass, type Placement } from "../world/scatter";
+import { seasonLook } from "../world/season";
 import { buildTerrainGeometry } from "../world/terrain-mesh";
 import {
   activePark,
@@ -14,6 +15,43 @@ import {
   world,
 } from "../world/terrain";
 import { PROPS_BY_PARK } from "../world/parks/props";
+
+/**
+ * Push a geometry's baked vertex colours toward a target, in place.
+ *
+ * The park is built out of colour baked into the mesh, so a season is not a light
+ * switch: it is the wood itself turning. This mixes every vertex toward a seasonal
+ * colour, which is how the canopy goes gold in October and how snow lies white
+ * over everything in January. Done once when the month turns, not per frame.
+ */
+const SNOW = new Color("#eef4fb");
+
+function tintGeometry(
+  geometry: BufferGeometry,
+  tintHex: string,
+  tintMix: number,
+  snow: number,
+) {
+  const colors = geometry.getAttribute("color");
+
+  if (!colors || (tintMix <= 0 && snow <= 0)) {
+    return geometry;
+  }
+
+  const tint = new Color(tintHex);
+  const c = new Color();
+
+  for (let i = 0; i < colors.count; i += 1) {
+    c.fromBufferAttribute(colors, i);
+    if (tintMix > 0) c.lerp(tint, tintMix);
+    if (snow > 0) c.lerp(SNOW, snow);
+    colors.setXYZ(i, c.r, c.g, c.b);
+  }
+
+  colors.needsUpdate = true;
+
+  return geometry;
+}
 
 /** Instanced copies of one prop, placed once and never touched again. */
 function Instances({
@@ -61,8 +99,14 @@ function Instances({
   );
 }
 
-export function Terrain() {
-  const geometry = useMemo(() => buildTerrainGeometry(), []);
+export function Terrain({ month }: { month: number }) {
+  // Rebuilt only when the month turns. Snow lies over the ground in winter; the
+  // rest of the year the terrain keeps its own colours.
+  const seasonKey = Math.floor(month);
+  const geometry = useMemo(() => {
+    const look = seasonLook(seasonKey);
+    return tintGeometry(buildTerrainGeometry(), look.groundTint, look.groundMix, 0);
+  }, [seasonKey]);
 
   useEffect(() => () => geometry.dispose(), [geometry]);
 
@@ -93,8 +137,20 @@ export function Creek() {
   );
 }
 
-export function Foliage() {
-  const geometry = useMemo(() => buildFoliageGeometry(), []);
+export function Foliage({ month }: { month: number }) {
+  // The wood itself turns: gold in autumn, bare grey-brown and snow-dusted in
+  // winter, fresh green in spring. Rebuilt only when the month turns.
+  const seasonKey = Math.floor(month);
+  const geometry = useMemo(() => {
+    const look = seasonLook(seasonKey);
+    const built = buildFoliageGeometry();
+
+    for (const part of Object.values(built)) {
+      tintGeometry(part, look.foliageTint, look.foliageMix, look.snow * 0.4);
+    }
+
+    return built;
+  }, [seasonKey]);
   const placements = useMemo(() => scatterFoliage(), []);
   const grass = useMemo(() => scatterGrass(), []);
 

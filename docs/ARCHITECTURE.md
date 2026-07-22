@@ -77,6 +77,13 @@ reservoir wanted a ring, it got a stair-stepped circle of axis-aligned segments
 rather than a rotation parameter threaded through every model in the game. In a
 park built out of cubes, a stair-stepped circle is the honest answer.
 
+Because the colour is baked into the mesh, **the season is the wood turning, not a
+light**. `Terrain` and `Foliage` (`frick-park.tsx`) mix the geometry's vertex
+colours toward a seasonal target (`seasonLook`) once when the month rolls over:
+gold and rust in October, bare grey-brown and snow-white in January, fresh green
+in spring. The scatter placements never change, only the colour, so it is a cheap
+pass over the colour attribute rather than a rebuild of the world.
+
 ### 2. Species are specs, not subclasses
 
 Bee, hoverfly and butterfly are three `SpeciesSpec` data objects feeding **one**
