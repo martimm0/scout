@@ -183,6 +183,22 @@ export const BADGES: Badge[] = [
     earned: (state) => count(state.seenPhases) >= 6,
   },
   {
+    id: "turning-year",
+    name: "A Turning Year",
+    description:
+      "You came back and found the park in a different season than you left it.",
+    hint: "The wood does not stay the same colour. Come back when it has turned.",
+    earned: (state) => count(state.seenSeasons) >= 2,
+  },
+  {
+    id: "whole-year-round",
+    name: "The Whole Year Round",
+    description:
+      "Spring, summer, autumn and winter. You have kept the park through the whole year.",
+    hint: "There are four seasons in Pittsburgh, and the park keeps all of them.",
+    earned: (state) => count(state.seenSeasons) >= 4,
+  },
+  {
     id: "quick-study",
     name: "Quick Study",
     description: "You passed your first quiz.",

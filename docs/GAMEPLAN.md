@@ -176,7 +176,7 @@ Everything above is built and playable. As of the last update:
 - 49 species: 34 plants and 15 fungi, 10 of them living in more than one park
 - 147 hand-written trivia questions, three for every species
 - 49 photographs, every one licensed and credited
-- 32 badges, 10 accessories, 6 of them earned
+- 34 badges, 10 accessories, 6 of them earned
 - 189 tests across Chromium, Firefox and WebKit
 
 ## Deliberately not doing

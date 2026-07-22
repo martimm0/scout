@@ -56,7 +56,7 @@ import {
   pittsburghDate,
   type Daylight,
 } from "../world/daylight";
-import { pittsburghMonth } from "../world/season";
+import { pittsburghMonth, seasonFor } from "../world/season";
 import {
   applyWeather,
   FAIR_WEATHER,
@@ -1015,9 +1015,11 @@ function ScoutScene({
         }
       }
 
-      // Which times of day the player has actually seen. Badge fodder, and a
-      // gentle nudge that the park is different at other hours.
+      // Which times of day AND which seasons the player has actually seen. Badge
+      // fodder, and the record behind the merit badges for keeping the whole
+      // clock and the whole calendar.
       store.seePhase(daylight.phase);
+      store.seeSeason(seasonFor(month));
 
       const area = areaAt(pollinator.position.x, pollinator.position.z);
       const areaId = area.id;

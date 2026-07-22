@@ -104,6 +104,8 @@ export type GameState = {
   quizPassed: BooleanRecord;
   /** Which phases of the day you have visited the park in. */
   seenPhases: BooleanRecord;
+  /** Which seasons of the year you have visited the park in. */
+  seenSeasons: BooleanRecord;
   pollinatedPlants: BooleanRecord;
   unlockedMapAreas: BooleanRecord;
   /** The park you are flying. Not progress: just where you are. */
@@ -165,6 +167,7 @@ export type GameActions = {
   endQuiz: () => void;
   recordQuiz: (ref: SpeciesRef, correct: number, total: number) => void;
   seePhase: (phase: string) => void;
+  seeSeason: (season: string) => void;
   recordPollinationAttempt: (succeeded: boolean) => void;
   /** Ask the scene to celebrate: the bee just pollinated and the panel closed. */
   signalPollinationCue: () => void;
@@ -347,6 +350,7 @@ const initialProgress = {
   discoveredFungi: {},
   quizPassed: {},
   seenPhases: {},
+  seenSeasons: {},
   pollinatedPlants: {},
   currentPark: "frick" as ParkId,
   // Frick is where you start. Schenley has to be earned.
@@ -621,6 +625,13 @@ export const useGameStore = create<GameStore>()(
         : { seenPhases: { ...state.seenPhases, [phase]: true } },
     ),
 
+  seeSeason: (season) =>
+    set((state) =>
+      state.seenSeasons[season]
+        ? state
+        : { seenSeasons: { ...state.seenSeasons, [season]: true } },
+    ),
+
   recordMinigameScore: (score) =>
     set({ lastMinigameScore: Math.max(0, Math.min(1, score)) }),
 
@@ -744,6 +755,7 @@ export const useGameStore = create<GameStore>()(
         discoveredFungi: state.discoveredFungi,
         quizPassed: state.quizPassed,
         seenPhases: state.seenPhases,
+        seenSeasons: state.seenSeasons,
         pollinatedPlants: state.pollinatedPlants,
         unlockedMapAreas: state.unlockedMapAreas,
         unlockedParks: state.unlockedParks,
