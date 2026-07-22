@@ -152,8 +152,23 @@ test("credits page names every photographer and links every licence", async ({
   expect(await licenceLinks.count()).toBeGreaterThanOrEqual(76);
 });
 
-test("offline mode frames the run and starts a clock", async ({ page }) => {
+test("offline mode frames the run and renders the park", async ({ page }) => {
   await page.addInitScript(() => window.localStorage.clear());
+
+  // The offline run mounts the scene from a CLIENT click, not a page load, which
+  // is the path that used to lose the WebGL context to React's dev double-invoke:
+  // createRoot ran twice on the same canvas, the context was lost, and the park
+  // was replaced by the shell's flat green for the rest of the session. Catch
+  // both the symptom (a warning and a lost context) and the result (a blank
+  // canvas), because the old test watched the HUD and passed straight through it.
+  const glErrors: string[] = [];
+  page.on("console", (message) => {
+    const text = message.text();
+    if (/createRoot should only be called once|Context Lost/.test(text)) {
+      glErrors.push(text);
+    }
+  });
+
   await page.goto("/offline");
 
   await expect(
@@ -166,6 +181,31 @@ test("offline mode frames the run and starts a clock", async ({ page }) => {
   // A clock that is actually counting down.
   const clock = page.getByText(/Time left/);
   await expect(clock).toBeVisible();
+
+  // The park is actually on the canvas, not the shell's flat background showing
+  // through a transparent GL context. A rendered park has real variation across
+  // the frame; a flat fill has almost none.
+  const spread = await page.evaluate(() => {
+    const canvas = document.querySelector("canvas") as HTMLCanvasElement;
+    const scratch = document.createElement("canvas");
+    scratch.width = 80;
+    scratch.height = 80;
+    const context = scratch.getContext("2d")!;
+    context.drawImage(canvas, 0, 0, 80, 80);
+    const { data } = context.getImageData(0, 0, 80, 80);
+    const values: number[] = [];
+    for (let i = 0; i < data.length; i += 4) {
+      values.push((data[i] + data[i + 1] + data[i + 2]) / 3);
+    }
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    return Math.sqrt(
+      values.reduce((a, b) => a + (b - mean) ** 2, 0) / values.length,
+    );
+  });
+
+  expect(glErrors, glErrors.join("\n")).toEqual([]);
+  // A flat fill sits near zero; the park runs well above it.
+  expect(spread).toBeGreaterThan(10);
 });
 
 test("the debug overlay is hidden from players, and the stats panel is renamed", async ({

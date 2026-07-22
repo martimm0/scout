@@ -237,6 +237,7 @@ function R3FViewport({
    * the page happened to load.
    */
   const rootRef = useRef<ReturnType<typeof createRoot> | null>(null);
+  const disposeTimer = useRef<number | null>(null);
 
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
@@ -246,7 +247,29 @@ function R3FViewport({
       return;
     }
 
-    const root = createRoot(canvas);
+    /**
+     * Survive React's development double-invoke.
+     *
+     * With `reactStrictMode`, dev mounts, tears down and remounts every effect
+     * once. A synchronous `root.unmount()` in the cleanup disposes the WebGL
+     * context that the immediate remount then reuses, and R3F, told to
+     * `createRoot` a second time on the same canvas, warns and loses the context:
+     * the canvas goes transparent and the whole park is replaced by the shell's
+     * flat background for the rest of the session. This never bit a hard page load
+     * (the root is created once and never torn down), but it bit every CLIENT-side
+     * mount of the scene: the offline run, reached by clicking Begin, and /play
+     * reached by an in-app link rather than a reload.
+     *
+     * So the teardown below is DEFERRED to the next tick, and a remount that
+     * arrives first cancels it and reuses the existing root rather than building a
+     * second one. On a real unmount nothing cancels it and the root is disposed.
+     */
+    if (disposeTimer.current !== null) {
+      window.clearTimeout(disposeTimer.current);
+      disposeTimer.current = null;
+    }
+
+    const root = rootRef.current ?? createRoot(canvas);
     rootRef.current = root;
     let mounted = true;
 
@@ -296,8 +319,15 @@ function R3FViewport({
     return () => {
       mounted = false;
       observer.disconnect();
-      rootRef.current = null;
-      root.unmount();
+
+      // Defer the teardown so a StrictMode remount (which runs before this timer
+      // fires) can cancel it above and keep the root. On a genuine unmount the
+      // timer fires and the root and its GL context are released.
+      disposeTimer.current = window.setTimeout(() => {
+        disposeTimer.current = null;
+        rootRef.current = null;
+        root.unmount();
+      }, 0);
     };
     // Deliberately NOT depending on daylight: rebuilding the whole WebGL root
     // every minute would regenerate the terrain and every prop in the park.

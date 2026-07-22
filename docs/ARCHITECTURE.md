@@ -142,6 +142,19 @@ were learned the hard way:
   dependency array rebuilds the whole WebGL context on every change, and R3F
   warns "createRoot should only be called once" into a console nobody reads while
   the canvas renders transparent.
+- **Survive the dev double-invoke.** `reactStrictMode` is on, so in development
+  React mounts, tears down and remounts every effect once. A synchronous
+  `root.unmount()` in the cleanup disposes the context the immediate remount then
+  reuses, so `createRoot` runs a second time on the same canvas, the context is
+  lost, and the park is replaced by the shell's flat background for the rest of
+  the session. A hard page load never showed it (the root is created once and
+  never torn down), which is exactly why it hid: it only bit a CLIENT-side mount
+  of the scene, the offline run reached by clicking Begin and /play reached by an
+  in-app link. The fix is to DEFER the teardown to the next tick and reuse the
+  existing root if a remount arrives first, so the double-invoke collapses back to
+  one live root. The offline test asserts the canvas actually draws the park
+  rather than the flat fill, because the old test watched the HUD and passed
+  straight through a blank scene.
 - **Never touch `canvas.width/height`.** three owns the drawing buffer and sizes
   it as CSS size times pixel ratio. Forcing it to CSS size leaves the GL viewport
   at twice the buffer, so you render the bottom-left quadrant blown up 2x, on
