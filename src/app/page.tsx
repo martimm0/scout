@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
-import { HomeGallery } from "./home-gallery";
+import { ParkForecast } from "./park-forecast";
 
 /**
  * The landing page.
@@ -31,7 +31,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        <HomeGallery />
+        <ParkForecast />
       </section>
 
       <section>
