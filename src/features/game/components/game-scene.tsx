@@ -45,6 +45,7 @@ import { PLANTS } from "../data/plants";
 import {
   scatterSpecies,
   landingHeight,
+  isOut,
   DISCOVERY_RADIUS,
   type SpeciesInstance,
 } from "../world/species-scatter";
@@ -52,10 +53,10 @@ import { resolveCollision } from "../world/collision";
 import {
   daylightAt,
   daylightForHour,
-  isActive,
   pittsburghDate,
   type Daylight,
 } from "../world/daylight";
+import { pittsburghMonth } from "../world/season";
 import {
   applyWeather,
   FAIR_WEATHER,
@@ -224,11 +225,13 @@ function axis(keys: Set<string>, negative: string[], positive: string[]) {
 function R3FViewport({
   canvasRef,
   daylight,
+  month,
   onDebugChange,
   weather,
 }: {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   daylight: Daylight;
+  month: number;
   onDebugChange: (state: DebugState) => void;
   weather: Weather;
 }) {
@@ -304,6 +307,7 @@ function R3FViewport({
         root.render(
           <ScoutScene
             daylight={daylight}
+            month={month}
             onDebugChange={onDebugChange}
             weather={weather}
           />,
@@ -343,21 +347,24 @@ function R3FViewport({
     rootRef.current?.render(
       <ScoutScene
         daylight={daylight}
+        month={month}
         onDebugChange={onDebugChange}
         weather={weather}
       />,
     );
-  }, [daylight, onDebugChange, weather]);
+  }, [daylight, month, onDebugChange, weather]);
 
   return <canvas className={styles.canvas} ref={canvasRef} />;
 }
 
 function ScoutScene({
   daylight,
+  month,
   onDebugChange,
   weather,
 }: {
   daylight: Daylight;
+  month: number;
   onDebugChange: (state: DebugState) => void;
   weather: Weather;
 }) {
@@ -931,16 +938,17 @@ function ScoutScene({
     if (elapsed - lastDebugUpdate.current > 0.15) {
       lastDebugUpdate.current = elapsed;
 
-      // The nearest thing within reach that is actually OUT right now. A closed
-      // flower and a fungus that is not fruiting are both unreachable, which is
-      // the entire point of the clock.
+      // The nearest thing within reach that is actually OUT right now: open at
+      // this hour AND in season this month. A closed flower, one out of its
+      // bloom, and a fungus that is not fruiting are all unreachable, which is
+      // the entire point of the clock and the calendar.
       const hour = daylight.hour;
 
       let nearestInstance: SpeciesInstance | null = null;
       let nearestDistance = DISCOVERY_RADIUS;
 
       for (const instance of species) {
-        if (!isActive(instance.window, hour)) {
+        if (!isOut(instance, hour, month)) {
           continue;
         }
 
@@ -1101,7 +1109,7 @@ function ScoutScene({
       <Creek />
       <Landmarks />
       <Foliage />
-      <SpeciesField hour={daylight.hour} instances={species} />
+      <SpeciesField hour={daylight.hour} month={month} instances={species} />
 
       {/* What is actually falling on Pittsburgh right now. */}
       <WeatherLayer weather={weather} />
@@ -1113,7 +1121,7 @@ function ScoutScene({
 
       {/* Anchored over the thing itself, not pinned to the screen. */}
       {nearbyInstance ? (
-        <SpeciesTag daylight={daylight} instance={nearbyInstance} />
+        <SpeciesTag daylight={daylight} month={month} instance={nearbyInstance} />
       ) : null}
 
       {/* Actual bee size, near enough. The world grew around it instead. */}
@@ -1149,12 +1157,17 @@ function ScoutScene({
 export function GameScene({
   debug = false,
   hour,
+  month: forcedMonth,
   park: forcedPark,
   weather: forcedWeather,
 }: {
   debug?: boolean;
   /** Pins the park's clock. Test hook; undefined in every real session. */
   hour?: number;
+  /** Pins the park's calendar. Test hook, same as `hour`: half the flora is out
+   *  of season at any month, so a suite on the real calendar would find nothing
+   *  in January and everything in July. */
+  month?: number;
   /** Pins the park. Test hook, same as `hour`. */
   park?: ParkId;
   /** Pins the sky. Test hook, same as `hour`. */
@@ -1234,6 +1247,16 @@ export function GameScene({
   );
 
   /**
+   * The park's own calendar, Pittsburgh's month. Like the clock, it decides what
+   * is out: goldenrod in the fall, trout lily in April, and across the deep of
+   * winter nothing at all but the fungi and the bare wood. Pinned by `?month=`
+   * for the suite; otherwise the real month, which the daylight tick refreshes.
+   */
+  const [month, setMonth] = useState(() =>
+    forcedMonth === undefined ? pittsburghMonth() : forcedMonth,
+  );
+
+  /**
    * The weather over Pittsburgh, right now.
    *
    * Starts fair and is replaced the moment the real observation arrives, rather
@@ -1288,10 +1311,18 @@ export function GameScene({
       return;
     }
 
-    const tick = window.setInterval(() => setDaylight(daylightAt()), 60_000);
+    const tick = window.setInterval(() => {
+      setDaylight(daylightAt());
+      // Cheap to recompute on the same tick, and it means midnight on the last of
+      // the month rolls the season over while you are flying rather than only on
+      // a reload. A pinned month never moves.
+      if (forcedMonth === undefined) {
+        setMonth(pittsburghMonth());
+      }
+    }, 60_000);
 
     return () => window.clearInterval(tick);
-  }, [hour]);
+  }, [hour, forcedMonth]);
 
   /**
    * The shutter.
@@ -1407,6 +1438,7 @@ export function GameScene({
           canvasRef={canvasRef}
           daylight={daylight}
           key={currentPark}
+          month={month}
           onDebugChange={setDebugState}
           weather={weather}
         />
@@ -1599,6 +1631,7 @@ export function GameScene({
       <FieldNotes
         park={park}
         daylight={daylight}
+        month={month}
         weather={weather}
         discoveredPlants={discoveredPlants}
         unlockedBadges={unlockedBadges}

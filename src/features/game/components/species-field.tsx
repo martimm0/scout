@@ -7,8 +7,7 @@ import { Color, InstancedMesh, Object3D, type BufferGeometry } from "three";
 import { buildFungusGeometry } from "../models/fungi";
 import { buildMoteGeometry, buildPlantGeometry } from "../models/flora";
 import { useGameStore } from "../state/game-store";
-import { isActive } from "../world/daylight";
-import type { SpeciesInstance } from "../world/species-scatter";
+import { isOut, type SpeciesInstance } from "../world/species-scatter";
 
 /**
  * Everything you can find, drawn.
@@ -16,17 +15,22 @@ import type { SpeciesInstance } from "../world/species-scatter";
  * Two rules, both of which are about time of day:
  *
  *  - **A closed flower is still there.** Plants are always drawn, because they do
- *    not vanish at night, they shut. Out of hours they are dimmed and carry no
- *    mote, and you cannot pollinate them.
+ *    not vanish at night or out of season, they shut. Off-hours or off-month they
+ *    are dimmed and carry no mote, and you cannot pollinate them: a plant out of
+ *    its bloom is a green stalk, and a stalk is what you see.
  *  - **A fungus that is not fruiting is genuinely gone.** Mushrooms come up and
- *    rot away. Drawing a ghost of one would be a lie, so out of hours they simply
- *    are not there.
+ *    rot away. Drawing a ghost of one would be a lie, so out of its hours or its
+ *    season they simply are not there.
+ *
+ * "Out" is one question, `isOut`: open at this hour AND in season this month.
  */
 export function SpeciesField({
   hour,
+  month,
   instances,
 }: {
   hour: number;
+  month: number;
   instances: SpeciesInstance[];
 }) {
   const nearby = useGameStore((state) => state.ui.nearby);
@@ -70,15 +74,15 @@ export function SpeciesField({
           return true;
         }
 
-        return isActive(instance.window, hour);
+        return isOut(instance, hour, month);
       }),
-    [instances, hour],
+    [instances, hour, month],
   );
 
   return (
     <>
       {visible.map((instance) => {
-        const open = isActive(instance.window, hour);
+        const open = isOut(instance, hour, month);
         const isNearby = nearby?.key === instance.key;
         const fungus =
           instance.species.kind === "fungus" ? instance.species.fungus : null;
@@ -109,7 +113,7 @@ export function SpeciesField({
           </group>
         );
       })}
-      <Motes hour={hour} instances={visible} />
+      <Motes hour={hour} month={month} instances={visible} />
     </>
   );
 }
@@ -123,9 +127,11 @@ export function SpeciesField({
  */
 function Motes({
   hour,
+  month,
   instances,
 }: {
   hour: number;
+  month: number;
   instances: SpeciesInstance[];
 }) {
   const discoveredPlants = useGameStore((state) => state.discoveredPlants);
@@ -136,7 +142,7 @@ function Motes({
   const pending = useMemo(
     () =>
       instances.filter((instance) => {
-        if (!isActive(instance.window, hour)) {
+        if (!isOut(instance, hour, month)) {
           return false;
         }
 
@@ -147,7 +153,7 @@ function Motes({
 
         return !found;
       }),
-    [instances, hour, discoveredPlants, discoveredFungi],
+    [instances, hour, month, discoveredPlants, discoveredFungi],
   );
 
   useEffect(() => () => geometry.dispose(), [geometry]);

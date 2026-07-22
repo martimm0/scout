@@ -32,6 +32,15 @@ export default async function PlayPage({
   const raw = Number(params.hour);
   const hour = Number.isFinite(raw) ? ((raw % 24) + 24) % 24 : undefined;
 
+  // `?month=7` pins the park's calendar. Same reason as `?hour=`: half the flora
+  // is out of season at any month, so the suite pins one where its target plants
+  // are actually in bloom instead of failing every winter.
+  const rawMonth = Number(params.month);
+  const month =
+    Number.isFinite(rawMonth) && rawMonth >= 1 && rawMonth < 13
+      ? rawMonth
+      : undefined;
+
   /**
    * `?park=schenley` builds a park directly.
    *
@@ -60,5 +69,13 @@ export default async function PlayPage({
   // and no way for a test to check it falls.
   const weather = weatherPreset(String(params.weather ?? ""));
 
-  return <GameScene debug={debug} hour={hour} park={park} weather={weather} />;
+  return (
+    <GameScene
+      debug={debug}
+      hour={hour}
+      month={month}
+      park={park}
+      weather={weather}
+    />
+  );
 }

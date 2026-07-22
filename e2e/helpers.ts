@@ -3,8 +3,10 @@ import { readFileSync } from "node:fs";
 import type { BrowserContext, Page } from "@playwright/test";
 import { encode } from "next-auth/jwt";
 
-import { isActive } from "../src/features/game/world/daylight";
-import { scatterSpecies } from "../src/features/game/world/species-scatter";
+import {
+  isOut,
+  scatterSpecies,
+} from "../src/features/game/world/species-scatter";
 import { startPosition } from "../src/features/game/world/terrain";
 
 /**
@@ -72,6 +74,17 @@ function heading(state: Readout) {
  * the spring ephemerals that close by two.
  */
 export const TEST_HOUR = 12;
+
+/**
+ * The month the suite flies in.
+ *
+ * July, pinned with `?month=`. The park runs on Pittsburgh's calendar now, and
+ * half the flora is out of season at any month: a suite on the real calendar
+ * would find a park full of flowers in July and a bare wood in January. Midsummer
+ * is when the most plants are in bloom at once, including the demanding ones the
+ * suite needs to reach (milkweed and cardinal flower).
+ */
+export const TEST_MONTH = 7;
 
 /**
  * The secret the running dev server is using.
@@ -196,7 +209,7 @@ export async function enterGame(page: Page, hour: number = TEST_HOUR) {
   await signIn(page.context());
   await resetProgress(page);
   await page.addInitScript(() => window.localStorage.clear());
-  await page.goto(`/play?debug=1&hour=${hour}`);
+  await page.goto(`/play?debug=1&hour=${hour}&month=${TEST_MONTH}`);
   await page.waitForTimeout(2500);
 
   await dismissTutorial(page);
@@ -222,7 +235,7 @@ export function nearestPlantToSpawn() {
     .filter(
       (instance) =>
         instance.species.kind === "plant" &&
-        isActive(instance.window, TEST_HOUR),
+        isOut(instance, TEST_HOUR, TEST_MONTH),
     )
     .map((instance) => ({
       instance,
@@ -306,7 +319,7 @@ export function demandingPlantToSpawn() {
       (instance) =>
         instance.species.kind === "plant" &&
         Boolean(instance.species.plant.demanding) &&
-        isActive(instance.window, TEST_HOUR),
+        isOut(instance, TEST_HOUR, TEST_MONTH),
     )
     .map((instance) => ({
       instance,

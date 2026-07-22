@@ -22,12 +22,14 @@ import styles from "./field-notes.module.css";
 export function FieldNotes({
   park,
   daylight,
+  month,
   weather,
   discoveredPlants,
   unlockedBadges,
 }: {
   park: Park;
   daylight: Daylight;
+  month: number;
   weather: Weather;
   discoveredPlants: Record<string, boolean>;
   unlockedBadges: Record<string, boolean>;
@@ -39,11 +41,12 @@ export function FieldNotes({
       fieldNotesFor({
         park,
         daylight,
+        month,
         weather,
         discoveredPlants,
         unlockedBadges,
       }),
-    [park, daylight, weather, discoveredPlants, unlockedBadges],
+    [park, daylight, month, weather, discoveredPlants, unlockedBadges],
   );
 
   return (

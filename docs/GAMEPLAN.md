@@ -124,7 +124,7 @@ Some species live in more than one park, because they really do. Goldenrod is
 goldenrod: one journal entry, two addresses, and finding it once means you have
 found it.
 
-## The park is a real place, on a real clock, in real weather
+## The park is a real place, on a real clock, in a real week of the year, in real weather
 
 The park keeps **Pittsburgh time**, whatever time it is where you are. If it is
 dusk in Squirrel Hill it is dusk in the game. That is the conceit: you are
@@ -134,6 +134,16 @@ What you can find changes with the hour, and it changes because it is true:
 spring ephemerals shut by mid-afternoon, everything that flowers is closed after
 dark, and the fungi keep their own hours. After dark there is nothing to
 pollinate anywhere in the park, and the jack-o'-lantern is out, glowing.
+
+The park also keeps **Pittsburgh's calendar**. What is in bloom is what is really
+in bloom that week: trout lily in April, goldenrod in the fall, and across the
+deep of winter nothing at all but the fungi and the bare wood. A flower out of
+its season is a green stalk you cannot work, and the card tells you which month to
+come back in, the same way it tells you which hour. This is the deepest reason the
+park is worth returning to: the park in October is not the park in July, because
+the real one is not either. It is also why the game keeps a real bloom window for
+every plant rather than an invented one; those windows are read out of the sourced
+`bloom` line, never made up.
 
 The park also keeps **Pittsburgh's weather**, pulled from the real observation
 for the park's own coordinates. If it is raining in Squirrel Hill it is raining

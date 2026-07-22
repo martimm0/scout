@@ -22,6 +22,7 @@ import { BADGES } from "../data/badges";
 import { PLANTS } from "../data/plants";
 import { isActive, type Daylight } from "./daylight";
 import type { Park } from "./park";
+import { isInSeason, seasonFor, seasonWindow } from "./season";
 import type { Weather } from "./weather";
 
 export type FieldNote = {
@@ -35,18 +36,19 @@ export type FieldNote = {
 export type FieldNotesInput = {
   park: Park;
   daylight: Daylight;
+  /** Pittsburgh's month, fractional. Decides what is in season. */
+  month: number;
   weather: Weather;
   discoveredPlants: Record<string, boolean>;
   unlockedBadges: Record<string, boolean>;
 };
 
-/** "Morning", "afternoon": the time word that reads naturally in a sentence. */
-function timeWord(daylight: Daylight): string {
+/** The part of the day, worded to read after a season: "Summer morning". */
+function dayPart(daylight: Daylight): string {
   switch (daylight.phase) {
     case "night":
       return "night";
     case "dawn":
-      return "first light";
     case "morning":
       return "morning";
     case "midday":
@@ -114,33 +116,47 @@ function softGoal(input: FieldNotesInput): FieldNote | undefined {
  * fully-badged player gets no goal line.
  */
 export function fieldNotesFor(input: FieldNotesInput): FieldNote[] {
-  const { park, daylight, weather, discoveredPlants } = input;
+  const { park, daylight, month, weather, discoveredPlants } = input;
   const notes: FieldNote[] = [];
 
   const temperature = Math.round(weather.temperature);
+  const season = seasonFor(month);
 
-  // 1. The sky. "Fog, 14C. Morning in Frick Park."
+  // 1. The sky, and the season. "Fog, 14C. Summer morning in Frick Park."
   notes.push({
     id: "sky",
-    text: `${weather.label}, ${temperature}°C. ${cap(timeWord(daylight))} in ${park.label}.`,
+    text: `${weather.label}, ${temperature}°C. ${cap(season)} ${dayPart(daylight)} in ${park.label}.`,
     tone: "sky",
   });
 
   const here = plantsIn(park);
-  const openNow = here.filter((plant) => isActive(plant.window, daylight.hour));
+  // In season this month, regardless of the hour; and of those, open right now.
+  const inSeason = here.filter((plant) =>
+    isInSeason(seasonWindow(plant.bloom), month),
+  );
+  const openNow = inSeason.filter((plant) =>
+    isActive(plant.window, daylight.hour),
+  );
 
-  // 2. What is out. After dark this is a fact, not a disappointment: nothing
-  // pollinates anywhere in the park at night, and that is the point of night.
+  // 2. What is out. After dark, or out of the flowering season, "nothing" is a
+  // fact and not a disappointment: it is the point of night, and the point of
+  // winter. Each says which door will open, and when.
   if (daylight.phase === "night") {
     notes.push({
       id: "bloom",
       text: "Nothing is open to pollinate after dark. The fungi keep their own hours, and something out here is glowing.",
       tone: "bloom",
     });
+  } else if (inSeason.length === 0) {
+    notes.push({
+      id: "bloom",
+      text: `Nothing is in bloom in ${season}. The wood is bare, the flowers are done, and only the fungi are out.`,
+      tone: "bloom",
+    });
   } else if (openNow.length === 0) {
     notes.push({
       id: "bloom",
-      text: "Nothing is open just now. Come back within the daylight and the flowers will be too.",
+      text: "The flowers are in season but shut for the hour. Come back within the daylight and they will be open.",
       tone: "bloom",
     });
   } else {

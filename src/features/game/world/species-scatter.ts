@@ -1,6 +1,7 @@
 import { FUNGI, type Fungus } from "../data/fungi";
 import { PLANTS, type Plant } from "../data/plants";
-import type { TimeWindow } from "./daylight";
+import { isActive, type TimeWindow } from "./daylight";
+import { isInSeason, seasonWindow, type SeasonWindow } from "./season";
 import {
   activePark,
   areaAt,
@@ -33,6 +34,8 @@ export type SpeciesInstance = {
   commonName: string;
   hook: string;
   window: TimeWindow;
+  /** The months it is out, read from the sourced bloom or fungus season. */
+  season: SeasonWindow;
   /** Authored height, before world scale. */
   height: number;
   position: [number, number, number];
@@ -154,6 +157,7 @@ export function scatterSpecies(): SpeciesInstance[] {
     }
 
     const spots = place(home.area, plant.count, 0, 0.75);
+    const season = seasonWindow(plant.bloom);
 
     spots.forEach((spot, index) => {
       instances.push({
@@ -163,6 +167,7 @@ export function scatterSpecies(): SpeciesInstance[] {
         commonName: plant.commonName,
         hook: plant.hook,
         window: plant.window,
+        season,
         height: plant.height,
         position: [spot.x, spot.height - 0.6, spot.z],
         rotation: sample(spot.seed, plant.count, 16) * Math.PI * 2,
@@ -181,6 +186,7 @@ export function scatterSpecies(): SpeciesInstance[] {
     // Fungi live on rotting wood and shaded ground, so they tolerate steeper,
     // rougher places than a flower will.
     const spots = place(home.area, fungus.count, 1, 0.95);
+    const season = seasonWindow(fungus.season);
 
     spots.forEach((spot, index) => {
       instances.push({
@@ -190,6 +196,7 @@ export function scatterSpecies(): SpeciesInstance[] {
         commonName: fungus.commonName,
         hook: fungus.hook,
         window: fungus.window,
+        season,
         height: fungus.height,
         position: [spot.x, spot.height - 0.4, spot.z],
         rotation: sample(spot.seed, fungus.count, 18) * Math.PI * 2,
@@ -199,6 +206,19 @@ export function scatterSpecies(): SpeciesInstance[] {
   }
 
   return instances;
+}
+
+/**
+ * Whether a species is out right now: open at this hour AND in its season this
+ * month. The single question the discovery loop, the tag, the field and the
+ * field notes all ask, so time and season can never disagree about a flower.
+ */
+export function isOut(
+  instance: SpeciesInstance,
+  hour: number,
+  month: number,
+): boolean {
+  return isActive(instance.window, hour) && isInSeason(instance.season, month);
 }
 
 /** Where a bee would actually land on it: on top of the bloom, or the cap. */

@@ -1,15 +1,14 @@
 import { expect, test } from "@playwright/test";
 
-import { enterGame, flyToPlant, readout } from "./helpers";
+import { enterGame, flyToPlant, readout, TEST_MONTH } from "./helpers";
 import { ANAGRAM_WORDS } from "../src/features/game/data/anagram-words";
 import { PLANTS, PLANTS_BY_ID } from "../src/features/game/data/plants";
-import { isActive } from "../src/features/game/world/daylight";
 import {
   MINIGAME_SPEC,
   minigameFor,
   resolvePollination,
 } from "../src/features/game/data/pollination";
-import { scatterSpecies } from "../src/features/game/world/species-scatter";
+import { isOut, scatterSpecies } from "../src/features/game/world/species-scatter";
 import { setActivePark, startPosition } from "../src/features/game/world/terrain";
 
 /**
@@ -30,7 +29,7 @@ function nearestFor(kind: string) {
       return (
         plant &&
         !plant.demanding &&
-        isActive(instance.window, 12) &&
+        isOut(instance, 12, TEST_MONTH) &&
         minigameFor(plant) === kind
       );
     })

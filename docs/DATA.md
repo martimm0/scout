@@ -99,6 +99,33 @@ The windows are true to life rather than balanced:
 The consequence is the point: after dark **nothing is pollinatable anywhere**,
 and only fungi are out.
 
+## Season
+
+```ts
+type SeasonWindow = { allYear: true } | { from: number; to: number };
+```
+
+The months something is out, 1 to 12, and like `TimeWindow` it wraps: the
+overwintering fungi are `{ from: 9, to: 5 }`, and `isInSeason` handles the turn of
+the year. `allYear` is its own case, because a few fungi genuinely fruit in every
+month.
+
+The load-bearing decision is that **the season is not new data**. Every plant
+already carries a sourced `bloom` ("June to August") and every fungus a `season`
+("Autumn to spring", "Late summer to autumn"). `world/season.ts`'s `seasonWindow`
+parses those into a month window rather than asking anyone to hand-author a second
+copy that could disagree with the first. It reads month names, bare and modified
+season words ("late summer", "early autumn"), and "all year". A string it cannot
+read falls back to all-year, and `season.spec.ts` asserts every real string parses
+so a new one that does not is caught rather than silently shown every month.
+
+`isOut(instance, hour, month)` in `species-scatter.ts` is the single question the
+discovery loop, the tag, the field and the field notes all ask: open at this hour
+AND in season this month. A plant out of its month is drawn as a drab closed stalk
+(it is still there, it is just not flowering); a fungus out of its season is gone.
+The suite pins `?month=7`, July, because half the flora is out of season at any
+month and midsummer is when the most is in bloom at once.
+
 ## Parks
 
 ```ts

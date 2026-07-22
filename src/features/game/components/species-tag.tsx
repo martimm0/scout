@@ -3,8 +3,9 @@
 import { Html } from "@react-three/drei";
 
 import { useGameStore } from "../state/game-store";
-import { isActive, type Daylight } from "../world/daylight";
-import { landingHeight, type SpeciesInstance } from "../world/species-scatter";
+import { type Daylight } from "../world/daylight";
+import { describeSeasonWindow, isInSeason } from "../world/season";
+import { isOut, landingHeight, type SpeciesInstance } from "../world/species-scatter";
 import styles from "./species-tag.module.css";
 
 /**
@@ -18,9 +19,11 @@ import styles from "./species-tag.module.css";
  */
 export function SpeciesTag({
   daylight,
+  month,
   instance,
 }: {
   daylight: Daylight;
+  month: number;
   instance: SpeciesInstance;
 }) {
   const land = useGameStore((state) => state.land);
@@ -38,7 +41,13 @@ export function SpeciesTag({
   // half of the information.
   const demanding =
     instance.species.kind === "plant" && Boolean(instance.species.plant.demanding);
-  const open = isActive(instance.window, daylight.hour);
+  const open = isOut(instance, daylight.hour, month);
+  // Shut for one of two reasons, and they call for different advice: out of its
+  // hours (come back at dawn) or out of its season (come back in spring).
+  const outOfSeason = !isInSeason(instance.season, month);
+  const closedNote = outOfSeason
+    ? describeSeasonWindow(instance.season, month)
+    : instance.window.note;
 
   const ref = {
     kind: instance.species.kind,
@@ -86,7 +95,7 @@ export function SpeciesTag({
           </div>
         ) : (
           // Shut. Say when to come back rather than just refusing.
-          <p className={styles.closed}>{instance.window.note}</p>
+          <p className={styles.closed}>{closedNote}</p>
         )}
       </div>
     </Html>
