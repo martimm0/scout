@@ -16,6 +16,17 @@ import { setActivePark, startPosition } from "../src/features/game/world/terrain
  * of the demanding flowers (those want their quiz passed before the Pollinate
  * button appears at all).
  */
+/**
+ * The month to fly in for a given game. A game's plant has to be in season to be
+ * pollinated at all, and in Frick the shrubs and trees that play `seeds`
+ * (spicebush, redbud) bloom in spring while the spikes and umbels that play
+ * `memory` bloom in summer, so no single month has all three. Each kind gets a
+ * month when its plant is genuinely out.
+ */
+function monthForKind(kind: string) {
+  return kind === "seeds" ? 4 : TEST_MONTH;
+}
+
 function nearestFor(kind: string) {
   setActivePark("frick");
   const [sx, , sz] = startPosition();
@@ -29,7 +40,7 @@ function nearestFor(kind: string) {
       return (
         plant &&
         !plant.demanding &&
-        isOut(instance, 12, TEST_MONTH) &&
+        isOut(instance, 12, monthForKind(kind)) &&
         minigameFor(plant) === kind
       );
     })
@@ -43,7 +54,7 @@ function nearestFor(kind: string) {
 }
 
 async function land(page: import("@playwright/test").Page, kind: string) {
-  await enterGame(page);
+  await enterGame(page, 12, monthForKind(kind));
   await flyToPlant(page, nearestFor(kind));
   await page.keyboard.press("Space");
   await page.getByRole("button", { name: /Pollinate/ }).click();

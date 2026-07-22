@@ -205,11 +205,15 @@ export async function dismissTutorial(page: Page) {
     });
 }
 
-export async function enterGame(page: Page, hour: number = TEST_HOUR) {
+export async function enterGame(
+  page: Page,
+  hour: number = TEST_HOUR,
+  month: number = TEST_MONTH,
+) {
   await signIn(page.context());
   await resetProgress(page);
   await page.addInitScript(() => window.localStorage.clear());
-  await page.goto(`/play?debug=1&hour=${hour}&month=${TEST_MONTH}`);
+  await page.goto(`/play?debug=1&hour=${hour}&month=${month}`);
   await page.waitForTimeout(2500);
 
   await dismissTutorial(page);
