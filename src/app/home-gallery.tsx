@@ -17,19 +17,24 @@ import styles from "./home-gallery.module.css";
  */
 const SLIDES = [
   {
-    src: "/images/gallery/frick-midday.png",
-    alt: "A bee over the creek at the bottom of Frick Park at midday",
+    src: "/images/gallery/frick-valley.png",
+    alt: "A bee over the wildflower meadow of Nine Mile Run in Frick Park at midday",
     caption: "Frick Park. A wood with a creek at the bottom of it.",
   },
   {
     src: "/images/gallery/frick-dusk.png",
-    alt: "The same creek at dusk, the meadow warm with low light",
-    caption: "The same creek at dusk. The park keeps Pittsburgh time.",
+    alt: "The same meadow at dusk, warm with low light and the first fireflies",
+    caption: "The same meadow at dusk. The park keeps Pittsburgh time.",
   },
   {
     src: "/images/gallery/frick-rain.png",
-    alt: "Rain falling over Frick Park",
+    alt: "Rain falling over the meadow in Frick Park",
     caption: "Real weather. If it is raining in Squirrel Hill, it is raining here.",
+  },
+  {
+    src: "/images/gallery/frick-ravine.png",
+    alt: "The bee high over the wooded ravine, the Fern Hollow bridge beyond",
+    caption: "You are a centimetre long. The wood is a country.",
   },
   {
     src: "/images/gallery/schenley-hollow.png",
@@ -38,7 +43,7 @@ const SLIDES = [
   },
   {
     src: "/images/gallery/highland-reservoir.png",
-    alt: "Highland Park, with a reservoir wall in the distance",
+    alt: "The bee on the wooded slope above a reservoir in Highland Park",
     caption: "Highland Park. A lake on top of a hill.",
   },
 ];
