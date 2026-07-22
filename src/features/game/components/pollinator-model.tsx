@@ -202,9 +202,10 @@ export function PollinatorModel({
   // The coat, built apart from the bee so it can come and go with the rain
   // without rebuilding everything. Rebuilt only when the species or its colour
   // changes.
+  const raincoatColor = pollinator.raincoatColor ?? "#f7e07a";
   const raincoatGeometry = useMemo(
-    () => buildRaincoatFor(pollinator.type, pollinator.raincoatColor),
-    [pollinator.type, pollinator.raincoatColor],
+    () => buildRaincoatFor(pollinator.type, raincoatColor),
+    [pollinator.type, raincoatColor],
   );
 
   useEffect(() => () => raincoatGeometry.dispose(), [raincoatGeometry]);
