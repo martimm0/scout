@@ -133,11 +133,19 @@ export type Gesture = "none" | "greet" | "dance" | "celebrate";
  */
 export function PollinatorModel({
   animationState = "hovering",
+  chill = 0,
   gestureRef,
   hasPollen = false,
   pollinator,
 }: {
   animationState?: PollinatorAnimationState;
+  /**
+   * How cold it is, 0 warm to 1 freezing. A bee cannot fly its muscles warm, so
+   * in the cold it shivers to warm them (which real bees genuinely do) and its
+   * wingbeat weakens. Ties the temperature that already grounds the foragers to
+   * the player's own bee.
+   */
+  chill?: number;
   /**
    * Passed as a ref rather than a prop value: the gesture changes mid-frame and
    * reading it here keeps the whole thing out of React's render path.
@@ -264,6 +272,14 @@ export function PollinatorModel({
       root.rotation.x = current.pitch;
       root.rotation.z = 0;
 
+      if (chill > 0.02) {
+        // Shiver: a fast, tiny tremor as the bee vibrates its flight muscles
+        // warm. It is small on purpose, the read is "cold", not "broken".
+        root.position.x += Math.sin(elapsed * 63) * 0.013 * chill;
+        root.position.y += Math.sin(elapsed * 71 + 1.3) * 0.011 * chill;
+        root.rotation.z += Math.sin(elapsed * 68 + 0.5) * 0.02 * chill;
+      }
+
       if (gesture?.kind === "greet") {
         // Bob up, hold, and nod. It has just spun around to look at you, so the
         // read has to be "hello", not "malfunction".
@@ -301,7 +317,8 @@ export function PollinatorModel({
       bodyRef.current.scale.set(1 / squash, squash, 1 / squash);
     }
 
-    const flap = anim.wingRest + beat * current.wingAmplitude;
+    // Cold weakens the wingbeat: a chilled bee can barely work them.
+    const flap = anim.wingRest + beat * current.wingAmplitude * (1 - chill * 0.5);
 
     if (rightWingRef.current && leftWingRef.current) {
       rightWingRef.current.rotation.z = flap;

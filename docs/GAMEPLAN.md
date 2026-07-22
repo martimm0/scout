@@ -149,7 +149,9 @@ The park also keeps **Pittsburgh's weather**, pulled from the real observation
 for the park's own coordinates. If it is raining in Squirrel Hill it is raining
 here, at the angle the wind is actually blowing. An overcast day is dimmer and
 harder to find a flower in. In fog you cannot see the far bank of the creek, and
-you have to fly low and follow the trails.
+you have to fly low and follow the trails. And when it is genuinely cold your own
+bee shivers, the way a real one vibrates its flight muscles warm before it can
+work at all, which is the same cold that keeps the other foragers home.
 
 None of that is a replay mechanic bolted on. It is what the place does.
 

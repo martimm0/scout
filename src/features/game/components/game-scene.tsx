@@ -1134,6 +1134,9 @@ function ScoutScene({
                 ? "flying"
                 : "hovering"
           }
+          // How cold Pittsburgh is, 0 warm to 1 freezing. A bee shivers below
+          // about twelve degrees, the same cold that grounds the foragers.
+          chill={clamp((12 - weather.temperature) / 12, 0, 1)}
           gestureRef={gestureRef}
           // Pollen baskets on the hind legs, once you're actually carrying some.
           hasPollen={pollinatedCount > 0}
