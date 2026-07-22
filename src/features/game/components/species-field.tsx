@@ -5,9 +5,17 @@ import { useEffect, useMemo, useRef } from "react";
 import { Color, InstancedMesh, Object3D, type BufferGeometry } from "three";
 
 import { buildFungusGeometry } from "../models/fungi";
-import { buildMoteGeometry, buildPlantGeometry } from "../models/flora";
+import {
+  buildMoteGeometry,
+  buildPlantGeometry,
+  buildSeedHeadGeometry,
+} from "../models/flora";
 import { useGameStore } from "../state/game-store";
-import { isOut, type SpeciesInstance } from "../world/species-scatter";
+import {
+  isOut,
+  landingHeight,
+  type SpeciesInstance,
+} from "../world/species-scatter";
 
 /**
  * Everything you can find, drawn.
@@ -114,7 +122,84 @@ export function SpeciesField({
         );
       })}
       <Motes hour={hour} month={month} instances={visible} />
+      <SeedHeads hour={hour} month={month} instances={visible} />
     </>
+  );
+}
+
+/**
+ * A seed head on every flower you pollinated whose bloom has now passed.
+ *
+ * It is the world remembering you, on the real calendar: pollinate the milkweed
+ * in July and come back in October to a pod that set because you were there. It
+ * only shows once the flower is out of its season (or its hours), so a plant is
+ * never a bloom and a seed head at once, and there is no mark until your work has
+ * actually had time to become one.
+ */
+function SeedHeads({
+  hour,
+  month,
+  instances,
+}: {
+  hour: number;
+  month: number;
+  instances: SpeciesInstance[];
+}) {
+  const pollinatedPlants = useGameStore((state) => state.pollinatedPlants);
+  const geometry = useMemo(() => buildSeedHeadGeometry(), []);
+  const meshRef = useRef<InstancedMesh>(null);
+
+  const marked = useMemo(
+    () =>
+      instances.filter(
+        (instance) =>
+          instance.species.kind === "plant" &&
+          pollinatedPlants[instance.id] &&
+          !isOut(instance, hour, month),
+      ),
+    [instances, hour, month, pollinatedPlants],
+  );
+
+  useEffect(() => () => geometry.dispose(), [geometry]);
+
+  useFrame(({ clock }) => {
+    const mesh = meshRef.current;
+
+    if (!mesh) {
+      return;
+    }
+
+    const elapsed = clock.getElapsedTime();
+    const dummy = new Object3D();
+
+    marked.forEach((instance, index) => {
+      const [x, , z] = instance.position;
+      // A dry pod barely moves; a slow nod in the wind, no more.
+      const sway = Math.sin(elapsed * 0.8 + index) * 0.04;
+
+      dummy.position.set(x, landingHeight(instance) - 1, z);
+      dummy.rotation.set(sway, instance.rotation, 0);
+      dummy.scale.setScalar(instance.scale * 0.9);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(index, dummy.matrix);
+    });
+
+    mesh.instanceMatrix.needsUpdate = true;
+  });
+
+  if (marked.length === 0) {
+    return null;
+  }
+
+  return (
+    <instancedMesh
+      args={[geometry, undefined, marked.length]}
+      castShadow
+      key={marked.length}
+      ref={meshRef}
+    >
+      <meshLambertMaterial vertexColors />
+    </instancedMesh>
   );
 }
 

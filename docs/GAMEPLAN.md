@@ -145,6 +145,10 @@ the real one is not either. It is also why the game keeps a real bloom window fo
 every plant rather than an invented one; those windows are read out of the sourced
 `bloom` line, never made up.
 
+Your work leaves a mark on that calendar. A flower you pollinated wears a **seed
+head** once its bloom has passed, the pod it set because you were there: the
+milkweed you worked in July is a pod in October. The park remembers the afternoon.
+
 The park also keeps **Pittsburgh's weather**, pulled from the real observation
 for the park's own coordinates. If it is raining in Squirrel Hill it is raining
 here, at the angle the wind is actually blowing. An overcast day is dimmer and

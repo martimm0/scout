@@ -300,3 +300,18 @@ export function buildMoteGeometry(): BufferGeometry {
     { position: [0, 0, 0], size: [0.22, 0.22, 0.22], color: "#fff3c4" },
   ]);
 }
+
+/**
+ * A dry seed head: a swollen pod on a short neck, brown and unshowy.
+ *
+ * It is the flower's afterlife, and the mark that you were here when it bloomed.
+ * A plant you pollinated wears one once its season has passed, so the milkweed you
+ * worked in July is a pod in October, set because of you.
+ */
+export function buildSeedHeadGeometry(): BufferGeometry {
+  return buildBoxGeometry([
+    { position: [0, 0.02, 0], size: [0.05, 0.16, 0.05], color: "#6f5230" },
+    { position: [0, 0.2, 0], size: [0.2, 0.26, 0.16], color: "#8a6a3c" },
+    { position: [0, 0.36, 0], size: [0.12, 0.12, 0.1], color: "#9c7c48" },
+  ]);
+}
