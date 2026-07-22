@@ -157,6 +157,12 @@ you have to fly low and follow the trails. And when it is genuinely cold your ow
 bee shivers, the way a real one vibrates its flight muscles warm before it can
 work at all, which is the same cold that keeps the other foragers home.
 
+A bare bee flies heavy and slow in the rain, so there is a **raincoat**, in
+whatever colour you like it. It is worn only when it is actually raining: you
+cannot put on a coat there is no weather for. You can take it off in the rain if
+you would rather show your bee than stay quick, and then you feel the rain in your
+wings. It is the one cosmetic that is also a decision.
+
 None of that is a replay mechanic bolted on. It is what the place does.
 
 ## Where this is going

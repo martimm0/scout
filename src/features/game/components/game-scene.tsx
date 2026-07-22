@@ -143,6 +143,7 @@ const DIVE = ["KeyQ"];
 const BOOST = ["ShiftLeft", "ShiftRight"];
 const GREET_KEY = "KeyF";
 const DANCE_KEY = "KeyG";
+const RAINCOAT_KEY = "KeyC";
 const READ_KEY = "KeyR";
 const PHOTO_KEY = "KeyP";
 
@@ -383,9 +384,18 @@ function ScoutScene({
 
   const playerMovement = useGameStore((state) => state.player.movement);
   const selectedPollinator = useGameStore((state) => state.pollinator);
+  const wearingRaincoat = useGameStore((state) => state.wearingRaincoat);
   const pollinatedCount = useGameStore((state) =>
     countUnlocked(state.pollinatedPlants),
   );
+
+  // Rain is the only time the coat means anything. A ref so the keyboard handler,
+  // which is registered once, can still ask whether it is raining right now.
+  const raining = weather.falling === "rain";
+  const rainingRef = useRef(raining);
+  useEffect(() => {
+    rainingRef.current = raining;
+  }, [raining]);
   // This scene's own canvas. A document-wide query would grab whichever canvas
   // mounted first, which is the preview modal's as soon as that opens.
   const canvas = useThree((state) => state.gl.domElement);
@@ -492,6 +502,12 @@ function ScoutScene({
           kind: code === GREET_KEY ? "greet" : "dance",
           time: 0,
         };
+      }
+
+      // Take the raincoat off, or put it back on. Only while it is raining: you
+      // cannot equip a coat there is no weather for.
+      if (code === RAINCOAT_KEY && !event.repeat && rainingRef.current) {
+        useGameStore.getState().toggleRaincoat();
       }
 
       // Space LANDS on whatever you are beside. Landing is the interaction now:
@@ -730,8 +746,17 @@ function ScoutScene({
     const hasMovementInput = throttle !== 0;
     const isBoosting = held(keys, BOOST) && hasMovementInput;
     const isPollinating = keys.has("Space");
+    // Rain slows a bare bee: wet wings are heavy wings. The coat keeps it dry and
+    // quick, which is the whole point of putting one on.
+    const rainSlow =
+      weather.falling === "rain" && !useGameStore.getState().wearingRaincoat
+        ? 0.62
+        : 1;
     const speed =
-      BASE_SPEED * flight.speed * (isBoosting ? BOOST_MULTIPLIER : 1);
+      BASE_SPEED *
+      flight.speed *
+      rainSlow *
+      (isBoosting ? BOOST_MULTIPLIER : 1);
     const altitudeInput = axis(keys, DIVE, CLIMB) + scrollAltitudeRef.current;
 
     scrollAltitudeRef.current *= 0.82;
@@ -1140,6 +1165,9 @@ function ScoutScene({
           // about twelve degrees, the same cold that grounds the foragers.
           chill={clamp((12 - weather.temperature) / 12, 0, 1)}
           gestureRef={gestureRef}
+          // The coat only appears while it is raining and the player is wearing
+          // it. Take it off in the rain and the bee gets wet, and slow.
+          showRaincoat={raining && wearingRaincoat}
           // Pollen baskets on the hind legs, once you're actually carrying some.
           hasPollen={pollinatedCount > 0}
           pollinator={selectedPollinator}
@@ -1547,6 +1575,9 @@ export function GameScene({
               </li>
               <li>
                 <kbd>F</kbd> look at me · <kbd>G</kbd> dance
+              </li>
+              <li>
+                <kbd>C</kbd> take the raincoat off or on, when it rains
               </li>
               <li>
                 <kbd>Esc</kbd> releases the mouse cursor

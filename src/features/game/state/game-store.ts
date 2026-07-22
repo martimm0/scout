@@ -22,6 +22,9 @@ export type Pollinator = {
   accessory: string;
   /** The colour of the accessory. */
   accentColor: string;
+  /** The colour of the raincoat, worn only when it rains. Its own colour, like
+   *  the trail: a yellow slicker and a pink trail are both yours to have. */
+  raincoatColor: string;
 };
 
 export type PlayerMovementState =
@@ -130,6 +133,12 @@ export type GameState = {
    */
   lastMinigameScore: number;
   /**
+   * Whether the raincoat is on. Session-only and not persisted: it only means
+   * anything while it is raining, and it defaults to worn, so a bee caught in the
+   * rain is dry and quick unless the player chooses to take the coat off.
+   */
+  wearingRaincoat: boolean;
+  /**
    * Bumped each time a successful pollination's popover is dismissed. Session-
    * only, never persisted: it is a one-shot cue for the scene to play the
    * celebration once the panel is out of the way, not a fact about the save.
@@ -168,6 +177,7 @@ export type GameActions = {
   recordQuiz: (ref: SpeciesRef, correct: number, total: number) => void;
   seePhase: (phase: string) => void;
   seeSeason: (season: string) => void;
+  toggleRaincoat: () => void;
   recordPollinationAttempt: (succeeded: boolean) => void;
   /** Ask the scene to celebrate: the bee just pollinated and the panel closed. */
   signalPollinationCue: () => void;
@@ -206,6 +216,8 @@ export const DEFAULT_POLLINATOR: Pollinator = {
   trailColor: "#f6d15a",
   accessory: "none",
   accentColor: "#c0413b",
+  // The classic slicker yellow, until the player repaints it.
+  raincoatColor: "#f7e07a",
 };
 
 const initialPlayer: PlayerState = {
@@ -346,6 +358,7 @@ function earnedParks(
 const initialProgress = {
   lastMinigameScore: 0,
   pollinationCue: 0,
+  wearingRaincoat: true,
   discoveredPlants: {},
   discoveredFungi: {},
   quizPassed: {},
@@ -631,6 +644,8 @@ export const useGameStore = create<GameStore>()(
         ? state
         : { seenSeasons: { ...state.seenSeasons, [season]: true } },
     ),
+
+  toggleRaincoat: () => set((state) => ({ wearingRaincoat: !state.wearingRaincoat })),
 
   recordMinigameScore: (score) =>
     set({ lastMinigameScore: Math.max(0, Math.min(1, score)) }),

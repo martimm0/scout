@@ -7,6 +7,8 @@ import { DoubleSide, MeshLambertMaterial, type BufferGeometry, type Group } from
 import {
   accessoryOffset,
   buildPollinatorGeometry,
+  buildRaincoatFor,
+  RAINCOAT_OFFSET,
   speciesFor,
   type Accessory,
   type WingStyle,
@@ -137,6 +139,7 @@ export function PollinatorModel({
   gestureRef,
   hasPollen = false,
   pollinator,
+  showRaincoat = false,
 }: {
   animationState?: PollinatorAnimationState;
   /**
@@ -153,6 +156,8 @@ export function PollinatorModel({
   gestureRef?: React.RefObject<{ kind: Gesture; time: number }>;
   hasPollen?: boolean;
   pollinator: Pollinator;
+  /** Draw the raincoat. The scene only sets this while it is actually raining. */
+  showRaincoat?: boolean;
 }) {
   const spec = speciesFor(pollinator.type);
 
@@ -193,6 +198,16 @@ export function PollinatorModel({
   );
 
   useEffect(() => () => disposePollinatorGeometry(geometry), [geometry]);
+
+  // The coat, built apart from the bee so it can come and go with the rain
+  // without rebuilding everything. Rebuilt only when the species or its colour
+  // changes.
+  const raincoatGeometry = useMemo(
+    () => buildRaincoatFor(pollinator.type, pollinator.raincoatColor),
+    [pollinator.type, pollinator.raincoatColor],
+  );
+
+  useEffect(() => () => raincoatGeometry.dispose(), [raincoatGeometry]);
 
   useEffect(
     () => () => {
@@ -391,6 +406,12 @@ export function PollinatorModel({
             geometry={geometry.accessory}
             position={accessoryOffset(pollinator.accessory as Accessory)}
           >
+            <meshLambertMaterial vertexColors />
+          </mesh>
+        ) : null}
+
+        {showRaincoat ? (
+          <mesh castShadow geometry={raincoatGeometry} position={RAINCOAT_OFFSET}>
             <meshLambertMaterial vertexColors />
           </mesh>
         ) : null}

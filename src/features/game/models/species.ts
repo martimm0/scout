@@ -282,6 +282,24 @@ export function buildSpeciesGeometry(
   };
 }
 
+/**
+ * The raincoat, on its own and in the player's chosen colour.
+ *
+ * Built apart from the accessory slot so a bee can wear its hat AND its coat, and
+ * so the coat can come and go with the rain without rebuilding the whole bee. Only
+ * the letter Y is used in the layers, so the palette is a single colour.
+ */
+export function buildRaincoatGeometry(voxelSize: number, color: string) {
+  return buildVoxelGeometry({
+    layers: RAINCOAT_LAYERS,
+    origin: [3.5, 0, 1.5],
+    palette: { Y: color },
+    size: voxelSize,
+  });
+}
+
+export const RAINCOAT_OFFSET = ACCESSORY_OFFSET.raincoat;
+
 export function disposePollinatorGeometry(geometry: PollinatorGeometry) {
   for (const part of Object.values(geometry)) {
     part?.dispose();

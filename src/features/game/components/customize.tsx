@@ -55,6 +55,16 @@ const TRAIL_COLORS = [
   "#c8a2ff",
 ];
 
+/** Slicker colours: the classic yellow, and a few others worth getting wet for. */
+const RAINCOAT_COLORS = [
+  "#f7e07a",
+  "#e9783e",
+  "#5aa0e0",
+  "#8fd6a6",
+  "#f2a9c4",
+  "#3c4550",
+];
+
 const WING_STYLE_NOTES: Record<string, string> = {
   round: "The honeybee's paddle.",
   long: "Long and tapered, like a hoverfly's.",
@@ -283,6 +293,18 @@ export function Customize() {
             value={pollinator.trailColor ?? "#f6d15a"}
           />
         ) : null}
+
+        <section className={styles.field}>
+          <ColorField
+            colors={RAINCOAT_COLORS}
+            label="Raincoat colour"
+            onPick={(raincoatColor) => set({ raincoatColor })}
+            value={pollinator.raincoatColor ?? "#f7e07a"}
+          />
+          <p className={styles.optionNote}>
+            Worn only when it rains. Take it off in the rain and you fly slower.
+          </p>
+        </section>
 
         <div className={styles.actions}>
           <Button disabled={!validation.valid} onClick={save} type="button">
