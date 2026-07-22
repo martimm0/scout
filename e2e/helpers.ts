@@ -118,9 +118,13 @@ function authSecret() {
  * have issued after a real Google round-trip. The app cannot tell the difference,
  * which is the point: this exercises the actual signed-in path.
  */
-export async function signIn(context: BrowserContext, subject = "e2e-player") {
+export async function signIn(
+  context: BrowserContext,
+  subject = "e2e-player",
+  email = "e2e@example.com",
+) {
   const token = await encode({
-    token: { sub: subject, name: "E2E Player", email: "e2e@example.com" },
+    token: { sub: subject, name: "E2E Player", email },
     secret: authSecret(),
     salt: "authjs.session-token",
     maxAge: 60 * 60,

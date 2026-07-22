@@ -229,6 +229,25 @@ butterfly before the resume request comes back would watch the server's older be
 silently overwrite them. The merge compares the bee against what it was when the
 request went out: a click is newer than a request already in flight.
 
+## Accounts, the ceiling, and the waitlist
+
+The save file records what an anonymous id has found; it never recorded WHO. That
+was fine until the game needed a door policy. `lib/accounts.ts` adds three tables,
+lazily like the save file: `accounts` (a row per real sign-in, with a status),
+`waitlist` (an email per person turned away), and `admin_settings` (one row, the
+account ceiling, starting at 100).
+
+The door is `registerSignIn`, run in the Auth.js `signIn` callback. An existing
+account is let back in unless suspended; a new one is admitted only if there is a
+seat under the ceiling; everyone past it goes on the waitlist and is redirected to
+`/waitlist`. It **fails open**: a database hiccup at the door lets a real player in
+rather than locking the game out, because the ceiling is a courtesy rope and not a
+security boundary. A suspension bites even on a live session, because the play gate
+re-checks it. The admin tool (`/admin`, one email, everyone else gets a 404) reads
+the numbers back and can set the ceiling, suspend, delete, and clear the waitlist.
+Deleting an account takes its save and its album with it, which is what frees a
+seat.
+
 ## Photographs
 
 Four sets, by park, each with a `CREDITS.md` and a generated TypeScript record:

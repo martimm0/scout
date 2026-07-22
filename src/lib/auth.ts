@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 
+import { registerSignIn } from "./accounts";
 import { authConfigured, env } from "./env";
 
 /**
@@ -32,6 +33,35 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
   secret: env.authSecret || "scout-local-mode-no-signin-possible",
   session: { strategy: "jwt" },
   callbacks: {
+    /**
+     * The door policy, run once per sign-in.
+     *
+     * An existing account is let back in; a new one only if there is a seat under
+     * the ceiling; a suspended one is turned away; and everyone past the ceiling
+     * is put on the waitlist and sent to a page that says so. Returning a URL from
+     * here redirects there instead of completing the sign-in.
+     */
+    async signIn({ profile }) {
+      if (!profile?.sub) {
+        return true;
+      }
+
+      const result = await registerSignIn({
+        userId: profile.sub,
+        email: typeof profile.email === "string" ? profile.email : null,
+        name: typeof profile.name === "string" ? profile.name : null,
+      });
+
+      if (result === "waitlisted") {
+        return "/waitlist";
+      }
+
+      if (result === "suspended") {
+        return "/suspended";
+      }
+
+      return true;
+    },
     jwt({ token, profile }) {
       // Google's `sub` is the stable, permanent user id. The email is not — people
       // change them, and a save file keyed on an email quietly detaches from its

@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
+import { isSuspended } from "@/lib/accounts";
 import { auth } from "@/lib/auth";
 import { authConfigured } from "@/lib/env";
 import { SignInButton } from "./sign-in-button";
@@ -30,6 +32,14 @@ export async function requireSignIn() {
   const session = await auth();
 
   if (session?.user) {
+    // A suspension has to bite even on a session that is already signed in, not
+    // only at the next sign-in, so the gate checks it here. Fails open: a missing
+    // account row or a database hiccup reads as "not suspended", so no real player
+    // is locked out by an outage.
+    if (session.user.id && (await isSuspended(session.user.id))) {
+      redirect("/suspended");
+    }
+
     return null;
   }
 
