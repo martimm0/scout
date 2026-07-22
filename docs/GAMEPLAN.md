@@ -82,6 +82,32 @@ And there is one thing in Frick that is not about plants at all. Fly to the top
 of the **Blue Slide** and you ride it down, because a slide is for sliding and it
 would be strange to build the most recognisable thing in the park and not let you.
 
+## The park is inhabited
+
+You are not the only thing alive in it. Other foragers work the same meadow by
+day, a bird turns slow circles over the canopy, and at dusk the fireflies come up
+out of the grass. They are ambience, not quarry: you do not collect them, they
+never block you, and they are not flowers to pollinate. They are here so the park
+reads as a place rather than a diorama, and because a real park at this scale is
+thick with life.
+
+They keep the same kind of truth the flowers do. Bees do not fly much below ten
+degrees or in hard rain, birds shelter from a thunderstorm, and a firefly wants a
+still, dry dusk. So a cold, wet park is genuinely quieter, and that is not a
+penalty, it is the weather. Something moving at a distance also does more for the
+sense of size than any amount of haze: the park feels as large as it is partly
+because it is populated out to the edge of sight.
+
+## What is out today
+
+When you arrive, a short note tells you what the park is like right now: the sky
+and the temperature, how many flowers are open (and which ones shut by
+mid-afternoon), how many you have yet to meet here, and one thing worth looking
+for. Every line of it is derived, not written. It is the clock, the real weather,
+the bloom windows and your own journal, said out loud. It is how a park that is a
+different place every hour tells you which hour you have walked into, and it never
+sets a quota or scolds you for a slow day.
+
 ## The parks
 
 Three, and they are deliberately not the same generator with different numbers.

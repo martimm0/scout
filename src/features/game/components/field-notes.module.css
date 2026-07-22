@@ -1,0 +1,91 @@
+/**
+ * Field notes: the "what's out today" island, top-left.
+ *
+ * Same furniture as the other HUD panels (translucent white, blurred, light
+ * tokens pinned by the scene's `.shell`) so it reads as one family with Scout
+ * Stats and Controls. Top-left is empty in ordinary play (only the dev-only
+ * debug overlay sits there), which keeps it clear of the tall Controls panel
+ * that climbs up the right edge. It folds to just its title, so it can get out
+ * of the way of the meadow without ever fully leaving.
+ */
+
+.panel {
+  position: absolute;
+  left: 24px;
+  top: 24px;
+  width: min(320px, calc(100% - 48px));
+  border: 1px solid rgba(30, 44, 26, 0.18);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--foreground);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(16px);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--primary-dark);
+  cursor: pointer;
+}
+
+.label {
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.chevron {
+  font-size: 1rem;
+  line-height: 1;
+  transition: transform 0.18s ease;
+  transform: rotate(90deg);
+}
+
+.chevron[data-open="false"] {
+  transform: rotate(0deg);
+}
+
+.notes {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.note {
+  color: var(--foreground);
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* The sky line is the heading of the card: a touch bolder, a touch larger. */
+.note[data-tone="sky"] {
+  color: var(--primary-dark);
+  font-size: 0.96rem;
+  font-weight: 800;
+}
+
+/* The look-for lines read as an aside, not an instruction. */
+.note[data-tone="goal"] {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .panel {
+    left: 16px;
+    top: 16px;
+  }
+}

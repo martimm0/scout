@@ -278,6 +278,42 @@ A plant qualifies at 8 or more makeable words. Below that, `minigameFor(plant)`
 name makes only "PAPA", and jewelweed, heal-all and joe-pye-weed are also too thin.
 A test asserts every plant resolves to a game that exists and can be won.
 
+## Ambient life
+
+`data/ambient.ts` is the other things alive in the park: `AMBIENT_COHORTS`, a
+short list where each cohort is a `kind` (`pollinator`, `bird`, `firefly`), a
+`count` in the tens, a colour and size, a height `band`, a drift `speed`, and an
+`active(phase, weather)` predicate.
+
+The predicate is the load-bearing field, because it is where the truth lives. A
+forager is out by day, above ten degrees, and not in hard rain, exactly like the
+flowers it works. A bird is out by day but shelters from a thunderstorm. A firefly
+wants a still, dry dusk or night, so wind or rain keeps it down. These are the
+same kind of sourced fact the species keep, and they double as atmosphere: the
+gating is what makes a cold, wet park genuinely emptier than a fine one.
+
+The `band` means two different things by design. For a pollinator or a firefly it
+is height ABOVE the ground the instance is over, because a firefly is a few units
+off the grass wherever the grass happens to be. For a bird it is an absolute
+altitude, because a bird over the ravine is up in the sky, not fifty units off the
+creek. `species` and `note` are a real name and one true line, kept for a field
+note the player can read later; nothing renders them yet.
+
+These are not species you collect and they never gate anything, so they carry none
+of the `Species` machinery: no photograph, no trivia, no journal entry, no place
+in the save file. They are scenery with rules.
+
+## What is out today
+
+`world/field-notes.ts` builds the arrival card, and it is data-shaped even though
+it lives in `world/`: `fieldNotesFor(input)` takes a park, a `Daylight`, a
+`Weather` and the `discoveredPlants` / `unlockedBadges` records, and returns a
+list of `FieldNote` (`{ id, text, tone }`). Every line is derived: the sky from
+the weather, the bloom line from `isActive` over each species' window, the count
+from the save, and the one soft goal from an unearned badge's own `hint`. It reads
+data and writes strings; it never sets a quota and never scolds, which is a
+content rule as much as a code one.
+
 ## Adding things
 
 **A species:** add the record with its `homes`, source a licensed photograph and

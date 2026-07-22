@@ -240,6 +240,27 @@ colour is the player's, kept apart from the accent. The **gestures** (`greet`,
 successful pollination bumps a session cue that fires `celebrate` once the panel
 that was covering the bee has closed, so the dance happens where it can be seen.
 
+**Ambient life** (`ambient-life.tsx`) is a third system of the same shape, and it
+is a sibling of the bee, not a child: it reads nothing back from the player,
+because ambience does not chase you. Each cohort (foragers, birds, fireflies from
+`data/ambient.ts`) is one `InstancedMesh` with a fixed pool mutated in place in
+`useFrame`, and its homes are seeded from `hash` so the same bees are over the
+same meadow every visit. Which cohorts exist at all is decided by the cohort's own
+`active(phase, weather)` predicate, so the set is rebuilt only when the hour or
+the sky crosses a boundary, never per frame. The whole thing follows rule 9: no
+`Math.random`, so the park is populated identically every visit and a test can
+assert what is out at a given hour.
+
+### Field notes are a pure module
+
+`world/field-notes.ts` is the "what is out today" card, and it is deliberately a
+pure function with no React and no store: it takes a park, a `Daylight`, a
+`Weather` and the two records it needs off the save, and returns plain notes. That
+is why the same words can serve the HUD panel (`field-notes.tsx`) and, later, the
+picker, without drifting, and why a test can pin the hour and the sky and read the
+copy back. It is the same discipline as `daylight.ts` and `weather.ts`: the logic
+lives in a module that can be reasoned about, and the component only draws it.
+
 ## Testing
 
 The suite drives a real browser, because **every serious bug in this project's

@@ -29,6 +29,8 @@ import { PollinatorPreview } from "./pollinator-preview";
 import { Creek, Foliage, Landmarks, Terrain } from "./frick-park";
 import { SpeciesField } from "./species-field";
 import { WeatherLayer } from "./weather";
+import { AmbientLife } from "./ambient-life";
+import { FieldNotes } from "./field-notes";
 import { LandingMenu } from "./landing-menu";
 import { Quiz } from "./quiz";
 import { SpeciesTag } from "./species-tag";
@@ -1104,6 +1106,11 @@ function ScoutScene({
       {/* What is actually falling on Pittsburgh right now. */}
       <WeatherLayer weather={weather} />
 
+      {/* The other things alive in the park: foragers by day, fireflies at dusk,
+          a bird turning overhead. Gated by the hour and the sky, like the rest
+          of it. */}
+      <AmbientLife daylight={daylight} weather={weather} />
+
       {/* Anchored over the thing itself, not pinned to the screen. */}
       {nearbyInstance ? (
         <SpeciesTag daylight={daylight} instance={nearbyInstance} />
@@ -1192,6 +1199,7 @@ export function GameScene({
   const unlockedBadgeCount = useGameStore((state) =>
     countUnlocked(state.unlockedBadges),
   );
+  const unlockedBadges = useGameStore((state) => state.unlockedBadges);
   const unlockedJournalCount = useGameStore((state) =>
     countUnlocked(state.unlockedJournalEntries),
   );
@@ -1587,6 +1595,14 @@ export function GameScene({
           </div>
         </dl>
       </aside>
+
+      <FieldNotes
+        park={park}
+        daylight={daylight}
+        weather={weather}
+        discoveredPlants={discoveredPlants}
+        unlockedBadges={unlockedBadges}
+      />
 
       <PlantEntry />
       <LandingMenu />
