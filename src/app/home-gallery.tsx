@@ -22,14 +22,24 @@ const SLIDES = [
     caption: "Frick Park. A wood with a creek at the bottom of it.",
   },
   {
+    src: "/images/gallery/frick-autumn.png",
+    alt: "The same wood in October, the whole canopy turned gold and rust",
+    caption: "October, and the whole wood turns. The park keeps the real calendar.",
+  },
+  {
+    src: "/images/gallery/frick-winter.png",
+    alt: "The wood under snow in January, bare and white, snow still falling",
+    caption: "January. Snow on the canopy, and nothing in bloom but the fungi.",
+  },
+  {
     src: "/images/gallery/frick-dusk.png",
-    alt: "The same meadow at dusk, warm with low light and the first fireflies",
+    alt: "The meadow at dusk, warm with low light and the first fireflies",
     caption: "The same meadow at dusk. The park keeps Pittsburgh time.",
   },
   {
     src: "/images/gallery/frick-rain.png",
-    alt: "Rain falling over the meadow in Frick Park",
-    caption: "Real weather. If it is raining in Squirrel Hill, it is raining here.",
+    alt: "The bee in a yellow raincoat over the meadow, rain falling",
+    caption: "Real weather, and a coat for it. Fly bare in the rain and you fly slower.",
   },
   {
     src: "/images/gallery/frick-ravine.png",

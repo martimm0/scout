@@ -1,0 +1,88 @@
+.banner {
+  width: 100%;
+  overflow: hidden;
+  padding: 9px 0;
+  background: #10140d;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  /* Fade the two ends so items slide in and out rather than popping at the edge. */
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 6%,
+    #000 94%,
+    transparent
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 6%,
+    #000 94%,
+    transparent
+  );
+}
+
+.track {
+  display: flex;
+  width: max-content;
+  animation: marquee 46s linear infinite;
+}
+
+.run {
+  display: flex;
+  flex: none;
+  align-items: center;
+}
+
+.item,
+.lead {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 30px;
+  white-space: nowrap;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #dfe6d7;
+}
+
+.lead {
+  color: #9fb08f;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.glyph {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.park {
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.reading {
+  font-weight: 700;
+  color: #ffe4a0;
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.banner:hover .track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track {
+    animation: none;
+  }
+}

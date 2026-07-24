@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
-import { ParkForecast } from "./park-forecast";
+import { HomeGallery } from "./home-gallery";
+import { WeatherBanner } from "./weather-banner";
 
 /**
  * The landing page.
@@ -13,8 +14,13 @@ import { ParkForecast } from "./park-forecast";
  */
 export default function HomePage() {
   return (
-    <main className="page-container">
-      <section className="home-hero">
+    <>
+      {/* Full width, above the contained page: the live sky over the parks,
+          scrolling across the top. */}
+      <WeatherBanner />
+
+      <main className="page-container">
+        <section className="home-hero">
         <div className="page-header">
           <p className="eyebrow">Pittsburgh, Pennsylvania</p>
           <h1>You are a bee.</h1>
@@ -31,7 +37,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        <ParkForecast />
+        <HomeGallery />
       </section>
 
       <section>
@@ -67,7 +73,8 @@ export default function HomePage() {
             drinking water.
           </Card>
         </div>
-      </section>
-    </main>
+        </section>
+      </main>
+    </>
   );
 }
