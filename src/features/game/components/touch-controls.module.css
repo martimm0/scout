@@ -1,0 +1,251 @@
+/**
+ * The touch pad.
+ *
+ * The root covers the scene but is `pointer-events: none`, and each control opts
+ * back in. That is what keeps the space between the controls belonging to the
+ * game, so a flower's Land and Read buttons stay tappable through the pad.
+ *
+ * Everything is `touch-action: none`, or the browser claims the drag first and
+ * scrolls the page instead of flying the bee.
+ */
+
+.pad {
+  position: absolute;
+  inset: 0;
+  /**
+   * Below the flower's tag, which drei draws at 12.
+   *
+   * This was 14, above it, and the sticks then swallowed taps meant for the Land
+   * button whenever a tag happened to draw over one: the single most important
+   * interaction in the game, lost to a control that is mostly empty space. The pad
+   * is the bottom-most interactive layer. Everything else outranks it.
+   */
+  z-index: 5;
+  pointer-events: none;
+  /* Clear of a notch or a home indicator in landscape. */
+  padding: max(12px, env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ------------------------------------------------------------------ *
+ * Left: the fly stick. A generous zone, so the thumb never hunts.
+ * ------------------------------------------------------------------ */
+
+.moveZone {
+  position: absolute;
+  left: max(16px, env(safe-area-inset-left));
+  bottom: max(14px, env(safe-area-inset-bottom));
+  width: 46%;
+  max-width: 260px;
+  height: 46%;
+  max-height: 200px;
+  border-radius: 20px;
+  pointer-events: auto;
+  touch-action: none;
+  background: rgba(16, 20, 13, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* The resting target: a ring and a word, centred in the zone, saying "here". */
+.restTarget {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.restRing {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  border: 2px dashed rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.restLabel {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+  text-shadow: 0 1px 3px rgba(10, 14, 8, 0.7);
+}
+
+/* Positioned by the component writing `transform` straight onto the node. */
+.moveKnob {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 62px;
+  height: 62px;
+  margin: -31px 0 0 -31px;
+  border-radius: 50%;
+  opacity: 0;
+  background: rgba(255, 255, 255, 0.82);
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 4px 14px rgba(10, 14, 8, 0.4);
+  transition: opacity 120ms ease;
+  will-change: transform;
+}
+
+.boost {
+  position: absolute;
+  left: max(16px, env(safe-area-inset-left));
+  bottom: calc(46% + 24px);
+  min-width: 62px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  pointer-events: auto;
+  touch-action: none;
+  background: rgba(16, 20, 13, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.boost:active {
+  background: rgba(214, 154, 45, 0.7);
+}
+
+/* ------------------------------------------------------------------ *
+ * Right: pitch on a track, and the altitude pair beside it.
+ * ------------------------------------------------------------------ */
+
+.rightCluster {
+  position: absolute;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(14px, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.pitchTrack {
+  position: relative;
+  width: 56px;
+  height: 168px;
+  border-radius: 28px;
+  pointer-events: auto;
+  touch-action: none;
+  background: rgba(16, 20, 13, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pitchKnob {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.72);
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  box-shadow: 0 4px 14px rgba(10, 14, 8, 0.4);
+  will-change: transform;
+}
+
+.altitude {
+  display: grid;
+  gap: 10px;
+}
+
+.altButton {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  pointer-events: auto;
+  touch-action: none;
+  background: rgba(16, 20, 13, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #fff;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.altButton:active {
+  background: rgba(60, 125, 74, 0.78);
+}
+
+/* ------------------------------------------------------------------ *
+ * The tray: charm and the shutter, out of the way of both thumbs.
+ * ------------------------------------------------------------------ */
+
+.tray {
+  position: absolute;
+  right: max(16px, env(safe-area-inset-right));
+  top: max(12px, env(safe-area-inset-top));
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.trayToggle {
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 999px;
+  pointer-events: auto;
+  touch-action: manipulation;
+  background: rgba(16, 20, 13, 0.52);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 800;
+  order: 2;
+}
+
+.trayItems {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  max-width: 60vw;
+  order: 1;
+}
+
+.trayButton {
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  pointer-events: auto;
+  touch-action: manipulation;
+  background: rgba(255, 253, 245, 0.94);
+  border: 1px solid rgba(30, 44, 26, 0.2);
+  color: #20251d;
+  font-size: 0.84rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.trayButton:active {
+  background: #f7e07a;
+}
+
+/* A short phone in landscape has very little height; shrink rather than clip. */
+@media (max-height: 420px) {
+  .pitchTrack {
+    height: 128px;
+  }
+
+  .altButton {
+    width: 54px;
+    height: 54px;
+  }
+
+  .moveKnob {
+    width: 54px;
+    height: 54px;
+    margin: -27px 0 0 -27px;
+  }
+}

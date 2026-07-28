@@ -32,6 +32,13 @@ import { WeatherLayer } from "./weather";
 import { AmbientLife } from "./ambient-life";
 import { FieldNotes } from "./field-notes";
 import { LandingMenu } from "./landing-menu";
+import { RotateNotice } from "./rotate-notice";
+import { TouchControls } from "./touch-controls";
+import {
+  coarsePointerNow,
+  useCoarsePointer,
+  usePortraitPhone,
+} from "../hooks/use-media-query";
 import { Quiz } from "./quiz";
 import { SpeciesTag } from "./species-tag";
 import { FirstFlight } from "./first-flight";
@@ -57,6 +64,7 @@ import {
   type Daylight,
 } from "../world/daylight";
 import { pittsburghMonth, seasonFor } from "../world/season";
+import { resetVirtualInput, virtualInput } from "../state/virtual-input";
 import {
   applyWeather,
   FAIR_WEATHER,
@@ -107,6 +115,14 @@ const ALTITUDE_SPEED = 17;
 const MOUSE_SENSITIVITY = 0.0024;
 /** Radians per second when steering with the arrow keys. */
 const TURN_SPEED = 2;
+/**
+ * Radians per second the right stick tilts the view.
+ *
+ * Its own constant rather than a reuse of `MOUSE_SENSITIVITY`, because that one is
+ * per pixel of mouse travel and this one is per second of held thumb. They are
+ * different units for different hands.
+ */
+const TOUCH_PITCH_SPEED = 1.1;
 const CAMERA_DISTANCE = 4.4;
 const CAMERA_HEIGHT = 1.5;
 
@@ -181,7 +197,7 @@ const ACTION_CODES = new Set([
  * entirely. Escape is handled before this gate, because it is how the popovers
  * are closed.
  */
-function inputSuspended(ui: {
+export function inputSuspended(ui: {
   activeEntry: unknown;
   landedOn: unknown;
   minigamePlantId: unknown;
@@ -291,10 +307,24 @@ function R3FViewport({
       // retina screen leaves the GL viewport twice the buffer, so you render the
       // bottom-left quadrant blown up 2x — the bee ends up in the top-right
       // corner instead of centred, and only on HiDPI displays.
+      /**
+       * A phone is not a desktop GPU, and this scene was tuned for one.
+       *
+       * A modern phone reports a device pixel ratio of 3, so an uncapped buffer
+       * would be nine times the pixels of the same view on a laptop, for a screen
+       * you hold at arm's length. Capping at 1.5 and dropping antialiasing is most
+       * of the cost back for very little that is visible at that size.
+       *
+       * These numbers are a considered starting point rather than a measured one:
+       * they want tuning against a real mid-range phone, which is not something
+       * emulation can tell us.
+       */
+      const coarse = coarsePointerNow();
+
       await root.configure({
         camera: { fov: 52, position: [0, 4.8, 8.2] },
-        dpr: Math.min(window.devicePixelRatio, 2),
-        gl: { antialias: true, preserveDrawingBuffer: true },
+        dpr: Math.min(window.devicePixelRatio, coarse ? 1.5 : 2),
+        gl: { antialias: !coarse, preserveDrawingBuffer: true },
         shadows: true,
         size: {
           height: rect.height,
@@ -625,6 +655,14 @@ function ScoutScene({
     };
 
     const handleCanvasClick = () => {
+      // Never on a touch device. Pointer lock is a mouse idea: iOS Safari does not
+      // implement it at all, and where it does exist on touch it would only make
+      // the browser refuse a request that the player never asked for. A tap on the
+      // park should just be a tap on the park.
+      if (window.matchMedia("(pointer: coarse)").matches) {
+        return;
+      }
+
       if (document.pointerLockElement === null) {
         void canvas?.requestPointerLock();
       }
@@ -668,13 +706,23 @@ function ScoutScene({
 
     // While anything is up on screen, the bee holds still. Otherwise you would
     // carry on flying blind behind it and surface somewhere else entirely.
+    //
+    // The preview modal is in this list now, and was not before: it does not
+    // capture the keyboard the way the others do, but a THUMB held on the throttle
+    // when it opens never sends its release, so a touch player would come back to
+    // a bee that had flown off on its own.
     const ui = useGameStore.getState().ui;
     const paused = Boolean(
-      ui.activeEntry || ui.minigamePlantId || ui.landedOn || ui.quiz,
+      ui.activeEntry ||
+        ui.minigamePlantId ||
+        ui.landedOn ||
+        ui.quiz ||
+        ui.pollinatorPreviewOpen,
     );
 
     if (paused) {
       keysRef.current.clear();
+      resetVirtualInput();
     }
 
     const keys = keysRef.current;
@@ -727,16 +775,32 @@ function ScoutScene({
 
     const riding = slide.riding && slide.ride !== null;
 
-    // Arrows turn the same yaw the mouse turns. There is only one. The slide
-    // steers for you, so the keys are ignored while you are on it.
-    const turnInput = axis(keys, TURN_LEFT, TURN_RIGHT);
+    /**
+     * Arrows turn the same yaw the mouse turns. There is only one. The slide
+     * steers for you, so the keys are ignored while you are on it.
+     *
+     * The touch stick folds in here rather than anywhere new: it produces the same
+     * -1..1 the arrow keys do, only continuous, so `turnInput` and `throttle` are
+     * the one place the pad has to reach. With no pad mounted the singleton is all
+     * zeroes and every one of these reads is exactly what it was.
+     */
+    const turnInput = axis(keys, TURN_LEFT, TURN_RIGHT) || virtualInput.turn;
 
     if (!riding) {
       yawRef.current += turnInput * TURN_SPEED * flight.turn * delta;
+      // The right stick tilts the view, as the mouse's vertical axis does.
+      if (virtualInput.lookPitch !== 0) {
+        pitchRef.current = clamp(
+          pitchRef.current + virtualInput.lookPitch * TOUCH_PITCH_SPEED * delta,
+          -0.55,
+          1.05,
+        );
+      }
     }
 
     const yaw = yawRef.current;
-    const throttle = axis(keys, FLY_BACK, FLY_FORWARD);
+    const throttle =
+      axis(keys, FLY_BACK, FLY_FORWARD) || virtualInput.throttle;
 
     // Forward is wherever you are looking.
     forward.set(Math.sin(yaw), 0, Math.cos(yaw) * -1).normalize();
@@ -744,7 +808,8 @@ function ScoutScene({
     direction.copy(forward).multiplyScalar(throttle);
 
     const hasMovementInput = throttle !== 0;
-    const isBoosting = held(keys, BOOST) && hasMovementInput;
+    const isBoosting =
+      (held(keys, BOOST) || virtualInput.boost) && hasMovementInput;
     const isPollinating = keys.has("Space");
     // Rain slows a bare bee: wet wings are heavy wings. The coat keeps it dry and
     // quick, which is the whole point of putting one on.
@@ -757,9 +822,20 @@ function ScoutScene({
       flight.speed *
       rainSlow *
       (isBoosting ? BOOST_MULTIPLIER : 1);
-    const altitudeInput = axis(keys, DIVE, CLIMB) + scrollAltitudeRef.current;
+    const altitudeInput =
+      axis(keys, DIVE, CLIMB) +
+      scrollAltitudeRef.current +
+      virtualInput.altitude;
 
     scrollAltitudeRef.current *= 0.82;
+
+    // A gesture from the tray. An event rather than a rate, so it is taken once
+    // and put back, and it defers to a gesture already running exactly as the
+    // keyboard's F and G do.
+    if (virtualInput.pendingGesture && gestureRef.current.kind === "none") {
+      gestureRef.current = { kind: virtualInput.pendingGesture, time: 0 };
+      virtualInput.pendingGesture = null;
+    }
 
     if (hasMovementInput) {
       direction.normalize().multiplyScalar(speed);
@@ -1119,7 +1195,11 @@ function ScoutScene({
         shadow-camera-left={-70}
         shadow-camera-right={70}
         shadow-camera-top={70}
-        shadow-mapSize={[2048, 2048]}
+        // A quarter of the texels on a phone. The shadows are soft and the screen
+        // is small; the difference is hard to see and easy to feel.
+        shadow-mapSize={
+          coarsePointerNow() ? [1024, 1024] : [2048, 2048]
+        }
       />
       <hemisphereLight
         args={[
@@ -1254,6 +1334,19 @@ export function GameScene({
   );
   const openModal = useGameStore((state) => state.openModal);
   const closeModal = useGameStore((state) => state.closeModal);
+  const toggleRaincoat = useGameStore((state) => state.toggleRaincoat);
+  // A derived boolean, so the HUD only re-renders when the answer actually flips
+  // rather than on every change to the ui slice.
+  const uiSuspended = useGameStore((state) => inputSuspended(state.ui));
+  /**
+   * Whether to offer the touch pad at all.
+   *
+   * Asked of the POINTER, not the viewport: a narrow desktop window should not
+   * sprout thumbsticks, and a large tablet should have them.
+   */
+  const coarsePointer = useCoarsePointer();
+  /** A phone held upright. Tablets are exempt: upright is fine on those. */
+  const portraitPhone = usePortraitPhone();
   const [controlsOpen, setControlsOpen] = useState(true);
   // The scene generates terrain, scatters thousands of props and compiles all the
   // geometry before its first frame. Without this the player stares at a blank
@@ -1475,6 +1568,22 @@ export function GameScene({
           onDebugChange={setDebugState}
           weather={weather}
         />
+        {/* The touch pad, on a touch device, once the park is up and while
+            nothing is covering it. It sits inside the canvas wrapper so it is
+            positioned against the park rather than the page. */}
+        {coarsePointer && ready && !uiSuspended && !portraitPhone ? (
+          <TouchControls
+            onPhoto={takePhoto}
+            onPreview={() => openModal("pollinatorPreviewOpen")}
+            onRaincoat={toggleRaincoat}
+            showRaincoat={weather.falling === "rain"}
+          />
+        ) : null}
+
+        {/* Over the park rather than instead of it: the scene keeps running, so
+            turning the phone puts you straight back into a live world. */}
+        {portraitPhone ? <RotateNotice /> : null}
+
         {flashing ? <div className={styles.flash} aria-hidden /> : null}
 
         {notice ? (
