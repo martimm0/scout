@@ -204,8 +204,16 @@ test("offline mode frames the run and renders the park", async ({ page }) => {
   });
 
   expect(glErrors, glErrors.join("\n")).toEqual([]);
-  // A flat fill sits near zero; the park runs well above it.
-  expect(spread).toBeGreaterThan(10);
+  /**
+   * A flat fill sits at essentially zero; any real park is far above it.
+   *
+   * The threshold was 10, which was calibrated against a park at midday and then
+   * failed one evening at 8.4. The offline run takes no `?hour=`, so it draws
+   * whatever Pittsburgh is actually doing, and a park at night is genuinely darker
+   * and flatter than a park at noon. This number has to clear a uniform fill, not
+   * a sunny afternoon, or the suite passes and fails with the sunset.
+   */
+  expect(spread).toBeGreaterThan(3);
 });
 
 test("the debug overlay is hidden from players, and the stats panel is renamed", async ({
