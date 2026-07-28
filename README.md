@@ -1,18 +1,23 @@
 # Scout: A Pollinator RPG
 
-Scout is a desktop-first browser RPG where players become a local pollinator exploring a simplified Frick Park map in Pittsburgh.
+Scout is a browser RPG where players become a local pollinator exploring the real
+parks of Pittsburgh.
 
 Players choose and customize one pollinator, fly through the map, discover native plants, pollinate them, learn ecology facts, fill a journal, and earn badges.
 
-## MVP
+It plays by keyboard and mouse on a desktop, and by two thumbs on a phone or a
+tablet: same park, same save, same rules, a different pair of hands.
+
+## What is in it
 
 - Next.js + Three.js / React Three Fiber
-- Google sign-in
+- Google sign-in, with an account ceiling and a waitlist
 - One saved pollinator per account
 - Bee, hoverfly, and butterfly starter options
-- WASD + arrow key movement
+- WASD + arrow keys and the mouse, or an on-screen twin-stick pad on touch
 - Third-person flight
-- Native Frick Park / Pittsburgh-area plants
+- Three real Pittsburgh parks, on the real clock, the real calendar and the real
+  weather
 - Pollination minigames
 - Autosave progress
 - Journal and badges

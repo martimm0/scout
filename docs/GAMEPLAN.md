@@ -203,7 +203,8 @@ Everything above is built and playable. As of the last update:
 - 147 hand-written trivia questions, three for every species
 - 49 photographs, every one licensed and credited
 - 34 badges, 10 accessories, 6 of them earned
-- 189 tests across Chromium, Firefox and WebKit
+- Played by keyboard and mouse, or by two thumbs on a phone or a tablet
+- 255 tests across Chromium, Firefox, WebKit, and a phone and a tablet
 
 ## Deliberately not doing
 

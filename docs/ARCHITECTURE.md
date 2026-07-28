@@ -15,7 +15,10 @@ game IS, see [GAMEPLAN.md](GAMEPLAN.md). For how the data is shaped, see
 - **Auth.js v5** with Google, JWT sessions.
 - **Neon Postgres** via `@vercel/postgres`.
 - **Web Audio**, synthesized. No audio files.
-- **Playwright** across Chromium, Firefox and WebKit.
+- **Playwright** across Chromium, Firefox and WebKit, plus `phone` and `tablet`
+  projects with `hasTouch` for the touch controls. Those two are Chromium only,
+  because the GL flags that make the canvas render headless are Chromium's: they
+  prove the controls, not iOS Safari, which still wants a real device.
 
 Everything runs on a fresh clone with an empty `.env`. With no Google client and
 no database the game is fully playable in "local mode": progress lives in
@@ -39,13 +42,15 @@ src/
     auth/components/        sign-in, the gate
     game/
       audio/                sound.ts: music, ambience, effects
-      components/           the scene, the HUD, every overlay
+      components/           the scene, the HUD, every overlay, the touch pad
       data/                 plants, fungi, trivia, badges, photos, accessories
+      hooks/                use-media-query (is this touch), use-fullscreen
       models/               voxel builders: bee, flora, fungi, landmarks
-      state/                game-store, cloud-sync, photo-store, progression
-      world/                terrain, scatter, collision, daylight, weather
+      state/                game-store, cloud-sync, photo-store, progression,
+                            virtual-input (the touch bridge)
+      world/                terrain, scatter, collision, daylight, season, weather
         parks/              one file per park, plus props and obstacles
-  lib/                      auth, env, progress, photos, analytics
+  lib/                      auth, env, accounts, progress, photos, analytics
 ```
 
 ## The load-bearing ideas
@@ -320,9 +325,21 @@ The rule that follows: **assert the thing, not the proxy for it.**
 
 Test hooks are query params on `/play`, and they exist because the real world is
 not reproducible: `?hour=13` pins the clock (half the flowers are shut at night),
-`?weather=rain` pins the sky (there is no rain in Pittsburgh today),
-`?park=schenley` pins the park, `?debug=1` shows the readout. None of them grant
-progress.
+`?month=7` pins the calendar (half the flora is out of season in any given month,
+and nothing at all is in bloom in January), `?weather=rain` pins the sky (there is
+no rain in Pittsburgh today), `?park=schenley` pins the park, `?debug=1` shows the
+readout. None of them grant progress.
+
+`?month=` earns its place the same way `?hour=` did. The suite flies in **July**,
+when the most is in bloom at once, except the minigame tests, which pick a month
+per game: Frick's shrubs and trees play `seeds` and flower in spring, while its
+spikes and umbels play `memory` and flower in summer, so no single month has all
+three games available.
+
+One more thing the suite cannot pin: `/offline` takes no query params at all, so it
+draws whatever Pittsburgh is really doing. Any assertion about its pixels has to
+clear a flat fill rather than a sunny afternoon, or it passes all day and fails at
+sunset.
 
 ## Deployment
 
