@@ -165,6 +165,26 @@ wings. It is the one cosmetic that is also a decision.
 
 None of that is a replay mechanic bolted on. It is what the place does.
 
+## On a phone, and on a tablet
+
+Scout was desktop-first for its whole life, and the brief is the argument against
+leaving it there: it is meant to be a way to nerd out about plants when it is
+raining outside, and that is a thing people do on a couch with a phone.
+
+It is one game, not two. The same park, the same save, the same rules; a touch
+device simply gets a different pair of hands. Two thumbsticks and a few buttons
+overlay the park: the left stick turns and flies, the right one tilts your view,
+and a pair of buttons takes you up and down. Land and Read are already buttons on
+the flower itself, so the things you actually do to a plant need nothing new.
+
+The design turns out to suit a phone better than most 3D games do. Flight is slow,
+nothing is aimed, landing is a matter of being near enough, and failure is never
+punished. A thumb is imprecise and it costs you nothing.
+
+Phones play in landscape, because the park is wider than it is tall and both thumbs
+want a corner; a phone held upright gets a card asking to be turned. Tablets play
+either way.
+
 ## Where this is going
 
 The intent is for Scout to grow into an **MMORPG**: large, immersive maps to

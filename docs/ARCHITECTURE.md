@@ -217,6 +217,39 @@ their own pale surfaces: light-on-light, unreadable, over a scene that was brigh
 regardless. A panel that sits over the game answers to the game, not to the
 chrome around it.
 
+### 11. Touch is a second pair of hands on the same loop
+
+The game is played by keyboard and mouse on a desktop and by two thumbs on a
+phone, and there is exactly one flight loop underneath both.
+
+The obstacle is idea 6: the scene renders into its OWN imperative root, so
+`ScoutScene` and the HUD around it are in **separate React roots** and context does
+not cross between them. The flight refs (`keysRef`, `yawRef`, `pitchRef`) are
+private to the scene, and the on-screen sticks have to live in the outer DOM.
+
+So the bridge is a module singleton, `state/virtual-input.ts`, in the same spirit
+as `setActivePark` / `activePark`. Zustand would have been the wrong tool and the
+reason is idea 8's: these are per-frame values, and a per-frame value in state
+re-renders its subscribers sixty times a second.
+
+Two properties make it cheap:
+
+- **Every field is a rate, not a delta.** A stick is held, and the loop already
+  multiplies by `delta` itself, so `turn` and `throttle` are literally the same
+  `-1..1` the arrow keys produce through `axis()`, only continuous. The loop
+  needed five `||` and `+` reads, no new machinery.
+- **Zeroes are invisible.** With no pad mounted every field stays at its zero and
+  every one of those reads folds back to exactly the keyboard's answer, which is
+  what let touch be added without the desktop game changing at all.
+
+`(pointer: coarse)` decides whether the pad is mounted, asked of the pointer rather
+than the viewport, so a narrow desktop window does not sprout thumbsticks and a
+large tablet does. And because a touch control never sends a release when it is
+unmounted or covered, `resetVirtualInput()` runs whenever a popover takes over:
+the touch twin of the loop clearing `keysRef` on blur. The preview modal is in that
+pause list now: it was not before, because it does not capture the keyboard, but a
+THUMB held on the throttle when it opened never let go.
+
 ## The frame loop
 
 `ScoutScene` in `game-scene.tsx`. Per frame, in order:
