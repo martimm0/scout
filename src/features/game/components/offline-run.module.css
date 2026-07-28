@@ -105,6 +105,26 @@
   pointer-events: none;
 }
 
+/**
+ * On touch the scene takes the whole screen, and it took the clock with it.
+ *
+ * The game shell goes `position: fixed` with a z-index of 30 on a coarse pointer,
+ * and this clock sat at 15 in the normal flow behind it: the countdown vanished
+ * behind the park, which on a mode whose entire premise is "your time is short" is
+ * not a small loss. It has to be fixed too, and above.
+ *
+ * Nudged clear of the pad's tray button in the top-right by staying centred, and
+ * of a notch by the safe-area inset.
+ */
+@media (pointer: coarse) {
+  .clock {
+    position: fixed;
+    top: max(10px, env(safe-area-inset-top));
+    z-index: 35;
+    padding: 5px 16px;
+  }
+}
+
 .clockLabel {
   font-size: 0.62rem;
   font-weight: 700;
