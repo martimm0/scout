@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { AMBIENT_COHORTS, type AmbientCohort } from "../data/ambient";
+import { coarsePointerNow } from "../hooks/use-media-query";
 import type { Daylight } from "../world/daylight";
 import { hash } from "../world/park";
 import { terrainHeight, world } from "../world/terrain";
@@ -103,7 +104,14 @@ function Cohort({ cohort }: { cohort: AmbientCohort }) {
       band: number;
     }[] = [];
 
-    for (let i = 0; i < cohort.count; i += 1) {
+    // Fewer of everything on a phone. These are decorative by definition, so a
+    // thinner meadow costs the player nothing they were told to expect, and a
+    // third of the instanced draws back is worth having on a small GPU.
+    const count = coarsePointerNow()
+      ? Math.max(2, Math.round(cohort.count * 0.55))
+      : cohort.count;
+
+    for (let i = 0; i < count; i += 1) {
       const hx = hash(i + seed, seed);
       const hz = hash(seed, i + seed);
       const hp = hash(i + seed, i + seed);
@@ -189,9 +197,14 @@ function Cohort({ cohort }: { cohort: AmbientCohort }) {
   });
 
   return (
+    // Sized to what is actually placed, not to the cohort's full count. An
+    // instance the frame loop never writes keeps its identity matrix, which draws
+    // a box at the world origin: on a phone, where the pools are thinned, that
+    // would be a small pile of debris in the middle of the park.
     <instancedMesh
-      args={[geometry, material, cohort.count]}
+      args={[geometry, material, homes.length]}
       frustumCulled={false}
+      key={homes.length}
       ref={mesh}
     />
   );
