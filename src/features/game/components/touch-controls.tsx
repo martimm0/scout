@@ -194,7 +194,14 @@ export function TouchControls({
     }
   };
 
-  /** A hold button: set on the way down, clear on any way up. */
+  /**
+   * A hold button: set on the way down, clear on EVERY way up.
+   *
+   * `onLostPointerCapture` matters as much as `onPointerUp`. If the browser takes
+   * the capture back without sending a release (an interrupting gesture, a system
+   * dialog), the button would otherwise stay held forever and the bee would climb
+   * out of the park on its own with nothing touching the screen.
+   */
   const hold = (set: () => void, clear: () => void) => ({
     onPointerDown: (event: React.PointerEvent) => {
       event.currentTarget.setPointerCapture(event.pointerId);
@@ -202,6 +209,7 @@ export function TouchControls({
     },
     onPointerUp: clear,
     onPointerCancel: clear,
+    onLostPointerCapture: clear,
   });
 
   return (
@@ -210,6 +218,7 @@ export function TouchControls({
       <div
         aria-label="Fly"
         className={styles.moveZone}
+        onLostPointerCapture={onMoveUp}
         onPointerCancel={onMoveUp}
         onPointerDown={onMoveDown}
         onPointerMove={onMoveMove}
@@ -247,6 +256,7 @@ export function TouchControls({
         <div
           aria-label="Tilt the view"
           className={styles.pitchTrack}
+          onLostPointerCapture={onPitchUp}
           onPointerCancel={onPitchUp}
           onPointerDown={onPitchDown}
           onPointerMove={onPitchMove}

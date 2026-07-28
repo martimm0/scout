@@ -55,9 +55,13 @@ export function useFullscreen() {
   }, []);
 
   /**
-   * Must be called from a user gesture; browsers refuse otherwise. Landscape is
-   * locked at the same time where that is allowed, which is only ever while
-   * fullscreen and never on iOS, so the rotate card still has a job.
+   * Must be called from a user gesture; browsers refuse otherwise.
+   *
+   * It deliberately does NOT lock the orientation. Locking is only permitted while
+   * fullscreen and never works on iOS anyway, so it could not replace the rotate
+   * card, and it would have applied on a tablet too, where holding the thing
+   * upright is a perfectly good way to play. A lock that solves nothing on phones
+   * and takes something away on tablets is not worth having.
    */
   const toggle = useCallback(async () => {
     const element = document.documentElement as FullscreenElement;
@@ -74,10 +78,6 @@ export function useFullscreen() {
 
       await (element.requestFullscreen?.() ??
         element.webkitRequestFullscreen?.());
-
-      await screen.orientation?.lock?.("landscape").catch(() => {
-        // Not allowed here (iOS never allows it). The rotate card covers it.
-      });
     } catch {
       // A refused fullscreen request is not worth breaking the game over.
     }

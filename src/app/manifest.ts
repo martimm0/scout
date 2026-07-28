@@ -19,7 +19,14 @@ export default function manifest(): MetadataRoute.Manifest {
       "You are a bee, a centimetre long, in the real parks of Pittsburgh. Every plant is a real species that really grows there.",
     start_url: "/play",
     display: "standalone",
-    orientation: "landscape",
+    /**
+     * Deliberately NOT `orientation: "landscape"`.
+     *
+     * Landscape is the right way to play on a phone, and the rotate card asks for
+     * it there. But a manifest lock applies to every installed surface, and a
+     * tablet held upright is a perfectly good way to play. Locking would have
+     * taken that away to solve a problem tablets do not have.
+     */
     background_color: "#10140d",
     theme_color: "#3c7d4a",
     categories: ["games", "education"],
