@@ -19,11 +19,61 @@
   place-items: center;
   width: 1.5rem;
   height: 1.8rem;
+  border: 0;
   border-radius: 6px;
   background: #f2bb42;
   color: #33291a;
   font-weight: 700;
   font-size: 0.95rem;
+  font-family: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* Spent, not gone: the letter stays in place so the name is still readable. */
+.letter[data-spent="true"] {
+  background: rgba(122, 92, 38, 0.22);
+  color: rgba(51, 41, 26, 0.4);
+  cursor: default;
+}
+
+/* A thumb needs a bigger target than a mouse does. */
+@media (pointer: coarse) {
+  .letter {
+    width: 2.4rem;
+    height: 2.6rem;
+    font-size: 1.1rem;
+  }
+
+  .letters {
+    gap: 6px;
+  }
+}
+
+/* The word being built, where the text field would be on a desktop. */
+.built {
+  display: grid;
+  place-items: center;
+  min-width: 9rem;
+  min-height: 2.6rem;
+  padding: 0.45rem 0.8rem;
+  border: 1px dashed rgba(122, 92, 38, 0.5);
+  border-radius: 8px;
+  margin: 0;
+  font-weight: 800;
+  font-size: 1.05rem;
+  letter-spacing: 0.14em;
+  color: var(--card-ink, #33291a);
+}
+
+.built[data-flash="bad"] {
+  border-color: #c0413b;
+  color: #c0413b;
+}
+
+.built[data-flash="good"] {
+  border-color: #3c7d4a;
+  color: #3c7d4a;
 }
 
 .form {

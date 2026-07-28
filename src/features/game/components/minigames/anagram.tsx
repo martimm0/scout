@@ -5,6 +5,7 @@ import { useMemo, useRef, useState } from "react";
 import { ANAGRAM_TARGET, ANAGRAM_MIN_LENGTH } from "../../data/anagram";
 import { ANAGRAM_WORDS } from "../../data/anagram-words";
 import { playSound } from "../../audio/sound";
+import { coarsePointerNow } from "../../hooks/use-media-query";
 import styles from "./anagram.module.css";
 import type { MinigameProps } from "./types";
 
@@ -39,9 +40,55 @@ export function AnagramGame({ finishEarly, plant, reportScore }: MinigameProps) 
   const [flash, setFlash] = useState<"none" | "good" | "bad" | "again">("none");
   const foundRef = useRef<Set<string>>(new Set());
 
+  /**
+   * Which letters have been spent, by position.
+   *
+   * Tracked by INDEX rather than by character, because a name like Black-eyed
+   * Susan has three of some letters and spending one must not grey out the rest.
+   * Only the tap path uses this; typing ignores it, which is why it is cleared on
+   * every submit rather than derived from `entry`.
+   */
+  const [spent, setSpent] = useState<number[]>([]);
+
+  /**
+   * Tapping beats typing on a phone, where an `<input>` summons a soft keyboard
+   * over the very board you are reading. The letters are tappable everywhere (it
+   * is a pleasant way to play on a desktop too), but the text field only appears
+   * where there is a real keyboard to fill it.
+   *
+   * Read ONCE, at mount, rather than through the subscribing hook. The hook
+   * settles in an effect, so it answers false for the first render, and one frame
+   * of an autofocused input on a phone is enough to throw the soft keyboard up
+   * over the board and then yank it away again. This game only ever mounts from a
+   * tap, well after hydration, so there is nothing to disagree with.
+   */
+  const [coarsePointer] = useState(coarsePointerNow);
+
+  const tapLetter = (index: number) => {
+    if (spent.includes(index)) {
+      return;
+    }
+
+    setSpent([...spent, index]);
+    setEntry(entry + letters[index]);
+    setFlash("none");
+    playSound("tap");
+  };
+
+  const backspace = () => {
+    if (spent.length === 0) {
+      return;
+    }
+
+    setSpent(spent.slice(0, -1));
+    setEntry(entry.slice(0, -1));
+    setFlash("none");
+  };
+
   const submit = () => {
     const word = entry.trim().toUpperCase();
     setEntry("");
+    setSpent([]);
 
     if (word.length < ANAGRAM_MIN_LENGTH) {
       setFlash("bad");
@@ -77,11 +124,21 @@ export function AnagramGame({ finishEarly, plant, reportScore }: MinigameProps) 
   return (
     <>
       <div className={styles.stage} data-minigame="anagram">
-        <p className={styles.letters} aria-hidden>
+        {/* The letters are the keyboard. Tapping one spends it, which is the
+            whole game on a phone and a pleasant way to play anywhere. */}
+        <p className={styles.letters}>
           {letters.split("").map((letter, index) => (
-            <span className={styles.letter} key={index}>
+            <button
+              aria-label={`Use the letter ${letter}`}
+              className={styles.letter}
+              data-spent={spent.includes(index)}
+              disabled={spent.includes(index)}
+              key={index}
+              onClick={() => tapLetter(index)}
+              type="button"
+            >
               {letter}
-            </span>
+            </button>
           ))}
         </p>
 
@@ -92,20 +149,46 @@ export function AnagramGame({ finishEarly, plant, reportScore }: MinigameProps) 
             submit();
           }}
         >
-          <input
-            aria-label={`A word made from the letters of ${plant.commonName}`}
-            autoFocus
-            className={styles.input}
-            data-flash={flash}
-            maxLength={letters.length}
-            onChange={(event) => {
-              setEntry(event.target.value.replace(/[^a-zA-Z]/g, ""));
-              setFlash("none");
-            }}
-            placeholder="a word"
-            spellCheck={false}
-            value={entry}
-          />
+          {coarsePointer ? (
+            // No text field on a phone: it would summon the soft keyboard over
+            // the very board you are reading from. The word being built is shown
+            // instead, and the letters above do the typing.
+            <p
+              aria-live="polite"
+              className={styles.built}
+              data-flash={flash}
+            >
+              {entry || "tap the letters"}
+            </p>
+          ) : (
+            <input
+              aria-label={`A word made from the letters of ${plant.commonName}`}
+              autoFocus
+              className={styles.input}
+              data-flash={flash}
+              maxLength={letters.length}
+              onChange={(event) => {
+                setEntry(event.target.value.replace(/[^a-zA-Z]/g, ""));
+                setSpent([]);
+                setFlash("none");
+              }}
+              placeholder="a word"
+              spellCheck={false}
+              value={entry}
+            />
+          )}
+
+          {coarsePointer ? (
+            <button
+              aria-label="Take back the last letter"
+              className={styles.go}
+              onClick={backspace}
+              type="button"
+            >
+              ←
+            </button>
+          ) : null}
+
           <button className={styles.go} type="submit">
             Add
           </button>
