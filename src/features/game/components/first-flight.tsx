@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { trackEvent } from "@/lib/analytics";
 import { setSoundEnabled } from "../audio/sound";
+import { useCoarsePointer } from "../hooks/use-media-query";
 import { useGameStore } from "../state/game-store";
 import styles from "./first-flight.module.css";
 
@@ -31,6 +32,33 @@ const STEPS = [
 ];
 
 /**
+ * The same four steps, for two thumbs.
+ *
+ * Only the two that talk about the controls differ, because only those were ever
+ * about the keyboard. Teaching a phone player to press E and Q would be teaching
+ * them a key they do not have, which is worse than teaching them nothing.
+ */
+const TOUCH_STEPS = STEPS.map((step, index) => {
+  if (index === 1) {
+    return {
+      ...step,
+      body: "Hold the FLY circle on the left and push: forward to fly, sideways to turn. Your nose follows, and that is also the way you go. The stick on the right tilts your view, and the arrows above it take you up and down. FAST hurries you along. Trees and rocks are solid, so mind the oaks.",
+      keys: null,
+    };
+  }
+
+  if (index === 3) {
+    return {
+      ...step,
+      body: "Get close to a flower and it puts up a card with its name. Tap Land on that card, and from there you can pollinate it, or let it quiz you on what you just read. About one visit in five comes to nothing: wind, timing, or somebody got there first. That's not you failing. That's the job. Fly to the next one. Nothing pollinates a mushroom, but a mushroom will still test you.",
+      keys: null,
+    };
+  }
+
+  return step;
+});
+
+/**
  * First flight.
  *
  * Shown once, skippable, and it teaches the two things nobody guesses: that the
@@ -43,13 +71,15 @@ export function FirstFlight() {
   const updateSettings = useGameStore((state) => state.updateSettings);
 
   const [step, setStep] = useState(0);
+  const coarsePointer = useCoarsePointer();
 
   if (tutorialSeen) {
     return null;
   }
 
-  const current = STEPS[step];
-  const last = step === STEPS.length - 1;
+  const steps = coarsePointer ? TOUCH_STEPS : STEPS;
+  const current = steps[step];
+  const last = step === steps.length - 1;
 
   const finish = (withSound: boolean) => {
     if (withSound) {
@@ -72,7 +102,7 @@ export function FirstFlight() {
         role="dialog"
       >
         <p className={styles.progress}>
-          {step + 1} of {STEPS.length}
+          {step + 1} of {steps.length}
         </p>
 
         <h2 className={styles.title} id="first-flight-title">

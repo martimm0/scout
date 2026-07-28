@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 
+import { useCoarsePointer } from "../hooks/use-media-query";
 import type { Daylight } from "../world/daylight";
 import { fieldNotesFor } from "../world/field-notes";
 import type { Park } from "../world/park";
@@ -34,7 +35,17 @@ export function FieldNotes({
   discoveredPlants: Record<string, boolean>;
   unlockedBadges: Record<string, boolean>;
 }) {
+  /**
+   * Open on a desktop, folded on a phone.
+   *
+   * The card is the best thing to read when you arrive and the worst thing to
+   * have covering a third of a landscape phone while you fly. Folded, it is still
+   * one tap away, and the title still says what it is.
+   */
+  const coarsePointer = useCoarsePointer();
   const [open, setOpen] = useState(true);
+  const [touched, setTouched] = useState(false);
+  const shown = touched ? open : !coarsePointer;
 
   const notes = useMemo(
     () =>
@@ -50,20 +61,23 @@ export function FieldNotes({
   );
 
   return (
-    <aside className={styles.panel} aria-label="Field notes" data-open={open}>
+    <aside className={styles.panel} aria-label="Field notes" data-open={shown}>
       <button
         className={styles.header}
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => {
+          setTouched(true);
+          setOpen(!shown);
+        }}
         type="button"
-        aria-expanded={open}
+        aria-expanded={shown}
       >
         <span className={styles.label}>Field Notes</span>
-        <span aria-hidden className={styles.chevron} data-open={open}>
+        <span aria-hidden className={styles.chevron} data-open={shown}>
           ›
         </span>
       </button>
 
-      {open ? (
+      {shown ? (
         <ul className={styles.notes}>
           {notes.map((note) => (
             <li className={styles.note} data-tone={note.tone} key={note.id}>

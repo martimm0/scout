@@ -1,0 +1,58 @@
+.notice {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(12, 16, 10, 0.94);
+  backdrop-filter: blur(6px);
+}
+
+.card {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  max-width: 20rem;
+  text-align: center;
+  color: #f3f7ee;
+}
+
+.glyph {
+  font-size: 2.6rem;
+  line-height: 1;
+  color: #f7e07a;
+  /* A slow quarter-turn, the gesture being asked for. */
+  animation: tip 2.4s ease-in-out infinite;
+}
+
+@keyframes tip {
+  0%,
+  60%,
+  100% {
+    transform: rotate(0deg);
+  }
+  30% {
+    transform: rotate(90deg);
+  }
+}
+
+.title {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.body {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: rgba(243, 247, 238, 0.76);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glyph {
+    animation: none;
+  }
+}

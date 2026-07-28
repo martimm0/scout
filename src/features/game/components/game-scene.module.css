@@ -283,16 +283,6 @@
 }
 
 @media (max-width: 720px) {
-  .shell {
-    height: auto;
-    min-height: 720px;
-  }
-
-  .canvasWrap {
-    height: 720px;
-    min-height: 0;
-  }
-
   .debugPanel,
   .controlsPanel,
   .statePanel {
@@ -323,6 +313,64 @@
 
   .previewCanvasWrap {
     min-height: 240px;
+  }
+}
+
+/**
+ * Touch: the park takes the whole screen.
+ *
+ * Keyed on the POINTER, not the width, so a narrow desktop window keeps the
+ * ordinary layout and a tablet gets this.
+ *
+ * This block replaces what used to be here, which was actively harmful: it set
+ * the shell to `height: auto` with a fixed 720px canvas, so on a phone the play
+ * surface was TALLER than the screen and sat inside a scrolling document. A drag
+ * meant to turn the bee scrolled the page instead, which on its own made the game
+ * unplayable by touch.
+ *
+ * `position: fixed` deliberately covers the site header too: a landscape phone has
+ * no vertical space to spare, and a game that gives a third of it to navigation is
+ * not a game you want on a phone. The way back out is in the pad's tray.
+ */
+@media (pointer: coarse) {
+  .shell {
+    position: fixed;
+    inset: 0;
+    height: 100dvh;
+    min-height: 0;
+    z-index: 30;
+    /* No rubber-banding at the edges of a drag. */
+    overscroll-behavior: none;
+  }
+
+  .canvasWrap {
+    height: 100%;
+    min-height: 0;
+  }
+
+  /* The browser must not claim the drag before the sticks do. */
+  .canvas {
+    touch-action: none;
+  }
+
+  /* The keyboard legend is meaningless here, and the stats panel is desktop
+     furniture. The pad and the field notes carry the mobile HUD instead. */
+  .controlsPanel,
+  .statePanel {
+    display: none;
+  }
+
+  .previewModal {
+    padding: 16px;
+  }
+
+  .previewStage {
+    grid-template-columns: 1fr;
+    min-height: 220px;
+  }
+
+  .previewCanvasWrap {
+    min-height: 200px;
   }
 }
 

@@ -2,6 +2,7 @@
 
 import { Html } from "@react-three/drei";
 
+import { coarsePointerNow } from "../hooks/use-media-query";
 import { useGameStore } from "../state/game-store";
 import { type Daylight } from "../world/daylight";
 import { describeSeasonWindow, isInSeason } from "../world/season";
@@ -55,9 +56,23 @@ export function SpeciesTag({
     key: instance.key,
   };
 
+  /**
+   * Where the card floats.
+   *
+   * Above the top of the plant on a desktop, which reads best. On a touch device
+   * it hangs level with the bloom instead, and the reason is not taste: a landscape
+   * phone is under four hundred pixels tall, and a card pinned four units above a
+   * twenty-unit Joe-Pye weed projects clean off the top of the screen. The card is
+   * where Land and Read live, so off the screen means the flower cannot be worked
+   * at all. Found by a test that tried to tap it and was told the button was
+   * outside the viewport.
+   */
+  const top = landingHeight(instance);
   const anchor: [number, number, number] = [
     instance.position[0],
-    landingHeight(instance) + 4,
+    coarsePointerNow()
+      ? instance.position[1] + (top - instance.position[1]) * 0.6
+      : top + 4,
     instance.position[2],
   ];
 
