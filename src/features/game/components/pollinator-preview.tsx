@@ -27,6 +27,10 @@ import styles from "./pollinator-preview.module.css";
  * file calls extend at module scope, so this component worked for as long as it
  * lived there and rendered a blank rectangle the moment it moved out: "Color is
  * not part of the THREE namespace", thrown into a canvas nobody was watching.
+ *
+ * The box this is dropped into needs a real height of its own, and the canvas is
+ * positioned out of the flow so it cannot supply one; the reason that matters is
+ * in pollinator-preview.module.css, and it is not a style preference.
  */
 extend(THREE as unknown as Parameters<typeof extend>[0]);
 
@@ -88,6 +92,8 @@ export function PollinatorPreview({ pollinator }: { pollinator: Pollinator }) {
    * transparent rectangle and the browser drew a broken-image icon in the corner
    * of it. There were no errors. It simply did not draw.
    */
+  const disposeTimer = useRef<number | null>(null);
+
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
     const container = canvas?.parentElement;
@@ -96,7 +102,27 @@ export function PollinatorPreview({ pollinator }: { pollinator: Pollinator }) {
       return;
     }
 
-    const root = createRoot(canvas);
+    /**
+     * Survive React's development double invoke, the same way the scene does.
+     *
+     * Dropping `pollinator` from the deps stopped a colour change from rebuilding
+     * the root, but it did not fix this: with `reactStrictMode`, React still
+     * mounts, tears down and remounts once, and a SYNCHRONOUS `root.unmount()` in
+     * the cleanup disposes the context that the immediate remount then reuses. So
+     * `createRoot` ran twice on the same canvas, the context was lost, and the
+     * preview drew a transparent rectangle with a broken-image icon in the corner
+     * and no error anywhere. Opening it from the in-game button is exactly the
+     * client-side mount where that bites.
+     *
+     * Deferring the teardown, and reusing the root if a remount gets there first,
+     * collapses the double invoke back to one live root.
+     */
+    if (disposeTimer.current !== null) {
+      window.clearTimeout(disposeTimer.current);
+      disposeTimer.current = null;
+    }
+
+    const root = rootRef.current ?? createRoot(canvas);
     rootRef.current = root;
     let mounted = true;
 
@@ -136,8 +162,14 @@ export function PollinatorPreview({ pollinator }: { pollinator: Pollinator }) {
     return () => {
       mounted = false;
       observer.disconnect();
-      rootRef.current = null;
-      root.unmount();
+
+      // Deferred, so a StrictMode remount can cancel it above and keep the root.
+      // On a real unmount nothing cancels it and the context is released.
+      disposeTimer.current = window.setTimeout(() => {
+        disposeTimer.current = null;
+        rootRef.current = null;
+        root.unmount();
+      }, 0);
     };
     // Deliberately empty: the root outlives every change to the bee.
   }, []);

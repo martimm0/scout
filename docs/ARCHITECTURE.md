@@ -171,6 +171,18 @@ were learned the hard way:
   it as CSS size times pixel ratio. Forcing it to CSS size leaves the GL viewport
   at twice the buffer, so you render the bottom-left quadrant blown up 2x, on
   retina displays only.
+- **The canvas must not be able to size the box that measures it.** A root sizes
+  its buffer from its container, and three writes an inline width and height onto
+  the canvas on every `setSize`. If the canvas is in normal flow, that inline
+  height *becomes* the container's height, the ResizeObserver sees it grow, and
+  the two feed each other. The in-game pollinator preview grew a few pixels a
+  frame, and because every resize reallocates and clears the drawing buffer,
+  nothing it drew ever reached the screen: a blank rectangle, no errors, no
+  warnings, a live GL context and a scene with a bee in it. So the preview's
+  canvas is `position: absolute` and its container carries a positioning context
+  and a real height of its own. The regression test in `pages.spec.ts` reads the
+  canvas back and watches the box for a second, because every softer check
+  ("is the canvas visible") passed throughout.
 - **`extend(THREE)` is not boilerplate.** R3F only knows the classes it has been
   handed. Any file that renders `<color>` or `<ambientLight>` into its own root
   must extend, or it throws into a canvas nobody is watching.

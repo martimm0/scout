@@ -30,6 +30,7 @@
  * nothing at all: the pane laid out fine and rendered an empty rectangle.
  */
 .preview {
+  position: relative;
   height: 220px;
   border-radius: 12px;
   overflow: hidden;

@@ -1,4 +1,21 @@
+/**
+ * The canvas is taken OUT of the flow, and that is load-bearing.
+ *
+ * three sets the canvas's inline width and height on every `setSize`. In normal
+ * flow that inline height becomes the parent's height, the ResizeObserver sees
+ * the parent grow, `configure` runs again with the taller box, and three sets a
+ * taller inline height still. In the in-game modal the preview grew a few pixels
+ * a frame, and because every resize reallocates and clears the drawing buffer,
+ * nothing it drew ever reached the screen: an empty rectangle, no errors, in a
+ * box that was quietly getting bigger.
+ *
+ * Absolutely positioned, the canvas cannot report a size to the element that is
+ * measuring it, so the loop cannot close. Its parent still needs a real height
+ * of its own; see the note on `.preview` in customize.module.css.
+ */
 .canvas {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;

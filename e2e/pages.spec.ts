@@ -1139,6 +1139,89 @@ test.describe("customization", () => {
       .toBe("#ff00aa");
   });
 
+  /**
+   * "View pollinator" in-game opened on an empty rectangle for as long as it
+   * existed, and every check anybody wrote passed: the canvas was there, it was
+   * visible, it had a drawing buffer, its GL context was alive and its scene had
+   * a bee in it. It simply never put a pixel on the screen.
+   *
+   * Two causes, both of them invisible to "is the canvas visible".
+   *
+   * One: the modal's box had a `min-height` rather than a height, so it took its
+   * size from the canvas inside it while the canvas was taking its size from the
+   * box. three writes an inline height on every `setSize`, so the two grew each
+   * other a few pixels a frame, and each resize reallocated and cleared the
+   * drawing buffer before it could be composited.
+   *
+   * Two: a synchronous `root.unmount()` in the cleanup, which React's
+   * development double invoke turned into a context lost on the canvas that the
+   * remount then drew into.
+   *
+   * So this test reads the pixels, and it watches the box for a while. Anything
+   * softer than that is the check that was already passing.
+   */
+  test("the in-game preview draws the bee, in a box that holds still", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+
+    await enterGame(page);
+
+    await page.getByRole("button", { name: "View pollinator" }).click();
+
+    const stage = page.locator("canvas").nth(1);
+    await expect(stage).toBeVisible();
+    await page.waitForTimeout(1200);
+
+    // The box must not be growing. The runaway was a few pixels a frame, so a
+    // second of settling and then a second of watching is plenty to catch it.
+    const boxHeight = () =>
+      page.evaluate(() => {
+        const canvases = [...document.querySelectorAll("canvas")];
+        const wrap = canvases[1]?.parentElement;
+
+        return wrap ? Math.round(wrap.getBoundingClientRect().height) : 0;
+      });
+
+    const before = await boxHeight();
+    await page.waitForTimeout(1000);
+
+    expect(await boxHeight(), "the preview box is resizing itself").toBe(before);
+
+    // And it actually drew. Read the canvas back: a preview that never
+    // composited reads as one flat colour, and the bee is many.
+    const colours = await page.evaluate(() => {
+      const source = [...document.querySelectorAll("canvas")][1];
+
+      if (!source) {
+        return 0;
+      }
+
+      const copy = document.createElement("canvas");
+      copy.width = source.width;
+      copy.height = source.height;
+      copy.getContext("2d")?.drawImage(source, 0, 0);
+
+      const data = copy
+        .getContext("2d")
+        ?.getImageData(0, 0, copy.width, copy.height).data;
+
+      if (!data) {
+        return 0;
+      }
+
+      const seen = new Set<string>();
+
+      for (let i = 0; i < data.length; i += 4 * 331) {
+        seen.add(`${data[i]},${data[i + 1]},${data[i + 2]},${data[i + 3]}`);
+      }
+
+      return seen.size;
+    });
+
+    expect(colours, "the preview canvas is blank").toBeGreaterThan(4);
+  });
+
   test("a change made while the save is loading is not clobbered by it", async ({
     page,
   }) => {

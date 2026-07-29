@@ -211,7 +211,20 @@
     linear-gradient(180deg, #e7f2ff 0%, #fff9e8 100%);
 }
 
+/**
+ * `position: relative` is the anchor for the preview's canvas, and it is the fix
+ * for a bug rather than tidiness.
+ *
+ * The preview measures this box to size its drawing buffer. While the canvas was
+ * in normal flow it also SET this box's height, because three writes an inline
+ * height on every `setSize`: the two grew each other a few pixels a frame, and
+ * every resize cleared the drawing buffer before it could be composited, so
+ * "View pollinator" in-game opened on a blank rectangle that slowly pushed the
+ * modal down the screen. The canvas is out of the flow now and needs a
+ * positioned ancestor; see pollinator-preview.module.css.
+ */
 .previewCanvasWrap {
+  position: relative;
   min-width: 0;
   min-height: 280px;
   overflow: hidden;
