@@ -21,7 +21,7 @@ const STEPS = [
   },
   {
     title: "Find the flowers. And the fungi.",
-    body: "Pollen motes drift over everything you haven't met yet. The park runs on Pittsburgh time: flowers shut at dusk, some close by lunchtime, and the fungi keep their own hours. Come back at a different hour and you will find different things.",
+    body: "Pollen motes drift over everything you haven't met yet. The park runs on Pittsburgh time and Pittsburgh's calendar: flowers shut at dusk, some close by lunchtime, and what is actually in flower is what is in flower this week. A plant out of its bloom is still worth meeting and still has a quiz for you; it just has nothing to pollinate. Come back at a different hour, or a different month, and you will find different things.",
     keys: null,
   },
   {

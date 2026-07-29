@@ -4,10 +4,11 @@ import type { BrowserContext, Page } from "@playwright/test";
 import { encode } from "next-auth/jwt";
 
 import {
+  isFindable,
   isOut,
   scatterSpecies,
 } from "../src/features/game/world/species-scatter";
-import { startPosition } from "../src/features/game/world/terrain";
+import { setActivePark, startPosition } from "../src/features/game/world/terrain";
 
 /**
  * Shared driving for the game tests.
@@ -338,6 +339,54 @@ export function demandingPlantToSpawn() {
       ),
     }))
     .sort((a, b) => a.distance - b.distance)[0].instance;
+}
+
+/**
+ * The nearest plant that is findable but NOT in flower, and a month it is shut in.
+ *
+ * The month comes out of the plant's own sourced bloom string rather than being
+ * guessed, so this keeps working if a bloom window is corrected. The hour is the
+ * suite's usual noon, so the daily window is open and the calendar is the only
+ * thing saying no.
+ */
+export function outOfBloomPlantToSpawn() {
+  // Say which park, rather than inheriting whichever one the last test left in
+  // the module singleton. `enterGame` starts in Frick, so the scatter this reads
+  // has to be Frick's or the flight aims at coordinates from another park.
+  setActivePark("frick");
+
+  const [sx, , sz] = startPosition();
+
+  const candidates = scatterSpecies()
+    .filter((instance) => instance.species.kind === "plant")
+    .map((instance) => {
+      // A month this plant is shut in but its daily window is open.
+      const month = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].find(
+        (candidate) =>
+          isFindable(instance, TEST_HOUR, candidate) &&
+          !isOut(instance, TEST_HOUR, candidate),
+      );
+
+      return {
+        instance,
+        month,
+        distance: Math.hypot(
+          instance.position[0] - sx,
+          instance.position[2] - sz,
+        ),
+      };
+    })
+    .filter(
+      (candidate): candidate is typeof candidate & { month: number } =>
+        candidate.month !== undefined,
+    )
+    .sort((a, b) => a.distance - b.distance);
+
+  if (candidates.length === 0) {
+    throw new Error("no plant near spawn is ever out of its bloom");
+  }
+
+  return candidates[0];
 }
 
 /** Fly to a specific plant and get close enough that its tag appears. */

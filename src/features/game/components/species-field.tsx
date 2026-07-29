@@ -12,6 +12,7 @@ import {
 } from "../models/flora";
 import { useGameStore } from "../state/game-store";
 import {
+  isFindable,
   isOut,
   landingHeight,
   type SpeciesInstance,
@@ -30,7 +31,12 @@ import {
  *    rot away. Drawing a ghost of one would be a lie, so out of its hours or its
  *    season they simply are not there.
  *
- * "Out" is one question, `isOut`: open at this hour AND in season this month.
+ * Two questions, not one, and this file asks both. `isOut` is whether there is a
+ * flower on it to work, and it decides what is DRAWN open: a plant out of its
+ * bloom is drab, and it wears a seed head instead if you pollinated it earlier in
+ * the year. `isFindable` is whether it can be met at all, and it decides the
+ * motes, because a mote marks something missing from your journal and a trout lily
+ * in July is still a trout lily.
  */
 export function SpeciesField({
   hour,
@@ -227,7 +233,10 @@ function Motes({
   const pending = useMemo(
     () =>
       instances.filter((instance) => {
-        if (!isOut(instance, hour, month)) {
+        // A mote marks something you have not MET, so it follows what can be
+        // found rather than what is in bloom. A trout lily in July is still worth
+        // walking over to and putting in the journal.
+        if (!isFindable(instance, hour, month)) {
           return false;
         }
 

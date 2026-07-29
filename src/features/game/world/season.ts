@@ -228,6 +228,25 @@ export function describeSeasonWindow(
 }
 
 /**
+ * The same fact in three words, for the badge on the card in the world.
+ *
+ * That card is a fixed sixteen ems and already carries "Pass the quiz to
+ * pollinate" beside this. A sentence there wraps to four lines and pushes Land
+ * and Read down out of the card, which on a landscape phone means off the screen.
+ * The sentence still gets said in full once you have landed.
+ */
+export function briefSeasonWindow(
+  window: SeasonWindow,
+  month: number,
+): string {
+  if (window.allYear || isInSeason(window, month)) {
+    return "";
+  }
+
+  return `Blooms in ${SEASON_LABEL[seasonFor(window.from)]}`;
+}
+
+/**
  * How the park looks in a given month.
  *
  * Everything visual blends on the fractional month, so the wood turns and the

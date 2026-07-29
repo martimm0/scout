@@ -209,9 +209,9 @@ export function scatterSpecies(): SpeciesInstance[] {
 }
 
 /**
- * Whether a species is out right now: open at this hour AND in its season this
- * month. The single question the discovery loop, the tag, the field and the
- * field notes all ask, so time and season can never disagree about a flower.
+ * Whether a species can be WORKED right now: open at this hour and, for a flower,
+ * actually in bloom. This is the question the Pollinate button asks. For what can
+ * be FOUND, which is a different question, see `isFindable` below.
  */
 export function isOut(
   instance: SpeciesInstance,
@@ -219,6 +219,35 @@ export function isOut(
   month: number,
 ): boolean {
   return isActive(instance.window, hour) && isInSeason(instance.season, month);
+}
+
+/**
+ * Whether a species can be FOUND right now, which is a different question from
+ * whether it can be worked, and conflating the two was a bad bug.
+ *
+ * A plant that is not flowering has not gone anywhere. A trout lily is still a
+ * trout lily in July: leaves, and a name, and an entry worth reading. Gating
+ * DISCOVERY on the bloom meant only seven of Frick's sixteen plants existed at all
+ * in July, so a player could never reach the eight discoveries Schenley asks for,
+ * and the game quietly soft-locked for anyone who started in the wrong month.
+ *
+ * A fungus is the opposite, and there the season really does gate it: mushrooms
+ * come up and rot away, so one out of season is genuinely not there, and drawing a
+ * ghost of it would be teaching a lie.
+ *
+ * So the journal fills all year round, and only the pollinating waits for the
+ * bloom.
+ */
+export function isFindable(
+  instance: SpeciesInstance,
+  hour: number,
+  month: number,
+): boolean {
+  if (!isActive(instance.window, hour)) {
+    return false;
+  }
+
+  return instance.species.kind === "plant" || isInSeason(instance.season, month);
 }
 
 /** Where a bee would actually land on it: on top of the bloom, or the cap. */

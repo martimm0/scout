@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { accessoryUnlocked } from "../data/accessories";
 import type { Accessory } from "../models/species";
 import { PLANTS, PLANTS_BY_ID } from "../data/plants";
+import { isInSeason, seasonWindow } from "../world/season";
 import { PARKS, PARK_LIST, setActivePark, type ParkId } from "../world/terrain";
 import { createJSONStorage, persist } from "zustand/middleware";
 
@@ -170,7 +171,7 @@ export type GameActions = {
   closeEntry: () => void;
   land: (ref: SpeciesRef) => void;
   takeOff: () => void;
-  startMinigame: (plantId: string) => void;
+  startMinigame: (plantId: string, month: number) => void;
   endMinigame: () => void;
   startQuiz: (ref: SpeciesRef) => void;
   endQuiz: () => void;
@@ -264,21 +265,38 @@ const initialStats: Stats = {
 };
 
 /**
- * May this player work this flower?
+ * May this player work this flower, this month?
  *
- * Most flowers: yes, always. A handful in every park are difficult, and a
- * difficult flower will not let you at it until you have passed its quiz. That is
- * not a lock for the sake of one: every plant marked demanding has a real
- * mechanism that a real insect has to learn, and failing at it is what an
- * inexperienced bee actually does.
+ * Two gates, and they fail for different reasons.
+ *
+ * **The season.** There has to be a flower on it. A plant out of its bloom can be
+ * landed on, read and quizzed, which is the whole point of letting it be found all
+ * year, but there is nothing on it to pollinate. Passing the month is not
+ * optional: an omitted month used to mean "any month", and that is exactly the
+ * silent yes this function exists to prevent.
+ *
+ * **The quiz.** A handful in every park are difficult, and a difficult flower will
+ * not let you at it until you have passed its quiz. That is not a lock for the
+ * sake of one: every plant marked demanding has a real mechanism that a real
+ * insect has to learn, and failing at it is what an inexperienced bee actually
+ * does.
  */
 export function canPollinate(
   state: { quizPassed: BooleanRecord },
   plantId: string,
+  month: number,
 ): boolean {
   const plant = PLANTS_BY_ID.get(plantId);
 
-  if (!plant?.demanding) {
+  if (!plant) {
+    return false;
+  }
+
+  if (!isInSeason(seasonWindow(plant.bloom), month)) {
+    return false;
+  }
+
+  if (!plant.demanding) {
     return true;
   }
 
@@ -572,14 +590,16 @@ export const useGameStore = create<GameStore>()(
 
   takeOff: () => set((state) => ({ ui: { ...state.ui, landedOn: null } })),
 
-  startMinigame: (plantId) =>
+  startMinigame: (plantId, month) =>
     set((state) => {
       // The gate is enforced HERE, not only on the button.
       //
-      // A disabled button is a suggestion. This is the rule: a demanding flower
-      // does not open its minigame for somebody who has not passed its quiz, no
-      // matter who calls this or from where.
-      if (!canPollinate(state, plantId)) {
+      // A disabled button is a suggestion. This is the rule: a flower out of its
+      // bloom, or a demanding one whose quiz has not been passed, does not open
+      // its minigame, no matter who calls this or from where. The season half of
+      // that arrived late and lived only on the button for a while, which is the
+      // arrangement this comment already said was not good enough.
+      if (!canPollinate(state, plantId, month)) {
         return state;
       }
 

@@ -24,6 +24,7 @@ import {
   scatterGrass,
 } from "../src/features/game/world/scatter";
 import { scatterSpecies } from "../src/features/game/world/species-scatter";
+import { isInSeason, seasonWindow } from "../src/features/game/world/season";
 import { canPollinate } from "../src/features/game/state/game-store";
 import {
   ACCESSORY_INFO,
@@ -978,13 +979,70 @@ test.describe("the difficult flowers", () => {
     const gated = PLANTS.find((plant) => plant.demanding)!;
     const ordinary = PLANTS.find((plant) => !plant.demanding)!;
 
-    expect(canPollinate({ quizPassed: {} }, gated.id)).toBe(false);
-    expect(canPollinate({ quizPassed: { [gated.id]: true } }, gated.id)).toBe(
-      true,
-    );
+    /** A month this plant is actually in flower, so the season gate is not the one talking. */
+    const inBloom = (plant: (typeof PLANTS)[number]) => {
+      const window = seasonWindow(plant.bloom);
+
+      for (let month = 1; month <= 12; month += 1) {
+        if (isInSeason(window, month)) {
+          return month;
+        }
+      }
+
+      throw new Error(`${plant.id} is never in bloom`);
+    };
+
+    const gatedMonth = inBloom(gated);
+    const ordinaryMonth = inBloom(ordinary);
+
+    expect(canPollinate({ quizPassed: {} }, gated.id, gatedMonth)).toBe(false);
+    expect(
+      canPollinate({ quizPassed: { [gated.id]: true } }, gated.id, gatedMonth),
+    ).toBe(true);
 
     // And an ordinary flower is never gated, quiz or no quiz.
-    expect(canPollinate({ quizPassed: {} }, ordinary.id)).toBe(true);
+    expect(canPollinate({ quizPassed: {} }, ordinary.id, ordinaryMonth)).toBe(
+      true,
+    );
+  });
+
+  /**
+   * The season gate has to live in the rule, not on the button.
+   *
+   * It arrived on the button first: the landing card stopped offering "Pollinate"
+   * out of season while `startMinigame` would still happily have opened the
+   * minigame for anyone who called it. The file's own comment already said that
+   * was not good enough, so this is the check that holds it to that.
+   */
+  test("a flower out of its bloom cannot be worked, quiz or no quiz", () => {
+    const seasonal = PLANTS.find(
+      (plant) => !seasonWindow(plant.bloom).allYear && !plant.demanding,
+    )!;
+    const window = seasonWindow(seasonal.bloom);
+
+    const shut: number[] = [];
+    const open: number[] = [];
+
+    for (let month = 1; month <= 12; month += 1) {
+      (isInSeason(window, month) ? open : shut).push(month);
+    }
+
+    expect(open.length, `${seasonal.id} is never in bloom`).toBeGreaterThan(0);
+    expect(shut.length, `${seasonal.id} is in bloom all year`).toBeGreaterThan(0);
+
+    for (const month of open) {
+      expect(
+        canPollinate({ quizPassed: {} }, seasonal.id, month),
+        `${seasonal.id} refuses to be worked in month ${month}, which is in its bloom`,
+      ).toBe(true);
+    }
+
+    for (const month of shut) {
+      expect(
+        canPollinate({ quizPassed: {} }, seasonal.id, month),
+        `${seasonal.id} can be worked in month ${month}, which is out of its bloom`,
+      ).toBe(false);
+    }
   });
 });
 

@@ -5,8 +5,16 @@ import { Html } from "@react-three/drei";
 import { coarsePointerNow } from "../hooks/use-media-query";
 import { useGameStore } from "../state/game-store";
 import { type Daylight } from "../world/daylight";
-import { describeSeasonWindow, isInSeason } from "../world/season";
-import { isOut, landingHeight, type SpeciesInstance } from "../world/species-scatter";
+import {
+  briefSeasonWindow,
+  describeSeasonWindow,
+  isInSeason,
+} from "../world/season";
+import {
+  isFindable,
+  landingHeight,
+  type SpeciesInstance,
+} from "../world/species-scatter";
 import styles from "./species-tag.module.css";
 
 /**
@@ -42,7 +50,15 @@ export function SpeciesTag({
   // half of the information.
   const demanding =
     instance.species.kind === "plant" && Boolean(instance.species.plant.demanding);
-  const open = isOut(instance, daylight.hour, month);
+  /**
+   * You can land on anything you can FIND, not only on what is in bloom.
+   *
+   * A plant out of its season is still worth landing on: there is an entry to
+   * read and a quiz to fail. Only the Pollinate button waits for the flower, and
+   * the landing menu says so. Gating the whole card on the bloom is what made
+   * two thirds of Frick unreachable in July.
+   */
+  const open = isFindable(instance, daylight.hour, month);
   // Shut for one of two reasons, and they call for different advice: out of its
   // hours (come back at dawn) or out of its season (come back in spring).
   const outOfSeason = !isInSeason(instance.season, month);
@@ -86,6 +102,16 @@ export function SpeciesTag({
         <div className={styles.badges}>
           {pollinated ? <span className={styles.done}>Pollinated</span> : null}
           {quizPassed ? <span className={styles.done}>Quiz passed</span> : null}
+          {/* Out of its bloom, and still worth the trip: this says so from the
+              air, the same way the demanding badge does. Without it the only way
+              to learn a flower was out of season was to fly down and land on it,
+              because the card that used to carry the seasonal note only appeared
+              on a plant you could not reach at all. */}
+          {isPlant && outOfSeason && open ? (
+            <span className={styles.demanding}>
+              {briefSeasonWindow(instance.season, month)}
+            </span>
+          ) : null}
           {demanding && !quizPassed ? (
             <span className={styles.demanding}>Pass the quiz to pollinate</span>
           ) : null}

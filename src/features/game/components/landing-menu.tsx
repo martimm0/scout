@@ -6,6 +6,7 @@ import { FUNGI_BY_ID } from "../data/fungi";
 import { PLANTS_BY_ID } from "../data/plants";
 import { triviaFor } from "../data/trivia";
 import { useGameStore } from "../state/game-store";
+import { isInSeason, seasonWindow } from "../world/season";
 import styles from "./landing-menu.module.css";
 
 /**
@@ -18,7 +19,7 @@ import styles from "./landing-menu.module.css";
  *
  * Both offer the quiz, because reading the entry ought to be worth something.
  */
-export function LandingMenu() {
+export function LandingMenu({ month }: { month: number }) {
   const landedOn = useGameStore((state) => state.ui.landedOn);
   const takeOff = useGameStore((state) => state.takeOff);
   const startMinigame = useGameStore((state) => state.startMinigame);
@@ -64,6 +65,17 @@ export function LandingMenu() {
   // that the game had quietly stopped offering.
   const locked = Boolean(plant?.demanding) && !alreadyQuizzed;
 
+  /**
+   * Out of its season: there is no flower on it to work.
+   *
+   * You can still land, read and take the quiz, which is the whole point of
+   * letting a plant be found out of bloom. Only the pollinating waits, and it says
+   * which month to come back in, the same way a demanding flower says what to
+   * learn first.
+   */
+  const outOfBloom =
+    plant !== undefined && !isInSeason(seasonWindow(plant.bloom), month);
+
   return (
     <div className={styles.scrim} onClick={takeOff} role="presentation">
       <section
@@ -78,7 +90,16 @@ export function LandingMenu() {
         <p className={styles.scientific}>{scientific}</p>
 
         <div className={styles.actions}>
-          {isPlant && locked ? (
+          {isPlant && outOfBloom ? (
+            <div className={styles.disabled}>
+              <span className={styles.actionTitle}>Not in flower</span>
+              <span className={styles.actionNote}>
+                {plant!.commonName} blooms {plant!.bloom}. There is nothing to
+                pollinate on it today, but the entry and the quiz are here
+                whenever you are.
+              </span>
+            </div>
+          ) : isPlant && locked ? (
             <div className={styles.disabled}>
               <span className={styles.actionTitle}>
                 Learn it before you work it
@@ -88,7 +109,7 @@ export function LandingMenu() {
           ) : isPlant ? (
             <button
               className={styles.primary}
-              onClick={() => startMinigame(landedOn.id)}
+              onClick={() => startMinigame(landedOn.id, month)}
               type="button"
             >
               <span className={styles.actionTitle}>

@@ -138,12 +138,24 @@ pollinate anywhere in the park, and the jack-o'-lantern is out, glowing.
 The park also keeps **Pittsburgh's calendar**. What is in bloom is what is really
 in bloom that week: trout lily in April, goldenrod in the fall, and across the
 deep of winter nothing at all but the fungi and the bare wood. A flower out of
-its season is a green stalk you cannot work, and the card tells you which month to
-come back in, the same way it tells you which hour. This is the deepest reason the
-park is worth returning to: the park in October is not the park in July, because
-the real one is not either. It is also why the game keeps a real bloom window for
-every plant rather than an invented one; those windows are read out of the sourced
-`bloom` line, never made up.
+its season is a green stalk you cannot work, and it says which month to come back
+in, the same way it says which hour: in three words on the card in the world, so
+you know before you go down to it, and in full once you have landed. This is the
+deepest reason the park is worth returning to: the park in October is not the park
+in July, because the real one is not either.
+
+**The season gates the pollinating, not the finding**, and the difference is the
+whole game. A trout lily in July is still a trout lily: leaves, a name, an entry
+worth reading, a quiz to fail. So the journal fills all year round and only the
+work waits for the flower. Gating discovery on the bloom instead was a real bug and
+a bad one, because Schenley opens on half of Frick's plants and only seven of the
+sixteen flower in July: a player who started in the wrong month could never
+progress at all. A fungus is the other way, and there the season really is the
+gate, because mushrooms come up and rot away.
+
+It is also why the game keeps a real bloom window for every plant rather than an
+invented one; those windows are read out of the sourced `bloom` line, never made
+up.
 
 Your work leaves a mark on that calendar. A flower you pollinated wears a **seed
 head** once its bloom has passed, the pod it set because you were there: the

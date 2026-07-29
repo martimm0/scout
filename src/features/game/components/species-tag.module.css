@@ -68,6 +68,9 @@
 
 .badges {
   display: flex;
+  /* Wraps, because a flower can be out of season AND demanding at once, and two
+     pills side by side do not fit a card this narrow. */
+  flex-wrap: wrap;
   gap: 0.3em;
   justify-content: center;
   margin-bottom: 0.4em;

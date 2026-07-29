@@ -52,7 +52,7 @@ import { PLANTS } from "../data/plants";
 import {
   scatterSpecies,
   landingHeight,
-  isOut,
+  isFindable,
   DISCOVERY_RADIUS,
   type SpeciesInstance,
 } from "../world/species-scatter";
@@ -1039,17 +1039,20 @@ function ScoutScene({
     if (elapsed - lastDebugUpdate.current > 0.15) {
       lastDebugUpdate.current = elapsed;
 
-      // The nearest thing within reach that is actually OUT right now: open at
-      // this hour AND in season this month. A closed flower, one out of its
-      // bloom, and a fungus that is not fruiting are all unreachable, which is
-      // the entire point of the clock and the calendar.
+      // The nearest thing within reach that can be FOUND right now: open at this
+      // hour, and for a fungus, fruiting this month. A flower shut for the night
+      // is unreachable and a fungus out of its season is genuinely not there, but
+      // a plant out of its bloom is still a plant, and meeting it is how the
+      // journal fills in a month when little is flowering.
       const hour = daylight.hour;
 
       let nearestInstance: SpeciesInstance | null = null;
       let nearestDistance = DISCOVERY_RADIUS;
 
       for (const instance of species) {
-        if (!isOut(instance, hour, month)) {
+        // Findable, not workable. A plant out of bloom is still a plant you can
+        // meet, read and be quizzed on; only the pollinating waits for its season.
+        if (!isFindable(instance, hour, month)) {
           continue;
         }
 
@@ -1783,7 +1786,7 @@ export function GameScene({
       />
 
       <PlantEntry />
-      <LandingMenu />
+      <LandingMenu month={month} />
       <Quiz />
       <PollinationMinigame />
       <ProgressionWatcher />

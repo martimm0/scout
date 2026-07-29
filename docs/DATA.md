@@ -78,6 +78,12 @@ inert. A test asserts the share per park stays near a tenth, and it has already
 caught two mistakes: a shared species counted against both its parks, and a whole
 park shipping at 0%.
 
+`canPollinate(state, plantId, month)` is where both gates live, the quiz and the
+bloom, and `startMinigame` consults it rather than trusting the button. The month
+is a required argument on purpose: it arrived late, and while it was optional an
+omitted month meant "any month", which is precisely the silent yes the function
+exists to refuse.
+
 ## Time
 
 ```ts
@@ -119,12 +125,23 @@ season words ("late summer", "early autumn"), and "all year". A string it cannot
 read falls back to all-year, and `season.spec.ts` asserts every real string parses
 so a new one that does not is caught rather than silently shown every month.
 
-`isOut(instance, hour, month)` in `species-scatter.ts` is the single question the
-discovery loop, the tag, the field and the field notes all ask: open at this hour
-AND in season this month. A plant out of its month is drawn as a drab closed stalk
-(it is still there, it is just not flowering); a fungus out of its season is gone.
-The suite pins `?month=7`, July, because half the flora is out of season at any
-month and midsummer is when the most is in bloom at once.
+`species-scatter.ts` asks **two** questions, and keeping them apart is load-bearing:
+
+- `isOut(instance, hour, month)` is whether it can be **worked**: open at this hour
+  and, for a flower, actually in bloom. The Pollinate button asks this.
+- `isFindable(instance, hour, month)` is whether it can be **met**: open at this
+  hour, and for a FUNGUS also in season. A plant that is not flowering has not gone
+  anywhere, so the discovery loop, the motes and the tag ask this one.
+
+They were one function, and that was a soft-lock. Discovery needed the bloom, so
+only seven of Frick's sixteen plants existed in July, while Schenley opens on
+eight: a player starting in the wrong month could never progress. `season.spec.ts`
+now walks all twelve months and asserts every plant stays findable in each, which is
+the check that was missing. A plant out of its month is still drawn, drab and
+closed; a fungus out of its season really is gone, because mushrooms rot away.
+
+The suite pins `?month=7`, July, because midsummer is when the most is in bloom at
+once.
 
 ## Parks
 
