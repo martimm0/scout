@@ -16,6 +16,15 @@ photograph's author and licence come from the Commons API rather than from
 memory. When a claim cannot be verified it does not ship, however good a line it
 would have made.
 
+The facts that slip through are the ones nothing checks, and the parks' own
+**coordinates** were the clearest example. Frick's were 40.4406, -79.9959 from the
+day the weather shipped, which is not Frick Park: it is about eight kilometres west
+of it, near downtown. The game claimed in two files to be reading "Frick Park's own
+coordinates" and was reading somebody else's sky, and nothing ever looked wrong,
+because Pittsburgh's weather is Pittsburgh's weather. A remembered number that is
+merely plausible is the hardest kind of wrong to notice, which is why the
+coordinates now live in one place, carry their source, and have a test.
+
 ## Species
 
 One shape for plants, one for fungi, and they differ only where the biology does.

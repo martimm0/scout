@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { fromWmoCode, FAIR_WEATHER, type Weather } from "@/features/game/world/weather";
+import { PARK_COORDS } from "@/lib/forecast";
 
 /**
  * The real weather over Frick Park.
@@ -18,9 +19,16 @@ import { fromWmoCode, FAIR_WEATHER, type Weather } from "@/features/game/world/w
  * reason for the sky to be missing.
  */
 
-/** Frick Park, Pittsburgh. */
-const LATITUDE = 40.4406;
-const LONGITUDE = -79.9959;
+/**
+ * Frick Park, Pittsburgh, from the one sourced copy of the parks' coordinates.
+ *
+ * This used to hold its own pair, 40.4406, -79.9959, which is not Frick Park: it
+ * is about eight kilometres west of it. The park has claimed since it was built
+ * to pull "the real observation for Frick Park's own coordinates", and for that
+ * whole time it was reading downtown's sky instead. Nothing ever looked wrong,
+ * because the two skies are usually the same sky.
+ */
+const { lat: LATITUDE, lon: LONGITUDE } = PARK_COORDS.frick;
 
 const ENDPOINT =
   `https://api.open-meteo.com/v1/forecast` +

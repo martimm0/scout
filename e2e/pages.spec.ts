@@ -25,6 +25,7 @@ import {
 } from "../src/features/game/world/scatter";
 import { scatterSpecies } from "../src/features/game/world/species-scatter";
 import { isInSeason, seasonWindow } from "../src/features/game/world/season";
+import { PARK_COORDS } from "../src/lib/forecast";
 import { canPollinate } from "../src/features/game/state/game-store";
 import {
   ACCESSORY_INFO,
@@ -679,6 +680,46 @@ test.describe("the about page and the site chrome", () => {
 });
 
 test.describe("the weather is Pittsburgh's weather", () => {
+  /**
+   * The parks are where the parks are.
+   *
+   * Frick sat at 40.4406, -79.9959 from the day this shipped, which is not Frick
+   * Park: it is roughly eight kilometres west, near downtown. The game claimed in
+   * two places to be reading "Frick Park's own coordinates" and was reading
+   * somebody else's sky the whole time. Nothing looked wrong, because Pittsburgh's
+   * weather is Pittsburgh's weather, and that is precisely why an unchecked fact
+   * survives here: the first rule of the project is that facts are sourced, and
+   * this is the check that makes the coordinates a sourced fact rather than a
+   * remembered one.
+   *
+   * The tolerance is a kilometre or so of a degree, which is far tighter than the
+   * error it caught and loose enough that a park's centre can be nudged.
+   */
+  test("each park's weather is asked for at that park", () => {
+    const wikipedia: Record<string, { lat: number; lon: number }> = {
+      // https://en.wikipedia.org/wiki/Frick_Park
+      frick: { lat: 40.4325, lon: -79.905 },
+      // https://en.wikipedia.org/wiki/Schenley_Park
+      schenley: { lat: 40.4344, lon: -79.9428 },
+      // https://en.wikipedia.org/wiki/Highland_Park_(Pittsburgh)
+      highland: { lat: 40.478, lon: -79.916 },
+    };
+
+    for (const [park, expected] of Object.entries(wikipedia)) {
+      const actual = PARK_COORDS[park as keyof typeof PARK_COORDS];
+
+      expect(actual, `${park} has no coordinates`).toBeTruthy();
+      expect(
+        Math.abs(actual.lat - expected.lat),
+        `${park} is at latitude ${actual.lat}, not ${expected.lat}`,
+      ).toBeLessThan(0.02);
+      expect(
+        Math.abs(actual.lon - expected.lon),
+        `${park} is at longitude ${actual.lon}, not ${expected.lon}`,
+      ).toBeLessThan(0.02);
+    }
+  });
+
   test("the API answers with a well-formed sky, whatever the service does", async ({
     page,
   }) => {

@@ -19,10 +19,26 @@ import type { ParkId } from "@/features/game/world/park";
  * the in-game weather is fetched the way it is.
  */
 
-const PARK_COORDS: Record<ParkId, { lat: number; lon: number }> = {
-  frick: { lat: 40.4406, lon: -79.9959 },
-  schenley: { lat: 40.4364, lon: -79.942 },
-  highland: { lat: 40.4816, lon: -79.921 },
+/**
+ * Where the parks actually are, from each one's Wikipedia article.
+ *
+ * Sourced, not remembered, and it matters that they are: Frick was at
+ * 40.4406, -79.9959 for as long as this file has existed, which is not Frick
+ * Park. It is about eight kilometres west of it, near downtown. Nothing looked
+ * wrong, because Pittsburgh's weather is Pittsburgh's weather and the banner read
+ * plausibly either way, which is exactly how a made-up fact survives.
+ *
+ * Exported, because `api/weather/route.ts` asks Open-Meteo about Frick too and
+ * had its own copy of the same wrong number. Two copies of a fact are two chances
+ * to be wrong about it.
+ */
+export const PARK_COORDS: Record<ParkId, { lat: number; lon: number }> = {
+  // https://en.wikipedia.org/wiki/Frick_Park
+  frick: { lat: 40.4325, lon: -79.905 },
+  // https://en.wikipedia.org/wiki/Schenley_Park
+  schenley: { lat: 40.4344, lon: -79.9428 },
+  // https://en.wikipedia.org/wiki/Highland_Park_(Pittsburgh)
+  highland: { lat: 40.478, lon: -79.916 },
 };
 
 const PARK_ORDER: ParkId[] = ["frick", "schenley", "highland"];
