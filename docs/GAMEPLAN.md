@@ -169,6 +169,11 @@ you have to fly low and follow the trails. And when it is genuinely cold your ow
 bee shivers, the way a real one vibrates its flight muscles warm before it can
 work at all, which is the same cold that keeps the other foragers home.
 
+The temperature reads in **Fahrenheit** everywhere, because the park is in
+Pittsburgh and so are the people looking at it. Underneath it is Celsius, and it
+has to be: ten degrees is where bees stop flying and twelve is where yours starts
+to shiver, and those are real numbers about real insects.
+
 A bare bee flies heavy and slow in the rain, so there is a **raincoat**, in
 whatever colour you like it. It is worn only when it is actually raining: you
 cannot put on a coat there is no weather for. You can take it off in the rain if
@@ -216,7 +221,7 @@ Everything above is built and playable. As of the last update:
 - 49 photographs, every one licensed and credited
 - 34 badges, 10 accessories, 6 of them earned
 - Played by keyboard and mouse, or by two thumbs on a phone or a tablet
-- 294 tests across Chromium, Firefox, WebKit, and a phone and a tablet
+- 300 tests across Chromium, Firefox, WebKit, and a phone and a tablet
 
 ## Deliberately not doing
 

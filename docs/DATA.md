@@ -266,9 +266,17 @@ document at once.
 
 ### Merging
 
-Progress is **monotonic**: you never un-discover a plant, so the merge is a union
-and it does not matter who wins. A player who played signed out and then signs in
-keeps both halves.
+Progress is **monotonic**: you never un-discover a plant, so the merge is a union.
+A player who played signed out and then signs in keeps both halves.
+
+The union is an **OR, not a spread**, and the distinction is worth keeping. It was
+written `{ ...local, ...remote }`, which reads as a union and is not one: it is
+"the server wins". Nothing in the game ever writes `false` into these records, so
+the two behave identically in practice, which is precisely what makes the bug
+invisible. But `/api/progress` stores the JSON it is handed, so a row carrying
+`{ trillium: false }` would have un-discovered a trillium somebody had genuinely
+found. ORing makes the property this paragraph claims actually true rather than
+true by luck.
 
 The **pollinator is not monotonic**. It is a value that gets replaced, so the
 remote wins the merge, so a player who lands on the customize page and picks a

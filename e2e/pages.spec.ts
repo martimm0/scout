@@ -27,6 +27,7 @@ import { scatterSpecies } from "../src/features/game/world/species-scatter";
 import { isInSeason, seasonWindow } from "../src/features/game/world/season";
 import { PARK_COORDS } from "../src/lib/forecast";
 import { canPollinate } from "../src/features/game/state/game-store";
+import { mergeInto } from "../src/features/game/state/cloud-sync";
 import {
   ACCESSORY_INFO,
   accessoryUnlocked,
@@ -1478,6 +1479,79 @@ test.describe("customization", () => {
         { timeout: 20_000 },
       )
       .toBe("#00cc88");
+  });
+
+  /**
+   * Progress only ever goes up, and the merge has to mean it.
+   *
+   * `mergeInto` unions the server's record with the local one, and the union was
+   * written `{ ...local, ...remote }`, which is not a union: it is "the server
+   * wins". Every key is only ever set to true by the game, so the two are the same
+   * function in practice, which is exactly why the difference went unnoticed.
+   * `/api/progress` stores whatever JSON it is handed, though, so a row carrying a
+   * false could un-discover a plant the player had genuinely found.
+   *
+   * This calls the real merge. The first version of this test drove the UI and
+   * passed against the bug, because no page it could reach mounts the cloud sync:
+   * it was asserting that localStorage still held what the test had just written
+   * into it, which it did either way.
+   */
+  test("a false from the server cannot un-discover a plant", () => {
+    const plant = PLANTS[0].id;
+    const other = PLANTS[1].id;
+
+    // Only the fields the merge reads. The rest of GameState is not its business.
+    const local = {
+      pollinator: { name: "Scout" },
+      discoveredPlants: { [plant]: true },
+      discoveredFungi: {},
+      unlockedParks: {},
+      quizPassed: {},
+      seenPhases: {},
+      seenSeasons: {},
+      pollinatedPlants: { [plant]: true },
+      unlockedMapAreas: {},
+      unlockedBadges: {},
+      unlockedJournalEntries: {},
+      stats: {
+        pollinationAttempts: 4,
+        pollinationSuccesses: 1,
+        streak: 2,
+        bestStreak: 3,
+        quizzesTaken: 1,
+        quizzesPassed: 1,
+        questionsCorrect: 2,
+      },
+      tutorialSeen: true,
+    } as unknown as Parameters<typeof mergeInto>[0];
+
+    const remote = {
+      pollinator: {},
+      // The hostile part: an explicit false for something already found, and a
+      // true for something not found yet, which must still be picked up.
+      discoveredPlants: { [plant]: false, [other]: true },
+      pollinatedPlants: { [plant]: false },
+      stats: { pollinationAttempts: 1, pollinationSuccesses: 0 },
+      tutorialSeen: false,
+    } as unknown as Parameters<typeof mergeInto>[1];
+
+    const merged = mergeInto(local, remote);
+
+    expect(
+      merged.discoveredPlants[plant],
+      `${plant} was un-discovered by the server`,
+    ).toBe(true);
+    expect(
+      merged.pollinatedPlants[plant],
+      `${plant} was un-pollinated by the server`,
+    ).toBe(true);
+
+    // And the union still works in the direction it is meant to.
+    expect(merged.discoveredPlants[other]).toBe(true);
+
+    // Counters take the larger, and a seen tutorial is not un-seen.
+    expect(merged.stats.pollinationAttempts).toBe(4);
+    expect(merged.tutorialSeen).toBe(true);
   });
 });
 

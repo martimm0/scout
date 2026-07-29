@@ -51,12 +51,40 @@ function toSaved(state: GameState) {
  * union rather than a replacement. That means a player who played signed-out on
  * this machine and then signs in keeps both halves of what they did, instead of
  * watching the server overwrite their afternoon.
+ *
+ * Exported so the suite can put a hostile save in front of the real function. The
+ * first attempt at that test drove the UI instead, and passed against the bug: no
+ * page it could reach mounts the sync, so no merge ever ran and it was really only
+ * asserting that localStorage still said what the test had written into it.
  */
-function mergeInto(local: GameState, remote: Awaited<ReturnType<typeof toSaved>>) {
+export function mergeInto(
+  local: GameState,
+  remote: Awaited<ReturnType<typeof toSaved>>,
+) {
+  /**
+   * A genuinely monotonic union: OR, not spread.
+   *
+   * `{ ...a, ...b }` is the obvious way to write this and it is not a union, it is
+   * "b wins". Every key in these records is only ever set to true by the game, so
+   * the two behave identically in practice, which is what makes the difference easy
+   * to miss. But `/api/progress` stores whatever JSON it is handed, so a row
+   * carrying `{ trillium: false }` would have overwritten a trillium this player
+   * had genuinely found, and the whole point of the merge is that progress only
+   * ever goes up. ORing makes the property the comment below claims actually true
+   * rather than incidentally true.
+   */
   const union = (
     a: Record<string, boolean>,
     b: Record<string, boolean> | undefined,
-  ) => ({ ...a, ...(b ?? {}) });
+  ) => {
+    const merged: Record<string, boolean> = { ...a };
+
+    for (const [key, value] of Object.entries(b ?? {})) {
+      merged[key] = Boolean(value) || Boolean(merged[key]);
+    }
+
+    return merged;
+  };
 
   return {
     // MERGED, not replaced. `remote.pollinator ?? local.pollinator` looks right
