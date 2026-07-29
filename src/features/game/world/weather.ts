@@ -32,7 +32,15 @@ export type Weather = {
   condition: Condition;
   /** "Light rain". Shown to the player. */
   label: string;
-  /** Celsius. */
+  /**
+   * Celsius, always, whatever is on screen.
+   *
+   * The game's biology reads this number: foragers stay home below ten degrees,
+   * and the bee shivers below twelve. Those thresholds are real and they are in
+   * Celsius, so the stored value stays Celsius and any Fahrenheit happens at the
+   * point of display. Converting here would quietly move the temperature at which
+   * bees stop flying to somewhere around minus twelve.
+   */
   temperature: number;
   /** 0 to 1. */
   cloudCover: number;
@@ -47,6 +55,16 @@ export type Weather = {
   /** When the observation was taken, in Pittsburgh. */
   observedAt: string;
 };
+
+/**
+ * Celsius to Fahrenheit, for display only.
+ *
+ * The park is in Pittsburgh and the people reading it are mostly American, so the
+ * number on screen is Fahrenheit even though everything underneath it is Celsius.
+ */
+export function toFahrenheit(celsius: number): number {
+  return celsius * 1.8 + 32;
+}
 
 /** What the park looks like when nobody can reach the weather service. */
 export const FAIR_WEATHER: Weather = {

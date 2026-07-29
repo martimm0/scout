@@ -1,4 +1,4 @@
-import type { Condition } from "@/features/game/world/weather";
+import { toFahrenheit, type Condition } from "@/features/game/world/weather";
 import { daylightAt } from "@/features/game/world/daylight";
 import { pittsburghMonth, seasonFor } from "@/features/game/world/season";
 import { fetchParkForecasts } from "@/lib/forecast";
@@ -52,7 +52,7 @@ export async function WeatherBanner() {
         </span>
         <span className={styles.park}>{PARK_LABEL[park] ?? park}</span>
         <span className={styles.reading}>
-          {weather.label}, {Math.round(weather.temperature)}°C
+          {weather.label}, {Math.round(toFahrenheit(weather.temperature))}°F
         </span>
       </span>
     )),
