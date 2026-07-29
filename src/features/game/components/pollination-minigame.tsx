@@ -183,7 +183,17 @@ function MinigameRun({ plant }: { plant: Plant }) {
       setProgress(Math.min(1, elapsed / spec.duration));
 
       if (elapsed >= spec.duration) {
-        finish(scoreRef.current);
+        /**
+         * Let the drained bar paint before the outcome takes the board away.
+         *
+         * `setProgress(1)` above and `finish` here land in the same React batch,
+         * so the frame that would have shown an empty bar is the frame that
+         * replaces it with the outcome panel: the bar visibly still had time on
+         * it when the game ended, which reads as being cut off early. One frame
+         * of delay is the whole fix, and it is why the bar carries no CSS
+         * transition either.
+         */
+        raf = requestAnimationFrame(() => finish(scoreRef.current));
 
         return;
       }

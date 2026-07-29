@@ -144,7 +144,15 @@
   display: block;
   height: 100%;
   background: linear-gradient(90deg, #eeae2f, #f7c855);
-  transition: width 80ms linear;
+  /**
+   * No transition, deliberately.
+   *
+   * The width is already recomputed every frame from the real clock, so a
+   * transition adds nothing but lag: the bar trailed the timer by its own 80ms
+   * and the outcome panel replaced the board on the very frame the clock expired,
+   * so the last stretch never painted. The bar appeared to still have time on it
+   * when the game ended, which reads as the game cutting you off early.
+   */
 }
 
 /* --- outcome --- */
