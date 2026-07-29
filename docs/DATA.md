@@ -274,6 +274,15 @@ the numbers back and can set the ceiling, suspend, delete, and clear the waitlis
 Deleting an account takes its save and its album with it, which is what frees a
 seat.
 
+The ceiling is **validated where it is set, not where it is read**, and the reason
+is a nasty little failure mode. The read side falls back to a hundred when it
+cannot parse what it finds, which sounds safe and is not: a value that failed to
+parse on the way in was stored as the string "NaN", and the door policy then
+silently reverted to the default, reopening seats an admin had deliberately closed.
+The API refuses a ceiling that is not a real number, and it refuses it with a 400
+rather than coercing, because `Number(null)` is a perfectly good zero and a
+ceiling of zero shuts the door on everybody.
+
 ## Photographs
 
 Four sets, by park, each with a `CREDITS.md` and a generated TypeScript record:

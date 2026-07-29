@@ -78,4 +78,53 @@ test.describe("the admin tool is the admin's alone", () => {
     });
     expect(((await reset.json()) as { analytics: { ceiling: number } }).analytics.ceiling).toBe(100);
   });
+
+  /**
+   * A ceiling that will not parse has to be refused, not stored.
+   *
+   * `Math.floor(NaN)` is NaN and `String(NaN)` is "NaN", so a bad value went into
+   * the settings row without complaint. The read side cannot parse "NaN" either,
+   * falls back to the shipped default, and the door policy silently becomes a
+   * hundred again: seats an admin had deliberately closed, quietly reopened. The
+   * failure mode was a success response and a wrong number.
+   */
+  test("a ceiling that is not a number is refused, and the old one stands", async ({
+    page,
+  }) => {
+    await signIn(page.context(), "the-admin", ADMIN);
+
+    const ceilingNow = async () => {
+      const api = await page.request.get("/api/admin");
+
+      return ((await api.json()) as { analytics: { ceiling: number } }).analytics
+        .ceiling;
+    };
+
+    const set = await page.request.post("/api/admin", {
+      data: { action: "setCeiling", ceiling: 250 },
+    });
+    expect(set.status()).toBe(200);
+    expect(await ceilingNow()).toBe(250);
+
+    // `Number` would have made a fine zero out of most of these, and a ceiling of
+    // zero shuts the door on every new account.
+    for (const nonsense of ["abc", "", null, {}, [], false]) {
+      const bad = await page.request.post("/api/admin", {
+        data: { action: "setCeiling", ceiling: nonsense },
+      });
+
+      expect(bad.status(), `ceiling ${JSON.stringify(nonsense)} was accepted`).toBe(
+        400,
+      );
+      expect(
+        await ceilingNow(),
+        `ceiling ${JSON.stringify(nonsense)} changed the ceiling`,
+      ).toBe(250);
+    }
+
+    // Leave the shared database as found.
+    await page.request.post("/api/admin", {
+      data: { action: "setCeiling", ceiling: 100 },
+    });
+  });
 });

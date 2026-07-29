@@ -100,9 +100,22 @@ export async function getCeiling(): Promise<number> {
   return Number.isFinite(parsed) ? parsed : DEFAULT_CEILING;
 }
 
-export async function setCeiling(ceiling: number) {
+/**
+ * Refuses a ceiling that is not a number, rather than storing one.
+ *
+ * `Math.floor(NaN)` is NaN and `String(NaN)` is "NaN", so a bad value used to go
+ * into the settings row happily. The read side is defensive and falls back to a
+ * hundred when it cannot parse what it finds, which meant a fat-fingered ceiling
+ * did not fail: it silently reset the door policy to the default, reopening seats
+ * an admin had deliberately closed. The caller gets `false` and can say so.
+ */
+export async function setCeiling(ceiling: number): Promise<boolean> {
+  if (!Number.isFinite(ceiling)) {
+    return false;
+  }
+
   if (!databaseConfigured) {
-    return;
+    return true;
   }
 
   await ensureSchema();
@@ -114,6 +127,8 @@ export async function setCeiling(ceiling: number) {
     VALUES ('account_ceiling', ${value})
     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
   `;
+
+  return true;
 }
 
 async function accountCount(): Promise<number> {

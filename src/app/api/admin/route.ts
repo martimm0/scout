@@ -43,8 +43,31 @@ export async function GET() {
   return NextResponse.json({ analytics, accounts, waitlist });
 }
 
+/**
+ * A real number, or nothing. Deliberately NOT `Number(value)`.
+ *
+ * `Number` is far too willing: `Number(null)` is 0, and so are `Number("")`,
+ * `Number(false)` and `Number([])`. A ceiling arriving as null would have been
+ * read as a perfectly good zero and shut the door on every new account, with a
+ * 200 and no complaint. A numeric string is allowed because a form field is a
+ * reasonable thing to send; everything else is a mistake worth refusing.
+ */
+function asFiniteNumber(value: unknown): number | null {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
 type Action =
-  | { action: "setCeiling"; ceiling: number }
+  | { action: "setCeiling"; ceiling: unknown }
   | { action: "suspend"; userId: string }
   | { action: "unsuspend"; userId: string }
   | { action: "delete"; userId: string }
@@ -77,9 +100,18 @@ export async function POST(request: Request) {
   }
 
   switch (body.action) {
-    case "setCeiling":
-      await setCeiling(Number(body.ceiling));
+    case "setCeiling": {
+      // Say no out loud. A ceiling that will not parse used to be stored as the
+      // string "NaN", which the read side then could not parse either and quietly
+      // replaced with the default hundred.
+      const ceiling = asFiniteNumber(body.ceiling);
+
+      if (ceiling === null || !(await setCeiling(ceiling))) {
+        return NextResponse.json({ error: "bad-ceiling" }, { status: 400 });
+      }
+
       break;
+    }
     case "suspend":
       await setAccountStatus(body.userId, "suspended");
       break;
