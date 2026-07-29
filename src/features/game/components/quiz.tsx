@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { playSound } from "../audio/sound";
 import { FUNGI_BY_ID } from "../data/fungi";
 import { PLANTS_BY_ID } from "../data/plants";
-import { triviaFor, type Question } from "../data/trivia";
+import { shuffledTriviaFor, type Question } from "../data/trivia";
 import { useGameStore, type SpeciesRef } from "../state/game-store";
 import styles from "./quiz.module.css";
 
@@ -33,7 +33,12 @@ function QuizRun({ refSpecies }: { refSpecies: SpeciesRef }) {
   const endQuiz = useGameStore((state) => state.endQuiz);
   const recordQuiz = useGameStore((state) => state.recordQuiz);
 
-  const questions = useMemo(() => triviaFor(refSpecies.id), [refSpecies.id]);
+  // Shuffled, and the reason is worth reading: the answer used to be the first
+  // option in 90 of the 147 questions. See `shuffledTriviaFor`.
+  const questions = useMemo(
+    () => shuffledTriviaFor(refSpecies.id),
+    [refSpecies.id],
+  );
 
   const name =
     refSpecies.kind === "plant"

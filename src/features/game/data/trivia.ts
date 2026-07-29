@@ -1831,3 +1831,43 @@ export const TRIVIA: Record<string, Question[]> = {
 export function triviaFor(id: string): Question[] {
   return TRIVIA[id] ?? [];
 }
+
+/**
+ * The same questions, with their options shuffled.
+ *
+ * Hand-written options come out in the order the writer thought of them, which is
+ * the true one first: 90 of the 147 questions above had `answer: 0`, so tapping
+ * the top option every time passed most quizzes in the game, and two right of
+ * three is a pass. It is the kind of tell that makes a quiz feel rigged the moment
+ * you notice, and unlosable until you do.
+ *
+ * Shuffling here rather than rewriting 147 records fixes every question at once
+ * and cannot drift back: a new question can still be written in whatever order
+ * reads best. It is only safe because no `ask` or `because` line refers to an
+ * option by its position, and nothing in the game stores an answer index.
+ *
+ * Seeded, not random, so a species deals the same board twice in a session and
+ * the options cannot reshuffle underneath a player who is mid-question.
+ */
+export function shuffledTriviaFor(id: string): Question[] {
+  return triviaFor(id).map((question, questionIndex) => {
+    const order = question.options.map((_, index) => index);
+
+    let seed = id.length * 97 + questionIndex * 31 + 7;
+    const next = () => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed / 0x7fffffff;
+    };
+
+    for (let i = order.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(next() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+
+    return {
+      ...question,
+      options: order.map((index) => question.options[index]),
+      answer: order.indexOf(question.answer),
+    };
+  });
+}

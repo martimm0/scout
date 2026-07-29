@@ -285,6 +285,15 @@ whether they were right or wrong, so it teaches rather than scolds. Wrong option
 have to be *plausible*: a question with three silly answers teaches nothing and
 insults the player.
 
+The **options are shuffled at display time**, and that is not cosmetic. Hand-written
+options come out in the order the writer thought of them, which is the true one
+first: 90 of the 147 questions had `answer: 0`, so tapping the top option every
+time passed most quizzes in the game. Shuffling in `quiz.tsx` fixes all 147 at once
+and cannot drift, so a new question can still be written in whatever order reads
+best. It is safe only because no `ask` or `because` line refers to an option by its
+position, and `quiz.spec.ts` holds the shuffle to no more than 40% of answers in
+any one slot.
+
 ## Minigames
 
 Pollinating a flower is a quick game, chosen by the plant's `archetype` so a
