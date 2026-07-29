@@ -23,7 +23,7 @@ import { PLANTS } from "../data/plants";
 import { isActive, type Daylight } from "./daylight";
 import type { Park } from "./park";
 import { isInSeason, seasonFor, seasonWindow } from "./season";
-import type { Weather } from "./weather";
+import { toFahrenheit, type Weather } from "./weather";
 
 export type FieldNote = {
   /** Stable key for React and for tests. */
@@ -119,13 +119,21 @@ export function fieldNotesFor(input: FieldNotesInput): FieldNote[] {
   const { park, daylight, month, weather, discoveredPlants } = input;
   const notes: FieldNote[] = [];
 
+  /**
+   * Celsius, and it stays Celsius, because the cold note below is a RULE.
+   *
+   * "Too cold for most bees to be out" is ten degrees Celsius, a real threshold.
+   * Converting this local so the sentence above could read Fahrenheit would move
+   * that threshold to about minus twelve and the note would never fire again. The
+   * conversion happens at the point of display, once, and nowhere else.
+   */
   const temperature = Math.round(weather.temperature);
   const season = seasonFor(month);
 
-  // 1. The sky, and the season. "Fog, 14C. Summer morning in Frick Park."
+  // 1. The sky, and the season. "Fog, 57F. Summer morning in Frick Park."
   notes.push({
     id: "sky",
-    text: `${weather.label}, ${temperature}°C. ${cap(season)} ${dayPart(daylight)} in ${park.label}.`,
+    text: `${weather.label}, ${Math.round(toFahrenheit(weather.temperature))}°F. ${cap(season)} ${dayPart(daylight)} in ${park.label}.`,
     tone: "sky",
   });
 

@@ -72,4 +72,40 @@ test.describe("field notes", () => {
     expect(night).toMatch(/Nothing is open to pollinate after dark/);
     expect(night).toMatch(/makes its own light|does not close|old wood was glowing/);
   });
+
+  /**
+   * Fahrenheit on the card, Celsius under it.
+   *
+   * The whole game reads in Fahrenheit now, and the sky line was the awkward one:
+   * the same rounded Celsius local fed both that sentence and the "too cold for
+   * most bees" rule below it. Converting the local would have read correctly and
+   * moved the bees' threshold from ten degrees to about minus twelve, so the note
+   * would simply never have fired again.
+   *
+   * The snow preset is -2C, which is 28F and is genuinely too cold to forage. Both
+   * halves are asserted together, because either one alone would have passed
+   * through the bug.
+   */
+  test("the sky line reads Fahrenheit, and the cold rule still bites", async ({
+    page,
+  }) => {
+    await enterGame(page, 13);
+
+    await pin(page, "hour=13&month=1&weather=snow");
+    const cold = (await notes(page)).join(" \n ");
+
+    // -2C rendered in Fahrenheit, and no Celsius left anywhere on the card.
+    expect(cold).toContain("28°F");
+    expect(cold).not.toContain("°C");
+
+    // And the rule that reads the Celsius underneath still fires.
+    expect(cold).toMatch(/Too cold for most bees/);
+
+    // A fair day is 18C, 64F, and warm enough that the note stays away.
+    await pin(page, "hour=13&month=7&weather=clear");
+    const warm = (await notes(page)).join(" \n ");
+
+    expect(warm).toContain("64°F");
+    expect(warm).not.toMatch(/Too cold for most bees/);
+  });
 });

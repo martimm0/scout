@@ -778,7 +778,12 @@ test.describe("the weather is Pittsburgh's weather", () => {
 
     const stats = page.getByRole("complementary", { name: "Scout stats" });
     await expect(stats).toContainText("Heavy snow");
-    await expect(stats).toContainText("-6°C");
+
+    // Fahrenheit on screen: the service said -6C, which is 21F. The stored value
+    // stays Celsius, because the bee's shiver and the foragers' ten degrees read
+    // it, so this asserts the conversion happens at the display and only there.
+    await expect(stats).toContainText("21°F");
+    await expect(stats).not.toContainText("°C");
   });
 
   test("the park shows the date and the hour in Pittsburgh", async ({ page }) => {

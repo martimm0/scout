@@ -68,6 +68,7 @@ import { resetVirtualInput, virtualInput } from "../state/virtual-input";
 import {
   applyWeather,
   FAIR_WEATHER,
+  toFahrenheit,
   type Weather,
 } from "../world/weather";
 import {
@@ -1770,7 +1771,9 @@ export function GameScene({
             <dt>Weather</dt>
             <dd className={styles.clock}>
               {weather.label}
-              <span>{Math.round(weather.temperature)}°C, real</span>
+              {/* Fahrenheit on screen, Celsius underneath: `weather.temperature`
+                  is what the bee's shiver and the foragers' ten degrees read. */}
+              <span>{Math.round(toFahrenheit(weather.temperature))}°F, real</span>
             </dd>
           </div>
         </dl>

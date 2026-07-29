@@ -114,6 +114,27 @@ The windows are true to life rather than balanced:
 The consequence is the point: after dark **nothing is pollinatable anywhere**,
 and only fungi are out.
 
+### Temperature: Celsius stored, Fahrenheit shown
+
+`Weather.temperature` is **Celsius, always**, and every temperature on screen is
+Fahrenheit. `toFahrenheit` is called at each point of display and nowhere else:
+the home banner's ticker, the field-notes sky line, and the Scout Stats panel.
+
+The split is not a preference, it is a correctness rule, because the number is
+read by the game's biology as well as by the player. Foragers stay home below ten
+degrees (`data/ambient.ts`), the bee shivers below twelve (the `chill` the model
+takes), and the field notes' "too cold for most bees to be out" is the same ten.
+Those thresholds are real and they are Celsius. Converting at the source, or
+converting the local that a rule also reads, moves the temperature at which bees
+stop flying to somewhere around minus twelve, and the effect is silent: nothing
+throws, the sentence reads correctly, and the rule simply never fires again. The
+field-notes function computes a rounded Celsius local for exactly one purpose now
+and says so, because that local used to feed both the sentence and the rule.
+
+`field-notes.spec.ts` asserts both halves of one card together, the sky line in
+Fahrenheit and the cold note still appearing, since either alone passes straight
+through the bug.
+
 ## Season
 
 ```ts
