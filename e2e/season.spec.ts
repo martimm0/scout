@@ -12,6 +12,7 @@ import {
   briefSeasonWindow,
   isInSeason,
   seasonFor,
+  seasonLook,
   seasonWindow,
 } from "../src/features/game/world/season";
 import {
@@ -88,6 +89,77 @@ test.describe("the calendar is read from the sourced strings", () => {
     expect(seasonFor(10)).toBe("autumn");
     expect(seasonFor(1)).toBe("winter");
     expect(seasonFor(12)).toBe("winter");
+  });
+
+  /**
+   * The snow is a bump across the whole winter, not a spike at New Year.
+   *
+   * December is month 12 and January is month 1, so the month number goes DOWN in
+   * the middle of the season and the winter index has to be stitched across that
+   * join. It was stitched a month out, and the index jumped straight over the
+   * point where the sine peaks: the deepest snow of the year was never drawn, and
+   * February was bare ground for the whole month. Nothing threw, and every
+   * screenshot anybody happened to take still looked like winter.
+   *
+   * So this asserts the SHAPE, which is the thing that was wrong: bare at both
+   * ends, deep in the middle, and continuous across the turn of the year.
+   */
+  test("snow builds through winter and eases off, with no jump at New Year", () => {
+    const snowAt = (month: number) => seasonLook(month).snow;
+
+    // Bare at both ends of the season.
+    expect(snowAt(12), "snow on the first of December").toBeLessThan(0.05);
+    expect(snowAt(2.99), "snow at the very end of February").toBeLessThan(0.2);
+
+    // Deep in the middle, which is mid-January.
+    expect(snowAt(1.5), "mid-January is the deep of winter").toBeGreaterThan(0.95);
+
+    // February is one of the snowiest months Pittsburgh has. It was zero.
+    expect(snowAt(2), "the first of February").toBeGreaterThan(0.8);
+    expect(snowAt(2.5), "mid-February").toBeGreaterThan(0.4);
+
+    // And continuous across the December/January join: sampling either side of
+    // midnight on the 31st must not step. This is what the off-by-a-month did.
+    expect(
+      Math.abs(snowAt(12.99) - snowAt(1)),
+      "the snow jumps at the turn of the year",
+    ).toBeLessThan(0.1);
+
+    // Rising to the middle, falling away after it, with no second peak.
+    const samples = [12, 12.5, 1, 1.5, 2, 2.5, 2.99].map(snowAt);
+    const peak = samples.indexOf(Math.max(...samples));
+
+    expect(peak, "the deepest snow is not in the middle of the winter").toBe(3);
+  });
+
+  /**
+   * The world samples a whole month at its MIDDLE, and every winter month must
+   * come out with snow on it.
+   *
+   * Terrain and foliage are baked geometry rebuilt only when the month turns, so
+   * one sample stands for the month (`lookForMonth` in frick-park.tsx). Sampling
+   * the first of the month instead reads the very start of each curve, and the
+   * snow bump is zero at both its ends: December had no snow on the ground at all,
+   * for the whole month, in a game that keeps Pittsburgh's calendar.
+   */
+  test("every month of winter has snow on the ground, December included", () => {
+    // What the world actually asks for: the midpoint of each whole month.
+    const winter = { December: 12, January: 1, February: 2 };
+
+    for (const [name, month] of Object.entries(winter)) {
+      const look = seasonLook(month + 0.5);
+
+      expect(look.snow, `${name} has no snow`).toBeGreaterThan(0.3);
+      expect(look.groundMix, `${name}'s ground is not white`).toBeGreaterThan(0.2);
+    }
+
+    // January is still the deepest of the three.
+    expect(seasonLook(1.5).snow).toBeGreaterThan(seasonLook(12.5).snow);
+    expect(seasonLook(1.5).snow).toBeGreaterThan(seasonLook(2.5).snow);
+
+    // And the shoulder months stay clear: no snow in November or March.
+    expect(seasonLook(11.5).snow, "November has snow").toBe(0);
+    expect(seasonLook(3.5).snow, "March has snow").toBe(0);
   });
 
   test("the badge version of the hint stays short enough for the card", () => {

@@ -17,6 +17,21 @@ import {
 import { PROPS_BY_PARK } from "../world/parks/props";
 
 /**
+ * The look of a whole month, sampled at its MIDDLE.
+ *
+ * Terrain and foliage are baked geometry, so they are rebuilt only when the month
+ * turns rather than blended day by day: one sample has to stand for the whole
+ * month. Taking it on the first of the month reads the very start of every curve,
+ * and the winter snow curve is a bump that is zero at both of its ends, so
+ * December came out with no snow on the ground at all. Sampling the midpoint is
+ * what "the month as a whole" actually means, and it gives December and February
+ * their snow while leaving January the deepest.
+ */
+function lookForMonth(wholeMonth: number) {
+  return seasonLook(wholeMonth + 0.5);
+}
+
+/**
  * Push a geometry's baked vertex colours toward a target, in place.
  *
  * The park is built out of colour baked into the mesh, so a season is not a light
@@ -104,7 +119,7 @@ export function Terrain({ month }: { month: number }) {
   // rest of the year the terrain keeps its own colours.
   const seasonKey = Math.floor(month);
   const geometry = useMemo(() => {
-    const look = seasonLook(seasonKey);
+    const look = lookForMonth(seasonKey);
     return tintGeometry(buildTerrainGeometry(), look.groundTint, look.groundMix, 0);
   }, [seasonKey]);
 
@@ -142,7 +157,7 @@ export function Foliage({ month }: { month: number }) {
   // winter, fresh green in spring. Rebuilt only when the month turns.
   const seasonKey = Math.floor(month);
   const geometry = useMemo(() => {
-    const look = seasonLook(seasonKey);
+    const look = lookForMonth(seasonKey);
     const built = buildFoliageGeometry();
 
     for (const part of Object.values(built)) {

@@ -297,11 +297,27 @@ export function seasonLook(month: number): SeasonLook {
     foliageMix = clamp01(t * 1.3);
     canopy = lerp(1, 0.55, clamp01((t - 0.5) * 2));
   } else if (season === "winter") {
-    // December(12) -> January(1) -> February(2). Depth peaks around January.
-    const w = m >= 12 ? (m - 12) / 3 : (m + 1) / 3; // 0 at Dec 1 .. ~1 by end Feb
+    /**
+     * How far through the winter we are: 0 on 1 December, 1 at the end of
+     * February. December is 12, then the year turns and January is 1, so the
+     * month number goes DOWN in the middle of the season and the index has to be
+     * stitched across the join.
+     *
+     * This was `(m + 1) / 3` on the January side, which is a month out, and the
+     * effect was worth more than the arithmetic suggests: the index jumped from
+     * 0.32 on 31 December to 0.67 on 1 January, straight over the 0.5 where the
+     * sine peaks, so the deepest snow of the year was never drawn at all. Snow
+     * topped out at the turn of the year, was gone by the end of January, and
+     * February — one of the snowiest months Pittsburgh has — was bare ground for
+     * all twenty-eight days of it. The comment above claimed the peak was in
+     * January and the code did not do that.
+     */
+    const w = (m >= 12 ? m - 12 : m) / 3;
     foliageTint = "#8a7f6a"; // bare, grey-brown twigs
     foliageMix = 1;
     canopy = 0.12;
+    // A bump: nothing on the first of December, deepest in mid-January, thinning
+    // out again through February.
     snow = clamp01(Math.sin(w * Math.PI) * 1.1);
   } else if (season === "spring") {
     const t = clamp01((m - 3) / 3);

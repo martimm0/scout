@@ -89,6 +89,17 @@ gold and rust in October, bare grey-brown and snow-white in January, fresh green
 in spring. The scatter placements never change, only the colour, so it is a cheap
 pass over the colour attribute rather than a rebuild of the world.
 
+That rebuild-on-the-month is why the look is sampled at the month's **middle**
+(`lookForMonth`) rather than its first day. One sample has to stand for the whole
+month, and the seasonal curves are ramps and bumps: the snow bump is zero at both
+of its ends, so sampling the first of the month left December with no snow on the
+ground for all thirty-one days of it. The winter index also has to be stitched
+across the turn of the year, because December is month 12 and January is month 1,
+and getting that a month out sent the index straight over the point where the snow
+peaks. Between the two, the game rendered snow in January and nowhere else, and
+nothing about it threw or looked obviously wrong. `season.spec.ts` asserts the
+shape of the curve and that every winter month has white ground.
+
 ### 2. Species are specs, not subclasses
 
 Bee, hoverfly and butterfly are three `SpeciesSpec` data objects feeding **one**
