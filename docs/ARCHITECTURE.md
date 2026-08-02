@@ -7,7 +7,13 @@ game IS, see [GAMEPLAN.md](GAMEPLAN.md). For how the data is shaped, see
 ## Stack
 
 - **Next.js (App Router), React, TypeScript.** No Tailwind: CSS Modules, and a
-  small set of design tokens in `globals.css`.
+  small set of design tokens in `globals.css`. Scoping is per file, which is
+  worth remembering when hunting dead rules: `styles.stage` appears in four
+  stylesheets and means something different in each, so a class is only unused if
+  it is unused in **the files that import its own sheet**. Grepping the whole tree
+  gives false negatives and hides the dead ones; grepping a single importer misses
+  that some sheets have several. Rules reached through `styles[variant]`, as the
+  Button's do, look dead to any grep and are not.
 - **three.js + React Three Fiber + drei.** The scene uses R3F's *imperative*
   root (`createRoot` / `configure` / `render`) rather than `<Canvas>`, because
   the game needs to own its own sizing and lifecycle.
