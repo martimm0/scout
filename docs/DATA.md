@@ -114,6 +114,38 @@ The windows are true to life rather than balanced:
 The consequence is the point: after dark **nothing is pollinatable anywhere**,
 and only fungi are out.
 
+### The flush: last week's weather, not today's
+
+`Weather.recentRain` is the only part of the sky that is not "right now": ten days
+of daily rainfall, oldest first and today last. It is there for the mushrooms.
+
+Fungi fruit **two to ten days after significant rainfall**, not during it. The
+mycelium has primordia built and waiting underground and the rain inflates them,
+which is why a wood can be bare on the day of a storm and thick with mushrooms the
+following weekend. The lag is sourced ([Mass Audubon](https://www.massaudubon.org/news/latest/rainy-days-bring-a-burst-of-mushrooms));
+the rainfall **threshold** is not, and the difference is worth keeping straight.
+No source puts a millimetre figure on "significant", so `fungusFlush` calls it ten
+millimetres across the window to start and forty to top out, and says in the code
+that this half is a game judgement.
+
+This is the only mechanic in the game driven by weather that has already gone, so
+the field notes have to say so out loud: a player has no way to know that today's
+clear sky is the good mushroom day rather than the wet one that made it.
+
+**The flush is additive, and that is load-bearing.** The extras are a second,
+disjoint set of mushrooms with a `flushAt` threshold each, laid out at scatter time
+and simply not standing in the wood below it. Nothing that exists in a dry spell
+can be taken away by the weather. Gating real fungi behind rain would be the season
+soft-lock again with a worse trigger: a player can wait out April by playing on,
+but cannot make it rain, and "Three Parks, One City" wants every fungus found.
+`flush.spec.ts` asserts every fungus is findable dry in all three parks, and that a
+flush is a strict superset.
+
+The extras are placed on their own **seed channel**, which is not an implementation
+detail: `place` folds the count into its sampling, so asking it for twice as many
+spots deals a different hand entirely and moves every mushroom already in the wood.
+The base scatter is byte-identical with the flush in place.
+
 ### Temperature: Celsius stored, Fahrenheit shown
 
 `Weather.temperature` is **Celsius, always**, and every temperature on screen is

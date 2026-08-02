@@ -42,6 +42,19 @@ export type SpeciesInstance = {
   rotation: number;
   /** Final world scale. */
   scale: number;
+  /**
+   * How hard it has to be flushing before this one is up. 0 for everything that
+   * stands in the wood whatever the weather, which is every plant and the base
+   * scatter of every fungus.
+   *
+   * The extras above 0 are the flush: a second, disjoint set of mushrooms that
+   * comes up a few days after a soaking and is not there in a dry spell. They are
+   * ADDITIVE and always the extras, never the originals, so no fungus can ever be
+   * rained out of existence. Gating what already exists behind the weather would
+   * be the season soft-lock again, with a worse trigger: you cannot wait for
+   * April by playing on, but you certainly cannot make it rain.
+   */
+  flushAt: number;
 };
 
 /** Flowers are authored around a two-unit stalk and grown to insect scale. */
@@ -172,6 +185,8 @@ export function scatterSpecies(): SpeciesInstance[] {
         position: [spot.x, spot.height - 0.6, spot.z],
         rotation: sample(spot.seed, plant.count, 16) * Math.PI * 2,
         scale: PLANT_SCALE * (0.85 + sample(spot.seed, plant.count, 17) * 0.35),
+        // A flower does not care how wet last week was.
+        flushAt: 0,
       });
     });
   }
@@ -201,6 +216,39 @@ export function scatterSpecies(): SpeciesInstance[] {
         position: [spot.x, spot.height - 0.4, spot.z],
         rotation: sample(spot.seed, fungus.count, 18) * Math.PI * 2,
         scale: FUNGUS_SCALE * (0.8 + sample(spot.seed, fungus.count, 19) * 0.5),
+        flushAt: 0,
+      });
+    });
+
+    /**
+     * The flush: a second set that only comes up after rain.
+     *
+     * Its own seed CHANNEL, and the same `count`, on purpose. `place` folds the
+     * count into its sampling, so asking it for twice as many spots would not
+     * append a second set, it would deal a different hand entirely and move every
+     * mushroom already in the wood. A player is supposed to be able to learn where
+     * things are and come back to them, and the suite flies to fixed coordinates.
+     * A separate channel leaves the base scatter bit for bit as it was.
+     *
+     * They come up in order as the flush strengthens, so a damp week puts up a
+     * few and a proper soaking carpets the place.
+     */
+    const flushSpots = place(home.area, fungus.count, 5, 0.95);
+
+    flushSpots.forEach((spot, index) => {
+      instances.push({
+        key: `fungus-${fungus.id}-flush-${index}`,
+        species: { kind: "fungus", fungus },
+        id: fungus.id,
+        commonName: fungus.commonName,
+        hook: fungus.hook,
+        window: fungus.window,
+        season,
+        height: fungus.height,
+        position: [spot.x, spot.height - 0.4, spot.z],
+        rotation: sample(spot.seed, fungus.count, 20) * Math.PI * 2,
+        scale: FUNGUS_SCALE * (0.8 + sample(spot.seed, fungus.count, 21) * 0.5),
+        flushAt: (index + 1) / (flushSpots.length + 1),
       });
     });
   }
@@ -248,6 +296,19 @@ export function isFindable(
   }
 
   return instance.species.kind === "plant" || isInSeason(instance.season, month);
+}
+
+/**
+ * Whether this one is standing in the wood at all, given how hard it is flushing.
+ *
+ * Every plant and every fungus of the base scatter answers true always. Only the
+ * flush extras are conditional, and they are extras: nothing a player could have
+ * found in a dry spell can be taken away by the weather. Ask this FIRST, before
+ * the hour and the season, because a mushroom that has not come up cannot be shut
+ * for the afternoon.
+ */
+export function hasComeUp(instance: SpeciesInstance, flush: number): boolean {
+  return instance.flushAt <= flush;
 }
 
 /** Where a bee would actually land on it: on top of the bloom, or the cap. */

@@ -83,6 +83,9 @@ function weatherFrom(current: UpstreamCurrent | undefined): Weather | null {
         ? Math.max(0.7, Math.min(1, precipitation / 4))
         : Math.min(1, precipitation / 4),
     observedAt: current.time ?? "",
+    // The home banner shows the sky, not the mushrooms, so it does not ask for
+    // the rainfall history. Empty reads as a dry spell, which shows no flush.
+    recentRain: [],
   };
 
   if (weather.falling !== "none" && weather.intensity < 0.15) {

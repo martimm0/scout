@@ -23,7 +23,7 @@ import { PLANTS } from "../data/plants";
 import { isActive, type Daylight } from "./daylight";
 import type { Park } from "./park";
 import { isInSeason, seasonFor, seasonWindow } from "./season";
-import { toFahrenheit, type Weather } from "./weather";
+import { fungusFlush, toFahrenheit, type Weather } from "./weather";
 
 export type FieldNote = {
   /** Stable key for React and for tests. */
@@ -193,6 +193,30 @@ export function fieldNotesFor(input: FieldNotesInput): FieldNote[] {
     notes.push({
       id: "cold",
       text: "Too cold for most bees to be out. You may have the flowers to yourself.",
+      tone: "bloom",
+    });
+  }
+
+  /**
+   * The wood is flushing. This is the line that sends somebody looking down.
+   *
+   * It is the only thing the card says about weather that has already gone: the
+   * mushrooms are answering the rain of last week, and without being told, a
+   * player has no way to know that today's clear sky is the good day rather than
+   * the wet one that made it.
+   */
+  const flush = fungusFlush(weather);
+
+  if (flush > 0.55) {
+    notes.push({
+      id: "flush",
+      text: "The wood is full of mushrooms after the rain. They come up a few days behind the weather, so this is that few days.",
+      tone: "bloom",
+    });
+  } else if (flush > 0) {
+    notes.push({
+      id: "flush",
+      text: "A few mushrooms are up after the rain, and more may follow.",
       tone: "bloom",
     });
   }

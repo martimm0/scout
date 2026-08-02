@@ -30,10 +30,20 @@ import { PARK_COORDS } from "@/lib/forecast";
  */
 const { lat: LATITUDE, lon: LONGITUDE } = PARK_COORDS.frick;
 
+/**
+ * The sky now, and how wet the last ten days have been.
+ *
+ * The daily history is for the mushrooms. Fungi fruit two to ten days after a
+ * soaking rather than during it, so the flush needs last week's rainfall and the
+ * current observation cannot supply it. `past_days=10` covers the whole of that
+ * window; `forecast_days=1` keeps today on the end of the array so "how many days
+ * ago" is just an index from the back.
+ */
 const ENDPOINT =
   `https://api.open-meteo.com/v1/forecast` +
   `?latitude=${LATITUDE}&longitude=${LONGITUDE}` +
   `&current=temperature_2m,weather_code,cloud_cover,wind_speed_10m,precipitation` +
+  `&daily=precipitation_sum&past_days=10&forecast_days=1` +
   `&timezone=America%2FNew_York`;
 
 type Upstream = {
@@ -44,6 +54,10 @@ type Upstream = {
     cloud_cover?: number;
     wind_speed_10m?: number;
     precipitation?: number;
+  };
+  daily?: {
+    time?: string[];
+    precipitation_sum?: (number | null)[];
   };
 };
 
@@ -90,6 +104,12 @@ export async function GET() {
           ? Math.max(0.7, Math.min(1, precipitation / 4))
           : Math.min(1, precipitation / 4),
       observedAt: current.time ?? "",
+      // Nulls happen: the daily series can have gaps. A gap is not a downpour,
+      // so it reads as a dry day rather than being dropped, which would shift
+      // every other day's position in the array and move the flush window.
+      recentRain: (body.daily?.precipitation_sum ?? []).map((mm) =>
+        typeof mm === "number" && Number.isFinite(mm) ? mm : 0,
+      ),
     };
 
     // A "rain" code with no measured precipitation is still rain: the gauge is

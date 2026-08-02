@@ -74,6 +74,36 @@ test.describe("field notes", () => {
   });
 
   /**
+   * The flush line, which is the only thing the card says about weather that has
+   * already been and gone.
+   *
+   * A player has no way to know that today's clear sky is the good mushroom day
+   * rather than the wet one that made it, so the card has to say so. `?weather=
+   * flush` is a fine afternoon with a soaking five days behind it.
+   */
+  test("the card notices the wood is flushing, on a day with no rain in it", async ({
+    page,
+  }) => {
+    await enterGame(page, 13);
+
+    await pin(page, "hour=13&month=7&weather=flush");
+    const wet = (await notes(page)).join(" \n ");
+
+    expect(wet).toMatch(/mushrooms/i);
+    expect(wet).toMatch(/a few days behind the weather/i);
+
+    // And it is genuinely a clear day: the flush is about last week, not today.
+    expect(wet).toContain("Clear");
+
+    // A dry fortnight says nothing about mushrooms at all.
+    await pin(page, "hour=13&month=7&weather=dry");
+    const dry = (await notes(page)).join(" \n ");
+
+    expect(dry).toContain("Clear");
+    expect(dry, "a dry spell is claiming a flush").not.toMatch(/mushrooms/i);
+  });
+
+  /**
    * Fahrenheit on the card, Celsius under it.
    *
    * The whole game reads in Fahrenheit now, and the sky line was the awkward one:

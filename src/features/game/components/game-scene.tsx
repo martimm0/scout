@@ -51,6 +51,7 @@ import { MAX_PHOTOS, usePhotoStore } from "../state/photo-store";
 import { PLANTS } from "../data/plants";
 import {
   scatterSpecies,
+  hasComeUp,
   landingHeight,
   isFindable,
   DISCOVERY_RADIUS,
@@ -68,6 +69,7 @@ import { resetVirtualInput, virtualInput } from "../state/virtual-input";
 import {
   applyWeather,
   FAIR_WEATHER,
+  fungusFlush,
   toFahrenheit,
   type Weather,
 } from "../world/weather";
@@ -492,7 +494,20 @@ function ScoutScene({
   const flight = speciesFor(selectedPollinator.type).flight;
 
   // Laid out once. Deterministic, so the park is the same park every session.
-  const species = useMemo(() => scatterSpecies(), []);
+  const scattered = useMemo(() => scatterSpecies(), []);
+
+  /**
+   * How hard the mushrooms are fruiting, from the last ten days of real rain.
+   *
+   * Read here rather than inside the scatter because the scatter is built once
+   * and the weather is not: the flush extras are always laid out, and this is the
+   * only thing that decides whether they are standing in the wood today.
+   */
+  const flush = fungusFlush(weather);
+  const species = useMemo(
+    () => scattered.filter((instance) => hasComeUp(instance, flush)),
+    [scattered, flush],
+  );
   /** What the floating card is attached to. */
   const [nearbyInstance, setNearbyInstance] = useState<SpeciesInstance | null>(
     null,

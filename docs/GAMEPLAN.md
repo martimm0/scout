@@ -174,6 +174,18 @@ Pittsburgh and so are the people looking at it. Underneath it is Celsius, and it
 has to be: ten degrees is where bees stop flying and twelve is where yours starts
 to shiver, and those are real numbers about real insects.
 
+And the park remembers **last week's** weather, not just this afternoon's. A few
+days after a soaking the wood fills with mushrooms, because that is what mushrooms
+do: the rain does not grow them, it inflates ones that were already built and
+waiting underground, and the lag between the storm and the flush is two to ten
+days. So the best morning for fungi is usually a clear one, several days after
+weather you may not have been here for. The field notes tell you when it is
+happening, because otherwise there is no way to know that today's blue sky is the
+good day rather than the wet one that made it.
+
+It only ever adds. Every mushroom you could find in a dry spell is still there, so
+the weather can make a good day but never take a species away from you.
+
 A bare bee flies heavy and slow in the rain, so there is a **raincoat**, in
 whatever colour you like it. It is worn only when it is actually raining: you
 cannot put on a coat there is no weather for. You can take it off in the rain if
@@ -221,7 +233,7 @@ Everything above is built and playable. As of the last update:
 - 49 photographs, every one licensed and credited
 - 34 badges, 10 accessories, 6 of them earned
 - Played by keyboard and mouse, or by two thumbs on a phone or a tablet
-- 306 tests across Chromium, Firefox, WebKit, and a phone and a tablet
+- 330 tests across Chromium, Firefox, WebKit, and a phone and a tablet
 
 ## Deliberately not doing
 

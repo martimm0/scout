@@ -54,7 +54,66 @@ export type Weather = {
   intensity: number;
   /** When the observation was taken, in Pittsburgh. */
   observedAt: string;
+  /**
+   * Rain over the last ten days, mm per day, oldest first and today last.
+   *
+   * The only part of this type that is not "right now", and it is here because
+   * the mushrooms need it: a fungus is responding to the weather of last week,
+   * not this afternoon. Empty when the service could not be reached, which reads
+   * as a dry spell, which is the quiet fallback rather than an invented soaking.
+   */
+  recentRain: number[];
 };
+
+/**
+ * How hard the fungi are fruiting, 0 to 1.
+ *
+ * Mushrooms come up a few days after a soaking, not during it: the mycelium has
+ * primordia already built and waiting underground, and rain inflates them. The
+ * lag is real and it is why a wood can be bare on the day of a storm and thick
+ * with mushrooms the following weekend.
+ *
+ * **Two to ten days** is the window, from Mass Audubon's account of the effect
+ * (massaudubon.org, "Rainy Days Bring a Burst of Mushrooms"). Today's rain and
+ * yesterday's are deliberately ignored: they have not had time to do anything.
+ *
+ * The rainfall THRESHOLD is a game judgement rather than a sourced number, and it
+ * is worth being honest about which is which. The sources agree on the lag and do
+ * not put a millimetre figure on "significant", so: about ten millimetres across
+ * the window starts a flush and about forty is as much as it gets. Ten millimetres
+ * is a decent soaking rather than a passing shower, which is the distinction that
+ * matters to a mushroom.
+ */
+export const FLUSH_WINDOW_START = 2;
+export const FLUSH_WINDOW_END = 10;
+
+export function fungusFlush(weather: Weather): number {
+  /**
+   * Defended, because the sky arrives over the network.
+   *
+   * `/api/weather`'s answer is CAST to `Weather` by the client, not checked, so
+   * the type is a promise about what the server meant rather than about what the
+   * scene will actually be handed. A response from a deployment older than this
+   * field, or a truncated one, has no `recentRain` at all, and reading `.length`
+   * off it throws inside a render and takes the whole park down with it. A missing
+   * history is a dry spell, which shows no mushrooms and no error.
+   */
+  const days = Array.isArray(weather.recentRain) ? weather.recentRain : [];
+
+  if (days.length === 0) {
+    return 0;
+  }
+
+  // The array runs oldest first with today last, so counting back from the end
+  // is counting back in days: index length-1 is today, length-2 is yesterday.
+  let soaking = 0;
+
+  for (let ago = FLUSH_WINDOW_START; ago <= FLUSH_WINDOW_END; ago += 1) {
+    soaking += days[days.length - 1 - ago] ?? 0;
+  }
+
+  return Math.max(0, Math.min(1, (soaking - 10) / 30));
+}
 
 /**
  * Celsius to Fahrenheit, for display only.
@@ -77,6 +136,9 @@ export const FAIR_WEATHER: Weather = {
   falling: "none",
   intensity: 0,
   observedAt: "",
+  // A dry week. Not knowing the rainfall must not conjure a flush of mushrooms
+  // out of nothing; a quiet wood is the honest thing to show when we cannot ask.
+  recentRain: [],
 };
 
 /**
@@ -263,6 +325,23 @@ export function weatherPreset(name: string): Weather | undefined {
         intensity: 0.6,
         temperature: -2,
       };
+    /**
+     * A fine day, five days after a soaking.
+     *
+     * The flush is the one thing in the game you cannot see by pinning the sky,
+     * because it is not about the sky: it is about last week. `?weather=flush`
+     * is a clear afternoon that follows a wet week, which is exactly the day a
+     * forager goes out. Nothing is falling; the mushrooms are already up.
+     */
+    case "flush":
+      return {
+        ...FAIR_WEATHER,
+        // Oldest first, today last: a heavy few days a week ago, dry since.
+        recentRain: [0, 2, 18, 21, 9, 1, 0, 0, 0, 0, 0],
+      };
+    /** The same clear day with a dry fortnight behind it. Nothing has come up. */
+    case "dry":
+      return { ...FAIR_WEATHER, recentRain: new Array(11).fill(0) };
     default:
       return undefined;
   }
