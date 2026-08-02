@@ -4,6 +4,7 @@ import type { BrowserContext, Page } from "@playwright/test";
 import { encode } from "next-auth/jwt";
 
 import {
+  DISCOVERY_RADIUS,
   isFindable,
   isOut,
   scatterSpecies,
@@ -215,11 +216,23 @@ export async function enterGame(
   page: Page,
   hour: number = TEST_HOUR,
   month: number = TEST_MONTH,
+  /**
+   * A pinned sky, for the tests that need one from the first frame.
+   *
+   * Mostly unused: the suite flies in whatever weather, because the weather does
+   * not decide what is findable. The exception is the fungus flush, which does,
+   * and which cannot be reached any other way: `flush` and `dry` are the same
+   * clear afternoon and differ only in rain that fell days ago.
+   */
+  weather?: string,
 ) {
   await signIn(page.context());
   await resetProgress(page);
   await page.addInitScript(() => window.localStorage.clear());
-  await page.goto(`/play?debug=1&hour=${hour}&month=${month}`);
+  await page.goto(
+    `/play?debug=1&hour=${hour}&month=${month}` +
+      (weather ? `&weather=${weather}` : ""),
+  );
   await page.waitForTimeout(2500);
 
   await dismissTutorial(page);
@@ -387,6 +400,64 @@ export function outOfBloomPlantToSpawn() {
   }
 
   return candidates[0];
+}
+
+/**
+ * The most ISOLATED mushroom that is only there after rain.
+ *
+ * Isolated, not nearest, and the difference is the whole reason this function
+ * exists. The discovery loop tags whatever is closest, and `flyToPlant` stops as
+ * soon as any tag appears, so flying at the nearest flush mushroom reliably
+ * arrives at a coneflower that happened to be on the way and reports success. The
+ * first version of the flush test did exactly that and failed on a plant.
+ *
+ * So: pick the one with the widest clear ring around it, and require that ring to
+ * be comfortably wider than the discovery radius. Then anything the bee tags when
+ * it gets there is the thing we aimed at.
+ *
+ * Also capped at half a flush, so the test means the same on the touch projects,
+ * where the scene halves the flush for the render budget.
+ */
+export function flushOnlyFungusToSpawn() {
+  setActivePark("frick");
+
+  const all = scatterSpecies();
+  const findable = all.filter((instance) =>
+    isFindable(instance, TEST_HOUR, TEST_MONTH),
+  );
+
+  const candidates = all
+    .filter(
+      (instance) =>
+        instance.species.kind === "fungus" &&
+        instance.flushAt > 0 &&
+        instance.flushAt <= 0.5 &&
+        isFindable(instance, TEST_HOUR, TEST_MONTH),
+    )
+    .map((instance) => ({
+      instance,
+      // How far the nearest other findable thing is, in the ground plane.
+      clear: Math.min(
+        ...findable
+          .filter((other) => other.key !== instance.key)
+          .map((other) =>
+            Math.hypot(
+              other.position[0] - instance.position[0],
+              other.position[2] - instance.position[2],
+            ),
+          ),
+      ),
+    }))
+    .filter(({ clear }) => clear > DISCOVERY_RADIUS * 2)
+    .sort((a, b) => b.clear - a.clear);
+
+  if (candidates.length === 0) {
+    throw new Error(
+      "no flush-only fungus stands clear enough of everything else to aim at",
+    );
+  }
+
+  return candidates[0].instance;
 }
 
 /** Fly to a specific plant and get close enough that its tag appears. */

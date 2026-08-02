@@ -504,9 +504,29 @@ function ScoutScene({
    * only thing that decides whether they are standing in the wood today.
    */
   const flush = fungusFlush(weather);
+
+  /**
+   * What the WORLD draws, which on a phone is half of what the sky says.
+   *
+   * The render budget for coarse pointers caps the pixel ratio, turns off
+   * antialiasing, halves the shadow map and thins the ambient pools, and it says
+   * of itself that it is a considered starting point rather than a measured one.
+   * It never thinned the species scatter, and a full flush is a quarter again as
+   * many meshes as the park otherwise draws, each its own draw call. Adding that
+   * to the weakest target on top of a budget that was already a guess is the kind
+   * of thing worth not doing.
+   *
+   * Safe for the same reason the flush is additive at all: every extra is another
+   * of a species the base scatter already has, so halving them costs abundance and
+   * never a discovery. The field notes still report the real flush, because the
+   * sky is the sky whatever the device is drawing.
+   *
+   * Precautionary, and still unmeasured. It wants a real mid-range phone.
+   */
+  const drawnFlush = coarsePointerNow() ? Math.min(flush, 0.5) : flush;
   const species = useMemo(
-    () => scattered.filter((instance) => hasComeUp(instance, flush)),
-    [scattered, flush],
+    () => scattered.filter((instance) => hasComeUp(instance, drawnFlush)),
+    [scattered, drawnFlush],
   );
   /** What the floating card is attached to. */
   const [nearbyInstance, setNearbyInstance] = useState<SpeciesInstance | null>(

@@ -353,6 +353,13 @@ and nothing at all is in bloom in January), `?weather=rain` pins the sky (there 
 no rain in Pittsburgh today), `?park=schenley` pins the park, `?debug=1` shows the
 readout. None of them grant progress.
 
+Two of the weather presets pin something you cannot see by looking up. `?weather=
+flush` is a clear afternoon with a soaking five days behind it, and `?weather=dry`
+is the same clear afternoon after a dry fortnight. They exist because the fungus
+flush is the one thing in the game that is not about the current sky at all: both
+presets look identical out of the window, and one of them fills the wood with
+mushrooms. There is no other way to drive that from a test.
+
 `?month=` earns its place the same way `?hour=` did. The suite flies in **July**,
 when the most is in bloom at once, except the minigame tests, which pick a month
 per game: Frick's shrubs and trees play `seeds` and flower in spring, while its

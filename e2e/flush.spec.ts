@@ -12,6 +12,13 @@ import {
   type Weather,
 } from "../src/features/game/world/weather";
 import { setActivePark } from "../src/features/game/world/terrain";
+import {
+  enterGame,
+  flushOnlyFungusToSpawn,
+  flyToPlant,
+  TEST_HOUR,
+  TEST_MONTH,
+} from "./helpers";
 
 /**
  * The flush: mushrooms come up a few days after rain, not during it.
@@ -160,6 +167,39 @@ test.describe("the fungus flush follows the rain, a few days behind", () => {
     expect(wetFungi).toBeGreaterThan(dryFungi * 1.5);
   });
 
+  test("half a flush still shows every species the full one does", () => {
+    /**
+     * The scene halves the flush on a coarse pointer, because a full one is a
+     * quarter again as many meshes and the phone budget never thinned the scatter.
+     *
+     * That is only safe if thinning costs abundance and never a discovery. Every
+     * extra is another of a species the base scatter already has, so the set of
+     * SPECIES standing must be identical at half a flush and at a full one, even
+     * though the number of mushrooms is not.
+     */
+    setActivePark("frick");
+
+    const all = scatterSpecies();
+    const speciesAt = (strength: number) =>
+      new Set(
+        all
+          .filter((i) => i.species.kind === "fungus" && hasComeUp(i, strength))
+          .map((i) => i.id),
+      );
+
+    const capped = speciesAt(0.5);
+    const full = speciesAt(1);
+
+    expect([...full].filter((id) => !capped.has(id))).toEqual([]);
+
+    // And it really is fewer mushrooms, or the cap is doing nothing.
+    const countAt = (strength: number) =>
+      all.filter((i) => i.species.kind === "fungus" && hasComeUp(i, strength))
+        .length;
+
+    expect(countAt(0.5)).toBeLessThan(countAt(1));
+  });
+
   test("flowers do not care how wet last week was", () => {
     setActivePark("frick");
 
@@ -200,5 +240,40 @@ test.describe("the fungus flush follows the rain, a few days behind", () => {
         `a flush mushroom is standing exactly where a permanent one is`,
       ).toBe(false);
     }
+  });
+});
+
+/**
+ * The flush, from the player's side.
+ *
+ * Everything above proves the arrays. This proves it reaches somebody flying: a
+ * mushroom that only exists after rain has to be findable on a wet week and
+ * genuinely absent on a dry one, at the same coordinates, in the same month, at
+ * the same hour. The only difference between the two runs is weather that fell
+ * days ago.
+ */
+test.describe("a mushroom that only comes up after rain", () => {
+  test("is there on a flushing week and gone on a dry one", async ({ page }) => {
+    test.setTimeout(300_000);
+
+    const target = flushOnlyFungusToSpawn();
+
+    // Wet: it is standing, and the card comes up with its name on it.
+    await enterGame(page, TEST_HOUR, TEST_MONTH, "flush");
+    const found = await flyToPlant(page, target);
+
+    expect(found, `never reached ${target.id} on a flushing week`).toBe(true);
+    await expect(
+      page.getByText(target.commonName, { exact: false }).first(),
+    ).toBeVisible();
+
+    // Dry: same place, same month, same hour, and nothing has come up.
+    await enterGame(page, TEST_HOUR, TEST_MONTH, "dry");
+    await flyToPlant(page, target);
+
+    await expect(
+      page.getByText(target.commonName, { exact: false }),
+      `${target.id} is standing in a dry spell`,
+    ).toHaveCount(0);
   });
 });
