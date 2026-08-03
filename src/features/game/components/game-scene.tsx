@@ -40,6 +40,7 @@ import {
   usePortraitPhone,
 } from "../hooks/use-media-query";
 import { Quiz } from "./quiz";
+import { WinterId } from "./winter-id";
 import { SpeciesTag } from "./species-tag";
 import { FirstFlight } from "./first-flight";
 import { PlantEntry } from "./plant-entry";
@@ -207,12 +208,14 @@ export function inputSuspended(ui: {
   minigamePlantId: unknown;
   pollinatorPreviewOpen: boolean;
   quiz: unknown;
+  winterId: unknown;
 }) {
   return Boolean(
     ui.activeEntry ||
       ui.landedOn ||
       ui.minigamePlantId ||
       ui.quiz ||
+      ui.winterId ||
       ui.pollinatorPreviewOpen,
   );
 }
@@ -1853,6 +1856,7 @@ export function GameScene({
 
       <PlantEntry />
       <LandingMenu month={month} />
+      <WinterId />
       <Quiz />
       <PollinationMinigame />
       <ProgressionWatcher />

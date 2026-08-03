@@ -1,4 +1,5 @@
 import type { GameState } from "../state/game-store";
+import { winterStanding } from "../world/winter";
 import { parkUnlocked } from "../state/game-store";
 import { PARKS } from "../world/terrain";
 import { allAreas } from "../world/park";
@@ -204,6 +205,30 @@ export const BADGES: Badge[] = [
       "Every rare sky the park has to offer, and every one of them a real afternoon in Pittsburgh.",
     hint: "There are a handful of skies worth being here for. Be here for all of them.",
     earned: (state) => count(state.seenWeather) >= 6,
+  },
+  /**
+   * Winter identification. Only plants that stand through it can be named that
+   * way, so the totals count against `winterStanding`, never against every plant:
+   * a target nobody can reach is not a badge, it is a bug with a name.
+   */
+  {
+    id: "bare-bones",
+    name: "Bare Bones",
+    description:
+      "You named five plants from nothing but a shape, a height and a place.",
+    hint: "In winter the cards stop telling you. Name five of them anyway.",
+    earned: (state) => count(state.winterKnown) >= 5,
+  },
+  {
+    id: "reads-the-winter",
+    name: "Reads the Winter",
+    description:
+      "Every plant in this park that stands through the winter, named from its bare form.",
+    hint: "There is a whole park still standing in January. Learn all of it.",
+    earned: (state) =>
+      winterStanding(state.currentPark).every(
+        (plant) => state.winterKnown[plant.id],
+      ),
   },
   {
     id: "turning-year",

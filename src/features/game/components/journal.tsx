@@ -11,6 +11,7 @@ import { describeHomes, PLANTS } from "../data/plants";
 import { countUnlocked, useGameStore } from "../state/game-store";
 import { MAX_PHOTOS, usePhotoStore } from "../state/photo-store";
 import { WEATHER_MOMENTS } from "../world/weather-moments";
+import { standsInWinter } from "../world/winter";
 import { ParkPicker } from "./park-picker";
 import { PARK_LIST, PARKS } from "../world/terrain";
 import { allAreas } from "../world/park";
@@ -109,6 +110,7 @@ export function Journal() {
   const entries = useGameStore((state) => state.unlockedJournalEntries);
   const badges = useGameStore((state) => state.unlockedBadges);
   const weatherSeen = useGameStore((state) => state.seenWeather);
+  const winterKnown = useGameStore((state) => state.winterKnown);
   const stats = useGameStore((state) => state.stats);
   const photos = usePhotoStore((state) => state.photos);
   const photoMode = usePhotoStore((state) => state.mode);
@@ -237,6 +239,15 @@ export function Journal() {
                       <p className={styles.meta}>
                         Blooms {plant.bloom}
                         {done ? " · Pollinated" : ""}
+                        {/* The winter half of knowing it. Only shown for the
+                            plants that actually stand through one, so a trout
+                            lily is not quietly marked as incomplete forever for
+                            a thing it cannot do. */}
+                        {standsInWinter(plant)
+                          ? winterKnown[plant.id]
+                            ? " · Known in winter"
+                            : " · Not yet named in winter"
+                          : ""}
                       </p>
                       <a
                         className={styles.link}

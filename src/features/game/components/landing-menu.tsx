@@ -7,6 +7,7 @@ import { PLANTS_BY_ID } from "../data/plants";
 import { triviaFor } from "../data/trivia";
 import { useGameStore } from "../state/game-store";
 import { isInSeason, seasonWindow } from "../world/season";
+import { isWinterMonth, standsInWinter } from "../world/winter";
 import styles from "./landing-menu.module.css";
 
 /**
@@ -23,6 +24,9 @@ export function LandingMenu({ month }: { month: number }) {
   const landedOn = useGameStore((state) => state.ui.landedOn);
   const takeOff = useGameStore((state) => state.takeOff);
   const startMinigame = useGameStore((state) => state.startMinigame);
+  const startWinterId = useGameStore((state) => state.startWinterId);
+  const discoveredPlants = useGameStore((state) => state.discoveredPlants);
+  const winterKnown = useGameStore((state) => state.winterKnown);
   const startQuiz = useGameStore((state) => state.startQuiz);
   const openEntry = useGameStore((state) => state.openEntry);
   const pollinatedPlants = useGameStore((state) => state.pollinatedPlants);
@@ -76,6 +80,21 @@ export function LandingMenu({ month }: { month: number }) {
   const outOfBloom =
     plant !== undefined && !isInSeason(seasonWindow(plant.bloom), month);
 
+  /**
+   * The winter question, offered only where it is a question.
+   *
+   * Needs the plant to be one that actually stands through winter, to be a month
+   * it is standing IN, and to be one you have already met in leaf. The last is
+   * what keeps this from being a wall for anybody who started playing in January:
+   * you are being asked to recognise something, not to guess at a stranger.
+   */
+  const canAskWinter =
+    plant !== undefined &&
+    isWinterMonth(month) &&
+    standsInWinter(plant) &&
+    Boolean(discoveredPlants[plant.id]) &&
+    !winterKnown[plant.id];
+
   return (
     <div className={styles.scrim} onClick={takeOff} role="presentation">
       <section
@@ -128,6 +147,21 @@ export function LandingMenu({ month }: { month: number }) {
               </span>
             </div>
           )}
+
+          {/* Winter, standing, and not yet named from its bare form. The one
+              action the summer park never offers. */}
+          {canAskWinter ? (
+            <button
+              className={styles.primary}
+              onClick={() => startWinterId(landedOn)}
+              type="button"
+            >
+              <span className={styles.actionTitle}>Name it from its winter form</span>
+              <span className={styles.actionNote}>
+                No flower, no leaf. Just a shape, a height and a place.
+              </span>
+            </button>
+          ) : null}
 
           {hasQuiz ? (
             <button

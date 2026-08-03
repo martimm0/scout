@@ -25,6 +25,7 @@ export type SavedProgress = {
   seenPhases: Record<string, boolean>;
   seenSeasons: Record<string, boolean>;
   seenWeather: Record<string, boolean>;
+  winterKnown: Record<string, boolean>;
   pollinatedPlants: Record<string, boolean>;
   unlockedMapAreas: Record<string, boolean>;
   unlockedBadges: Record<string, boolean>;

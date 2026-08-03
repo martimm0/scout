@@ -15,6 +15,7 @@ import {
   landingHeight,
   type SpeciesInstance,
 } from "../world/species-scatter";
+import { isWinterMonth, standsInWinter } from "../world/winter";
 import styles from "./species-tag.module.css";
 
 /**
@@ -43,8 +44,34 @@ export function SpeciesTag({
   const quizPassed = useGameStore((state) =>
     Boolean(state.quizPassed[instance.id]),
   );
+  const discovered = useGameStore((state) =>
+    Boolean(state.discoveredPlants[instance.id]),
+  );
+  const winterKnown = useGameStore((state) =>
+    Boolean(state.winterKnown[instance.id]),
+  );
 
   const isPlant = instance.species.kind === "plant";
+
+  /**
+   * Winter, and this one is standing but not yet named from its winter form.
+   *
+   * The card withholds the name, which is the entire mechanic: in summer the game
+   * hands you the answer, and it should, because you cannot look a flower up if
+   * you do not know it is called anything. In winter there is nothing to read off
+   * it and naming it is the skill.
+   *
+   * Only for a plant you have ALREADY met in leaf. Asking a newcomer in January to
+   * name a bare stalk they have never seen in flower is not a puzzle, it is a wall,
+   * and it would make the game unplayable for anybody who happened to start in
+   * winter. Meet it in summer first; the winter question is the second pass.
+   */
+  const askingWinter =
+    instance.species.kind === "plant" &&
+    isWinterMonth(month) &&
+    discovered &&
+    !winterKnown &&
+    standsInWinter(instance.species.plant);
   // Say it from the air. Flying down to a flower to be told you cannot work it is
   // a wasted trip; knowing it is a difficult one before you go is the interesting
   // half of the information.
@@ -95,9 +122,17 @@ export function SpeciesTag({
   return (
     <Html center distanceFactor={5} position={anchor} zIndexRange={[12, 0]}>
       <div className={styles.tag} data-kind={instance.species.kind}>
-        <p className={styles.kind}>{isPlant ? "Flower" : "Fungus"}</p>
-        <p className={styles.name}>{instance.commonName}</p>
-        <p className={styles.hook}>{instance.hook}</p>
+        <p className={styles.kind}>
+          {askingWinter ? "Winter form" : isPlant ? "Flower" : "Fungus"}
+        </p>
+        <p className={styles.name}>
+          {askingWinter ? "Something you have met" : instance.commonName}
+        </p>
+        <p className={styles.hook}>
+          {askingWinter
+            ? "Bare, and standing. Land on it and see if you can name it."
+            : instance.hook}
+        </p>
 
         <div className={styles.badges}>
           {pollinated ? <span className={styles.done}>Pollinated</span> : null}

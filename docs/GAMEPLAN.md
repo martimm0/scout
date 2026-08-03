@@ -194,6 +194,28 @@ thunderstorm. They are the only things in the game you cannot go and get, which 
 exactly why they are worth having: a weather moment is evidence of a real
 afternoon. Nothing is locked behind one.
 
+## Winter is a different skill
+
+Across the deep of winter the park has almost nothing to pollinate, and for a long
+time that was all it had: an honest empty season.
+
+It is the season the game asks the most of you now. Get close to a flower in summer
+and a card appears with its name on it, which is the right way round, because you
+cannot look a plant up if you do not know it is called anything. In winter the card
+says **Winter form** and stops there. What is in front of you is a shape of a
+certain height standing in a certain place, and naming it from that is the harder
+half of knowing a plant. Land on it and it asks.
+
+You are only ever asked about something you have already met in leaf, so a winter
+question is a second pass rather than a wall for anybody who arrives in January.
+Getting it wrong costs nothing at all. The stalk is going to stand there until
+spring, and you can come back.
+
+Only the plants that genuinely stand through a winter take part. The spring
+ephemerals do not: a trout lily in January is not dormant, it is gone, and asking
+you to identify one from its silhouette would be asking about a plant that is not
+there.
+
 A bare bee flies heavy and slow in the rain, so there is a **raincoat**, in
 whatever colour you like it. It is worn only when it is actually raining: you
 cannot put on a coat there is no weather for. You can take it off in the rain if
@@ -239,9 +261,9 @@ Everything above is built and playable. As of the last update:
 - 49 species: 34 plants and 15 fungi, 10 of them living in more than one park
 - 147 hand-written trivia questions, three for every species
 - 49 photographs, every one licensed and credited
-- 36 badges, 10 accessories, 6 of them earned
+- 38 badges, 10 accessories, 6 of them earned
 - Played by keyboard and mouse, or by two thumbs on a phone or a tablet
-- 351 tests across Chromium, Firefox, WebKit, and a phone and a tablet
+- 375 tests across Chromium, Firefox, WebKit, and a phone and a tablet
 
 ## Deliberately not doing
 

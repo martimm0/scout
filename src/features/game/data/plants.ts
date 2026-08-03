@@ -78,6 +78,23 @@ export type Plant = {
    * The string is the reason, shown to the player when the button is inert.
    */
   demanding?: string;
+  /**
+   * What this one looks like bare, in winter, if that can be SOURCED.
+   *
+   * Optional in the strict sense: most species do not have one and are not
+   * supposed to. Winter identification in the game leans on evidence it already
+   * holds for every plant (the silhouette it is drawn with, the height it stands
+   * at, the habitat it stands in), and this field is an extra hint on top for the
+   * handful where a real winter character is documented.
+   *
+   * It is thin on purpose. Wikipedia is an encyclopedia of the plant rather than a
+   * winter key, so it carries buds and twigs for a few woody species and nothing
+   * at all for most herbs; the USDA profiles that would have it render their
+   * content in JavaScript and cannot be read. Rule 1 says a fact that cannot be
+   * sourced does not go in however good the line would have been, so the rest of
+   * these are simply absent rather than plausibly invented.
+   */
+  winter?: string;
   archetype: PlantArchetype;
   bloomColor: string;
   leafColor: string;
@@ -341,6 +358,12 @@ export const PLANTS: Plant[] = [
     fact: "It flowers before it bothers growing leaves, throwing a haze of tiny yellow-green blooms onto bare grey twigs in early spring. Snap a twig and it smells sharp and citrusy.",
     pollinatorNote: "Host plant for the spicebush swallowtail, whose caterpillar disguises itself as a small snake, fake eyespots and all.",
     wikipedia: "https://en.wikipedia.org/wiki/Lindera_benzoin",
+    // Bare grey twigs, and the smell is the giveaway: it is already in this
+    // entry's own sourced fact, and it is the one winter character you find with
+    // your hands rather than your eyes.
+    winter:
+      "Bare grey twigs, speckled all over with small round lenticels. Snap one and it smells sharp and citrusy, which nothing else out here does.",
+
     archetype: "shrub",
     bloomColor: "#d9e04f",
     leafColor: "#48753f",
@@ -358,6 +381,9 @@ export const PLANTS: Plant[] = [
     fact: "The flowers erupt straight out of the trunk and the bare branches, not from twig tips, in a trick called cauliflory. For two weeks the whole tree is magenta, then it goes green and you forget it's there.",
     pollinatorNote: "One of the first serious nectar sources of spring, arriving exactly when queen bumblebees wake up starving.",
     wikipedia: "https://en.wikipedia.org/wiki/Cercis_canadensis",
+    winter:
+      "Slender, nearly black twigs that zigzag from bud to bud, spotted with pale lenticels, and flat brown pea-pods still hanging on into the early winter.",
+
     archetype: "tree",
     bloomColor: "#d16ba5",
     leafColor: "#4f8545",
@@ -643,6 +669,9 @@ export const PLANTS: Plant[] = [
     fact: "The largest edible fruit native to North America, growing wild on the Allegheny flats and tasting like a mango that has been talked into being a banana. The flower is maroon, hangs upside down, and smells faintly of rotting meat, because bees are not the customer.",
     pollinatorNote: "It wants carrion flies and beetles, and it is bad at attracting them: fruit set is so poor that growers hand-pollinate with a paintbrush. Its other job is the zebra swallowtail, whose caterpillar eats pawpaw and nothing else on earth.",
     wikipedia: "https://en.wikipedia.org/wiki/Asimina_triloba",
+    winter:
+      "Two kinds of bud on the same twig: the leaf buds pointed and pressed flat against it, the flower buds round, brown and furry.",
+
     demanding:
       "It is not advertising to you. It smells of rotting meat because it wants flies, and working it as a bee means understanding what the flower is actually asking for.",
     archetype: "tree",

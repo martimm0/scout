@@ -173,6 +173,7 @@ export async function resetProgress(page: Page) {
       seenPhases: {},
       seenSeasons: {},
       seenWeather: {},
+      winterKnown: {},
       pollinatedPlants: {},
       unlockedMapAreas: {},
       unlockedParks: {},

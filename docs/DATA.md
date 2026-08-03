@@ -42,6 +42,7 @@ type Plant = {
   pollinatorNote: string;      // why a pollinator cares
   wikipedia: string;           // verified 200
   demanding?: string;          // if set: pass the quiz before you may pollinate
+  winter?: string;             // what it looks like bare, IF that can be sourced
   archetype: PlantArchetype;   // which voxel builder draws it
   bloomColor, leafColor: string;
   height: number;              // world units before scale
@@ -168,6 +169,40 @@ flag for exactly this, and `weather-moments.spec.ts` fails if the guard is remov
 **Nothing is gated behind one.** They earn two badges and fill a page. No species,
 park or plant is ever behind a moment, because a player cannot make it rain and the
 game must never ask them to.
+
+### Winter identification
+
+In summer the card over a plant tells you what it is, and it should: you cannot
+look a flower up if you do not know it is called anything. In winter it stops. The
+card says "Winter form", withholds the name, and landing offers you the question
+instead.
+
+**The evidence is structural, and that is a sourcing decision rather than a design
+one.** The obvious version of this identifies by twig and bud, and it cannot be
+built honestly here: Wikipedia is an encyclopedia of the plant rather than a winter
+key, and it carries a real winter character for three of these species and nothing
+at all for the rest. The USDA profiles that would have it render their content in
+JavaScript. Rule 1 says a fact that cannot be sourced does not go in, so the other
+twenty are not invented. `Plant.winter` holds the three that are documented
+(redbud's zigzag black twigs and hanging pods, pawpaw's two kinds of bud, spicebush
+grey and citrus when snapped) and is absent everywhere else.
+
+What the question asks from instead is what the game already knows for every
+plant, sourced and already drawn: how it is built, how tall it stands, and the
+habitat it stands in. That is also how winter identification actually works.
+
+`standsInWinter` decides who takes part, structurally rather than per species:
+woody, or carrying a sourced winter character, or a stalk taller than the bee that
+was still flowering in September. It is deliberately conservative and has known
+false negatives, milkweed and purple coneflower among them, whose pods and cones
+plainly do stand. Leaving one out costs a question. Putting one in that has rotted
+away by December would have the game asking about a plant that is not there, which
+is the error that matters. The spring ephemerals are excluded and must stay
+excluded: trout lily and bloodroot are not dormant in January, they are gone.
+
+The question only appears for a plant you have **already met in leaf**, which
+keeps it a second pass rather than a wall for anybody who started playing in
+winter. Getting it wrong costs nothing; the stalk stands there all season.
 
 ### Temperature: Celsius stored, Fahrenheit shown
 

@@ -75,6 +75,8 @@ export type UIModalState = {
   minigamePlantId: string | null;
   /** The species whose quiz is running. */
   quiz: SpeciesRef | null;
+  /** The plant being named from its winter form, if any. */
+  winterId: SpeciesRef | null;
 };
 
 export type Settings = {
@@ -117,6 +119,12 @@ export type GameState = {
    * or it did not. See `world/weather-moments.ts`.
    */
   seenWeather: BooleanRecord;
+  /**
+   * Plants you have named from their winter form, with nothing to go on but the
+   * shape, the height and the place. A second pass over the same species, on the
+   * real calendar. See `world/winter.ts`.
+   */
+  winterKnown: BooleanRecord;
   pollinatedPlants: BooleanRecord;
   unlockedMapAreas: BooleanRecord;
   /** The park you are flying. Not progress: just where you are. */
@@ -187,6 +195,10 @@ export type GameActions = {
   seeSeason: (season: string) => void;
   /** Remember a rare sky. Ids from `WEATHER_MOMENTS`, several at once. */
   seeWeather: (moments: string[]) => void;
+  /** Named from its winter form. Monotonic, like every other discovery. */
+  recordWinterId: (plantId: string) => void;
+  startWinterId: (ref: SpeciesRef) => void;
+  endWinterId: () => void;
   toggleRaincoat: () => void;
   recordPollinationAttempt: (succeeded: boolean) => void;
   /** Ask the scene to celebrate: the bee just pollinated and the panel closed. */
@@ -256,6 +268,7 @@ const initialUi: UIModalState = {
   landedOn: null,
   minigamePlantId: null,
   quiz: null,
+  winterId: null,
 };
 
 const initialSettings: Settings = {
@@ -392,6 +405,7 @@ const initialProgress = {
   seenPhases: {},
   seenSeasons: {},
   seenWeather: {},
+  winterKnown: {},
   pollinatedPlants: {},
   currentPark: "frick" as ParkId,
   // Frick is where you start. Schenley has to be earned.
@@ -692,6 +706,18 @@ export const useGameStore = create<GameStore>()(
       return { seenWeather };
     }),
 
+  startWinterId: (ref) =>
+    set((state) => ({ ui: { ...state.ui, winterId: ref, landedOn: null } })),
+
+  endWinterId: () => set((state) => ({ ui: { ...state.ui, winterId: null } })),
+
+  recordWinterId: (plantId) =>
+    set((state) =>
+      state.winterKnown[plantId]
+        ? state
+        : { winterKnown: { ...state.winterKnown, [plantId]: true } },
+    ),
+
   toggleRaincoat: () => set((state) => ({ wearingRaincoat: !state.wearingRaincoat })),
 
   recordMinigameScore: (score) =>
@@ -819,6 +845,7 @@ export const useGameStore = create<GameStore>()(
         seenPhases: state.seenPhases,
         seenSeasons: state.seenSeasons,
         seenWeather: state.seenWeather,
+        winterKnown: state.winterKnown,
         pollinatedPlants: state.pollinatedPlants,
         unlockedMapAreas: state.unlockedMapAreas,
         unlockedParks: state.unlockedParks,
