@@ -186,6 +186,14 @@ good day rather than the wet one that made it.
 It only ever adds. Every mushroom you could find in a dry spell is still there, so
 the weather can make a good day but never take a species away from you.
 
+And the journal remembers the **skies you were out in**: thunder over the park,
+a fog that closed it down to a few dozen feet, snow coming down, a hard freeze, a
+proper soaking, the wood flushing. Six of them, and not one can be pursued. You can
+decide to find every plant in Pittsburgh; nobody can decide to be in a
+thunderstorm. They are the only things in the game you cannot go and get, which is
+exactly why they are worth having: a weather moment is evidence of a real
+afternoon. Nothing is locked behind one.
+
 A bare bee flies heavy and slow in the rain, so there is a **raincoat**, in
 whatever colour you like it. It is worn only when it is actually raining: you
 cannot put on a coat there is no weather for. You can take it off in the rain if
@@ -231,9 +239,9 @@ Everything above is built and playable. As of the last update:
 - 49 species: 34 plants and 15 fungi, 10 of them living in more than one park
 - 147 hand-written trivia questions, three for every species
 - 49 photographs, every one licensed and credited
-- 34 badges, 10 accessories, 6 of them earned
+- 36 badges, 10 accessories, 6 of them earned
 - Played by keyboard and mouse, or by two thumbs on a phone or a tablet
-- 336 tests across Chromium, Firefox, WebKit, and a phone and a tablet
+- 351 tests across Chromium, Firefox, WebKit, and a phone and a tablet
 
 ## Deliberately not doing
 

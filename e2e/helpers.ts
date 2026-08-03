@@ -172,6 +172,7 @@ export async function resetProgress(page: Page) {
       quizPassed: {},
       seenPhases: {},
       seenSeasons: {},
+      seenWeather: {},
       pollinatedPlants: {},
       unlockedMapAreas: {},
       unlockedParks: {},

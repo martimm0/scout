@@ -73,6 +73,7 @@ import {
   toFahrenheit,
   type Weather,
 } from "../world/weather";
+import { momentsNow } from "../world/weather-moments";
 import {
   activePark,
   areaAt,
@@ -248,12 +249,15 @@ function R3FViewport({
   month,
   onDebugChange,
   weather,
+  weatherIsReal,
 }: {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   daylight: Daylight;
   month: number;
   onDebugChange: (state: DebugState) => void;
   weather: Weather;
+  /** False when `?weather=` pinned the sky. Only a real one earns a moment. */
+  weatherIsReal: boolean;
 }) {
   /**
    * The scene lives in an imperative R3F root, so it does not re-render when the
@@ -344,6 +348,7 @@ function R3FViewport({
             month={month}
             onDebugChange={onDebugChange}
             weather={weather}
+            weatherIsReal={weatherIsReal}
           />,
         );
       }
@@ -384,9 +389,10 @@ function R3FViewport({
         month={month}
         onDebugChange={onDebugChange}
         weather={weather}
+        weatherIsReal={weatherIsReal}
       />,
     );
-  }, [daylight, month, onDebugChange, weather]);
+  }, [daylight, month, onDebugChange, weather, weatherIsReal]);
 
   return <canvas className={styles.canvas} ref={canvasRef} />;
 }
@@ -396,11 +402,21 @@ function ScoutScene({
   month,
   onDebugChange,
   weather,
+  weatherIsReal,
 }: {
   daylight: Daylight;
   month: number;
   onDebugChange: (state: DebugState) => void;
   weather: Weather;
+  /**
+   * Whether this sky came from the weather service or from `?weather=`.
+   *
+   * Only the real one earns a weather moment. The test hooks are documented to
+   * grant no progress, and a moment is supposed to be evidence that it really
+   * thundered over Pittsburgh while somebody was flying; a URL that hands out the
+   * thunderstorm makes the whole record worthless.
+   */
+  weatherIsReal: boolean;
 }) {
   /**
    * The sky, once the weather has had its say.
@@ -747,14 +763,13 @@ function ScoutScene({
     // capture the keyboard the way the others do, but a THUMB held on the throttle
     // when it opens never sends its release, so a touch player would come back to
     // a bee that had flown off on its own.
+    // `inputSuspended`, not a second copy of its condition. This list used to be
+    // written out again here and drifted: it was missing `pollinatorPreviewOpen`,
+    // so a thumb held on the throttle when the preview opened never sent its
+    // release and the bee flew off on its own. Adding a modal should not require
+    // remembering two places, and now it does not.
     const ui = useGameStore.getState().ui;
-    const paused = Boolean(
-      ui.activeEntry ||
-        ui.minigamePlantId ||
-        ui.landedOn ||
-        ui.quiz ||
-        ui.pollinatorPreviewOpen,
-    );
+    const paused = inputSuspended(ui);
 
     if (paused) {
       keysRef.current.clear();
@@ -1160,6 +1175,18 @@ function ScoutScene({
       // clock and the whole calendar.
       store.seePhase(daylight.phase);
       store.seeSeason(seasonFor(month));
+
+      /**
+       * And which rare skies you were actually out in.
+       *
+       * Only from the REAL observation. A moment is supposed to mean it genuinely
+       * thundered over Pittsburgh while somebody was flying, and `?weather=storm`
+       * handing out the thunderstorm would make the whole page worthless. The test
+       * hooks are documented to grant no progress and this is no exception.
+       */
+      if (weatherIsReal) {
+        store.seeWeather(momentsNow(weather));
+      }
 
       const area = areaAt(pollinator.position.x, pollinator.position.z);
       const areaId = area.id;
@@ -1606,6 +1633,7 @@ export function GameScene({
           month={month}
           onDebugChange={setDebugState}
           weather={weather}
+          weatherIsReal={forcedWeather === undefined}
         />
         {/* The touch pad, on a touch device, once the park is up and while
             nothing is covering it. It sits inside the canvas wrapper so it is

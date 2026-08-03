@@ -110,6 +110,13 @@ export type GameState = {
   seenPhases: BooleanRecord;
   /** Which seasons of the year you have visited the park in. */
   seenSeasons: BooleanRecord;
+  /**
+   * Rare skies you have actually been out in.
+   *
+   * Never granted, never rolled: the real observation put you in a thunderstorm
+   * or it did not. See `world/weather-moments.ts`.
+   */
+  seenWeather: BooleanRecord;
   pollinatedPlants: BooleanRecord;
   unlockedMapAreas: BooleanRecord;
   /** The park you are flying. Not progress: just where you are. */
@@ -178,6 +185,8 @@ export type GameActions = {
   recordQuiz: (ref: SpeciesRef, correct: number, total: number) => void;
   seePhase: (phase: string) => void;
   seeSeason: (season: string) => void;
+  /** Remember a rare sky. Ids from `WEATHER_MOMENTS`, several at once. */
+  seeWeather: (moments: string[]) => void;
   toggleRaincoat: () => void;
   recordPollinationAttempt: (succeeded: boolean) => void;
   /** Ask the scene to celebrate: the bee just pollinated and the panel closed. */
@@ -382,6 +391,7 @@ const initialProgress = {
   quizPassed: {},
   seenPhases: {},
   seenSeasons: {},
+  seenWeather: {},
   pollinatedPlants: {},
   currentPark: "frick" as ParkId,
   // Frick is where you start. Schenley has to be earned.
@@ -665,6 +675,23 @@ export const useGameStore = create<GameStore>()(
         : { seenSeasons: { ...state.seenSeasons, [season]: true } },
     ),
 
+  seeWeather: (moments) =>
+    set((state) => {
+      const fresh = moments.filter((id) => !state.seenWeather[id]);
+
+      if (fresh.length === 0) {
+        return state;
+      }
+
+      const seenWeather = { ...state.seenWeather };
+
+      for (const id of fresh) {
+        seenWeather[id] = true;
+      }
+
+      return { seenWeather };
+    }),
+
   toggleRaincoat: () => set((state) => ({ wearingRaincoat: !state.wearingRaincoat })),
 
   recordMinigameScore: (score) =>
@@ -791,6 +818,7 @@ export const useGameStore = create<GameStore>()(
         quizPassed: state.quizPassed,
         seenPhases: state.seenPhases,
         seenSeasons: state.seenSeasons,
+        seenWeather: state.seenWeather,
         pollinatedPlants: state.pollinatedPlants,
         unlockedMapAreas: state.unlockedMapAreas,
         unlockedParks: state.unlockedParks,

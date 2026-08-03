@@ -24,6 +24,7 @@ export type SavedProgress = {
   quizPassed: Record<string, boolean>;
   seenPhases: Record<string, boolean>;
   seenSeasons: Record<string, boolean>;
+  seenWeather: Record<string, boolean>;
   pollinatedPlants: Record<string, boolean>;
   unlockedMapAreas: Record<string, boolean>;
   unlockedBadges: Record<string, boolean>;

@@ -182,6 +182,29 @@ export const BADGES: Badge[] = [
     hint: "The park is a different place at every hour. See them all.",
     earned: (state) => count(state.seenPhases) >= 6,
   },
+  /**
+   * The two weather badges.
+   *
+   * Unlike every other badge here, these cannot be pursued. A player cannot make
+   * it thunder, so the hints say what to wait for rather than what to do, and
+   * nothing anywhere is gated behind either of them.
+   */
+  {
+    id: "foul-weather-friend",
+    name: "Foul-Weather Friend",
+    description:
+      "You have been out in three of the skies most people would stay in for.",
+    hint: "Come out in the weather nobody else would. Fog, thunder, snow, a hard freeze.",
+    earned: (state) => count(state.seenWeather) >= 3,
+  },
+  {
+    id: "whatever-the-sky-does",
+    name: "Whatever the Sky Does",
+    description:
+      "Every rare sky the park has to offer, and every one of them a real afternoon in Pittsburgh.",
+    hint: "There are a handful of skies worth being here for. Be here for all of them.",
+    earned: (state) => count(state.seenWeather) >= 6,
+  },
   {
     id: "turning-year",
     name: "A Turning Year",

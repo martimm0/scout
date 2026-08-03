@@ -146,6 +146,29 @@ detail: `place` folds the count into its sampling, so asking it for twice as man
 spots deals a different hand entirely and moves every mushroom already in the wood.
 The base scatter is byte-identical with the flush in place.
 
+### Rare weather moments
+
+`world/weather-moments.ts` is six skies the journal remembers you were out in:
+thunder, fog, snow falling, a hard freeze, a real downpour, and the wood flushing.
+They live in `seenWeather`, monotonic and unioned through cloud sync like every
+other discovery.
+
+Three rules make them worth having, and all three are about restraint.
+
+**Never a roll.** A moment is the real observation. If it has not thundered over
+Frick Park while somebody was flying, nobody has the thunderstorm, and no amount
+of playing produces it. That is the whole value: it is evidence of a real
+afternoon rather than a thing you ground out.
+
+Which is why **a pinned sky earns nothing**. `?weather=storm` is a test hook, the
+hooks are documented to grant no progress, and without that guard the entire set
+could be minted from the URL bar in a minute. `ScoutScene` takes a `weatherIsReal`
+flag for exactly this, and `weather-moments.spec.ts` fails if the guard is removed.
+
+**Nothing is gated behind one.** They earn two badges and fill a page. No species,
+park or plant is ever behind a moment, because a player cannot make it rain and the
+game must never ask them to.
+
 ### Temperature: Celsius stored, Fahrenheit shown
 
 `Weather.temperature` is **Celsius, always**, and every temperature on screen is

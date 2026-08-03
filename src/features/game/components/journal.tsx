@@ -10,6 +10,7 @@ import { photoFor } from "../data/plant-photos";
 import { describeHomes, PLANTS } from "../data/plants";
 import { countUnlocked, useGameStore } from "../state/game-store";
 import { MAX_PHOTOS, usePhotoStore } from "../state/photo-store";
+import { WEATHER_MOMENTS } from "../world/weather-moments";
 import { ParkPicker } from "./park-picker";
 import { PARK_LIST, PARKS } from "../world/terrain";
 import { allAreas } from "../world/park";
@@ -76,6 +77,7 @@ type Tab =
   | "pollinators"
   | "areas"
   | "concepts"
+  | "weather"
   | "badges";
 
 const TABS: { id: Tab; label: string }[] = [
@@ -85,6 +87,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "pollinators", label: "Pollinators" },
   { id: "areas", label: "Map areas" },
   { id: "concepts", label: "Ecology" },
+  { id: "weather", label: "Weather" },
   { id: "badges", label: "Badges" },
 ];
 
@@ -105,6 +108,7 @@ export function Journal() {
   const areas = useGameStore((state) => state.unlockedMapAreas);
   const entries = useGameStore((state) => state.unlockedJournalEntries);
   const badges = useGameStore((state) => state.unlockedBadges);
+  const weatherSeen = useGameStore((state) => state.seenWeather);
   const stats = useGameStore((state) => state.stats);
   const photos = usePhotoStore((state) => state.photos);
   const photoMode = usePhotoStore((state) => state.mode);
@@ -476,6 +480,37 @@ export function Journal() {
                 <p className={styles.rowText}>
                   {unlocked ? concept.body : concept.hint}
                 </p>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+
+      {tab === "weather" ? (
+        /**
+         * Skies you were actually out in.
+         *
+         * Reads like the badges because it is the same kind of thing, with one
+         * difference worth the page: a badge is something you did and a weather
+         * moment is something that happened to you. None of these can be earned
+         * by playing better or longer. Pittsburgh has to do it, and you have to
+         * be here.
+         */
+        <ul className={styles.badges}>
+          {WEATHER_MOMENTS.map((moment) => {
+            const seen = Boolean(weatherSeen[moment.id]);
+
+            return (
+              <li className={styles.badge} data-locked={!seen} key={moment.id}>
+                <span className={styles.badgeIcon} aria-hidden>
+                  {seen ? "✦" : "○"}
+                </span>
+                <div>
+                  <p className={styles.rowTitle}>{moment.name}</p>
+                  <p className={styles.rowText}>
+                    {seen ? moment.description : moment.hint}
+                  </p>
+                </div>
               </li>
             );
           })}
