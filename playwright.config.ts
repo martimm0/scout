@@ -18,6 +18,17 @@ import { defineConfig, devices } from "@playwright/test";
 const PORT = Number(process.env.PLAYWRIGHT_PORT ?? 3000);
 const BASE_URL = `http://localhost:${PORT}`;
 
+/**
+ * The garden party server, which is a second process.
+ *
+ * Moves with `PLAYWRIGHT_PORT` for the same reason the app does: two suites on
+ * one machine must not share a room server, or one run's players walk into the
+ * other run's party and both sets of counts are wrong. Offset rather than
+ * derived from a second variable, so there is one knob.
+ */
+const PARTY_PORT = PORT + 1;
+const PARTY_HOST = `127.0.0.1:${PARTY_PORT}`;
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
@@ -106,11 +117,27 @@ export default defineConfig({
     },
   ],
 
-  webServer: {
-    command: "npm run dev",
-    url: BASE_URL,
-    env: { PORT: String(PORT) },
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      command: "npm run dev",
+      url: BASE_URL,
+      env: {
+        PORT: String(PORT),
+        // The browser needs to know where the party server is, and Next bakes
+        // NEXT_PUBLIC_* in at build time, so it has to be set on the app process
+        // rather than on the test process.
+        NEXT_PUBLIC_PARTYKIT_HOST: PARTY_HOST,
+      },
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+    {
+      command: `npx partykit dev --port ${PARTY_PORT}`,
+      // Any room answers 404 unless it is one of the three, so the readiness
+      // probe asks for a real one.
+      url: `http://${PARTY_HOST}/parties/main/garden-frick`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+  ],
 });

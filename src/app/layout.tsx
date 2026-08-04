@@ -31,6 +31,9 @@ export const metadata: Metadata = {
 
 const navItems = [
   { href: "/play", label: "Play" },
+  // Next to Play, because it is the same verb with other people in it. A lobby
+  // nobody can find from the nav is a lobby nobody joins.
+  { href: "/parties", label: "Parties" },
   { href: "/about", label: "About" },
   { href: "/offline", label: "Offline" },
   { href: "/customize", label: "Customize" },

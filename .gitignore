@@ -18,3 +18,5 @@ tsconfig.tsbuildinfo
 /playwright-report/
 /blob-report/
 /.vercel
+.dev.vars
+.partykit

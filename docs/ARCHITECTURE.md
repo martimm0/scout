@@ -20,6 +20,10 @@ game IS, see [GAMEPLAN.md](GAMEPLAN.md). For how the data is shaped, see
 - **Zustand** for game state, with `persist` to localStorage.
 - **Auth.js v5** with Google, JWT sessions.
 - **Neon Postgres** via `@vercel/postgres`.
+- **PartyKit** for garden parties, which is the one piece that does not run on
+  Vercel: a room needs a socket that outlives a request, and serverless
+  functions do not have one. It is a second process in development
+  (`npx partykit dev`) and a Cloudflare Durable Object in production.
 - **Web Audio**, synthesized. No audio files.
 - **Playwright** across Chromium, Firefox and WebKit, plus `phone` and `tablet`
   projects with `hasTouch` for the touch controls. Those two are Chromium only,
@@ -377,9 +381,72 @@ draws whatever Pittsburgh is really doing. Any assertion about its pixels has to
 clear a flat fill rather than a sunny afternoon, or it passes all day and fails at
 sunset.
 
+## Garden parties
+
+Three standing rooms, one per park, up to ten players in each. Nobody creates
+one: a party you have to arrange is a party that never happens, and a lobby full
+of abandoned rooms is worse than no lobby.
+
+**The room server is a relay and a referee, never a database.** It holds who is
+here, where they are flying, and nothing else, and it never touches storage.
+That is one decision serving three purposes at once. Chat that is promised to
+vanish has actually vanished, rather than living on in a log. There is nothing
+to moderate a backlog of. And a Durable Object that never writes stays inside
+the free tier by construction rather than by watching a dashboard.
+
+### Two gates, neither trusting the other
+
+The browser cannot read its own session cookie: it is httpOnly, and the party
+server is a different host anyway. So `/api/party/ticket` mints a five-minute
+JWT signed with the same `AUTH_SECRET`, and the room verifies it on the far
+side. `/parties` also refuses to render without a session, but **that page is
+the courtesy, not the enforcement.** The socket is the enforcement, and
+`party.spec.ts` proves it by opening one with no ticket at all.
+
+`onBeforeRequest` guards the room NAME, in the lobby, before the room object is
+addressed. Without it `GET /parties/main/<anything>` answered 200 and brought a
+Durable Object into being for whatever name was asked for, so an unauthenticated
+stranger with a for-loop could mint unbounded rooms on the account. There are
+exactly three parties and the names are a closed set.
+
+### A party does not require the park to be unlocked
+
+Highland is earned by learning Frick when you are playing alone. Being invited
+somewhere is not the same as earning it, and a friend saying "come to Highland"
+should not be answered with a locked door. What you find there counts toward
+your own save, which is what makes the invitation worth accepting.
+
+### One seat per account
+
+Not per socket. A second tab replaces the first rather than taking a second
+chair, and the older socket is hung up on: a tab that keeps its connection after
+being replaced is a bee standing in the park that never moves again, holding a
+seat nobody can use. The seat map is keyed by account, which is what actually
+provides the guarantee, and the test bites when that keying changes.
+
+The cap is ten because the voices are a full mesh, and a mesh is the right shape
+at ten and the wrong shape at fifty. The eleventh is **told** `full` and then
+closed: a silent refusal is indistinguishable from a flaky network, and the
+client would sit reconnecting into a wall forever.
+
+### The head-count is CORS-open
+
+Deliberately, and safely: the only thing behind it is how many bees are in a
+public park. It has to be, because the lobby polls it from the browser and the
+party server is a different origin. This was missed first time round and failed
+silently, because the picker swallows a dead party server rather than putting a
+red box on a page whose other job is to show you three parks. Node-side tests
+passed the whole time; only driving a real browser found it.
+
 ## Deployment
 
-Vercel. Analytics and Speed Insights are first-party, cookieless, and therefore
+Vercel, plus one Cloudflare worker for the party server (`npx partykit deploy`).
+`NEXT_PUBLIC_PARTYKIT_HOST` tells the browser where that worker is, and it is
+baked in at build time, so it belongs on the app process rather than the test
+process. `AUTH_SECRET` must be set on **both** sides or the tickets one mints
+are refused by the other.
+
+Analytics and Speed Insights are first-party, cookieless, and therefore
 need no consent banner.
 
 **Do not run `vercel env pull` over `.env.local`.** Vercel marks integration

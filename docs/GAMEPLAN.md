@@ -263,12 +263,15 @@ Everything above is built and playable. As of the last update:
 - 49 photographs, every one licensed and credited
 - 38 badges, 10 accessories, 6 of them earned
 - Played by keyboard and mouse, or by two thumbs on a phone or a tablet
-- 381 tests across Chromium, Firefox, WebKit, and a phone and a tablet
+- 402 tests across Chromium, Firefox, WebKit, and a phone and a tablet
 
 ## Deliberately not doing
 
 - **Competition.** No leaderboard, no timer on anything that matters, no scoring
   a player against another player. Badges mark what you have seen and learned.
+  Garden parties do not change this: other people in the park are company, and
+  the two-player board games are games, but nothing anybody does is ranked
+  against anybody else and nothing you find is taken from somebody who did not.
 - **Punishing failure.** See rule 3.
 - **A prettier lie.** An invented fact, an unlicensed photograph, or a species in
   a park it does not grow in is worse than a gap.
