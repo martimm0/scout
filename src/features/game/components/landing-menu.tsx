@@ -98,24 +98,43 @@ export function LandingMenu({ month }: { month: number }) {
   return (
     <div className={styles.scrim} onClick={takeOff} role="presentation">
       <section
-        aria-label={`Landed on ${name}`}
+        aria-label={
+          canAskWinter ? "Landed on something you have met" : `Landed on ${name}`
+        }
         aria-modal="true"
         className={styles.card}
         onClick={(event) => event.stopPropagation()}
         role="dialog"
       >
         <p className={styles.eyebrow}>Landed on</p>
-        <h2 className={styles.name}>{name}</h2>
-        <p className={styles.scientific}>{scientific}</p>
+        {/**
+         * The card keeps the secret the tag is keeping.
+         *
+         * This announced the common name and the scientific name in its title,
+         * which handed over the answer to the winter question for the price of
+         * pressing Space, before the question had even been asked. The tag went
+         * to the trouble of withholding it and this gave it away one keystroke
+         * later.
+         */}
+        <h2 className={styles.name}>
+          {canAskWinter ? "Something you have met" : name}
+        </h2>
+        <p className={styles.scientific}>
+          {canAskWinter ? "Bare, and standing" : scientific}
+        </p>
 
         <div className={styles.actions}>
           {isPlant && outOfBloom ? (
             <div className={styles.disabled}>
               <span className={styles.actionTitle}>Not in flower</span>
               <span className={styles.actionNote}>
-                {plant!.commonName} blooms {plant!.bloom}. There is nothing to
-                pollinate on it today, but the entry and the quiz are here
-                whenever you are.
+                {/* Says the same thing without the name while a winter question
+                    is open on it. Every plant standing in January is out of
+                    bloom by definition, so this branch always renders then, and
+                    naming the plant here gave the answer away every time. */}
+                {canAskWinter
+                  ? "Nothing to pollinate on it today. Name it first, and the rest of the card comes back."
+                  : `${plant!.commonName} blooms ${plant!.bloom}. There is nothing to pollinate on it today, but the entry and the quiz are here whenever you are.`}
               </span>
             </div>
           ) : isPlant && locked ? (
@@ -188,7 +207,14 @@ export function LandingMenu({ month }: { month: number }) {
             onClick={() => openEntry(landedOn)}
             type="button"
           >
-            <span className={styles.actionTitle}>Read the entry</span>
+            {/* Named as a CHOICE while a winter question is open. Reading the
+                entry gives the answer away, and hiding it would be the game
+                withholding what it knows, which it does not do. Saying plainly
+                that this is looking it up leaves the decision with the player
+                instead of springing it on them. */}
+            <span className={styles.actionTitle}>
+              {canAskWinter ? "Look it up instead" : "Read the entry"}
+            </span>
             <span className={styles.actionNote}>
               The photograph, the facts, and where to read more.
             </span>

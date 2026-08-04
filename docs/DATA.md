@@ -204,6 +204,19 @@ The question only appears for a plant you have **already met in leaf**, which
 keeps it a second pass rather than a wall for anybody who started playing in
 winter. Getting it wrong costs nothing; the stalk stands there all season.
 
+**Everything on the way in has to keep the same secret**, and this is easier to
+get wrong than it sounds. The tag withheld the name and the landing card then
+announced it in its own title, and again in the not-in-flower note, so pressing
+Space handed over the answer before the question had been asked. In winter every
+standing plant is out of bloom by definition, so that note is not an edge case, it
+renders every single time. A test that checks only the tag passes through all of
+it happily.
+
+Reading the entry still names it, and that stays. The game does not withhold what
+it knows; a locked entry that says nothing teaches nothing. But while a winter
+question is open the button says **Look it up instead**, so it is a decision the
+player makes rather than one the interface makes for them.
+
 ### Temperature: Celsius stored, Fahrenheit shown
 
 `Weather.temperature` is **Celsius, always**, and every temperature on screen is

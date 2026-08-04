@@ -82,10 +82,6 @@ export const WEATHER_MOMENTS: WeatherMoment[] = [
   },
 ];
 
-export const WEATHER_MOMENTS_BY_ID = new Map(
-  WEATHER_MOMENTS.map((moment) => [moment.id, moment]),
-);
-
 /**
  * Which of them the park is in, right now.
  *

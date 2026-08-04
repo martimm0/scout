@@ -173,8 +173,21 @@ test.describe("naming a plant from its winter form", () => {
       "the card is still naming it in winter",
     ).toHaveCount(0);
 
-    // Land, and take the question.
+    // Land, and the card must keep the same secret.
+    //
+    // This is the assertion that was missing when the feature shipped: the tag
+    // withheld the name and the landing card then announced it in its title and
+    // again in the not-in-flower note, so pressing Space handed over the answer
+    // before the question had been asked. Checking the tag alone passed happily.
     await page.keyboard.press("Space");
+
+    const landed = page.getByRole("dialog", { name: /^Landed on/ });
+    await expect(landed).toBeVisible();
+    await expect(
+      landed.getByText(target.commonName, { exact: false }),
+      "the landing card gives the winter answer away",
+    ).toHaveCount(0);
+
     await page
       .getByRole("button", { name: /Name it from its winter form/ })
       .click();
