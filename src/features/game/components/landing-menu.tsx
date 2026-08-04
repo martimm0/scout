@@ -22,6 +22,7 @@ import styles from "./landing-menu.module.css";
  */
 export function LandingMenu({ month }: { month: number }) {
   const landedOn = useGameStore((state) => state.ui.landedOn);
+  const activeEntry = useGameStore((state) => state.ui.activeEntry);
   const takeOff = useGameStore((state) => state.takeOff);
   const startMinigame = useGameStore((state) => state.startMinigame);
   const startWinterId = useGameStore((state) => state.startWinterId);
@@ -32,8 +33,23 @@ export function LandingMenu({ month }: { month: number }) {
   const pollinatedPlants = useGameStore((state) => state.pollinatedPlants);
   const quizPassed = useGameStore((state) => state.quizPassed);
 
+  /**
+   * Escape takes off, unless the entry is open on top of this card.
+   *
+   * The card is the only popover in the game that something else can be layered
+   * over: starting the quiz, the minigame or the winter question all clear
+   * `landedOn` first, but reading the entry deliberately does not, so that
+   * closing it puts you back on the plant you were standing on.
+   *
+   * Escape used to break that. Two window listeners fired on the one keypress,
+   * the scene's closing the entry and this one taking off, so reading an entry
+   * and pressing Escape put you in the air rather than back on the card, and you
+   * had to find the plant and land on it again to pollinate it. It costs most on
+   * the path the winter question offers by name: "Look it up instead" is the
+   * game telling you to go and read the entry and come back and name it.
+   */
   useEffect(() => {
-    if (!landedOn) {
+    if (!landedOn || activeEntry) {
       return;
     }
 
@@ -47,7 +63,7 @@ export function LandingMenu({ month }: { month: number }) {
     window.addEventListener("keydown", onKey);
 
     return () => window.removeEventListener("keydown", onKey);
-  }, [landedOn, takeOff]);
+  }, [activeEntry, landedOn, takeOff]);
 
   if (!landedOn) {
     return null;

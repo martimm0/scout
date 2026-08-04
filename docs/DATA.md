@@ -228,6 +228,21 @@ meaning to go and read the entry first was held in a frozen park until they did.
 Escape leaves it, the way Escape leaves every other popover here, and leaving
 records nothing.
 
+And a popover has to leave **one layer at a time**. The landing card is the only
+popover something else can be stacked over: quiz, minigame and winter question
+all clear `landedOn` on the way in, but the entry deliberately leaves it set, so
+that closing the entry puts you back on the plant you are standing on. Escape
+used to break that. The scene and the card each hold a window keydown listener,
+both fired on the one keypress, and closing the entry also took off: the player
+who chose Look it up instead came back to open air and had to find the plant and
+land on it all over again. The card's listener now stands down while the entry is
+open on top of it. The trap in testing this is that the store re-renders through
+`useSyncExternalStore`, which flushes synchronously, so merely mentioning
+`ui.activeEntry` in the effect's dependencies makes the cleanup remove the
+listener mid-dispatch and the second handler silently never runs. That masks the
+bug rather than fixing it, which is why the guard is the early return and not the
+dependency array.
+
 `askingWinterName` is the single definition of "this plant is asking to be named",
 and it is a single definition on purpose: the card in the world withholds the name
 when it is true and the landing menu offers the question, in two different files.

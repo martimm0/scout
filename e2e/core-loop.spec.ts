@@ -99,6 +99,48 @@ test.describe("core loop", () => {
     expect(state.Pollinated).toBe("0");
   });
 
+  test("reading the entry from the card puts you back on the card", async ({
+    page,
+  }) => {
+    /**
+     * The card is the only popover something else can be layered over. Quiz,
+     * minigame and winter question all clear `landedOn` on the way in; the entry
+     * deliberately does not, so that closing it returns you to the plant you are
+     * standing on and you can go on and pollinate it.
+     *
+     * Escape broke that. Two window listeners fired on the one keypress, the
+     * scene closing the entry and the card taking off, so reading an entry and
+     * pressing Escape left you in the air and you had to find the plant and land
+     * on it again. Checking that the entry closed passed happily either way,
+     * which is why this checks what is left behind.
+     */
+    await enterGame(page);
+
+    expect(await findPlant(page)).toBe(true);
+    await page.keyboard.press("Space");
+
+    const menu = page.getByRole("dialog", { name: /^Landed on/ });
+    await expect(menu).toBeVisible();
+
+    await page.getByRole("button", { name: /Read the entry/ }).click();
+
+    // The entry is the thing with the Wikipedia link on it.
+    await expect(page.getByRole("link", { name: /Wikipedia/ })).toBeVisible();
+
+    await page.keyboard.press("Escape");
+
+    // The entry goes, and the card you opened it from is still under it.
+    await expect(page.getByRole("link", { name: /Wikipedia/ })).toHaveCount(0);
+    await expect(
+      menu,
+      "Escape out of the entry took off as well as closing it",
+    ).toBeVisible();
+
+    // And Escape still takes off, now that it is the only thing open.
+    await page.keyboard.press("Escape");
+    await expect(menu).toHaveCount(0);
+  });
+
   test("pressing Space then Pollinate opens the minigame", async ({ page }) => {
     await enterGame(page);
 
