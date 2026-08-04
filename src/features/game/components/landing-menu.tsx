@@ -7,7 +7,7 @@ import { PLANTS_BY_ID } from "../data/plants";
 import { triviaFor } from "../data/trivia";
 import { useGameStore } from "../state/game-store";
 import { isInSeason, seasonWindow } from "../world/season";
-import { isWinterMonth, standsInWinter } from "../world/winter";
+import { askingWinterName } from "../world/winter";
 import styles from "./landing-menu.module.css";
 
 /**
@@ -90,10 +90,10 @@ export function LandingMenu({ month }: { month: number }) {
    */
   const canAskWinter =
     plant !== undefined &&
-    isWinterMonth(month) &&
-    standsInWinter(plant) &&
-    Boolean(discoveredPlants[plant.id]) &&
-    !winterKnown[plant.id];
+    askingWinterName(plant, month, {
+      met: Boolean(discoveredPlants[plant.id]),
+      named: Boolean(winterKnown[plant.id]),
+    });
 
   return (
     <div className={styles.scrim} onClick={takeOff} role="presentation">

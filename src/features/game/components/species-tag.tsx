@@ -15,7 +15,7 @@ import {
   landingHeight,
   type SpeciesInstance,
 } from "../world/species-scatter";
-import { isWinterMonth, standsInWinter } from "../world/winter";
+import { askingWinterName } from "../world/winter";
 import styles from "./species-tag.module.css";
 
 /**
@@ -68,10 +68,10 @@ export function SpeciesTag({
    */
   const askingWinter =
     instance.species.kind === "plant" &&
-    isWinterMonth(month) &&
-    discovered &&
-    !winterKnown &&
-    standsInWinter(instance.species.plant);
+    askingWinterName(instance.species.plant, month, {
+      met: discovered,
+      named: winterKnown,
+    });
   // Say it from the air. Flying down to a flower to be told you cannot work it is
   // a wasted trip; knowing it is a difficult one before you go is the interesting
   // half of the information.

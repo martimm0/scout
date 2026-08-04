@@ -88,6 +88,41 @@ export function standsInWinter(plant: Plant): boolean {
   return plant.height >= 1.6 && bloom.to >= 9;
 }
 
+/**
+ * Whether this plant is asking to be named, right now.
+ *
+ * ONE definition, because it decides two things in two different files and they
+ * have to agree exactly: the card in the world withholds the name when this is
+ * true, and the landing menu offers the question. Written out separately in each,
+ * they would eventually drift, and the failure is silent and confusing rather than
+ * loud: a card that hides the name and then no way to answer it, or a question
+ * offered about a plant the tag has already named. The frame loop kept its own
+ * copy of "is a popover open" for exactly this reason and it drifted within
+ * weeks.
+ *
+ * Four conditions, and each one is doing a job:
+ *
+ * - **a month it is standing in**, or there is nothing out there to look at;
+ * - **a plant that stands through winter**, or the question is about a plant that
+ *   is not there;
+ * - **already met in leaf**, so this is a second pass and never a wall for
+ *   somebody who arrived in January;
+ * - **not already named**, or it would keep asking forever.
+ */
+export function askingWinterName(
+  plant: Plant,
+  month: number,
+  /** Whether this player has met it in leaf, and whether they have already named it. */
+  known: { met: boolean; named: boolean },
+): boolean {
+  return (
+    isWinterMonth(month) &&
+    standsInWinter(plant) &&
+    known.met &&
+    !known.named
+  );
+}
+
 /** Everything that stands through winter in a given park. */
 export function winterStanding(park: string): Plant[] {
   return PLANTS.filter(

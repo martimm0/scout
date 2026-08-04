@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { playSound } from "../audio/sound";
 import { PLANTS_BY_ID } from "../data/plants";
@@ -52,6 +52,28 @@ function WinterIdRun({ plantId }: { plantId: string }) {
   );
 
   const [picked, setPicked] = useState<string | null>(null);
+
+  /**
+   * Escape leaves, the way it leaves every other popover in the game.
+   *
+   * Without this the only way out of the question was to answer it. The panel has
+   * no close button until it has been answered and `inputSuspended` counts it, so
+   * a player who opened it meaning to go and look the plant up first was held in a
+   * frozen park until they guessed. Leaving records nothing; the stalk is still
+   * standing there and will ask again.
+   */
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.code === "Escape") {
+        event.preventDefault();
+        endWinterId();
+      }
+    };
+
+    window.addEventListener("keydown", onKey);
+
+    return () => window.removeEventListener("keydown", onKey);
+  }, [endWinterId]);
 
   if (!plant) {
     return null;

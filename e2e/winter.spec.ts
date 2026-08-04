@@ -8,6 +8,7 @@ import {
 } from "../src/features/game/world/species-scatter";
 import { setActivePark, startPosition } from "../src/features/game/world/terrain";
 import {
+  askingWinterName,
   isWinterMonth,
   standsInWinter,
   winterEvidence,
@@ -118,6 +119,41 @@ test.describe("what still stands in winter", () => {
     }
   });
 
+  test("the tag and the landing card ask the same question", () => {
+    /**
+     * They used to decide this separately, four conditions written out twice in
+     * two files, and the failure mode is quiet: a card that hides the name with
+     * no way to answer, or a question offered about a plant the tag has already
+     * named. The frame loop kept its own copy of "is a popover open" for the same
+     * reason and it drifted within weeks.
+     *
+     * One function decides it now. This walks the whole truth table to say so.
+     */
+    const plant = winterStanding("frick")[0];
+    const ephemeral = PLANTS.find((entry) => entry.id === "trout-lily")!;
+
+    for (const met of [true, false]) {
+      for (const named of [true, false]) {
+        for (const month of [1, 7]) {
+          const expected =
+            month === 1 && met && !named && standsInWinter(plant);
+
+          expect(
+            askingWinterName(plant, month, { met, named }),
+            `month ${month}, met ${met}, named ${named}`,
+          ).toBe(expected);
+        }
+      }
+    }
+
+    // And a plant that is not there in January is never asked about, however
+    // well you know it.
+    expect(
+      askingWinterName(ephemeral, 1, { met: true, named: false }),
+      "an ephemeral is being asked about in January",
+    ).toBe(false);
+  });
+
   test("winter is December, January and February", () => {
     expect([12, 1, 2].every(isWinterMonth)).toBe(true);
     expect([3, 6, 9, 11].some(isWinterMonth)).toBe(false);
@@ -195,6 +231,40 @@ test.describe("naming a plant from its winter form", () => {
     const dialog = page.getByRole("dialog", {
       name: /Name it from its winter form/,
     });
+    await expect(dialog).toBeVisible();
+
+    /**
+     * Escape leaves, without answering.
+     *
+     * The panel has no close button until it has been answered and the flight
+     * loop counts it as a pause, so with no key handler the only way out of the
+     * question was to guess: a player who opened it meaning to go and read the
+     * entry first was held in a frozen park. Every other popover here leaves on
+     * Escape and this one did not.
+     */
+    await page.keyboard.press("Escape");
+    await expect(dialog, "Escape does not leave the winter question").toHaveCount(
+      0,
+    );
+
+    // Leaving records nothing, so it is still asking.
+    expect(
+      await page.evaluate(
+        (id) =>
+          Boolean(
+            JSON.parse(localStorage.getItem("scout-game-state") ?? "{}")?.state
+              ?.winterKnown?.[id as string],
+          ),
+        target.id,
+      ),
+      "walking away from the question counted as naming it",
+    ).toBe(false);
+
+    // Back in, and answer it properly this time.
+    await page.keyboard.press("Space");
+    await page
+      .getByRole("button", { name: /Name it from its winter form/ })
+      .click();
     await expect(dialog).toBeVisible();
 
     // The evidence is on the card: shape, height, place.

@@ -212,10 +212,28 @@ standing plant is out of bloom by definition, so that note is not an edge case, 
 renders every single time. A test that checks only the tag passes through all of
 it happily.
 
-Reading the entry still names it, and that stays. The game does not withhold what
-it knows; a locked entry that says nothing teaches nothing. But while a winter
-question is open the button says **Look it up instead**, so it is a decision the
-player makes rather than one the interface makes for them.
+Reading the entry still names it, and so does taking its quiz, and both stay. The
+game does not withhold what it knows; a locked entry that says nothing teaches
+nothing, and a single-player game with no leaderboard has nobody to cheat. The
+line is between a **leak** and a **lookup**: the landing card naming the plant in
+its own title was something the interface did to you, and pressing Read is
+something you chose. Only the first is a bug. Next to the question the button says
+**Look it up instead**, so at the moment the choice actually arises it is named as
+one.
+
+A popover has to be **leavable**. The winter panel has no close button until it
+has been answered and `inputSuspended` counts it as a pause, so with no key
+handler the only way out of the question was to guess: somebody who opened it
+meaning to go and read the entry first was held in a frozen park until they did.
+Escape leaves it, the way Escape leaves every other popover here, and leaving
+records nothing.
+
+`askingWinterName` is the single definition of "this plant is asking to be named",
+and it is a single definition on purpose: the card in the world withholds the name
+when it is true and the landing menu offers the question, in two different files.
+Written out twice they drift, and the failure is quiet rather than loud, a card
+that hides the name with no way to answer it. The frame loop kept its own copy of
+"is a popover open" for the same reason and it drifted within weeks.
 
 ### Temperature: Celsius stored, Fahrenheit shown
 
