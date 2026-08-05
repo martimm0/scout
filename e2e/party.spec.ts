@@ -3,8 +3,13 @@ import { readFileSync } from "node:fs";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { encode } from "next-auth/jwt";
 
-import { resetProgress, signIn } from "./helpers";
+import { dismissTutorial, resetProgress, signIn } from "./helpers";
+import {
+  setActivePark,
+  startPosition,
+} from "../src/features/game/world/terrain";
 import { GARDEN_PARTIES, PARTY_CAP } from "../party/protocol";
+import { voiceGainFor } from "../src/features/game/state/party-voice";
 
 /**
  * Garden parties.
@@ -18,6 +23,20 @@ import { GARDEN_PARTIES, PARTY_CAP } from "../party/protocol";
  */
 
 const PARTY_HOST = `127.0.0.1:${Number(process.env.PLAYWRIGHT_PORT ?? 3000) + 1}`;
+
+/**
+ * Close a player down completely.
+ *
+ * The CONTEXT, not just the page. Closing the page alone leaves the context
+ * open, and each of these tests opens two of them with a full WebGL park inside;
+ * left behind, they load the machine enough that flight tests in later specs
+ * blow their timeouts. That showed up as WebKit failures in `minigames` and
+ * `pages` that passed perfectly well on their own, which is the most misleading
+ * shape a test failure can have.
+ */
+async function closePlayer(page: Page) {
+  await page.context().close();
+}
 
 /** A signed-in page with its own account, in its own context. */
 async function playerPage(browser: Browser, who: string): Promise<Page> {
@@ -161,7 +180,7 @@ test.describe("garden parties", () => {
       GARDEN_PARTIES.length,
     );
 
-    await page.close();
+    await closePlayer(page);
   });
 
   test("two players join the same party and each sees the other", async ({
@@ -201,13 +220,488 @@ test.describe("garden parties", () => {
     await expect(ada).toHaveURL(/party=1/);
 
     // And leaving gives the seat back rather than holding it until a timeout.
-    await ada.close();
+    await closePlayer(ada);
 
     await expect
       .poll(() => headCount(bo, "garden-highland"), { timeout: 20_000 })
       .toBe(1);
 
-    await bo.close();
+    await closePlayer(bo);
+  });
+
+  test("the other player is a bee you can actually see", async ({
+    browser,
+  }) => {
+    test.setTimeout(240_000);
+
+    /**
+     * The assertion that matters, and the one it is easy to fake.
+     *
+     * "A pos message arrived" would pass against a scene that draws nothing,
+     * which is the whole failure mode: the socket is the easy half and the
+     * rendering is the half that breaks. So this counts the bee MESHES in the
+     * live three.js scene, from inside the page, and requires the count to go
+     * up by one when somebody else walks in and back down when they leave.
+     *
+     * Counted by walking the scene graph for the group the remote bee is drawn
+     * into, rather than by reading React state, which would be the same
+     * proxy-not-the-thing mistake one level down.
+     */
+    const ada = await playerPage(browser, "ada");
+    const bo = await playerPage(browser, "bo");
+
+    // Ada goes in first and flies alone for a moment.
+    await ada.goto("/parties");
+    await ada.getByRole("button", { name: /Join the Frick/ }).click();
+    await ada.waitForURL(/\/play/);
+    await ada.waitForTimeout(4000);
+
+    /**
+     * Every remote bee currently DRAWN, with where it is drawn.
+     *
+     * Visible ones only. A bee that has joined but has not yet said where it is
+     * is deliberately not rendered, so counting hidden groups would report a
+     * bee the player cannot see.
+     */
+    const beesOnScreen = (page: Page) =>
+      page.evaluate(() => {
+        const scene = (
+          window as unknown as { __scoutScene?: { children: unknown[] } }
+        ).__scoutScene;
+
+        if (!scene) {
+          return null;
+        }
+
+        const found: { who: string; x: number; y: number; z: number }[] = [];
+
+        const walk = (node: {
+          userData?: Record<string, unknown>;
+          visible?: boolean;
+          position?: { x: number; y: number; z: number };
+          children?: unknown[];
+        }) => {
+          if (node.userData?.remoteBee && node.visible && node.position) {
+            found.push({
+              who: String(node.userData.remoteBee),
+              x: node.position.x,
+              y: node.position.y,
+              z: node.position.z,
+            });
+          }
+
+          for (const child of node.children ?? []) {
+            walk(child as typeof node);
+          }
+        };
+
+        walk(scene as unknown as Parameters<typeof walk>[0]);
+
+        return found;
+      });
+
+    expect(
+      (await beesOnScreen(ada))?.length,
+      "alone, and already seeing bees",
+    ).toBe(0);
+
+    // Bo joins the same party.
+    await bo.goto("/parties");
+    await bo.getByRole("button", { name: /Join the Frick/ }).click();
+    await bo.waitForURL(/\/play/);
+
+    await expect
+      .poll(async () => (await beesOnScreen(ada))?.length, { timeout: 30_000 })
+      .toBe(1);
+
+    /**
+     * And the very first frame it is drawn on, it is already WHERE BO IS.
+     *
+     * This is the assertion that found the bug worth finding. The bee used to
+     * be created at the group's default position and then eased toward its real
+     * one, so a joining player appeared at the world origin and flew 240 units
+     * across Frick to where they actually were, every time anybody joined. The
+     * first pose is a placement now, and the bee is not drawn at all until it
+     * arrives.
+     *
+     * Checked against the park's own spawn point rather than "not the origin",
+     * because "not the origin" also passes halfway through the swoop.
+     */
+    setActivePark("frick");
+
+    const [startX, , startZ] = startPosition();
+    const [bee] = (await beesOnScreen(ada))!;
+
+    expect(
+      Math.hypot(bee.x - startX, bee.z - startZ),
+      `drawn at ${bee.x.toFixed(0)},${bee.z.toFixed(0)} but Bo is at ${startX},${startZ}`,
+    ).toBeLessThan(5);
+
+    // Bo leaves, and the bee goes with them.
+    await closePlayer(bo);
+
+    await expect
+      .poll(async () => (await beesOnScreen(ada))?.length, { timeout: 30_000 })
+      .toBe(0);
+
+    await closePlayer(ada);
+  });
+
+  test("chat reaches the room, and forgets on its own", async ({ browser }) => {
+    test.setTimeout(300_000);
+
+    const ada = await playerPage(browser, "ada");
+    const bo = await playerPage(browser, "bo");
+
+    for (const page of [ada, bo]) {
+      await page.goto("/parties");
+      await page.getByRole("button", { name: /Join the Schenley/ }).click();
+      await page.waitForURL(/\/play/);
+      await page.waitForTimeout(2500);
+      // The first-flight tutorial is up over a fresh save, and its scrim eats
+      // clicks aimed at the chat behind it.
+      await dismissTutorial(page);
+      await page.waitForTimeout(800);
+    }
+
+    const chat = ada.getByRole("textbox", {
+      name: /Say something to the party/,
+    });
+
+    await expect(chat, "no chat box in a party").toBeVisible();
+
+    /**
+     * Typing must not fly the bee.
+     *
+     * Every letter of "wasd" steers, and the scene listens on window, so
+     * writing a sentence used to be a way to fly across the park by accident.
+     * Position before and after, and the difference has to be nothing at all.
+     */
+    /**
+     * Read from the SCENE, not the save file.
+     *
+     * The first version of this read `state.player.position` out of
+     * localStorage, which is not persisted: it returned null before and null
+     * after, so the check passed against a bee flying across the park. Caught by
+     * deleting the guard and watching the test pass anyway.
+     */
+    const where = () =>
+      ada.evaluate((): [number, number, number] | null => {
+        const scene = (
+          window as unknown as { __scoutScene?: { children: unknown[] } }
+        ).__scoutScene;
+
+        let spot: [number, number, number] | null = null;
+
+        const walk = (node: {
+          userData?: Record<string, unknown>;
+          position?: { x: number; y: number; z: number };
+          children?: unknown[];
+        }) => {
+          if (node.userData?.playerBee && node.position) {
+            spot = [node.position.x, node.position.y, node.position.z];
+          }
+
+          for (const child of node.children ?? []) {
+            walk(child as typeof node);
+          }
+        };
+
+        if (scene) {
+          walk(scene as unknown as Parameters<typeof walk>[0]);
+        }
+
+        return spot;
+      });
+
+    await chat.click();
+
+    const before = await where();
+
+    expect(before, "no player bee in the scene to measure").not.toBeNull();
+
+    // Typed key by key, not `fill`. `fill` sets the value without ever
+    // dispatching a keydown, so it cannot possibly steer the bee and the check
+    // would be theatre.
+    await chat.pressSequentially("wasdwasd sedge and spikerush", { delay: 25 });
+    await ada.waitForTimeout(1200);
+
+    /**
+     * Nearly still, not bit-identical.
+     *
+     * A hovering bee bobs, so an exact comparison is a test that fails on the
+     * hundredth of a unit the idle animation moves it: this was `toBe` on a
+     * rounded string, and it passed on Chromium and failed on Firefox at
+     * 89.08 against 89.07. Steering it is not a subtle effect. With the guards
+     * removed the bee travels about two and a half units in this window, so half
+     * a unit still catches it and the hover never comes close.
+     */
+    const after = (await where())!;
+    const drift = Math.hypot(
+      after[0] - before![0],
+      after[1] - before![1],
+      after[2] - before![2],
+    );
+
+    expect(drift, "typing in the chat flew the bee").toBeLessThan(0.5);
+
+    // And the message actually crosses the room.
+    await chat.press("Enter");
+
+    await expect(
+      bo.getByText("sedge and spikerush", { exact: false }),
+      "the message never reached the other player",
+    ).toBeVisible({ timeout: 20_000 });
+
+    // The sender sees their own line too, which is how you know it went.
+    await expect(
+      ada.getByText("sedge and spikerush", { exact: false }),
+    ).toBeVisible();
+
+    /**
+     * And then it goes, on its own, without anybody leaving.
+     *
+     * Sixty seconds is the promise. Rather than wait a real minute, the clock
+     * the expiry reads is wound forward: `seenAt` is stamped from `Date.now()`,
+     * so moving it is enough and no timer has to be faked.
+     */
+    await bo.evaluate(() => {
+      const realNow = Date.now.bind(Date);
+      const skew = 61_000;
+
+      Date.now = () => realNow() + skew;
+    });
+
+    await expect(
+      bo.getByText("sedge and spikerush", { exact: false }),
+      "a message outlived its minute",
+    ).toHaveCount(0, { timeout: 20_000 });
+
+    // Ada, whose clock did not move, still has it. Proves the line above
+    // measured the expiry rather than the socket dropping the message.
+    await expect(
+      ada.getByText("sedge and spikerush", { exact: false }),
+    ).toBeVisible();
+
+    await closePlayer(ada);
+    await closePlayer(bo);
+  });
+
+  test("nothing said in a party is ever written down", async () => {
+    /**
+     * The server relays chat and forgets it. Not a storage saving: a chat that
+     * promises to vanish must not be sitting in a room's storage afterwards, and
+     * this is the assertion that the promise is kept by the code rather than by
+     * the client politely not asking.
+     *
+     * Asked of a FRESH connection, which is the only way to tell. A client that
+     * has been in the room all along cannot distinguish "the server kept no
+     * history" from "the server kept it and did not send it".
+     */
+    const room = "garden-highland";
+
+    const talker = new WebSocket(
+      `ws://${PARTY_HOST}/parties/main/${room}?ticket=${encodeURIComponent(
+        await partyTicket("talker"),
+      )}`,
+    );
+
+    await new Promise<void>((resolve) =>
+      talker.addEventListener("open", () => resolve()),
+    );
+
+    talker.send(
+      JSON.stringify({ t: "chat", text: "this should not be remembered" }),
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    // Somebody new walks in afterwards.
+    const latecomer = new WebSocket(
+      `ws://${PARTY_HOST}/parties/main/${room}?ticket=${encodeURIComponent(
+        await partyTicket("latecomer"),
+      )}`,
+    );
+
+    const heard: string[] = [];
+
+    latecomer.addEventListener("message", (event) => {
+      const message = JSON.parse(String(event.data)) as {
+        t: string;
+        text?: string;
+      };
+
+      if (message.t === "chat" && message.text) {
+        heard.push(message.text);
+      }
+    });
+
+    await new Promise<void>((resolve) =>
+      latecomer.addEventListener("open", () => resolve()),
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+
+    expect(
+      heard,
+      "the room replayed a message from before the latecomer arrived",
+    ).toEqual([]);
+
+    talker.close();
+    latecomer.close();
+  });
+
+  test("the falloff is silent far away and full up close", async () => {
+    /**
+     * The curve, on its own, as arithmetic.
+     *
+     * Cheap to check and worth checking separately from the plumbing: a mesh
+     * that connects perfectly and leaves every gain at 1 is a party where
+     * everybody hears everybody from across the park, and the WebRTC test below
+     * would not notice.
+     */
+    expect(voiceGainFor(0)).toBe(1);
+    expect(voiceGainFor(12)).toBe(1);
+    expect(voiceGainFor(70)).toBe(0);
+    expect(voiceGainFor(500)).toBe(0);
+
+    // Monotonic between the two, and never outside 0..1.
+    let previous = 1;
+
+    for (let distance = 12; distance <= 70; distance += 2) {
+      const gain = voiceGainFor(distance);
+
+      expect(gain).toBeLessThanOrEqual(previous);
+      expect(gain).toBeGreaterThanOrEqual(0);
+      previous = gain;
+    }
+
+    // Halfway out is quiet but audible, not half volume: the curve is squared
+    // because loudness is not linear in distance.
+    expect(voiceGainFor(41)).toBeCloseTo(0.25, 2);
+
+    // A garbage distance must not produce a garbage gain.
+    expect(voiceGainFor(Number.NaN)).toBe(1);
+  });
+
+  /**
+   * A real handshake between two real browsers, with Chromium's fake microphone
+   * standing in for a person.
+   *
+   * The assertion is that a remote audio TRACK arrives and is live, not that an
+   * offer was sent. Signalling that completes and delivers no audio is the
+   * failure worth catching, and it is the one you cannot hear in a test.
+   *
+   * Run in BOTH unmute orders, because they take different paths and only one of
+   * them was broken. Whoever unmutes first announces to a room that is not
+   * listening yet, so it is the second announcement that connects them: if the
+   * lower id unmutes second the offer follows from their own announcement, and
+   * if the higher id unmutes second it follows from the acknowledgement coming
+   * back. Testing one order passed while the other deadlocked in silence.
+   */
+  async function bothHearEachOther(
+    browser: Browser,
+    party: RegExp,
+    unmuteLowerFirst: boolean,
+  ) {
+    const ada = await playerPage(browser, "ada");
+    const bo = await playerPage(browser, "bo");
+
+    for (const page of [ada, bo]) {
+      await page.goto("/parties");
+      await page.getByRole("button", { name: party }).click();
+      await page.waitForURL(/\/play/);
+      await page.waitForTimeout(2500);
+      await dismissTutorial(page);
+      await page.waitForTimeout(600);
+
+      // Watch for an inbound audio track. Installed before either side unmutes,
+      // so nothing is missed.
+      await page.evaluate(() => {
+        const holder = window as unknown as { __scoutHeard?: boolean };
+
+        holder.__scoutHeard = false;
+
+        const Original = window.RTCPeerConnection;
+
+        window.RTCPeerConnection = function (
+          this: unknown,
+          ...args: ConstructorParameters<typeof RTCPeerConnection>
+        ) {
+          const connection = new Original(...args);
+
+          connection.addEventListener("track", (event) => {
+            if (
+              event.track.kind === "audio" &&
+              event.track.readyState === "live"
+            ) {
+              holder.__scoutHeard = true;
+            }
+          });
+
+          return connection;
+        } as unknown as typeof RTCPeerConnection;
+
+        window.RTCPeerConnection.prototype = Original.prototype;
+      });
+    }
+
+    const heard = (page: Page) =>
+      page.evaluate(
+        () => (window as unknown as { __scoutHeard?: boolean }).__scoutHeard,
+      );
+
+    // "party-ada" sorts before "party-bo", which is what the tie-break uses.
+    const order = unmuteLowerFirst ? [ada, bo] : [bo, ada];
+
+    for (const page of order) {
+      await page.getByRole("button", { name: /Talk to the park/ }).click();
+      await expect(
+        page.getByRole("button", { name: /Microphone on/ }),
+      ).toBeVisible({ timeout: 20_000 });
+
+      // A real gap, so the first announcement genuinely lands on a room with
+      // nobody listening. Unmuting together would hide the bug.
+      await page.waitForTimeout(2000);
+    }
+
+    await expect.poll(() => heard(ada), { timeout: 60_000 }).toBe(true);
+    await expect.poll(() => heard(bo), { timeout: 60_000 }).toBe(true);
+
+    await closePlayer(ada);
+    await closePlayer(bo);
+  }
+
+  /**
+   * Chromium only, and that is a real limit worth stating rather than hiding.
+   *
+   * The fake microphone is a Chromium launch flag. Firefox needs a pref that
+   * Playwright does not set for a device, and WebKit has no equivalent at all,
+   * so on those two the permission prompt never resolves and the test hangs
+   * rather than failing honestly. What is proven here is the SIGNALLING and the
+   * plumbing: announcement, tie-break, offer, answer, ICE, live inbound track.
+   * Whether WebKit's own WebRTC stack carries the audio is not proven by this
+   * suite, the same way the touch tests prove the controls rather than iOS.
+   */
+  test.describe("hearing each other", () => {
+    test.skip(
+      ({ browserName }) => browserName !== "chromium",
+      "the fake microphone is a Chromium flag",
+    );
+
+    test("two players hear each other, lower id unmuting first", async ({
+      browser,
+    }) => {
+      test.setTimeout(300_000);
+      await bothHearEachOther(browser, /Join the Frick/, true);
+    });
+
+    test("two players hear each other, higher id unmuting first", async ({
+      browser,
+    }) => {
+      test.setTimeout(300_000);
+      await bothHearEachOther(browser, /Join the Schenley/, false);
+    });
   });
 
   test("the cap is ten, and the eleventh is told why", async () => {

@@ -60,6 +60,18 @@ export default defineConfig({
             "--use-gl=angle",
             "--use-angle=metal",
             "--enable-unsafe-swiftshader",
+            /**
+             * A microphone that is always there and always says the same thing.
+             *
+             * Proximity voice is a real WebRTC handshake between two real
+             * browsers, and without these the suite could only ever test the
+             * signalling and take the audio on trust. The fake device supplies a
+             * tone, and the fake UI answers the permission prompt, so the whole
+             * path is exercised: offer, answer, ICE, track, gain.
+             */
+            "--use-fake-device-for-media-stream",
+            "--use-fake-ui-for-media-stream",
+            "--autoplay-policy=no-user-gesture-required",
           ],
         },
       },

@@ -429,6 +429,73 @@ at ten and the wrong shape at fifty. The eleventh is **told** `full` and then
 closed: a silent refusal is indistinguishable from a flaky network, and the
 client would sit reconnecting into a wall forever.
 
+### Presence: poses are not React state
+
+Every player broadcasts a pose on the frame loop's existing 0.15s tick, about
+seven a second, and the other clients ease between them. Sixty a second would be
+nine times the traffic for a smoothness nobody can see, and on a free tier the
+traffic is the bill.
+
+They arrive in a plain `Map` that the frame loop reads directly, never through
+`setState`: nine players at seven updates a second is sixty-odd renders a second
+of a HUD that draws none of it. Same reason the rest of the scene keeps
+per-frame values in refs.
+
+**The first pose is a placement, not a movement.** A `join` carries no position,
+so between somebody arriving and their first update there is a bee with nowhere
+to be. Easing from the group's default put them at the world origin and flew
+them 240 units across Frick to where they really were, every time anybody
+joined. Now the bee is not drawn at all until a pose arrives. Briefly absent is
+honest; somewhere they are not is not.
+
+### Chat forgets, and the server never knew
+
+Messages are relayed and dropped. Nothing is stored server-side, so a latecomer
+is sent no history, and `party.spec.ts` proves that from a fresh socket, which is
+the only vantage point that can tell "kept no history" apart from "kept it and
+did not send it". The sixty-second expiry is then a client tick over `seenAt`.
+
+**Typing must not fly the bee.** Every letter of "wasd" steers and the scene
+listens on window. The input stops its own events from reaching the window, and
+`keyboardIsTaken()` covers what that cannot: holding a key, clicking into the
+chat, and having the release swallowed so the bee flies on forever. That
+function is the single definition, because the same question is asked in five
+places and `|| chatFocused` at each of the five is exactly the drift that lost
+`pollinatorPreviewOpen` once already.
+
+The controls panel defaults to collapsed in a party. It is a tall column in the
+same corner the chat needs, and in company the conversation is the more useful
+thing to have there. A starting position, not a rule: open it and it stays open.
+
+### Proximity voice is a mesh, and nobody offers blind
+
+Voices go browser to browser over WebRTC. The party socket carries offers,
+answers and ICE and nothing else, so no conversation passes through Cloudflare
+at all: a privacy property and a free-tier property in one decision. A full mesh
+is the right shape at ten and the wrong shape at fifty, which is another thing
+the seat cap is buying.
+
+Distance is a plain `GainNode`, not a `PannerNode`. The camera sits behind the
+bee, so head-relative stereo would put a voice hard left of a listener facing the
+other way; the only thing worth saying is who is close enough to talk to. Full
+volume inside 12 units, silent past 70, squared in between because loudness is
+not linear in distance. Gains are ramped rather than assigned, or flying past
+somebody clicks.
+
+**Nobody offers to a peer who has not said their microphone is on.** This is the
+subtle one. Offering blind delivers the offer to a client that has not registered
+an RTC handler yet, so it is dropped, and the glare tie-break then stops the
+other side from ever offering back: whoever unmuted **second** was connected to
+nobody. Silence is exactly what working voice chat looks like, so nothing about
+it seemed wrong. So unmuting announces to the room, an announcement is
+acknowledged, and only then does the lower id offer.
+
+Both unmute orders are tested, and only one of them was ever broken. The suite
+runs Chromium with a fake microphone (`--use-fake-device-for-media-stream`) so
+the whole path is real: offer, answer, ICE, and a live inbound audio track. The
+assertion is the track, not the offer, because signalling that completes and
+carries no audio is the failure you cannot hear in a test.
+
 ### The head-count is CORS-open
 
 Deliberately, and safely: the only thing behind it is how many bees are in a

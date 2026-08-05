@@ -24,9 +24,15 @@ import { trackEvent } from "@/lib/analytics";
 import { playSound, setAreaAmbience } from "../audio/sound";
 import { speciesFor } from "../models/pollinators";
 import { PollinatorModel } from "./pollinator-model";
+import { sendPose } from "../state/party-client";
+import { updateVoiceDistances } from "../state/party-voice";
+import { usePartyStore } from "../state/party-store";
+import { parkOf } from "@party/protocol";
 import { PollinatorTrail } from "./pollinator-trail";
 import { PollinatorPreview } from "./pollinator-preview";
 import { Creek, Foliage, Landmarks, Terrain } from "./frick-park";
+import { OtherBees, SceneHandle } from "./other-bees";
+import { PartyChat } from "./party-chat";
 import { SpeciesField } from "./species-field";
 import { WeatherLayer } from "./weather";
 import { AmbientLife } from "./ambient-life";
@@ -217,6 +223,28 @@ export function inputSuspended(ui: {
       ui.quiz ||
       ui.winterId ||
       ui.pollinatorPreviewOpen,
+  );
+}
+
+/**
+ * True when ANYTHING else has the keyboard: a popover, or the party chat box.
+ *
+ * The chat is not a popover. It sits open beside the park with the game running
+ * behind it, so it cannot join the list above, and it lives in a different store
+ * besides. But for the keyboard it is the same question, asked in five places,
+ * and writing `|| chatFocused` at each of the five is precisely the drift the
+ * comment above is about.
+ *
+ * Typing "wasd" into the chat box would otherwise fly the bee across the park
+ * while you wrote a sentence. The input also stops its own events from reaching
+ * the window, which handles most of it; this handles what that cannot, which is
+ * holding a key down, clicking into the chat, and having the release swallowed
+ * so the bee flies on forever.
+ */
+export function keyboardIsTaken() {
+  return (
+    inputSuspended(useGameStore.getState().ui) ||
+    usePartyStore.getState().chatFocused
   );
 }
 
@@ -568,7 +596,7 @@ function ScoutScene({
       }
 
       // A popover is up. Not our keyboard.
-      if (inputSuspended(useGameStore.getState().ui)) {
+      if (keyboardIsTaken()) {
         return;
       }
 
@@ -701,7 +729,7 @@ function ScoutScene({
     const handleWheel = (event: WheelEvent) => {
       // Registered passive:false, so this preventDefault stops the page
       // scrolling. A popover taller than the viewport could not be scrolled.
-      if (inputSuspended(useGameStore.getState().ui)) {
+      if (keyboardIsTaken()) {
         return;
       }
 
@@ -766,13 +794,12 @@ function ScoutScene({
     // capture the keyboard the way the others do, but a THUMB held on the throttle
     // when it opens never sends its release, so a touch player would come back to
     // a bee that had flown off on its own.
-    // `inputSuspended`, not a second copy of its condition. This list used to be
-    // written out again here and drifted: it was missing `pollinatorPreviewOpen`,
-    // so a thumb held on the throttle when the preview opened never sent its
-    // release and the bee flew off on its own. Adding a modal should not require
-    // remembering two places, and now it does not.
-    const ui = useGameStore.getState().ui;
-    const paused = inputSuspended(ui);
+    // `keyboardIsTaken`, not a second copy of its condition. This list used to
+    // be written out again here and drifted: it was missing
+    // `pollinatorPreviewOpen`, so a thumb held on the throttle when the preview
+    // opened never sent its release and the bee flew off on its own. Adding a
+    // modal, or the chat box, should not require remembering two places.
+    const paused = keyboardIsTaken();
 
     if (paused) {
       keysRef.current.clear();
@@ -1207,6 +1234,40 @@ function ScoutScene({
 
       store.setPlayerFlightState(nextPlayerState);
 
+      /**
+       * Tell the party where this bee is.
+       *
+       * On the same 0.15s tick as everything else here rather than every frame:
+       * about seven updates a second, which the other clients ease between into
+       * something that looks like flight. Sending sixty would be nine times the
+       * traffic for a smoothness nobody can see, and on a free tier the traffic
+       * is the bill.
+       *
+       * Sends the un-rounded position; the rounding above is for a debug readout
+       * meant to be read by a human.
+       */
+      sendPose({
+        x: pollinator.position.x,
+        z: pollinator.position.z,
+        altitude: pollinator.position.y,
+        heading: yawRef.current,
+        gesture: gestureRef.current.kind,
+      });
+
+      /**
+       * And set how loud everybody is, from how far away they are.
+       *
+       * On this tick rather than every frame because the gains are RAMPED, not
+       * assigned: each one eases toward its target over about a tenth of a
+       * second, so seven updates a second is already smoother than the ear can
+       * follow. Does nothing at all until somebody has opened a microphone.
+       */
+      updateVoiceDistances(
+        pollinator.position.x,
+        pollinator.position.z,
+        pollinator.position.y,
+      );
+
       if (!store.unlockedMapAreas[areaId]) {
         trackEvent({ name: "area_entered", area: areaId });
       }
@@ -1300,8 +1361,22 @@ function ScoutScene({
         <SpeciesTag daylight={daylight} month={month} instance={nearbyInstance} />
       ) : null}
 
+      {/* Everybody else in the party. Renders nothing at all when you are alone,
+          which is every solo session. */}
+      <OtherBees />
+      <SceneHandle />
+
       {/* Actual bee size, near enough. The world grew around it instead. */}
-      <group ref={pollinatorRef} position={startPosition()} scale={1}>
+      <group
+        ref={pollinatorRef}
+        position={startPosition()}
+        scale={1}
+        // Names this node in the graph, the way the remote bees are named. The
+        // flight position lives here and nowhere else: it is deliberately not
+        // persisted, so a test that reads the save file to find out where the
+        // bee is reads `null` and passes against anything.
+        userData={{ playerBee: true }}
+      >
         <PollinatorModel
           animationState={
             playerMovement === "Pollinating"
@@ -1358,7 +1433,26 @@ export function GameScene({
   const debugVisible = debug;
 
   const storedPark = useGameStore((state) => state.currentPark);
-  const currentPark = forcedPark ?? storedPark;
+
+  /**
+   * In a party, the park is the party's, not your save's.
+   *
+   * A garden party IS a park, so being in one settles the question before the
+   * stored preference or the unlock ladder get a say. It sits above `forcedPark`
+   * for a reason too: `?park=` is a test hook, and a test hook that could move
+   * one player out of the room everybody else is standing in would be a way to
+   * be in a party alone.
+   *
+   * Survives client-side navigation because the socket and the store are both
+   * module state. It does NOT survive a hard refresh, and it should not: the
+   * connection is gone, so there is no party to be in, and you land in your own
+   * park playing on your own, which is the honest thing for the game to do.
+   */
+  const partyPark = usePartyStore((state) =>
+    state.status === "in" && state.party ? parkOf(state.party) : null,
+  );
+
+  const currentPark = partyPark ?? forcedPark ?? storedPark;
   const unlockedParks = useGameStore((state) => state.unlockedParks);
   const discoveredPlants = useGameStore((state) => state.discoveredPlants);
   const enterPark = useGameStore((state) => state.enterPark);
@@ -1406,7 +1500,16 @@ export function GameScene({
   const toggleRaincoat = useGameStore((state) => state.toggleRaincoat);
   // A derived boolean, so the HUD only re-renders when the answer actually flips
   // rather than on every change to the ui slice.
-  const uiSuspended = useGameStore((state) => inputSuspended(state.ui));
+  /**
+   * Hide the thumbsticks while anything owns the keyboard.
+   *
+   * Two subscriptions rather than `keyboardIsTaken`, because this one has to
+   * re-render when the answer changes and that function is a snapshot read for
+   * the frame loop. Same question, and the pair must stay in step.
+   */
+  const popoverOpen = useGameStore((state) => inputSuspended(state.ui));
+  const chatFocused = usePartyStore((state) => state.chatFocused);
+  const uiSuspended = popoverOpen || chatFocused;
   /**
    * Whether to offer the touch pad at all.
    *
@@ -1416,7 +1519,21 @@ export function GameScene({
   const coarsePointer = useCoarsePointer();
   /** A phone held upright. Tablets are exempt: upright is fine on those. */
   const portraitPhone = usePortraitPhone();
-  const [controlsOpen, setControlsOpen] = useState(true);
+  /**
+   * The controls panel, open by default alone and shut by default in a party.
+   *
+   * It is a tall column down the right-hand side, and in a party the chat has to
+   * live somewhere a player can read it and type into it without hunting for it
+   * first. Both cannot have that corner. Alone the controls are the more useful
+   * thing there; in company the conversation is.
+   *
+   * Read once, as the initial state, rather than tracked: this is a starting
+   * position, not a rule. Somebody who opens the controls mid-party keeps them
+   * open, which is the whole point of it being a toggle.
+   */
+  const [controlsOpen, setControlsOpen] = useState(
+    () => usePartyStore.getState().status !== "in",
+  );
   // The scene generates terrain, scatters thousands of props and compiles all the
   // geometry before its first frame. Without this the player stares at a blank
   // canvas and assumes it is broken.
@@ -1608,7 +1725,7 @@ export function GameScene({
 
       // Its own listener, and it had its own copy of the bug: P during the quiz
       // took a photograph of the dialog you were reading.
-      if (inputSuspended(useGameStore.getState().ui)) {
+      if (keyboardIsTaken()) {
         return;
       }
 
@@ -1853,6 +1970,10 @@ export function GameScene({
         discoveredPlants={discoveredPlants}
         unlockedBadges={unlockedBadges}
       />
+
+      {/* Sits above the controls panel, which is why the controls default to
+          collapsed in a party. Renders nothing outside one. */}
+      <PartyChat />
 
       <PlantEntry />
       <LandingMenu month={month} />

@@ -60,6 +60,8 @@ const peers = new Map<string, Peer>();
 let context: AudioContext | null = null;
 let microphone: MediaStream | null = null;
 let live = false;
+/** Stops watching the room when the mic goes off. */
+let unsubscribe: (() => void) | null = null;
 
 /** Google's public STUN. No TURN: a relay would be a bill and a third party in
  *  the middle of a conversation. Mesh voice fails on hostile NATs, and that is
@@ -95,23 +97,79 @@ export async function startVoice(): Promise<boolean> {
 
   onRtc(handleSignal);
 
-  // Offer to everyone already here. The tie-break is by id so two players who
-  // unmute at once do not both offer and glare at each other: the lower id
-  // offers, the higher waits. Without it you get a glare deadlock roughly half
-  // the time two people unmute together.
-  const you = usePartyStore.getState().you?.sub ?? "";
+  announce();
 
-  for (const other of usePartyStore.getState().others.slice(0, PARTY_CAP)) {
-    if (you < other.sub) {
-      void offerTo(other.sub);
+  /**
+   * And keep up with the room as it changes.
+   *
+   * Without this, voice only ever reached whoever happened to be standing there
+   * when you unmuted: somebody arriving afterwards would be visible, audible to
+   * nobody, and there is no way to tell that apart from them simply being
+   * quiet. Leaving is the other half, and it has to close the connection rather
+   * than let it rot, or a peer who left is an `RTCPeerConnection` retrying ICE
+   * for as long as the tab is open.
+   */
+  unsubscribe = usePartyStore.subscribe((state) => {
+    const here = new Set(state.others.map((other) => other.sub));
+
+    for (const sub of peers.keys()) {
+      if (!here.has(sub)) {
+        dropVoice(sub);
+      }
     }
-  }
+
+    announce();
+  });
 
   return true;
 }
 
+/**
+ * Say "my microphone is on" to the room.
+ *
+ * **Nobody offers to a peer who has not said this**, and that is the whole point
+ * of it. Offering blind does not work: the offer is delivered through the party
+ * socket to a client that has not registered an RTC handler yet, so it is
+ * dropped on the floor, and the glare tie-break then stops the other side from
+ * ever offering back. Whoever unmuted second was connected to nobody, silently,
+ * and silence is exactly what voice chat looks like when it is working.
+ *
+ * The reply matters as much as the announcement. If you unmute first, your
+ * announcement lands on people who are not listening yet; theirs, later, is what
+ * tells you they are there, and the acknowledgement is what tells them you are.
+ * Acks are not acked, so this settles in one round trip.
+ */
+function announce() {
+  if (!live) {
+    return;
+  }
+
+  for (const other of usePartyStore.getState().others.slice(0, PARTY_CAP)) {
+    sendRtc(other.sub, { kind: "voice-here" });
+  }
+}
+
+/**
+ * Who offers, once both sides are known to be listening.
+ *
+ * The tie-break is by id and it is load-bearing: two players who unmute at the
+ * same moment would otherwise both send an offer and both reject the other's,
+ * which is WebRTC glare and deadlocks roughly half the time. The lower id
+ * offers, the higher waits.
+ */
+function maybeOfferTo(sub: string) {
+  const you = usePartyStore.getState().you?.sub ?? "";
+
+  if (live && you < sub && !peers.has(sub)) {
+    void offerTo(sub);
+  }
+}
+
 export function stopVoice() {
   live = false;
+
+  unsubscribe?.();
+  unsubscribe = null;
 
   for (const [sub, peer] of peers) {
     peer.connection.close();
@@ -185,6 +243,23 @@ async function handleSignal(from: string, payload: unknown) {
     sdp?: RTCSessionDescriptionInit;
     candidate?: RTCIceCandidateInit;
   };
+
+  // Somebody's microphone came on. Tell them mine is too, then let the tie-break
+  // decide which of us offers. Handled before `peerFor`, which would otherwise
+  // build a connection to somebody we may not end up calling.
+  if (message.kind === "voice-here") {
+    sendRtc(from, { kind: "voice-ack" });
+    maybeOfferTo(from);
+
+    return;
+  }
+
+  // Their answer to ours. Same decision, from the other side of the race.
+  if (message.kind === "voice-ack") {
+    maybeOfferTo(from);
+
+    return;
+  }
 
   const peer = peerFor(from);
 
