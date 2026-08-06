@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { GARDEN_PARTIES, parkOf, PARTY_CAP } from "@party/protocol";
 import type { GardenPartyId } from "@party/protocol";
@@ -33,6 +33,7 @@ type Head = { count: number; cap: number };
 
 export function PartyPicker() {
   const router = useRouter();
+  const search = useSearchParams();
   const status = usePartyStore((state) => state.status);
   const [heads, setHeads] = useState<Record<string, Head>>({});
   const [tried, setTried] = useState<GardenPartyId | null>(null);
@@ -84,12 +85,25 @@ export function PartyPicker() {
     };
   }, []);
 
-  // In, and flying. The park comes from the party, not from your save.
+  /**
+   * In, and flying. The park comes from the party, not from your save.
+   *
+   * Anything already on the URL is carried through, so `/parties?debug=1&hour=12`
+   * lands you in the party with the clock pinned and the readout up. The hooks
+   * are documented to grant no progress and this changes nothing about that; it
+   * only means walking through the lobby does not silently drop them, which
+   * otherwise makes a party the one place in the game they cannot be used.
+   */
   useEffect(() => {
-    if (status === "in") {
-      router.push("/play?party=1");
+    if (status !== "in") {
+      return;
     }
-  }, [router, status]);
+
+    const carried = new URLSearchParams(search.toString());
+
+    carried.set("party", "1");
+    router.push(`/play?${carried.toString()}`);
+  }, [router, search, status]);
 
   const join = async (party: GardenPartyId) => {
     setTried(party);

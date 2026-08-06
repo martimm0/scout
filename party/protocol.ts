@@ -81,6 +81,40 @@ export type TableView = {
   ended?: "left";
 };
 
+/* ------------------------------------------------------------------ *
+ * Working a flower together
+ * ------------------------------------------------------------------ */
+
+/**
+ * One flower, being worked by one or more bees.
+ *
+ * Keyed by the scatter INSTANCE rather than the species: two players on two
+ * different black-eyed susans forty units apart are doing two different things,
+ * and joining them would be baffling.
+ *
+ * `finds` are opaque tokens the game decides the meaning of — a matched floret,
+ * a word made. The room does not know what they mean and does not need to; it
+ * keeps the set and tells everybody, which is the whole of co-operation here.
+ */
+export type CoopView = {
+  instance: string;
+  plant: string;
+  /** Accounts on this flower, with names, in arrival order. */
+  members: { sub: string; name: string }[];
+  finds: string[];
+  /**
+   * The one roll for this flower, drawn when the session opens.
+   *
+   * ONE, not one each. Everybody who worked it feeds the same shared score and
+   * this same roll through the same resolver, so two people who did the same
+   * work on the same flower are told the same thing about it. Rolling per player
+   * would also quietly change the failure rate the whole game is built on:
+   * "at least one of us managed it" is a different number from "one visit in
+   * five comes to nothing".
+   */
+  roll: number;
+};
+
 /** Client to server. */
 export type ClientMessage =
   | { t: "pos"; pose: Pose }
@@ -97,7 +131,12 @@ export type ClientMessage =
    */
   | { t: "move"; table: string; move: unknown }
   /** Start a Field Notes round that has enough writers. Seat 0 only. */
-  | { t: "begin"; table: string };
+  | { t: "begin"; table: string }
+  /** Working a flower. `instance` is the scatter key, not the species. */
+  | { t: "workOn"; instance: string; plant: string }
+  /** A floret matched or a word made, shared with everybody on the same plant. */
+  | { t: "found"; instance: string; token: string }
+  | { t: "stopWorking"; instance: string };
 
 /** Server to client. */
 export type ServerMessage =
@@ -120,6 +159,13 @@ export type ServerMessage =
    * that missed one diff would be wrong until it reloaded.
    */
   | { t: "tables"; tables: TableView[] }
+  /**
+   * The flower you are working, and everybody else working it with you.
+   *
+   * Sent to the people on that plant and nobody else: a shared board is a small
+   * private thing between the bees standing on one stalk, not news for the room.
+   */
+  | { t: "coop"; session: CoopView }
   /** The room is full or the ticket is bad; the socket closes after this. */
   | { t: "refused"; reason: "full" | "unauthorized" };
 

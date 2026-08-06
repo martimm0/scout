@@ -530,6 +530,35 @@ out of "the table you are at" meant the board vanished the instant somebody won
 and the panel snapped back to the lobby, so the one thing you were waiting to see
 went by in a single frame.
 
+### Working one flower together
+
+Two or more bees landed on the same stalk play one board. Keyed by the scatter
+INSTANCE, not the species: two players on two different black-eyed susans forty
+units apart are doing two different things, and joining them would be baffling.
+
+Finds are opaque tokens whose meaning is the game's own business, a matched
+floret or a word made. The room keeps the set and passes it around without
+knowing what any of it means, which is what lets a game pick its own currency
+without the protocol learning about it.
+
+**One roll, not one each.** Drawn when the session opens and used by everybody,
+so two people who did the same work on the same flower are told the same thing
+about it. Per-player rolls would also quietly change the failure rate the whole
+game is built on: "at least one of us managed it" is a different number from
+"one visit in five comes to nothing".
+
+**The seeds game is deliberately not co-operative.** Memory and anagram are
+shared-progress games where a floret matched by anybody is matched, so
+co-operating changes nothing about what they mean. Seeds is a dodge: its score
+is what survives the hits, and pooling that makes a careful player's outcome
+depend on a stranger's reflexes, which is rule 3's punishment-for-failure in
+another coat. A tree is worked alone even in company, and an honest asymmetry
+beats inventing a co-operative dodge the game does not otherwise have.
+
+The party picker carries URL params through to `/play`, so `?debug=1&hour=12`
+survives joining. Without it a party is the one place in the game the test hooks
+cannot reach, which is also the one place hardest to reach by hand.
+
 ### The head-count is CORS-open
 
 Deliberately, and safely: the only thing behind it is how many bees are in a

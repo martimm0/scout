@@ -41,4 +41,27 @@ export type MinigameProps = {
    * rather than waiting the clock out. Idempotent.
    */
   finishEarly: (score: number) => void;
+  /**
+   * Somebody else is working this same flower.
+   *
+   * Absent for every solo attempt, which is nearly all of them, so a game that
+   * ignores this behaves exactly as it always has.
+   *
+   * `finds` are opaque tokens whose meaning is the game's own business: a
+   * matched floret, a word made. The room keeps the set and passes it around
+   * without knowing what any of it means, so a game can decide its own currency
+   * without the protocol learning about it.
+   *
+   * Two games use it and one deliberately does not. Memory and anagram are
+   * shared-progress games, where a floret matched by anybody is matched and a
+   * word found by anybody is found, so co-operating changes nothing about what
+   * they mean. The seeds game is a dodge: its score is what survives the hits,
+   * and pooling that would make a careful player's outcome depend on a
+   * stranger's reflexes, which is failure used as a punishment. Rule 3 forbids
+   * it, so a tree is worked alone even in company.
+   */
+  shared?: {
+    finds: string[];
+    found: (token: string) => void;
+  };
 };

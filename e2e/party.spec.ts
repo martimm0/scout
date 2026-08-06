@@ -11,6 +11,7 @@ import {
 import {
   GARDEN_PARTIES,
   PARTY_CAP,
+  type CoopView,
   type TableView,
 } from "../party/protocol";
 import { voiceGainFor } from "../src/features/game/state/party-voice";
@@ -901,6 +902,171 @@ test.describe("garden parties", () => {
         ),
         "a malformed move changed the board",
       ).toHaveLength(1);
+    } finally {
+      for (const socket of sockets) {
+        socket.close();
+      }
+    }
+  });
+
+  test("two bees on one flower share a board and one roll", async () => {
+    test.setTimeout(120_000);
+
+    /**
+     * Co-op pollination, asked of the room.
+     *
+     * Driven over sockets rather than through two flying bees, and that is a
+     * deliberate retreat from an earlier version of this test. The board runs
+     * on a twelve second clock, and crossing the park to reach the same flower
+     * takes longer than that, so the browser version spent its time racing a
+     * timer instead of testing anything: the round resolved itself before the
+     * first tile could be clicked. What is actually being tested here is a
+     * server contract, so it is asked of the server.
+     *
+     * Two things have to hold, and they are the whole feature:
+     *
+     *  - a find by one bee reaches the other, so they are working ONE board;
+     *  - both are given the SAME roll, so two people who did the same work on
+     *    the same flower are told the same thing about it. One roll each would
+     *    also quietly change the failure rate the whole game is built on.
+     */
+    const sockets: WebSocket[] = [];
+
+    const open = async (who: string) => {
+      const socket = new WebSocket(
+        `ws://${PARTY_HOST}/parties/main/garden-schenley?ticket=${encodeURIComponent(
+          await partyTicket(who),
+        )}`,
+      );
+
+      const seen: CoopView[] = [];
+
+      socket.addEventListener("message", (event) => {
+        const message = JSON.parse(String(event.data)) as {
+          t: string;
+          session?: CoopView;
+        };
+
+        if (message.t === "coop" && message.session) {
+          seen.push(message.session);
+        }
+      });
+
+      await new Promise<void>((resolve) =>
+        socket.addEventListener("open", () => resolve()),
+      );
+
+      sockets.push(socket);
+
+      return { socket, seen };
+    };
+
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 700));
+    const latest = (seen: CoopView[]) => seen[seen.length - 1];
+
+    try {
+      const ada = await open("coop-ada");
+      const bo = await open("coop-bo");
+
+      await settle();
+
+      // The same stalk, by scatter key.
+      const stalk = "frick:black-eyed-susan:3";
+
+      ada.socket.send(
+        JSON.stringify({ t: "workOn", instance: stalk, plant: "black-eyed-susan" }),
+      );
+      await settle();
+
+      expect(latest(ada.seen)?.members).toHaveLength(1);
+      expect(
+        bo.seen,
+        "a flower nobody else is on was announced to the room",
+      ).toHaveLength(0);
+
+      bo.socket.send(
+        JSON.stringify({ t: "workOn", instance: stalk, plant: "black-eyed-susan" }),
+      );
+      await settle();
+
+      expect(latest(ada.seen).members).toHaveLength(2);
+      expect(latest(bo.seen).members).toHaveLength(2);
+
+      // ONE roll, and it is the same one on both sides.
+      expect(
+        latest(bo.seen).roll,
+        "the two bees were given different rolls",
+      ).toBe(latest(ada.seen).roll);
+
+      const roll = latest(ada.seen).roll;
+
+      // A floret Ada turns over is turned over for Bo.
+      ada.socket.send(
+        JSON.stringify({ t: "found", instance: stalk, token: "f2" }),
+      );
+      await settle();
+
+      expect(
+        latest(bo.seen).finds,
+        "a find never reached the other bee",
+      ).toContain("f2");
+
+      // And it is a set: the same find twice does not count twice.
+      bo.socket.send(
+        JSON.stringify({ t: "found", instance: stalk, token: "f2" }),
+      );
+      await settle();
+
+      expect(latest(ada.seen).finds.filter((f) => f === "f2")).toHaveLength(1);
+
+      /**
+       * And the roll does not drift while the board is being worked.
+       *
+       * This is the assertion with teeth. "Both were given the same number" is
+       * true by construction of a shared session and would pass against a
+       * server that redrew it constantly, so long as it told everybody. What
+       * would actually break the game is a roll that changes underneath a
+       * half-finished board, because then the outcome depends on the moment you
+       * happen to finish rather than on the work.
+       */
+      expect(
+        latest(ada.seen).roll,
+        "the roll changed while the flower was being worked",
+      ).toBe(roll);
+      expect(latest(bo.seen).roll).toBe(roll);
+
+      /**
+       * Leaving takes you off the flower.
+       *
+       * Asked of BO, not of Ada. The room tells the bees still standing on a
+       * flower and nobody else, so Ada cannot witness her own departure: an
+       * earlier version of this checked Ada's last message and failed, because
+       * her last message was from when she was still on it. The server was
+       * right and the assertion was looking in the wrong place.
+       */
+      ada.socket.send(JSON.stringify({ t: "stopWorking", instance: stalk }));
+      await settle();
+
+      expect(
+        latest(bo.seen).members.map((member) => member.sub),
+        "a bee that left is still on the flower",
+      ).toEqual(["coop-bo"]);
+
+      // A different stalk is a different job, even for the same species.
+      bo.socket.send(
+        JSON.stringify({
+          t: "workOn",
+          instance: "frick:black-eyed-susan:9",
+          plant: "black-eyed-susan",
+        }),
+      );
+      await settle();
+
+      expect(
+        latest(bo.seen).instance,
+        "two different stalks were treated as one flower",
+      ).toBe("frick:black-eyed-susan:9");
+      expect(latest(bo.seen).finds, "finds leaked between stalks").toEqual([]);
     } finally {
       for (const socket of sockets) {
         socket.close();

@@ -3,6 +3,7 @@
 import { create } from "zustand";
 
 import type {
+  CoopView,
   GardenPartyId,
   PartyPlayer,
   Pose,
@@ -68,9 +69,17 @@ type PartyState = {
    * message away from drawing a board that does not exist.
    */
   tables: TableView[];
+  /**
+   * The flower you are working, if somebody else is working it too.
+   *
+   * One at a time, because you can only stand on one plant. Cleared when you
+   * take off, so a stale board cannot follow you to the next flower.
+   */
+  coop: CoopView | null;
 
   setStatus: (status: PartyStatus) => void;
   setTables: (tables: TableView[]) => void;
+  setCoop: (coop: CoopView | null) => void;
   setChatFocused: (focused: boolean) => void;
   joined: (party: GardenPartyId, you: PartyPlayer, others: PartyPlayer[]) => void;
   playerJoined: (player: PartyPlayer) => void;
@@ -93,15 +102,26 @@ export const usePartyStore = create<PartyState>()((set) => ({
   chat: [],
   chatFocused: false,
   tables: [],
+  coop: null,
 
   setStatus: (status) => set({ status }),
 
   setTables: (tables) => set({ tables }),
 
+  setCoop: (coop) => set({ coop }),
+
   setChatFocused: (chatFocused) => set({ chatFocused }),
 
   joined: (party, you, others) =>
-    set({ status: "in", party, you, others, chat: [], tables: [] }),
+    set({
+      status: "in",
+      party,
+      you,
+      others,
+      chat: [],
+      tables: [],
+      coop: null,
+    }),
 
   playerJoined: (player) =>
     set((state) => ({
@@ -144,6 +164,7 @@ export const usePartyStore = create<PartyState>()((set) => ({
       chat: [],
       chatFocused: false,
       tables: [],
+      coop: null,
     });
   },
 }));

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ANAGRAM_TARGET, ANAGRAM_MIN_LENGTH } from "../../data/anagram";
 import { ANAGRAM_WORDS } from "../../data/anagram-words";
@@ -25,7 +25,12 @@ import type { MinigameProps } from "./types";
  * whose names can make enough words get this game at all: `minigameFor` sends the
  * rest to memory, so `ANAGRAM_WORDS[plant.id]` is always present here.
  */
-export function AnagramGame({ finishEarly, plant, reportScore }: MinigameProps) {
+export function AnagramGame({
+  finishEarly,
+  plant,
+  reportScore,
+  shared,
+}: MinigameProps) {
   const accepted = useMemo(
     () => new Set(ANAGRAM_WORDS[plant.id] ?? []),
     [plant.id],
@@ -36,7 +41,30 @@ export function AnagramGame({ finishEarly, plant, reportScore }: MinigameProps) 
   );
 
   const [entry, setEntry] = useState("");
-  const [found, setFound] = useState<string[]>([]);
+  const [mine, setMine] = useState<string[]>([]);
+
+  /**
+   * Every word on this flower, yours and theirs, in a stable order.
+   *
+   * A word made by anybody is made: the flower does not care which bee worked
+   * out that "SUSAN" was in there. Ordered by arrival so the list does not
+   * reshuffle under somebody's eyes as their partner types.
+   */
+  const found = useMemo(() => {
+    if (!shared) {
+      return mine;
+    }
+
+    const together = [...shared.finds];
+
+    for (const word of mine) {
+      if (!together.includes(word)) {
+        together.push(word);
+      }
+    }
+
+    return together;
+  }, [mine, shared]);
   const [flash, setFlash] = useState<"none" | "good" | "bad" | "again">("none");
   const foundRef = useRef<Set<string>>(new Set());
 
@@ -96,7 +124,7 @@ export function AnagramGame({ finishEarly, plant, reportScore }: MinigameProps) 
       return;
     }
 
-    if (foundRef.current.has(word)) {
+    if (foundRef.current.has(word) || found.includes(word)) {
       setFlash("again");
 
       return;
@@ -110,16 +138,27 @@ export function AnagramGame({ finishEarly, plant, reportScore }: MinigameProps) 
     }
 
     foundRef.current.add(word);
-    const next = [...found, word];
-    setFound(next);
+    setMine((was) => [...was, word]);
     setFlash("good");
     playSound("tap");
-    reportScore(Math.min(1, next.length / ANAGRAM_TARGET));
+    shared?.found(word);
+  };
 
-    if (next.length >= ANAGRAM_TARGET) {
+  /**
+   * Score the flower, not the player.
+   *
+   * In an effect rather than in the submit handler, because in company the count
+   * also goes up when somebody ELSE makes a word, and a score reported only from
+   * your own keystrokes would leave a co-op flower resolving on half the work
+   * that went into it.
+   */
+  useEffect(() => {
+    reportScore(Math.min(1, found.length / ANAGRAM_TARGET));
+
+    if (found.length >= ANAGRAM_TARGET) {
       finishEarly(1);
     }
-  };
+  }, [finishEarly, found.length, reportScore]);
 
   return (
     <>

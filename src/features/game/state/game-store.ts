@@ -73,6 +73,14 @@ export type UIModalState = {
   landedOn: SpeciesRef | null;
   /** The plant being pollinated. Fungi never appear here; nothing pollinates a mushroom. */
   minigamePlantId: string | null;
+  /**
+   * WHICH plant, not just which species.
+   *
+   * The scatter key of the stalk you are standing on. Only co-op needs it: two
+   * players are working the same flower when they are on the same instance, and
+   * two asters forty units apart are two different jobs.
+   */
+  minigameInstance: string | null;
   /** The species whose quiz is running. */
   quiz: SpeciesRef | null;
   /** The plant being named from its winter form, if any. */
@@ -186,7 +194,11 @@ export type GameActions = {
   closeEntry: () => void;
   land: (ref: SpeciesRef) => void;
   takeOff: () => void;
-  startMinigame: (plantId: string, month: number) => void;
+  startMinigame: (
+    plantId: string,
+    month: number,
+    instance?: string,
+  ) => void;
   endMinigame: () => void;
   startQuiz: (ref: SpeciesRef) => void;
   endQuiz: () => void;
@@ -267,6 +279,7 @@ const initialUi: UIModalState = {
   activeEntry: null,
   landedOn: null,
   minigamePlantId: null,
+  minigameInstance: null,
   quiz: null,
   winterId: null,
 };
@@ -614,7 +627,7 @@ export const useGameStore = create<GameStore>()(
 
   takeOff: () => set((state) => ({ ui: { ...state.ui, landedOn: null } })),
 
-  startMinigame: (plantId, month) =>
+  startMinigame: (plantId, month, instance) =>
     set((state) => {
       // The gate is enforced HERE, not only on the button.
       //
@@ -628,12 +641,19 @@ export const useGameStore = create<GameStore>()(
       }
 
       return {
-        ui: { ...state.ui, minigamePlantId: plantId, landedOn: null },
+        ui: {
+          ...state.ui,
+          minigamePlantId: plantId,
+          minigameInstance: instance ?? null,
+          landedOn: null,
+        },
       };
     }),
 
   endMinigame: () =>
-    set((state) => ({ ui: { ...state.ui, minigamePlantId: null } })),
+    set((state) => ({
+      ui: { ...state.ui, minigamePlantId: null, minigameInstance: null },
+    })),
 
   startQuiz: (ref) =>
     set((state) => ({ ui: { ...state.ui, quiz: ref, landedOn: null } })),

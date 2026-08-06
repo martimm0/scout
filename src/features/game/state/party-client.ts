@@ -103,6 +103,10 @@ export async function joinParty(party: GardenPartyId): Promise<void> {
         state.setTables(message.tables);
         return;
 
+      case "coop":
+        state.setCoop(message.session);
+        return;
+
       case "chat":
         state.chatArrived({
           sub: message.sub,
@@ -186,6 +190,21 @@ export function leaveTable(table: string) {
 
 export function beginTable(table: string) {
   sendToParty({ t: "begin", table });
+}
+
+/* Working a flower with whoever else is standing on it. */
+
+export function workOn(instance: string, plant: string) {
+  sendToParty({ t: "workOn", instance, plant });
+}
+
+export function shareFind(instance: string, token: string) {
+  sendToParty({ t: "found", instance, token });
+}
+
+export function stopWorking(instance: string) {
+  usePartyStore.getState().setCoop(null);
+  sendToParty({ t: "stopWorking", instance });
 }
 
 /** A move, whose shape the game decides. Refused moves are simply ignored. */

@@ -7,6 +7,7 @@ import {
   GARDEN_PARTIES,
   PARTY_CAP,
   type ClientMessage,
+  type CoopView,
   type GameKind,
   type PartyPlayer,
   type Pose,
@@ -85,6 +86,15 @@ export default class Garden implements Party.Server {
   tables: Table[] = [];
 
   private nextTable = 1;
+
+  /**
+   * Flowers being worked, keyed by scatter instance.
+   *
+   * By instance and not by species, because two bees on two different asters are
+   * not working together. In memory like everything else, and cleared the moment
+   * the last bee leaves the flower.
+   */
+  coop = new Map<string, CoopView>();
 
   /** How long a finished Field Notes round stays on the board before it goes. */
   private static readonly FINISHED_FOR = 60_000;
@@ -361,6 +371,57 @@ export default class Garden implements Party.Server {
         return;
       }
 
+      case "workOn": {
+        const key = message.instance;
+
+        if (typeof key !== "string" || typeof message.plant !== "string") {
+          return;
+        }
+
+        const existing = this.coop.get(key);
+
+        if (existing) {
+          if (!existing.members.some((member) => member.sub === sub)) {
+            existing.members.push({ sub, name: seat.player.name });
+          }
+        } else {
+          this.coop.set(key, {
+            instance: key,
+            plant: message.plant,
+            members: [{ sub, name: seat.player.name }],
+            finds: [],
+            // Drawn once, here, and used by everybody. See CoopView.roll.
+            roll: Math.random(),
+          });
+        }
+
+        this.publishCoop(key);
+        return;
+      }
+
+      case "found": {
+        const session = this.coop.get(message.instance);
+
+        if (
+          !session ||
+          typeof message.token !== "string" ||
+          message.token.length > 64 ||
+          !session.members.some((member) => member.sub === sub) ||
+          session.finds.includes(message.token)
+        ) {
+          return;
+        }
+
+        session.finds.push(message.token);
+        this.publishCoop(message.instance);
+        return;
+      }
+
+      case "stopWorking": {
+        this.leaveFlower(sub, message.instance);
+        return;
+      }
+
       case "rtc": {
         // Verbatim relay to one peer. The server does not read the payload;
         // the voices themselves never come through here at all.
@@ -395,6 +456,10 @@ export default class Garden implements Party.Server {
 
     this.seats.delete(sub);
     this.broadcast({ t: "leave", sub });
+
+    for (const key of [...this.coop.keys()]) {
+      this.leaveFlower(sub, key);
+    }
 
     // And out of any game they were in the middle of.
     const now = Date.now();
@@ -530,6 +595,50 @@ export default class Garden implements Party.Server {
     } else {
       this.scheduleTimeout(now);
     }
+  }
+
+  /**
+   * Tell everybody on one flower what is on it.
+   *
+   * Only them. A shared board is a small private thing between the bees standing
+   * on one stalk, and the rest of the party has no use for it.
+   */
+  private publishCoop(key: string) {
+    const session = this.coop.get(key);
+
+    if (!session) {
+      return;
+    }
+
+    const raw = JSON.stringify({ t: "coop", session } satisfies ServerMessage);
+
+    for (const conn of this.room.getConnections<Attachment>()) {
+      if (
+        conn.state?.sub &&
+        session.members.some((member) => member.sub === conn.state!.sub)
+      ) {
+        conn.send(raw);
+      }
+    }
+  }
+
+  /** Off the flower. The session goes when the last bee does. */
+  private leaveFlower(sub: string, key: string) {
+    const session = this.coop.get(key);
+
+    if (!session) {
+      return;
+    }
+
+    const members = session.members.filter((member) => member.sub !== sub);
+
+    if (members.length === 0) {
+      this.coop.delete(key);
+      return;
+    }
+
+    session.members = members;
+    this.publishCoop(key);
   }
 
   /** Say why, then close. A silent refusal looks like a network fault and the

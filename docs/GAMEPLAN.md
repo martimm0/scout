@@ -263,7 +263,7 @@ Everything above is built and playable. As of the last update:
 - 49 photographs, every one licensed and credited
 - 38 badges, 10 accessories, 6 of them earned
 - Played by keyboard and mouse, or by two thumbs on a phone or a tablet
-- 489 tests across Chromium, Firefox, WebKit, and a phone and a tablet
+- 495 tests across Chromium, Firefox, WebKit, and a phone and a tablet
 
 ## Deliberately not doing
 

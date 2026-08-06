@@ -14,6 +14,12 @@ import {
 } from "../data/pollination";
 import { PLANTS_BY_ID, type Plant } from "../data/plants";
 import { useGameStore } from "../state/game-store";
+import {
+  shareFind,
+  stopWorking,
+  workOn,
+} from "../state/party-client";
+import { usePartyStore } from "../state/party-store";
 import { MINIGAMES } from "./minigames";
 import styles from "./pollination-minigame.module.css";
 
@@ -39,6 +45,7 @@ type Outcome = {
  */
 export function PollinationMinigame() {
   const plantId = useGameStore((state) => state.ui.minigamePlantId);
+  const instance = useGameStore((state) => state.ui.minigameInstance);
   const plant = plantId ? PLANTS_BY_ID.get(plantId) : undefined;
 
   if (!plant) {
@@ -47,10 +54,16 @@ export function PollinationMinigame() {
 
   // Keyed on the plant so every attempt starts from a clean component rather
   // than a pile of reset effects.
-  return <MinigameRun key={plant.id} plant={plant} />;
+  return <MinigameRun key={plant.id} instance={instance} plant={plant} />;
 }
 
-function MinigameRun({ plant }: { plant: Plant }) {
+function MinigameRun({
+  instance,
+  plant,
+}: {
+  instance: string | null;
+  plant: Plant;
+}) {
   const endMinigame = useGameStore((state) => state.endMinigame);
   const pollinatePlant = useGameStore((state) => state.pollinatePlant);
   const recordAttempt = useGameStore((state) => state.recordPollinationAttempt);
@@ -64,6 +77,43 @@ function MinigameRun({ plant }: { plant: Plant }) {
   const kind = minigameFor(plant);
   const spec = MINIGAME_SPEC[kind];
   const Game = MINIGAMES[kind];
+
+  /**
+   * Working this flower with whoever else is standing on it.
+   *
+   * Announced on mount and dropped on unmount, so the room only ever thinks you
+   * are on a flower while the board is actually open. The session it sends back
+   * is only interesting when somebody else is in it: alone, this is a solo
+   * attempt that happens to have told the room about itself.
+   */
+  const coop = usePartyStore((state) => state.coop);
+  const inParty = usePartyStore((state) => state.status === "in");
+
+  useEffect(() => {
+    if (!inParty || !instance) {
+      return;
+    }
+
+    workOn(instance, plant.id);
+
+    return () => stopWorking(instance);
+  }, [inParty, instance, plant.id]);
+
+  const together =
+    coop && coop.instance === instance && coop.members.length > 1
+      ? coop
+      : null;
+
+  const shared = useMemo(
+    () =>
+      together && instance
+        ? {
+            finds: together.finds,
+            found: (token: string) => shareFind(instance, token),
+          }
+        : undefined,
+    [instance, together],
+  );
 
   const [progress, setProgress] = useState(0);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
@@ -106,9 +156,17 @@ function MinigameRun({ plant }: { plant: Plant }) {
 
       resolvedRef.current = true;
 
-      // Deterministic-ish per attempt, but genuinely variable: this is the one
-      // place chance enters the game.
-      const roll = Math.random();
+      /**
+       * One roll. In company, the room's roll.
+       *
+       * Everybody who worked the flower feeds the same shared score and the
+       * same number through the same resolver, so two people who did the same
+       * work on the same flower are told the same thing about it. Rolling per
+       * player would also quietly change the failure rate the whole game runs
+       * on: "at least one of us managed it" is a different number from "one
+       * visit in five comes to nothing".
+       */
+      const roll = together ? together.roll : Math.random();
       const success = resolvePollination(score, roll);
 
       recordAttempt(success);
@@ -136,7 +194,7 @@ function MinigameRun({ plant }: { plant: Plant }) {
         ),
       });
     },
-    [plant.id, kind, recordAttempt, recordScore, pollinatePlant],
+    [plant.id, kind, recordAttempt, recordScore, pollinatePlant, together],
   );
 
   const finishEarly = useCallback(
@@ -247,9 +305,10 @@ function MinigameRun({ plant }: { plant: Plant }) {
         finishEarly={finishEarly}
         plant={plant}
         reportScore={reportScore}
+        shared={shared}
       />
     ),
-    [Game, spec.duration, finishEarly, plant, reportScore],
+    [Game, spec.duration, finishEarly, plant, reportScore, shared],
   );
 
   return (

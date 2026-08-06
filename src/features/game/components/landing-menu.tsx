@@ -163,7 +163,7 @@ export function LandingMenu({ month }: { month: number }) {
           ) : isPlant ? (
             <button
               className={styles.primary}
-              onClick={() => startMinigame(landedOn.id, month)}
+              onClick={() => startMinigame(landedOn.id, month, landedOn.key)}
               type="button"
             >
               <span className={styles.actionTitle}>
