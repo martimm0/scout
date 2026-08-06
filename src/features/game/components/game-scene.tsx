@@ -33,6 +33,7 @@ import { PollinatorPreview } from "./pollinator-preview";
 import { Creek, Foliage, Landmarks, Terrain } from "./frick-park";
 import { OtherBees, SceneHandle } from "./other-bees";
 import { PartyChat } from "./party-chat";
+import { PartyGames } from "./party-games";
 import { SpeciesField } from "./species-field";
 import { WeatherLayer } from "./weather";
 import { AmbientLife } from "./ambient-life";
@@ -1974,6 +1975,9 @@ export function GameScene({
       {/* Sits above the controls panel, which is why the controls default to
           collapsed in a party. Renders nothing outside one. */}
       <PartyChat />
+
+      {/* Opposite the chat. Also nothing outside a party. */}
+      <PartyGames />
 
       <PlantEntry />
       <LandingMenu month={month} />

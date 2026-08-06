@@ -496,6 +496,40 @@ the whole path is real: offer, answer, ICE, and a live inbound audio track. The
 assertion is the track, not the offer, because signalling that completes and
 carries no audio is the failure you cannot hear in a test.
 
+### The party games are hosted as tables
+
+The room holds a LIST of tables rather than "the current game", because several
+at once is the point: two people can play Leaf Turn in the corner while five
+others write Field Notes.
+
+**The room referees every move.** A board each browser works out for itself is a
+board two browsers can disagree about, and the first disagreement is
+unrecoverable because neither side is wrong by its own reckoning. Every rules
+function returns null for an illegal move, so the server's handler is "apply it,
+and if nothing comes back, nothing happened" — a malformed move from a broken
+client and a cheat from a clever one take exactly the same path. The board greys
+out what it cannot play using the SAME functions, because two implementations of
+"is this legal" would eventually disagree and the one the player sees would be
+the wrong one.
+
+Tables are never stored, like everything else here. **What makes that safe is
+the pose stream**: every player broadcasts about seven times a second for as long
+as their tab is open, so an occupied room is never idle and never evicted, and a
+room only hibernates once it is empty. That does mean presence traffic is
+load-bearing for the games — if poses ever stop while somebody is still
+connected, a Field Notes round would quietly vanish during its own writing phase.
+
+Field Notes gets one alarm for the whole room, set to the earliest deadline any
+table has. One rather than one per table, because a Durable Object gets one and
+because a timer per table is a timer per table to leak. The board games have no
+clock at all: a turn timer on a friendly game of noughts and crosses would invent
+a pressure nobody asked for.
+
+**You leave a table by standing up, not by winning.** Filtering finished games
+out of "the table you are at" meant the board vanished the instant somebody won
+and the panel snapped back to the lobby, so the one thing you were waiting to see
+went by in a single frame.
+
 ### The head-count is CORS-open
 
 Deliberately, and safely: the only thing behind it is how many bees are in a

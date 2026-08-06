@@ -124,9 +124,17 @@ export async function signIn(
   context: BrowserContext,
   subject = "e2e-player",
   email = "e2e@example.com",
+  /**
+   * The display name.
+   *
+   * Everybody was "E2E Player", which is fine until two of them are in the same
+   * room: the party tests could not tell which player a board was talking about,
+   * because both seats had the same name on them.
+   */
+  name = "E2E Player",
 ) {
   const token = await encode({
-    token: { sub: subject, name: "E2E Player", email },
+    token: { sub: subject, name, email },
     secret: authSecret(),
     salt: "authjs.session-token",
     maxAge: 60 * 60,

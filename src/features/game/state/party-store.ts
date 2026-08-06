@@ -2,7 +2,12 @@
 
 import { create } from "zustand";
 
-import type { GardenPartyId, PartyPlayer, Pose } from "@party/protocol";
+import type {
+  GardenPartyId,
+  PartyPlayer,
+  Pose,
+  TableView,
+} from "@party/protocol";
 
 /**
  * Party state, session-only on purpose.
@@ -55,8 +60,17 @@ type PartyState = {
    * the bee flying forward forever.
    */
   chatFocused: boolean;
+  /**
+   * Every game in the room, as the server last described it.
+   *
+   * Replaced wholesale on each update rather than patched. The room sends the
+   * whole list, and a client that tried to merge diffs would be one dropped
+   * message away from drawing a board that does not exist.
+   */
+  tables: TableView[];
 
   setStatus: (status: PartyStatus) => void;
+  setTables: (tables: TableView[]) => void;
   setChatFocused: (focused: boolean) => void;
   joined: (party: GardenPartyId, you: PartyPlayer, others: PartyPlayer[]) => void;
   playerJoined: (player: PartyPlayer) => void;
@@ -78,13 +92,16 @@ export const usePartyStore = create<PartyState>()((set) => ({
   others: [],
   chat: [],
   chatFocused: false,
+  tables: [],
 
   setStatus: (status) => set({ status }),
+
+  setTables: (tables) => set({ tables }),
 
   setChatFocused: (chatFocused) => set({ chatFocused }),
 
   joined: (party, you, others) =>
-    set({ status: "in", party, you, others, chat: [] }),
+    set({ status: "in", party, you, others, chat: [], tables: [] }),
 
   playerJoined: (player) =>
     set((state) => ({
@@ -126,6 +143,7 @@ export const usePartyStore = create<PartyState>()((set) => ({
       others: [],
       chat: [],
       chatFocused: false,
+      tables: [],
     });
   },
 }));

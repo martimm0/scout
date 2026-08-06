@@ -8,7 +8,11 @@ import {
   setActivePark,
   startPosition,
 } from "../src/features/game/world/terrain";
-import { GARDEN_PARTIES, PARTY_CAP } from "../party/protocol";
+import {
+  GARDEN_PARTIES,
+  PARTY_CAP,
+  type TableView,
+} from "../party/protocol";
 import { voiceGainFor } from "../src/features/game/state/party-voice";
 
 /**
@@ -42,7 +46,13 @@ async function closePlayer(page: Page) {
 async function playerPage(browser: Browser, who: string): Promise<Page> {
   const context = await browser.newContext();
 
-  await signIn(context, `party-${who}`, `${who}@example.com`);
+  // A distinct display name, so a board that says who won is saying something.
+  await signIn(
+    context,
+    `party-${who}`,
+    `${who}@example.com`,
+    who[0].toUpperCase() + who.slice(1),
+  );
 
   const page = await context.newPage();
 
@@ -702,6 +712,200 @@ test.describe("garden parties", () => {
       test.setTimeout(300_000);
       await bothHearEachOther(browser, /Join the Schenley/, false);
     });
+  });
+
+  test("two players play a game through to a win", async ({ browser }) => {
+    test.setTimeout(300_000);
+
+    /**
+     * The board games, driven the way two people would.
+     *
+     * The rules are proven as arithmetic in `party-games.spec.ts`. What this
+     * adds is everything between: the table appears in the other player's
+     * lobby, sitting down seats them, the turn alternates, and the result the
+     * server reaches is the result both screens show. None of that is exercised
+     * by testing the rules, and all of it is where a multiplayer game breaks.
+     */
+    const ada = await playerPage(browser, "ada");
+    const bo = await playerPage(browser, "bo");
+
+    for (const page of [ada, bo]) {
+      await page.goto("/parties");
+      await page.getByRole("button", { name: /Join the Highland/ }).click();
+      await page.waitForURL(/\/play/);
+      await page.waitForTimeout(2500);
+      await dismissTutorial(page);
+      await page.waitForTimeout(600);
+      await page.getByRole("button", { name: /^Games/ }).click();
+    }
+
+    await ada.getByRole("button", { name: /Trellis Four/ }).click();
+
+    const adaBoard = ada.getByRole("region", { name: "Trellis Four" });
+    const boBoard = bo.getByRole("region", { name: "Trellis Four" });
+
+    await expect(adaBoard).toBeVisible();
+    await expect(adaBoard.getByText(/Waiting for somebody/)).toBeVisible();
+
+    // The table shows up in the other player's lobby without a reload.
+    const sit = bo.getByRole("button", { name: "Sit down" });
+
+    await expect(sit, "the table never reached the other player").toBeVisible({
+      timeout: 20_000,
+    });
+    await sit.click();
+
+    await expect(boBoard).toBeVisible({ timeout: 20_000 });
+    await expect(adaBoard.getByText("Your turn.")).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(boBoard.getByText(/Ada|turn/)).toBeVisible();
+
+    /**
+     * Ada takes column one four times, Bo answers in column two. The board
+     * cannot be won by clicking alone: each move has to reach the server, be
+     * refereed, and come back to both screens before the next one is legal.
+     */
+    for (const [page, column] of [
+      [ada, 1],
+      [bo, 2],
+      [ada, 1],
+      [bo, 2],
+      [ada, 1],
+      [bo, 2],
+      [ada, 1],
+    ] as const) {
+      const board = page === ada ? adaBoard : boBoard;
+
+      await expect(board.getByText("Your turn.")).toBeVisible({
+        timeout: 20_000,
+      });
+      await board.getByRole("button", { name: `Column ${column}` }).click();
+      await page.waitForTimeout(300);
+    }
+
+    // The same outcome on both screens, said from each player's side.
+    await expect(
+      adaBoard.getByText("You won that one."),
+      "the winner was not told they won",
+    ).toBeVisible({ timeout: 20_000 });
+
+    await expect(
+      boBoard.getByText("Ada took it."),
+      "the loser was not told who won",
+    ).toBeVisible({ timeout: 20_000 });
+
+    await ada.close();
+    await bo.close();
+  });
+
+  test("the room refuses a move out of turn, however it is asked", async () => {
+    test.setTimeout(180_000);
+
+    /**
+     * The board greys out what you cannot play, but a disabled button is a
+     * suggestion: the enforcement has to be the room. So this asks the room
+     * directly, over the socket, exactly as a modified client would.
+     *
+     * Driven from node rather than a browser for the same reason the cap test
+     * is: what is being tested is the server, and going through a UI to reach it
+     * would only add ways for the test to be wrong.
+     */
+    const room = "garden-highland";
+    const sockets: WebSocket[] = [];
+
+    const open = async (who: string) => {
+      const socket = new WebSocket(
+        `ws://${PARTY_HOST}/parties/main/${room}?ticket=${encodeURIComponent(
+          await partyTicket(who),
+        )}`,
+      );
+
+      const tables: TableView[] = [];
+
+      socket.addEventListener("message", (event) => {
+        const message = JSON.parse(String(event.data)) as {
+          t: string;
+          tables?: TableView[];
+        };
+
+        if (message.t === "tables" && message.tables) {
+          tables.length = 0;
+          tables.push(...message.tables);
+        }
+      });
+
+      await new Promise<void>((resolve) =>
+        socket.addEventListener("open", () => resolve()),
+      );
+
+      sockets.push(socket);
+
+      return { socket, tables };
+    };
+
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 700));
+
+    try {
+      const first = await open("turn-a");
+      const second = await open("turn-b");
+
+      await settle();
+
+      first.socket.send(JSON.stringify({ t: "open", kind: "tictactoe" }));
+      await settle();
+
+      const id = second.tables[0]?.id;
+
+      expect(id, "the table never reached the second player").toBeTruthy();
+
+      second.socket.send(JSON.stringify({ t: "sit", table: id }));
+      await settle();
+
+      expect(second.tables[0].seats).toHaveLength(2);
+      expect(second.tables[0].turn, "seat 0 does not move first").toBe(0);
+
+      // Seat 1, moving first. Refused.
+      second.socket.send(JSON.stringify({ t: "move", table: id, move: 4 }));
+      await settle();
+
+      expect(
+        (first.tables[0].state as (number | null)[]).every(
+          (cell) => cell === null,
+        ),
+        "a player moved out of turn",
+      ).toBe(true);
+
+      // Seat 0 plays that cell, then seat 1 tries to play it again.
+      first.socket.send(JSON.stringify({ t: "move", table: id, move: 4 }));
+      await settle();
+
+      second.socket.send(JSON.stringify({ t: "move", table: id, move: 4 }));
+      await settle();
+
+      const board = first.tables[0].state as (number | null)[];
+
+      expect(board[4], "a taken cell was overwritten").toBe(0);
+      expect(first.tables[0].turn, "the turn did not pass").toBe(1);
+
+      // And nonsense is refused without breaking the board.
+      for (const move of [99, -1, 1.5, "four", null, { cell: 4 }]) {
+        second.socket.send(JSON.stringify({ t: "move", table: id, move }));
+      }
+
+      await settle();
+
+      expect(
+        (first.tables[0].state as (number | null)[]).filter(
+          (cell) => cell !== null,
+        ),
+        "a malformed move changed the board",
+      ).toHaveLength(1);
+    } finally {
+      for (const socket of sockets) {
+        socket.close();
+      }
+    }
   });
 
   test("the cap is ten, and the eleventh is told why", async () => {

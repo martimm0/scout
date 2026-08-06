@@ -1,0 +1,347 @@
+/* The party games.
+ *
+ * Bottom left, opposite the chat, above the field notes card. Same light glass
+ * as every other HUD panel: these float over a 3D scene with its own lighting,
+ * so they do not follow the site theme. */
+
+.lobby,
+.board {
+  position: absolute;
+  left: 24px;
+  bottom: 24px;
+  z-index: 5;
+  width: min(320px, calc(100% - 48px));
+  border: 1px solid rgba(30, 44, 26, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--foreground);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(16px);
+}
+
+.lobby {
+  padding: 10px 12px;
+}
+
+.board {
+  padding: 12px;
+}
+
+.toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  border: none;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.toggleLabel {
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(30, 44, 26, 0.65);
+}
+
+.toggleCue {
+  font-size: 0.74rem;
+  font-weight: 650;
+  color: var(--primary);
+}
+
+.body {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tables,
+.kinds,
+.votes,
+.scores {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.table {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2px 8px;
+}
+
+.tableName {
+  font-weight: 650;
+  font-size: 0.82rem;
+}
+
+.tableWho {
+  grid-column: 1;
+  color: rgba(30, 44, 26, 0.6);
+  font-size: 0.72rem;
+}
+
+.sit,
+.begin,
+.stand {
+  border: none;
+  border-radius: 999px;
+  padding: 5px 12px;
+  background: var(--primary);
+  color: #fffdf6;
+  font: inherit;
+  font-weight: 650;
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+
+.sit:hover,
+.begin:hover,
+.stand:hover {
+  filter: brightness(1.08);
+}
+
+.stand {
+  background: transparent;
+  color: rgba(30, 44, 26, 0.7);
+  border: 1px solid rgba(30, 44, 26, 0.25);
+}
+
+.start {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid rgba(30, 44, 26, 0.16);
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: rgba(255, 255, 255, 0.5);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.start:hover {
+  border-color: var(--primary);
+}
+
+.startName {
+  font-weight: 650;
+  font-size: 0.8rem;
+}
+
+.startNote {
+  color: rgba(30, 44, 26, 0.6);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+.boardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.boardName {
+  font-weight: 700;
+  font-size: 0.86rem;
+}
+
+.status {
+  margin: 6px 0 10px;
+  color: rgba(30, 44, 26, 0.72);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.score {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  color: rgba(30, 44, 26, 0.72);
+}
+
+.score span[data-seat] {
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.grid {
+  display: grid;
+  gap: 3px;
+}
+
+.grid[data-game="tictactoe"] {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.grid[data-game="othello"] {
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+}
+
+.cell {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(30, 44, 26, 0.16);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.55);
+  font: inherit;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.grid[data-game="othello"] .cell {
+  font-size: 0.7rem;
+  border-radius: 3px;
+  background: rgba(122, 158, 106, 0.28);
+}
+
+/* A move that would actually be allowed. Same test the server applies. */
+.cell[data-legal="true"] {
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+
+.cell:disabled {
+  cursor: default;
+}
+
+.trellis {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border: none;
+  border-radius: 6px;
+  padding: 3px;
+  background: rgba(122, 158, 106, 0.22);
+  cursor: pointer;
+}
+
+.column:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.column:hover:not(:disabled) {
+  background: rgba(122, 158, 106, 0.4);
+}
+
+.slot {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.slot[data-seat="0"],
+.cell[data-seat="0"] {
+  background: #d8a53a;
+}
+
+.slot[data-seat="1"],
+.cell[data-seat="1"] {
+  background: #7a5230;
+}
+
+.quips {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.quip {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.prompt {
+  margin: 0;
+  font-weight: 650;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.quipForm {
+  display: flex;
+  gap: 6px;
+}
+
+.quipInput {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid rgba(30, 44, 26, 0.25);
+  border-radius: 999px;
+  padding: 6px 11px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+.vote {
+  width: 100%;
+  border: 1px solid rgba(30, 44, 26, 0.18);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.6);
+  color: inherit;
+  font: inherit;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+}
+
+.vote:hover:not(:disabled) {
+  border-color: var(--primary);
+}
+
+.vote:disabled {
+  cursor: default;
+  opacity: 0.8;
+}
+
+.scores li {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+}
+
+.quiet {
+  margin: 0;
+  color: rgba(30, 44, 26, 0.6);
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+/* The field notes card owns the top left, so on a phone the games move up and
+   narrow rather than sitting under a thumbstick. */
+@media (pointer: coarse) {
+  .lobby,
+  .board {
+    left: 16px;
+    bottom: 150px;
+    width: min(260px, calc(100% - 32px));
+  }
+}

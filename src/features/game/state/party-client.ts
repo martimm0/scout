@@ -5,6 +5,7 @@ import PartySocket from "partysocket";
 import {
   CHAT_TTL_MS,
   type ClientMessage,
+  type GameKind,
   type GardenPartyId,
   type Pose,
   type ServerMessage,
@@ -98,6 +99,10 @@ export async function joinParty(party: GardenPartyId): Promise<void> {
         partyPoses.set(message.sub, message.pose);
         return;
 
+      case "tables":
+        state.setTables(message.tables);
+        return;
+
       case "chat":
         state.chatArrived({
           sub: message.sub,
@@ -162,6 +167,30 @@ export function sendPose(pose: Pose) {
 
 export function sendChat(text: string) {
   sendToParty({ t: "chat", text });
+}
+
+/* The party games. The room referees every one of these; the client is only
+   ever asking. */
+
+export function openTable(kind: GameKind) {
+  sendToParty({ t: "open", kind });
+}
+
+export function sitAtTable(table: string) {
+  sendToParty({ t: "sit", table });
+}
+
+export function leaveTable(table: string) {
+  sendToParty({ t: "leaveTable", table });
+}
+
+export function beginTable(table: string) {
+  sendToParty({ t: "begin", table });
+}
+
+/** A move, whose shape the game decides. Refused moves are simply ignored. */
+export function sendMove(table: string, move: unknown) {
+  sendToParty({ t: "move", table, move });
 }
 
 export function sendRtc(to: string, payload: unknown) {

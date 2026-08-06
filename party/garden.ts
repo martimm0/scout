@@ -3,13 +3,26 @@ import { decode } from "next-auth/jwt";
 
 import {
   CHAT_TTL_MS,
+  GAME_SEATS,
   GARDEN_PARTIES,
   PARTY_CAP,
   type ClientMessage,
+  type GameKind,
   type PartyPlayer,
   type Pose,
   type ServerMessage,
 } from "./protocol";
+import {
+  applyMove,
+  beginQuips,
+  openTable,
+  sitDown,
+  standUp,
+  tableIsStale,
+  tableTimeout,
+  tableView,
+  type Table,
+} from "./games/tables";
 
 /**
  * A garden party: one park, up to ten players, nothing remembered.
@@ -60,6 +73,21 @@ export default class Garden implements Party.Server {
    * hibernation and that is fine: they re-arrive eight times a second.
    */
   seats = new Map<string, Seat>();
+
+  /**
+   * The games in progress. A list, because several at once in one party is the
+   * whole point of them.
+   *
+   * In memory only, like the seats. A room that hibernates forgets its games,
+   * which is right: an empty room has nothing worth resuming, and storing them
+   * would be storing exactly the thing this server promises not to.
+   */
+  tables: Table[] = [];
+
+  private nextTable = 1;
+
+  /** How long a finished Field Notes round stays on the board before it goes. */
+  private static readonly FINISHED_FOR = 60_000;
 
   constructor(readonly room: Party.Room) {}
 
@@ -194,6 +222,10 @@ export default class Garden implements Party.Server {
     if (!returning) {
       this.broadcast({ t: "join", player }, sub);
     }
+
+    // Whatever is being played right now, so a joiner can walk up to a table
+    // rather than only seeing games that start after they arrived.
+    this.send(conn, { t: "tables", tables: this.tables.map(tableView) });
   }
 
   onMessage(raw: string | ArrayBuffer, conn: Party.Connection<Attachment>) {
@@ -260,6 +292,75 @@ export default class Garden implements Party.Server {
         return;
       }
 
+      case "open": {
+        const kind = message.kind;
+
+        if (!(kind in GAME_SEATS)) {
+          return;
+        }
+
+        // One table each. Somebody who keeps pressing the button would
+        // otherwise paper the lobby with empty games nobody can clear.
+        if (
+          this.tables.some(
+            (table) => !table.finished && table.seats.includes(sub),
+          )
+        ) {
+          return;
+        }
+
+        this.tables.push(
+          openTable(
+            `t${this.nextTable++}`,
+            kind as GameKind,
+            sub,
+            seat.player.name,
+          ),
+        );
+        this.publishTables();
+        return;
+      }
+
+      case "sit": {
+        this.updateTable(message.table, (table) =>
+          sitDown(table, sub, seat.player.name),
+        );
+        return;
+      }
+
+      case "leaveTable": {
+        this.updateTable(message.table, (table) =>
+          standUp(table, sub, Date.now()),
+        );
+        return;
+      }
+
+      case "begin": {
+        this.updateTable(message.table, (table) =>
+          // Seat 0 deals, because somebody has to and they opened it.
+          table.seats[0] === sub ? beginQuips(table, Date.now()) : table,
+        );
+        return;
+      }
+
+      case "move": {
+        // Through the rate limit, like chat: a client stuck in a loop should
+        // not be able to hammer the room, and a move is cheap to send.
+        const now = Date.now();
+
+        seat.recentChat = seat.recentChat.filter((at) => now - at < 10_000);
+
+        if (seat.recentChat.length >= 12) {
+          return;
+        }
+
+        seat.recentChat.push(now);
+        this.updateTable(message.table, (table) =>
+          applyMove(table, sub, message.move, now),
+        );
+        return;
+      }
+
       case "rtc": {
         // Verbatim relay to one peer. The server does not read the payload;
         // the voices themselves never come through here at all.
@@ -294,6 +395,16 @@ export default class Garden implements Party.Server {
 
     this.seats.delete(sub);
     this.broadcast({ t: "leave", sub });
+
+    // And out of any game they were in the middle of.
+    const now = Date.now();
+    const before = this.tables;
+
+    this.tables = this.tables.map((table) => standUp(table, sub, now));
+
+    if (this.tables.some((table, at) => table !== before[at])) {
+      this.publishTables();
+    }
   }
 
   /**
@@ -316,6 +427,109 @@ export default class Garden implements Party.Server {
       },
       { headers: CORS },
     );
+  }
+
+  /**
+   * Run a change over one table and tell the room, if anything changed.
+   *
+   * Compared by identity, because every transition returns a new object when it
+   * does something and the SAME object when it refuses. So "an illegal move
+   * changes nothing and is silently ignored" needs no special case: it simply
+   * fails this check and nothing is sent.
+   */
+  private updateTable(id: unknown, change: (table: Table) => Table) {
+    if (typeof id !== "string") {
+      return;
+    }
+
+    let changed = false;
+
+    this.tables = this.tables.map((table) => {
+      if (table.id !== id) {
+        return table;
+      }
+
+      const next = change(table);
+
+      changed = next !== table;
+
+      return next;
+    });
+
+    if (changed) {
+      this.publishTables();
+    }
+  }
+
+  /**
+   * Send every table to everybody, and drop the dead ones on the way out.
+   *
+   * Sweeping here rather than on a timer means an abandoned table is cleared by
+   * the next thing that happens in the room, and a room where nothing is
+   * happening does not need waking up to tidy itself.
+   */
+  private publishTables() {
+    const now = Date.now();
+
+    this.tables = this.tables.filter(
+      (table) => !tableIsStale(table, now, Garden.FINISHED_FOR),
+    );
+
+    this.broadcast({ t: "tables", tables: this.tables.map(tableView) });
+    this.scheduleTimeout(now);
+  }
+
+  /**
+   * One alarm for the whole room, set to the earliest deadline any table has.
+   *
+   * One rather than one per table, because a Durable Object gets one alarm and
+   * because a timer per table is a timer per table to leak. Only Field Notes
+   * has deadlines; the board games sit as long as the players like, since a
+   * turn clock on a friendly game of noughts and crosses invents a pressure
+   * nobody asked for.
+   */
+  private scheduleTimeout(now: number) {
+    const deadlines = this.tables
+      .filter((table) => !table.finished && table.deadline > 0)
+      .map((table) => table.deadline);
+
+    if (deadlines.length === 0) {
+      return;
+    }
+
+    void this.room.storage.setAlarm(Math.max(now + 250, Math.min(...deadlines)));
+  }
+
+  /**
+   * A phase ran out.
+   *
+   * The one place this server touches storage, and it stores no data: an alarm
+   * is a wake-up, not a record.
+   *
+   * **Why an in-memory game is safe here**, which is not obvious and is worth
+   * writing down because it is the thing that would break it. Tables live only
+   * in memory, and a hibernating Durable Object loses them. What keeps that from
+   * mattering is the pose stream: every player in the park broadcasts about
+   * seven times a second for as long as their tab is open, so an occupied room
+   * is never idle and never evicted. A room only hibernates once it is empty,
+   * and an empty room has no game worth resuming.
+   *
+   * That does mean the presence traffic is load-bearing for the games. If poses
+   * ever stop while somebody is still connected (a paused tab, a future idle
+   * mode), tables have to be persisted or a Field Notes round will quietly
+   * disappear during its own writing phase.
+   */
+  onAlarm() {
+    const now = Date.now();
+    const before = this.tables;
+
+    this.tables = this.tables.map((table) => tableTimeout(table, now));
+
+    if (this.tables.some((table, at) => table !== before[at])) {
+      this.publishTables();
+    } else {
+      this.scheduleTimeout(now);
+    }
   }
 
   /** Say why, then close. A silent refusal looks like a network fault and the
