@@ -1157,7 +1157,11 @@ test.describe("Highland Park", () => {
     for (const park of ["frick", "schenley", "highland"] as const) {
       setActivePark(park);
 
-      const placed = new Set(scatterSpecies().map((instance) => instance.id));
+      // The party scatter: every species in the data has to be somewhere,
+      // and twelve of them are only placed when there are other people about.
+      const placed = new Set(
+        scatterSpecies(true).map((instance) => instance.id),
+      );
       const claimed = [...PLANTS, ...FUNGI].filter((species) =>
         species.homes.some((home) => home.park === park),
       );

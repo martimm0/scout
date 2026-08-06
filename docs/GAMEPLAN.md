@@ -258,12 +258,48 @@ Three parks are the first three, and Pittsburgh has plenty more.
 Everything above is built and playable. As of the last update:
 
 - 3 parks, 23 areas
-- 49 species: 34 plants and 15 fungi, 10 of them living in more than one park
-- 147 hand-written trivia questions, three for every species
-- 49 photographs, every one licensed and credited
-- 38 badges, 10 accessories, 6 of them earned
+- 61 species: 40 plants and 21 fungi, 10 of them living in more than one park.
+  49 of those are findable alone; the other 12 only come out when there are
+  other people in the park
+- 183 hand-written trivia questions, three for every species
+- 61 photographs, every one licensed and credited
+- 44 badges, 10 accessories, 6 of them earned
 - Played by keyboard and mouse, or by two thumbs on a phone or a tablet
-- 495 tests across Chromium, Firefox, WebKit, and a phone and a tablet
+- 522 tests across Chromium, Firefox, WebKit, and a phone and a tablet
+
+## Garden parties
+
+Three of them, one per park, up to ten pollinators in each. You do not make one:
+a party you have to arrange is a party that never happens. An account is needed,
+because what you find there goes into your own field notes and those belong to
+somebody.
+
+Everything you do alone you can do in company. On top of that:
+
+- **Other bees, actually there.** You see where they are flying and what they are
+  doing, and they see you.
+- **A chat that forgets.** Every line vanishes a minute after it arrives, and
+  nothing is stored anywhere. A garden party is a place you were, not a thread to
+  catch up on.
+- **Proximity voice.** Turn a microphone on and the bees near you can hear you.
+  Fly away and you fade out. Off until you switch it on, every session.
+- **Working a flower together.** Land on a stalk somebody is already on and you
+  work one board between you. A floret matched by either is matched, and the
+  flower takes for both of you or for neither.
+- **Four games** to play with the people you are with: Seed and Sprout, Trellis
+  Four, Leaf Turn and Field Notes. Several can be going at once.
+- **Twelve species you cannot meet alone**, four in each park, and six badges
+  that go with them.
+
+A party does **not** require the park to be unlocked. Being invited somewhere is
+not the same as earning it, and a friend saying "come to Highland" should not be
+met with a locked door.
+
+None of it is competitive, which is the standing rule kept rather than bent. The
+board games are games and somebody wins them, and that is where it stops: no
+badge is awarded for winning, nothing is ranked across players, and the twelve
+party species count towards their own badges rather than being folded into the
+ones you have been working on alone.
 
 ## Deliberately not doing
 

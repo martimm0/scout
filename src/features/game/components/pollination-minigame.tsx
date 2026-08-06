@@ -68,6 +68,7 @@ function MinigameRun({
   const pollinatePlant = useGameStore((state) => state.pollinatePlant);
   const recordAttempt = useGameStore((state) => state.recordPollinationAttempt);
   const recordScore = useGameStore((state) => state.recordMinigameScore);
+  const recordCoop = useGameStore((state) => state.recordCoopPollination);
   const signalPollinationCue = useGameStore(
     (state) => state.signalPollinationCue,
   );
@@ -182,6 +183,12 @@ function MinigameRun({
       if (success) {
         pollinatePlant(plant.id);
         playSound("pollinateSuccess");
+
+        // Worked alongside somebody. Recorded here rather than on the server,
+        // because it is a fact about YOUR afternoon and belongs in your save.
+        if (together) {
+          recordCoop();
+        }
       } else {
         playSound("pollinateFail");
       }
@@ -194,7 +201,15 @@ function MinigameRun({
         ),
       });
     },
-    [plant.id, kind, recordAttempt, recordScore, pollinatePlant, together],
+    [
+      plant.id,
+      kind,
+      recordAttempt,
+      recordScore,
+      pollinatePlant,
+      recordCoop,
+      together,
+    ],
   );
 
   const finishEarly = useCallback(

@@ -95,6 +95,19 @@ export type Plant = {
    * these are simply absent rather than plausibly invented.
    */
   winter?: string;
+  /**
+   * Only findable inside a garden party.
+   *
+   * Kept out of every existing counter by SOLO_PLANTS / SOLO_FUNGI. That is not
+   * tidiness: `plantsIn` feeds the park unlock threshold, so counting these
+   * would push Schenley from eight of Frick's plants to nine for every player
+   * mid-way through the game, over a feature they may never have opened. The
+   * per-park badges would quietly start meaning "and two you cannot reach
+   * alone", and the completionist badge would become unobtainable without
+   * other people. A badge that silently changes what it means is worse than no
+   * badge, and a door that moves is worse than a locked one.
+   */
+  partyOnly?: true;
   archetype: PlantArchetype;
   bloomColor: string;
   leafColor: string;
@@ -715,7 +728,145 @@ export const PLANTS: Plant[] = [
     count: 4,
   },
 
+  /* ---------------------------------------------------------------- *
+   * Garden party plants.
+   *
+   * Only findable with other people in the park. Sourced to the same bar as
+   * everything above: two candidates were cut outright because their articles
+   * carry no ecology at all, and a hook invented to fill the gap is exactly
+   * what rule 1 exists to stop.
+   * ---------------------------------------------------------------- */
+
+  {
+    id: "witch-hazel",
+    commonName: "Witch-hazel",
+    scientificName: "Hamamelis virginiana",
+    homes: [{ park: "frick", area: "fern-hollow" }],
+    bloom: "October to November",
+    window: DAYLIGHT,
+    partyOnly: true,
+    hook: "Flowers when everything else has given up.",
+    fact: "It opens ribbon-shaped yellow petals from late September into November, sometimes December, when the wood has nothing else in flower. Then it waits: the pollinated ovary rests all winter and is not fertilised until about the middle of May, five to seven months later.",
+    pollinatorNote:
+      "Moths work it, which is the point of flowering into the cold when almost nothing else does. It also feeds the caterpillars of sixty-two species.",
+    wikipedia: "https://en.wikipedia.org/wiki/Hamamelis_virginiana",
+    winter:
+      "A dense cluster of stems from the base, with the empty seed capsules still attached after they have fired.",
+    archetype: "shrub",
+    bloomColor: "#e8c33c",
+    leafColor: "#7a8a45",
+    height: 9,
+    count: 4,
+  },
+  {
+    id: "skunk-cabbage",
+    commonName: "Skunk Cabbage",
+    scientificName: "Symplocarpus foetidus",
+    homes: [{ park: "frick", area: "falls-ravine" }],
+    bloom: "February to April",
+    window: DAYLIGHT,
+    partyOnly: true,
+    hook: "Melts its own hole in the ice.",
+    fact: "It is thermogenic: the hood makes enough heat to melt a circle in the ice around itself, and it blooms so early that the flower is often the only thing above the mud. Linnaeus named it foetidus, Latin for bad-smelling, and a bruised leaf earns it.",
+    pollinatorNote:
+      "The female parts ripen before the male ones on the same flower, which is a plant going to some trouble not to pollinate itself.",
+    wikipedia: "https://en.wikipedia.org/wiki/Symplocarpus_foetidus",
+    archetype: "low",
+    bloomColor: "#6b3f52",
+    leafColor: "#4e7a3f",
+    height: 1.4,
+    count: 6,
+  },
+  {
+    id: "foxglove-beardtongue",
+    commonName: "Foxglove Beardtongue",
+    scientificName: "Penstemon digitalis",
+    homes: [{ park: "schenley", area: "junction-hollow" }],
+    bloom: "May to July",
+    window: DAYLIGHT,
+    partyOnly: true,
+    hook: "White tubes with hairy chins.",
+    fact: "Two-lipped white tubes carried on a panicle that runs almost a third of the way down the plant. The outside of each tube is covered in tiny white hairs. It is the most widespread penstemon east of the Mississippi.",
+    pollinatorNote:
+      "A tube is a shape that sorts its visitors: what fits, feeds. It grows in the open, along field edges, wood margins and railroad tracks.",
+    wikipedia: "https://en.wikipedia.org/wiki/Penstemon_digitalis",
+    archetype: "spike",
+    bloomColor: "#f4f1e4",
+    leafColor: "#5f8a52",
+    height: 2.4,
+    count: 5,
+  },
+  {
+    id: "white-turtlehead",
+    commonName: "White Turtlehead",
+    scientificName: "Chelone glabra",
+    homes: [{ park: "schenley", area: "phipps-run" }],
+    bloom: "August to September",
+    window: DAYLIGHT,
+    partyOnly: true,
+    hook: "A flower shaped like a tortoise's head.",
+    fact: "The petals really do close into the shape of a tortoise's head, and the name says so twice: chelone is Greek for tortoise, after a nymph who would not come to Zeus's wedding and was turned into one for it.",
+    pollinatorNote:
+      "It is the plant the Baltimore checkerspot lays its eggs on, mostly to the exclusion of anything else.",
+    wikipedia: "https://en.wikipedia.org/wiki/Chelone_glabra",
+    archetype: "spike",
+    bloomColor: "#f2ede0",
+    leafColor: "#4f7a46",
+    height: 2.2,
+    count: 5,
+  },
+  {
+    id: "new-york-ironweed",
+    commonName: "New York Ironweed",
+    scientificName: "Vernonia noveboracensis",
+    homes: [{ park: "highland", area: "riverside-flats" }],
+    bloom: "August to September",
+    window: DAYLIGHT,
+    partyOnly: true,
+    hook: "The deepest purple in the wet meadow.",
+    fact: "It blooms in August in wet ground, and what looks like one purple flower is a crowd of small florets. The seed that follows is an achene in a coat of bristles, built to leave on the wind.",
+    pollinatorNote:
+      "Late, tall and purple in ground that stays damp: it grows fast early in the season and holds its height, which is how it gets a share of the light.",
+    wikipedia: "https://en.wikipedia.org/wiki/Vernonia_noveboracensis",
+    archetype: "daisy",
+    bloomColor: "#7b4a9c",
+    leafColor: "#4d7a44",
+    height: 4.2,
+    count: 5,
+  },
+  {
+    id: "cup-plant",
+    commonName: "Cup Plant",
+    scientificName: "Silphium perfoliatum",
+    homes: [{ park: "highland", area: "allegheny-slope" }],
+    bloom: "July to September",
+    window: DAYLIGHT,
+    partyOnly: true,
+    hook: "Its leaves hold rainwater. Birds drink from it.",
+    fact: "The leaf stalks are winged and fused right around the stem, and the join makes a cup. It fills with rain, and birds come to drink from it. The stem itself is strongly square, four-angled like a mint.",
+    pollinatorNote:
+      "Yellow heads like small sunflowers from midsummer into autumn, worked by bees, butterflies and skippers. The first head opens at the very tip of the main stem, and the side branches follow.",
+    wikipedia: "https://en.wikipedia.org/wiki/Silphium_perfoliatum",
+    archetype: "daisy",
+    bloomColor: "#f0c93f",
+    leafColor: "#5a8746",
+    height: 5.5,
+    count: 4,
+  },
 ];
+
+/**
+ * Everything you can find on your own.
+ *
+ * What every counter in the game has always meant. The park unlock threshold,
+ * the per-park badges and the completionist badge all read this rather than
+ * PLANTS, so adding a garden party species cannot move a door somebody was
+ * walking towards. See `partyOnly`.
+ */
+export const SOLO_PLANTS: Plant[] = PLANTS.filter((plant) => !plant.partyOnly);
+
+/** The other half: only findable with other people in the park. */
+export const PARTY_PLANTS: Plant[] = PLANTS.filter((plant) => plant.partyOnly);
 
 export const PLANTS_BY_ID = new Map(PLANTS.map((plant) => [plant.id, plant]));
 

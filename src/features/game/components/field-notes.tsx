@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { useCoarsePointer } from "../hooks/use-media-query";
 import type { Daylight } from "../world/daylight";
 import { fieldNotesFor } from "../world/field-notes";
+import { usePartyStore } from "../state/party-store";
 import type { Park } from "../world/park";
 import type { Weather } from "../world/weather";
 import styles from "./field-notes.module.css";
@@ -50,6 +51,7 @@ export function FieldNotes({
   const notes = useMemo(
     () =>
       fieldNotesFor({
+        inParty: usePartyStore.getState().status === "in",
         park,
         daylight,
         month,

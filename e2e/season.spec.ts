@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-import { FUNGI } from "../src/features/game/data/fungi";
-import { PLANTS } from "../src/features/game/data/plants";
+import { FUNGI, SOLO_FUNGI } from "../src/features/game/data/fungi";
+import { PLANTS, SOLO_PLANTS } from "../src/features/game/data/plants";
 import {
   enterGame,
   flyToPlant,
@@ -231,8 +231,14 @@ test.describe("a park can always be finished, whatever the month", () => {
   };
 
   test("every plant in every park is findable in every month", () => {
+    /**
+     * SOLO_PLANTS, because this is the promise made to somebody playing alone:
+     * a park can be finished whatever month you arrive in. The twelve party
+     * species keep the same promise inside a party, and the scatter test in
+     * `party-species.spec.ts` is what holds them to it.
+     */
     for (const park of ["frick", "schenley", "highland"] as const) {
-      const total = PLANTS.filter((plant) =>
+      const total = SOLO_PLANTS.filter((plant) =>
         plant.homes.some((home) => home.park === park),
       ).length;
 
@@ -310,7 +316,9 @@ test.describe("a park can always be finished, whatever the month", () => {
       }
     }
 
-    const missing = FUNGI.filter((fungus) => !reachable.has(fungus.id));
+    // SOLO_FUNGI: the badge this protects counts the species you can find on
+    // your own. The party fungi have their own badges and their own scatter.
+    const missing = SOLO_FUNGI.filter((fungus) => !reachable.has(fungus.id));
 
     expect(
       missing.map((fungus) => `${fungus.id} (${fungus.season})`),

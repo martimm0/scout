@@ -4,6 +4,7 @@
 // Generated from the Wikimedia Commons API - edit with care.
 
 import { FUNGUS_PHOTOS } from "./fungus-photos";
+import { PARTY_PHOTOS } from "./party-photos";
 import { HIGHLAND_PHOTOS } from "./highland-photos";
 import { SCHENLEY_PHOTOS } from "./schenley-photos";
 
@@ -158,6 +159,7 @@ export function photoFor(id: string): PlantPhoto | undefined {
   return (
     PLANT_PHOTOS[id] ??
     FUNGUS_PHOTOS[id] ??
+    PARTY_PHOTOS[id] ??
     SCHENLEY_PHOTOS[id] ??
     HIGHLAND_PHOTOS[id]
   );

@@ -28,3 +28,24 @@ no other modifications were made. Attribution is reproduced here to satisfy the 
 - **CC BY-SA** images (share-alike) require that any modified version of the *image itself* be released
   under the same license. Using them unmodified inside the game, with the credit above, is fine.
 - **CC0 / Public domain** images carry no attribution requirement; they are credited here anyway.
+
+
+## Garden party species
+
+Only findable with other people in the park. Same licence bar as everything
+above, checked against the Commons API rather than against an earlier note.
+
+| Species | Latin | File | Author | License | Source |
+| --- | --- | --- | --- | --- | --- |
+| Witch-hazel | _Hamamelis virginiana_ | `plants/witch-hazel.jpg` | H. Zell | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0) | [Commons file page](https://commons.wikimedia.org/wiki/File:Hamamelis_virginiana_03.JPG) |
+| Skunk Cabbage | _Symplocarpus foetidus_ | `plants/skunk-cabbage.jpg` | Cbaile19 | [CC0](http://creativecommons.org/publicdomain/zero/1.0/deed.en) | [Commons file page](https://commons.wikimedia.org/wiki/File:Symplocarpus_foetidus%2C_2023-04-07%2C_Trillium_Trail%2C_01.jpg) |
+| Foxglove Beardtongue | _Penstemon digitalis_ | `plants/foxglove-beardtongue.jpg` | Cbaile19 | [CC0](http://creativecommons.org/publicdomain/zero/1.0/deed.en) | [Commons file page](https://commons.wikimedia.org/wiki/File:Penstemon_digitalis%2C_2023-06-10%2C_South_Side%2C_01.jpg) |
+| White Turtlehead | _Chelone glabra_ | `plants/white-turtlehead.jpg` | User:SB_Johnny | [CC BY-SA 3.0](http://creativecommons.org/licenses/by-sa/3.0/) | [Commons file page](https://commons.wikimedia.org/wiki/File:Chelone_glabra_001.JPG) |
+| New York Ironweed | _Vernonia noveboracensis_ | `plants/new-york-ironweed.jpg` | Krzysztof Ziarnek, Kenraiz | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) | [Commons file page](https://commons.wikimedia.org/wiki/File:Vernonia_noveboracensis_kz2.jpg) |
+| Cup Plant | _Silphium perfoliatum_ | `plants/cup-plant.jpg` | Krzysztof Ziarnek, Kenraiz | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) | [Commons file page](https://commons.wikimedia.org/wiki/File:Silphium_perfoliatum_kz01.jpg) |
+| Lion's Mane | _Hericium erinaceus_ | `fungi/lions-mane.jpg` | Alex | [CC0](http://creativecommons.org/publicdomain/zero/1.0/deed.en) | [Commons file page](https://commons.wikimedia.org/wiki/File:Hericium_erinaceus_102127376.jpg) |
+| Dead Man's Fingers | _Xylaria polymorpha_ | `fungi/dead-mans-fingers.jpg` | Michael Gäbler | [CC BY 3.0](https://creativecommons.org/licenses/by/3.0) | [Commons file page](https://commons.wikimedia.org/wiki/File:Dead_man%27s_fingers_Xylaria_polymorpha.jpg) |
+| Crown-tipped Coral | _Artomyces pyxidatus_ | `fungi/crown-tipped-coral.jpg` | Tijs Vanlaere | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) | [Commons file page](https://commons.wikimedia.org/wiki/File:Artomyces_pyxidatus_2.jpg) |
+| Bleeding Fairy Helmet | _Mycena haematopus_ | `fungi/bleeding-fairy-helmet.jpg` | Stu's Images | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) | [Commons file page](https://commons.wikimedia.org/wiki/File:Mycena_haematopus%2C_Burgundydrop_Bonnet.jpg) |
+| Hemlock Varnish Shelf | _Ganoderma tsugae_ | `fungi/hemlock-varnish-shelf.jpg` | RattBoy | [CC BY-SA 3.0](http://creativecommons.org/licenses/by-sa/3.0/) | [Commons file page](https://commons.wikimedia.org/wiki/File:Ganoderma_tsugae.jpg) |
+| Scarlet Elf Cup | _Sarcoscypha austriaca_ | `fungi/scarlet-elf-cup.jpg` | Holger Krisp | [CC BY 3.0](https://creativecommons.org/licenses/by/3.0) | [Commons file page](https://commons.wikimedia.org/wiki/File:Sarcoscypha_austriaca_1.jpg) |

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { accessoryUnlocked } from "../data/accessories";
 import type { Accessory } from "../models/species";
-import { PLANTS, PLANTS_BY_ID } from "../data/plants";
+import { PLANTS_BY_ID, SOLO_PLANTS } from "../data/plants";
 import { isInSeason, seasonWindow } from "../world/season";
 import { PARKS, PARK_LIST, setActivePark, type ParkId } from "../world/terrain";
 import { createJSONStorage, persist } from "zustand/middleware";
@@ -133,6 +133,13 @@ export type GameState = {
    * real calendar. See `world/winter.ts`.
    */
   winterKnown: BooleanRecord;
+  /**
+   * You worked a flower alongside somebody else and it took.
+   *
+   * A flag rather than a count, because it marks a thing that happened rather
+   * than a tally to grow, and there is no leaderboard for a number to feed.
+   */
+  coopPollinated: boolean;
   pollinatedPlants: BooleanRecord;
   unlockedMapAreas: BooleanRecord;
   /** The park you are flying. Not progress: just where you are. */
@@ -209,6 +216,8 @@ export type GameActions = {
   seeWeather: (moments: string[]) => void;
   /** Named from its winter form. Monotonic, like every other discovery. */
   recordWinterId: (plantId: string) => void;
+  /** Monotonic, like every other discovery: it happened or it has not yet. */
+  recordCoopPollination: () => void;
   startWinterId: (ref: SpeciesRef) => void;
   endWinterId: () => void;
   toggleRaincoat: () => void;
@@ -345,8 +354,20 @@ export function canPollinate(
  * Schenley, Schenley opens Highland) is declared next to the parks rather than
  * hard-coded here. Adding a fourth park is a data change.
  */
+/**
+ * The plants of a park that count towards unlocking the next one.
+ *
+ * SOLO_PLANTS, not PLANTS. Frick has sixteen and Schenley opens at half of
+ * them, so counting the two garden party species would push that to nine for
+ * every player mid-way through the game: a door they were walking towards
+ * moving further away, over a feature they may never have opened. And party
+ * plants would count towards satisfying it, so the second park could open
+ * without the first being half-learned.
+ */
 export function plantsIn(park: ParkId) {
-  return PLANTS.filter((plant) => plant.homes.some((home) => home.park === park));
+  return SOLO_PLANTS.filter((plant) =>
+    plant.homes.some((home) => home.park === park),
+  );
 }
 
 export function plantsFoundIn(discovered: BooleanRecord, park: ParkId) {
@@ -419,6 +440,7 @@ const initialProgress = {
   seenSeasons: {},
   seenWeather: {},
   winterKnown: {},
+  coopPollinated: false,
   pollinatedPlants: {},
   currentPark: "frick" as ParkId,
   // Frick is where you start. Schenley has to be earned.
@@ -726,6 +748,9 @@ export const useGameStore = create<GameStore>()(
       return { seenWeather };
     }),
 
+  recordCoopPollination: () =>
+    set((state) => (state.coopPollinated ? state : { coopPollinated: true })),
+
   startWinterId: (ref) =>
     set((state) => ({ ui: { ...state.ui, winterId: ref, landedOn: null } })),
 
@@ -866,6 +891,7 @@ export const useGameStore = create<GameStore>()(
         seenSeasons: state.seenSeasons,
         seenWeather: state.seenWeather,
         winterKnown: state.winterKnown,
+        coopPollinated: state.coopPollinated,
         pollinatedPlants: state.pollinatedPlants,
         unlockedMapAreas: state.unlockedMapAreas,
         unlockedParks: state.unlockedParks,

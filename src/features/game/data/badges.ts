@@ -3,8 +3,8 @@ import { winterStanding } from "../world/winter";
 import { parkUnlocked } from "../state/game-store";
 import { PARKS } from "../world/terrain";
 import { allAreas } from "../world/park";
-import { FUNGI } from "./fungi";
-import { PLANTS } from "./plants";
+import { PARTY_FUNGI, SOLO_FUNGI } from "./fungi";
+import { PARTY_PLANTS, SOLO_PLANTS } from "./plants";
 
 const FRICK_AREAS = allAreas(PARKS.frick).map((area) => area.id);
 const SCHENLEY_AREAS = allAreas(PARKS.schenley).map((area) => area.id);
@@ -40,9 +40,23 @@ const count = (record: Record<string, boolean>) =>
  * parks would satisfy between them without either being finished. A badge that
  * silently changes what it means is worse than no badge.
  */
+/**
+ * SOLO_PLANTS and SOLO_FUNGI, not the full lists.
+ *
+ * "Every plant in Frick" must go on meaning what it meant before garden parties
+ * existed. Counting the party species would quietly turn it into "every plant in
+ * Frick, plus two you can only reach with other people", which is exactly the
+ * thing the note above warns about.
+ */
+/** The party-only species of a park. The mirror of `speciesOf`. */
+const partyOf = (park: "frick" | "schenley" | "highland") => ({
+  plants: PARTY_PLANTS.filter((p) => p.homes.some((h) => h.park === park)),
+  fungi: PARTY_FUNGI.filter((f) => f.homes.some((h) => h.park === park)),
+});
+
 const speciesOf = (park: "frick" | "schenley" | "highland") => ({
-  plants: PLANTS.filter((p) => p.homes.some((h) => h.park === park)),
-  fungi: FUNGI.filter((f) => f.homes.some((h) => h.park === park)),
+  plants: SOLO_PLANTS.filter((p) => p.homes.some((h) => h.park === park)),
+  fungi: SOLO_FUNGI.filter((f) => f.homes.some((h) => h.park === park)),
 });
 
 const foundAll = (
@@ -304,8 +318,10 @@ export const BADGES: Badge[] = [
     description: "Every plant and every fungus in all three parks. All of it.",
     hint: "Everything. Everywhere. All of them.",
     earned: (state) =>
-      foundAll(state.discoveredPlants, PLANTS) &&
-      foundAll(state.discoveredFungi, FUNGI),
+      // Solo lists: the completionist badge would otherwise be unobtainable
+      // without other people, which is not what it has ever promised.
+      foundAll(state.discoveredPlants, SOLO_PLANTS) &&
+      foundAll(state.discoveredFungi, SOLO_FUNGI),
   },
   {
     id: "third-park",
@@ -355,6 +371,74 @@ export const BADGES: Badge[] = [
       Object.keys(state.unlockedJournalEntries).filter(
         (key) => key.startsWith("concept:") && state.unlockedJournalEntries[key],
       ).length >= 9,
+  },
+  /* ---------------------------------------------------------------- *
+   * Garden parties.
+   *
+   * These mark what you have seen and learned with other people in the park,
+   * and like every other badge here they are not competitive: nothing counts
+   * somebody else's play against yours, and nothing is awarded for winning a
+   * party game. The games are what you do while you are there, not a thing to
+   * be ranked at.
+   * ---------------------------------------------------------------- */
+  {
+    id: "garden-party",
+    name: "Garden Party",
+    description: "You flew a park with other people in it.",
+    hint: "Some things only grow where there is somebody to see them.",
+    // Derived rather than stored: finding one of the twelve IS the evidence
+    // you were in a party, because there is no other way to meet one.
+    earned: (state) =>
+      PARTY_PLANTS.some((plant) => state.discoveredPlants[plant.id]) ||
+      PARTY_FUNGI.some((fungus) => state.discoveredFungi[fungus.id]),
+  },
+  {
+    id: "worked-together",
+    name: "Worked It Together",
+    description:
+      "You and somebody else worked the same flower, and it took for both of you.",
+    hint: "Land on a flower a friend is already standing on.",
+    earned: (state) => Boolean(state.coopPollinated),
+  },
+  {
+    id: "party-frick",
+    name: "Frick, With Company",
+    description:
+      "Witch-hazel, skunk cabbage, lion's mane and dead man's fingers. All four.",
+    hint: "Frick keeps four things back for people who bring a friend.",
+    earned: (state) =>
+      foundAll(state.discoveredPlants, partyOf("frick").plants) &&
+      foundAll(state.discoveredFungi, partyOf("frick").fungi),
+  },
+  {
+    id: "party-schenley",
+    name: "Schenley, With Company",
+    description:
+      "Foxglove beardtongue, white turtlehead, crown-tipped coral and the bleeding fairy helmet.",
+    hint: "Panther Hollow has more in it than you can find alone.",
+    earned: (state) =>
+      foundAll(state.discoveredPlants, partyOf("schenley").plants) &&
+      foundAll(state.discoveredFungi, partyOf("schenley").fungi),
+  },
+  {
+    id: "party-highland",
+    name: "Highland, With Company",
+    description:
+      "New York ironweed, cup plant, hemlock varnish shelf and the scarlet elf cup.",
+    hint: "The reservoir keeps four of its own.",
+    earned: (state) =>
+      foundAll(state.discoveredPlants, partyOf("highland").plants) &&
+      foundAll(state.discoveredFungi, partyOf("highland").fungi),
+  },
+  {
+    id: "party-all",
+    name: "Nobody Finds This Alone",
+    description:
+      "All twelve species that only come out when there are other people in the park.",
+    hint: "Twelve of them, across three parks, and not one on your own.",
+    earned: (state) =>
+      foundAll(state.discoveredPlants, PARTY_PLANTS) &&
+      foundAll(state.discoveredFungi, PARTY_FUNGI),
   },
 ];
 

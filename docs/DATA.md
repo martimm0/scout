@@ -569,12 +569,41 @@ from the save, and the one soft goal from an unearned badge's own `hint`. It rea
 data and writes strings; it never sets a quota and never scolds, which is a
 content rule as much as a code one.
 
+## Species you can only meet in company
+
+Twelve of them, four per park, marked `partyOnly: true` on the record. The data
+is otherwise identical to every other species: sourced facts, a licensed
+photograph, three hand-written questions. Two candidates were dropped during
+sourcing because their articles carry no ecology at all, which is rule 1 doing
+its job rather than a gap to fill in later.
+
+**The important part is what they must not change.** Adding species to a game
+that counts species is the kind of edit that breaks something quietly and
+somewhere else, so `SOLO_PLANTS` and `SOLO_FUNGI` exist and four counters read
+them:
+
+| Counter | Why it must stay solo |
+| --- | --- |
+| `plantsIn` (the park unlock ladder) | Frick has sixteen plants you can find alone and Schenley opens at half of them. Counting the party plants makes that nine, so a door somebody was walking towards moves further away, over a feature they may never have opened. |
+| `speciesOf` (the per-park badges) | "Every plant in Frick" has to go on meaning what it meant before parties existed. |
+| `both-parks` (the completionist badge) | Otherwise it becomes unobtainable without other people. |
+| The counts in GAMEPLAN.md | Said as two numbers now, because one would be a lie in both directions. |
+
+`party-species.spec.ts` pins those as NUMBERS rather than asserting the badges
+still exist, and a separate test compares the scatter with and without the party
+species position by position: adding them must move nothing that was already
+there, because the world is deterministic and people learn where things are.
+
+The scatter takes a flag (`scatterSpecies(withParty)`), off by default, so every
+solo caller and every existing test keeps the park it already had.
+
 ## Adding things
 
 **A species:** add the record with its `homes`, source a licensed photograph and
 add it to the credits table and the photo record, write three trivia questions,
 and run the probe that asserts every species a park claims actually exists in the
-world. That last one matters: species have twice been left in the data and
+world. If it is party-only, set `partyOnly: true` and check the four counters
+above rather than assuming they do not care. That last one matters: species have twice been left in the data and
 nowhere on the ground, which is a journal entry nobody can fill and a badge
 nobody can earn.
 

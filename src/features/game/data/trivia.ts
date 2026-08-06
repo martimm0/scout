@@ -1826,6 +1826,466 @@ export const TRIVIA: Record<string, Question[]> = {
         "Older names blamed witches. A gate that suddenly grows orange jelly overnight is an unsettling thing if you do not know about Peniophora, and nobody did.",
     },
   ],
+  /* ------------------------------------------------------------------ *
+   * The garden party species.
+   *
+   * Same rule as everything above: the answer and the explanation both come
+   * from the species' own article, and the wrong answers are things a person
+   * might reasonably believe rather than jokes.
+   * ------------------------------------------------------------------ */
+
+  "witch-hazel": [
+    {
+      ask: "When does witch-hazel flower?",
+      options: [
+        "Late autumn, sometimes into December",
+        "Early spring, before the leaves",
+        "Midsummer, with everything else",
+        "It flowers twice, spring and autumn",
+      ],
+      answer: 0,
+      because:
+        "It opens from late September into November and occasionally December, which is why moths are the ones working it. Its relative Hamamelis vernalis is the one that waits for winter.",
+    },
+    {
+      ask: "A witch-hazel flower is pollinated in November. When is the ovary actually fertilised?",
+      options: [
+        "About the middle of May, five to seven months later",
+        "Within a few days, like most flowers",
+        "The following November, a full year later",
+        "It is not, and the flower drops",
+      ],
+      answer: 0,
+      because:
+        "The pollinated ovary rests through the winter and is not fertilised until around mid-May. Almost nothing else in the park waits half a year between the two.",
+    },
+    {
+      ask: "What does the seed capsule do when it is ripe?",
+      options: [
+        "Splits and fires the seeds up to ten metres",
+        "Splits open and drops them straight down",
+        "Rots away over the winter",
+        "Is carried off whole by birds",
+      ],
+      answer: 0,
+      because:
+        "The woody capsule dries and splits explosively a year after pollination, throwing two shiny black seeds as far as ten metres from the parent.",
+    },
+  ],
+
+  "skunk-cabbage": [
+    {
+      ask: "Skunk cabbage does something almost no other plant here can. What?",
+      options: [
+        "It makes its own heat and melts the ice around it",
+        "It flowers underwater",
+        "It moves to follow the sun",
+        "It grows an entire leaf overnight",
+      ],
+      answer: 0,
+      because:
+        "It is thermogenic. The hood generates enough warmth to melt a circle in the surrounding ice, which is how it can be in flower while the ground is still frozen.",
+    },
+    {
+      ask: "Why does the flower smell the way it does?",
+      options: [
+        "The smell is the point, and Linnaeus named it for it",
+        "It is a sign the plant is rotting",
+        "Only bruised leaves smell, never the flower",
+        "It smells of honey, and the name is a joke",
+      ],
+      answer: 0,
+      because:
+        "Linnaeus gave it the species name foetidus, Latin for bad-smelling. The odour strengthens as the plant matures, and bruised leaves smell of skunk.",
+    },
+    {
+      ask: "Its flowers are protogynous. What does that mean?",
+      options: [
+        "The female parts ripen before the male ones",
+        "The flower opens only at night",
+        "Each flower lives a single day",
+        "The plant has separate male and female stalks",
+      ],
+      answer: 0,
+      because:
+        "The pistils mature before the stamens on the same flower, which is a plant going to some trouble not to pollinate itself.",
+    },
+  ],
+
+  "foxglove-beardtongue": [
+    {
+      ask: "What is unusual about the outside of the flower tube?",
+      options: [
+        "It is covered in tiny white hairs",
+        "It is sticky enough to trap small insects",
+        "It changes colour after it is pollinated",
+        "It is completely transparent",
+      ],
+      answer: 0,
+      because:
+        "The two-lipped white tubes carry fine white hairs on the outside. It is one of the details that separates it from the other penstemons.",
+    },
+    {
+      ask: "Where would you expect to find it growing?",
+      options: [
+        "Open ground: meadows, field edges, along railroad tracks",
+        "Deep shade under closed canopy",
+        "Standing water at the edge of a pond",
+        "Bare rock faces",
+      ],
+      answer: 0,
+      because:
+        "It wants moist soil and full sun, and turns up in meadows, prairies, fields, wood margins and along railroad tracks. Junction Hollow suits it exactly.",
+    },
+    {
+      ask: "How widespread is it?",
+      options: [
+        "The most widespread penstemon east of the Mississippi",
+        "Found only in western Pennsylvania",
+        "A garden escape, not native anywhere here",
+        "Rare enough to be legally protected",
+      ],
+      answer: 0,
+      because:
+        "Of all the penstemons east of the Mississippi, this is the one you are most likely to meet.",
+    },
+  ],
+
+  "white-turtlehead": [
+    {
+      ask: "Where does the name come from?",
+      options: [
+        "The petals close into the shape of a tortoise's head",
+        "The seeds are shaped like tiny shells",
+        "It grows where turtles bask",
+        "The leaves are patterned like a shell",
+      ],
+      answer: 0,
+      because:
+        "The flower really does look like a tortoise's head, and the name says so twice over: chelone is Greek for tortoise.",
+    },
+    {
+      ask: "Chelone was a nymph in Greek myth. What happened to her?",
+      options: [
+        "She skipped Zeus's wedding and was turned into a turtle",
+        "She was turned into a flower by Apollo",
+        "She guarded a spring and was turned to stone",
+        "Nothing; the name is purely descriptive",
+      ],
+      answer: 0,
+      because:
+        "She refused to attend the wedding of Zeus and was turned into a turtle for it, which is how a plant in Pittsburgh ended up named after a punishment.",
+    },
+    {
+      ask: "Which butterfly depends on it?",
+      options: [
+        "The Baltimore checkerspot",
+        "The monarch",
+        "The eastern tiger swallowtail",
+        "The mourning cloak",
+      ],
+      answer: 0,
+      because:
+        "It is the primary plant the Baltimore checkerspot lays its eggs on. No turtlehead, far fewer checkerspots.",
+    },
+  ],
+
+  "new-york-ironweed": [
+    {
+      ask: "What is that single purple flower head actually made of?",
+      options: [
+        "A crowd of small florets",
+        "One large flower with fused petals",
+        "A flower and its own leaf bract",
+        "Two flowers of different sexes",
+      ],
+      answer: 0,
+      because:
+        "Like the rest of the daisy family, what reads as one flower is a crowd of small florets packed together.",
+    },
+    {
+      ask: "How does its seed travel?",
+      options: [
+        "On the wind, in a coat of bristles",
+        "Inside berries eaten by birds",
+        "It is flung out when the pod dries",
+        "It simply drops at the base",
+      ],
+      answer: 0,
+      because:
+        "The seed is an achene covered in bristles, which is a seed built to be carried off by the wind.",
+    },
+    {
+      ask: "What kind of ground does it want?",
+      options: [
+        "Wetlands and moist soil",
+        "Dry sandy banks",
+        "Deep shade under conifers",
+        "Disturbed gravel and roadsides",
+      ],
+      answer: 0,
+      because:
+        "It blooms in August in wetlands and damp soil, which is why the riverside flats suit it and a dry hilltop does not.",
+    },
+  ],
+
+  "cup-plant": [
+    {
+      ask: "Where does the cup in cup plant come from?",
+      options: [
+        "The leaf stalks fuse around the stem and hold rainwater",
+        "The flower head fills with nectar",
+        "The root forms a hollow bowl",
+        "The seed pods are cup-shaped",
+      ],
+      answer: 0,
+      because:
+        "The leaf stalks are winged and fused right around the stem, and the join makes a cup that fills with rain.",
+    },
+    {
+      ask: "What drinks from those cups?",
+      options: ["Birds", "Deer", "Nothing; it is only rainwater", "Foxes"],
+      answer: 0,
+      because:
+        "Birds come to the water collected in the cups along the stems, as well as for the seeds.",
+    },
+    {
+      ask: "What shape is the stem?",
+      options: [
+        "Strongly square, four-angled like a mint",
+        "Perfectly round",
+        "Flattened like a ribbon",
+        "Triangular, like a sedge",
+      ],
+      answer: 0,
+      because:
+        "It is stout and strongly four-angled. A square stem in your fingers is a useful thing to notice on a plant this tall.",
+    },
+  ],
+
+  "lions-mane": [
+    {
+      ask: "What does lion's mane have instead of gills?",
+      options: [
+        "Hanging spines, a centimetre or more long",
+        "Pores, like a bracket fungus",
+        "Folded ridges running down the stem",
+        "Nothing; the spores form inside",
+      ],
+      answer: 0,
+      because:
+        "It is a single clump of crowded, dangling white spines, and the spores are made on the spines themselves.",
+    },
+    {
+      ask: "How long can one dead tree keep producing them?",
+      options: ["About twenty years", "A single season", "Two or three years", "A century"],
+      answer: 0,
+      because:
+        "It can fruit intermittently for twenty years on the same dead tree, which is a fungus that has settled in rather than passed through.",
+    },
+    {
+      ask: "Is it edible?",
+      options: [
+        "Yes, and it is used in traditional Chinese medicine",
+        "No, it is dangerously toxic",
+        "Only after long boiling",
+        "Nobody has ever established it",
+      ],
+      answer: 0,
+      because:
+        "It is an edible mushroom with a long history in traditional Chinese medicine. As ever, identification is the hard part, not the cooking.",
+    },
+  ],
+
+  "dead-mans-fingers": [
+    {
+      ask: "Where does dead man's fingers grow?",
+      options: [
+        "From the base of rotting or injured stumps",
+        "On living bark, high up",
+        "In open grass, away from trees",
+        "Only on fallen conifer needles",
+      ],
+      answer: 0,
+      because:
+        "It pushes out of the bases of rotting or injured stumps and decaying wood, which is why it looks like something reaching up out of the ground.",
+    },
+    {
+      ask: "How long does it take to release its spores?",
+      options: [
+        "Months, a few at a time",
+        "A single puff when it is knocked",
+        "One night, all at once",
+        "It does not release spores at all",
+      ],
+      answer: 0,
+      because:
+        "The spores are discharged over a lengthy period, sometimes several months. It is a very slow way to do it, and it works well enough for something living in a stump.",
+    },
+    {
+      ask: "What happens to it in spring?",
+      options: [
+        "It grows a layer of white or bluish spores on its surface",
+        "It turns bright orange",
+        "It softens and collapses",
+        "It flowers",
+      ],
+      answer: 0,
+      because:
+        "In spring it produces a layer of white or bluish asexual spores called conidia across its surface, which is the one time of year it is not simply black.",
+    },
+  ],
+
+  "crown-tipped-coral": [
+    {
+      ask: "Why is it called crown-tipped?",
+      options: [
+        "Each branch ends in a ring of small points",
+        "It grows in a circle, like a crown on the ground",
+        "The colour is regal purple",
+        "It was named after a person called Crown",
+      ],
+      answer: 0,
+      because:
+        "The tips of the branches finish in a crown of tiny points, which is the detail that separates it from the other coral fungi.",
+    },
+    {
+      ask: "Where on this fungus are the spores made?",
+      options: [
+        "All over the surfaces of the branches",
+        "In gills underneath a cap",
+        "Inside a sealed sac at the base",
+        "In pores at the branch tips only",
+      ],
+      answer: 0,
+      because:
+        "It has no cap and no gills. The basidia and spores form on the branch surfaces, so the whole shape is the spore-bearing surface.",
+    },
+    {
+      ask: "How big does it get?",
+      options: [
+        "Four to ten centimetres tall",
+        "Half a metre across",
+        "A few millimetres, easily missed",
+        "It varies from a centimetre to a metre",
+      ],
+      answer: 0,
+      because:
+        "The hard, coral-like fruiting bodies reach four to ten centimetres, so it is small enough to walk past and distinctive enough to be certain of.",
+    },
+  ],
+
+  "bleeding-fairy-helmet": [
+    {
+      ask: "What happens when you break the stem?",
+      options: [
+        "Dark red latex wells out of the break",
+        "It snaps cleanly and stays dry",
+        "It releases a cloud of spores",
+        "The whole mushroom collapses",
+      ],
+      answer: 0,
+      because:
+        "It bleeds a dark red latex, which is where both the common name and the scientific one come from: haematopus is Greek for blood-foot.",
+    },
+    {
+      ask: "What else does this mushroom do?",
+      options: [
+        "Both the mushrooms and the mycelium glow",
+        "It changes colour in daylight",
+        "It grows only on the night of a full moon",
+        "It closes up when touched",
+      ],
+      answer: 0,
+      because:
+        "Both the fruit bodies and the mycelium in the wood are strongly bioluminescent, which puts it in a very short list of things in this park that make their own light.",
+    },
+    {
+      ask: "What is it growing on?",
+      options: [
+        "Decaying hardwood, beech especially",
+        "Living tree roots",
+        "Bare soil in the open",
+        "Pine needles and cones",
+      ],
+      answer: 0,
+      because:
+        "It is saprotrophic, clustering on the decaying logs, trunks and stumps of deciduous trees, and it is particularly fond of beech.",
+    },
+  ],
+
+  "hemlock-varnish-shelf": [
+    {
+      ask: "What tree should you be looking at to find one?",
+      options: ["A hemlock", "An oak", "A sycamore", "A black locust"],
+      answer: 0,
+      because:
+        "It grows on conifers and on hemlock above all, so finding one tells you something about the tree it is on.",
+    },
+    {
+      ask: "Why is it called varnish shelf?",
+      options: [
+        "The surface is glossy enough to look lacquered",
+        "It was once used to make varnish",
+        "It smells of turpentine",
+        "It is only found on varnished timber",
+      ],
+      answer: 0,
+      because:
+        "The shelf has a hard, shining surface that genuinely looks as though somebody has varnished it.",
+    },
+    {
+      ask: "Can you eat it?",
+      options: [
+        "It is not poisonous, but it is far too woody to be worth it",
+        "Yes, and it is a choice edible",
+        "No, it is deadly",
+        "Only the spores are edible",
+      ],
+      answer: 0,
+      because:
+        "It is non-poisonous but generally considered inedible because of its solid woody nature. Teas and extracts are made from it, though the medicinal claims are contested.",
+    },
+  ],
+
+  "scarlet-elf-cup": [
+    {
+      ask: "When does the scarlet elf cup fruit?",
+      options: [
+        "Winter and early spring",
+        "High summer",
+        "Only in autumn, with the leaf fall",
+        "All year, without a season",
+      ],
+      answer: 0,
+      because:
+        "It comes up in winter and early spring in damp habitats, which is most of what makes it worth the walk: there is very little else to find.",
+    },
+    {
+      ask: "What is it growing on?",
+      options: [
+        "Fallen dead hardwood among moss and leaf litter",
+        "Living tree bark",
+        "Bare wet soil",
+        "Old fungi from the year before",
+      ],
+      answer: 0,
+      because:
+        "It grows on fallen pieces of dead hardwood among mosses and leaf litter. Alder, willow, maple and locust are all recorded hosts.",
+    },
+    {
+      ask: "Is it edible?",
+      options: [
+        "Generally considered inedible, though not everyone agrees",
+        "A well known choice edible",
+        "Deadly poisonous",
+        "Edible only when cooked twice",
+      ],
+      answer: 0,
+      because:
+        "It is generally considered inedible, although the Norwegian Association for Mycology and Foraging counts it as edible. Where the sources disagree, so does this.",
+    },
+  ],
 };
 
 export function triviaFor(id: string): Question[] {

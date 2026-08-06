@@ -542,7 +542,17 @@ function ScoutScene({
   const flight = speciesFor(selectedPollinator.type).flight;
 
   // Laid out once. Deterministic, so the park is the same park every session.
-  const scattered = useMemo(() => scatterSpecies(), []);
+  /**
+   * The park's flora, including the party-only species when you are in a party.
+   *
+   * Read once at mount rather than subscribed: joining or leaving a party is a
+   * navigation, so the scene is rebuilt anyway, and re-scattering mid-flight
+   * would pop twelve species in or out of the world around a flying bee.
+   */
+  const scattered = useMemo(
+    () => scatterSpecies(usePartyStore.getState().status === "in"),
+    [],
+  );
 
   /**
    * How hard the mushrooms are fruiting, from the last ten days of real rain.

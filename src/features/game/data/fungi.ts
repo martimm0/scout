@@ -40,13 +40,34 @@ export type Fungus = {
   /** Edible, toxic, or deadly. This is a real thing people need to know. */
   edibility: "choice" | "edible" | "inedible" | "toxic" | "deadly";
   wikipedia: string;
+  /**
+   * Only findable inside a garden party.
+   *
+   * Kept out of every existing counter by SOLO_PLANTS / SOLO_FUNGI. That is not
+   * tidiness: `plantsIn` feeds the park unlock threshold, so counting these
+   * would push Schenley from eight of Frick's plants to nine for every player
+   * mid-way through the game, over a feature they may never have opened. The
+   * per-park badges would quietly start meaning "and two you cannot reach
+   * alone", and the completionist badge would become unobtainable without
+   * other people. A badge that silently changes what it means is worse than no
+   * badge, and a door that moves is worse than a locked one.
+   */
+  partyOnly?: true;
   archetype: FungusArchetype;
   capColor: string;
   stemColor: string;
   /** World height in units, before scaling. */
   height: number;
   count: number;
-  /** Fungi that glow. There is exactly one, and it is worth the trip. */
+  /**
+   * Fungi that make their own light.
+   *
+   * This said "there is exactly one" for a long time and there were already two
+   * of them, the jack-o'-lantern and the bitter oyster; the bleeding fairy
+   * helmet makes three. The `foxfire` badge is tied to the bitter oyster by name
+   * rather than to "a glowing fungus", so the count was never load-bearing, but
+   * a comment that is quietly false is worse than no comment.
+   */
   glows?: boolean;
 };
 
@@ -367,7 +388,140 @@ export const FUNGI: Fungus[] = [
     count: 5,
   },
 
+  /* ---------------------------------------------------------------- *
+   * Garden party fungi. Same bar, same reason. `edibility` especially:
+   * people read this and then look at real mushrooms, so where an article
+   * hedges, so does this.
+   * ---------------------------------------------------------------- */
+
+  {
+    id: "lions-mane",
+    commonName: "Lion's Mane",
+    scientificName: "Hericium erinaceus",
+    homes: [{ park: "frick", area: "fern-hollow" }],
+    window: DAY,
+    season: "August to November",
+    partyOnly: true,
+    hook: "A white beard hanging off a dead tree.",
+    fact: "No cap and no gills: it hangs in one clump of crowded white spines, each of them a centimetre or more long, and the spores are made on the spines. A single dead tree can keep fruiting one on and off for twenty years.",
+    roleNote:
+      "It works dead and dying hardwood, and it is patient about it. Twenty years of fruiting from one trunk is a fungus that is not passing through.",
+    edibility: "edible",
+    wikipedia: "https://en.wikipedia.org/wiki/Hericium_erinaceus",
+    archetype: "cluster",
+    capColor: "#f2ead6",
+    stemColor: "#e3d7ba",
+    height: 0.9,
+    count: 4,
+  },
+  {
+    id: "dead-mans-fingers",
+    commonName: "Dead Man's Fingers",
+    scientificName: "Xylaria polymorpha",
+    homes: [{ park: "frick", area: "falls-ravine" }],
+    window: DAY,
+    season: "All year",
+    partyOnly: true,
+    hook: "Black clubs pushing out of a stump.",
+    fact: "Blackened, club-shaped and looking burnt, growing straight out of the base of rotting stumps. In spring it goes over in a bloom of white-blue asexual spores, which is the one time of year it is not black.",
+    roleNote:
+      "It takes months to let its spores go rather than releasing them in a puff, which is a very slow way to do it and works well enough for something living in a stump that is not going anywhere.",
+    edibility: "inedible",
+    wikipedia: "https://en.wikipedia.org/wiki/Xylaria_polymorpha",
+    archetype: "cluster",
+    capColor: "#2f2a26",
+    stemColor: "#3b332c",
+    height: 0.7,
+    count: 5,
+  },
+  {
+    id: "crown-tipped-coral",
+    commonName: "Crown-tipped Coral",
+    scientificName: "Artomyces pyxidatus",
+    homes: [{ park: "schenley", area: "panther-hollow" }],
+    window: DAY,
+    season: "June to September",
+    partyOnly: true,
+    hook: "Coral, growing on a log.",
+    fact: "A hard, branching thing four to ten centimetres tall that looks like sea coral in the wrong place entirely. Each branch ends in a ring of tiny points, like a crown, which is where the name comes from.",
+    roleNote:
+      "It has no gills and no cap. The spores are made all over the surfaces of the branches, so the whole shape is the spore-bearing surface.",
+    edibility: "edible",
+    wikipedia: "https://en.wikipedia.org/wiki/Artomyces_pyxidatus",
+    archetype: "cluster",
+    capColor: "#e6dcae",
+    stemColor: "#d8cb99",
+    height: 0.6,
+    count: 5,
+  },
+  {
+    id: "bleeding-fairy-helmet",
+    commonName: "Bleeding Fairy Helmet",
+    scientificName: "Mycena haematopus",
+    homes: [{ park: "schenley", area: "panther-hollow-lake" }],
+    window: DAY,
+    season: "June to October",
+    partyOnly: true,
+    hook: "Break the stem and it bleeds dark red.",
+    fact: "Snap one and dark red latex wells out of the break, which is where the name comes from twice over: haematopus is Greek for blood-foot. The caps are reddish-brown with a violet cast, scalloped at the edge, with a little beak on top that splits as they age.",
+    roleNote:
+      "It clusters on rotting hardwood, beech especially, eating what is already dead. Both the mushrooms and the mycelium in the wood are strongly bioluminescent.",
+    edibility: "inedible",
+    wikipedia: "https://en.wikipedia.org/wiki/Mycena_haematopus",
+    archetype: "cap",
+    capColor: "#8a4a58",
+    stemColor: "#6d3d44",
+    height: 0.5,
+    count: 6,
+    glows: true,
+  },
+  {
+    id: "hemlock-varnish-shelf",
+    commonName: "Hemlock Varnish Shelf",
+    scientificName: "Ganoderma tsugae",
+    homes: [{ park: "highland", area: "allegheny-slope" }],
+    window: DAY,
+    season: "May to September",
+    partyOnly: true,
+    hook: "Looks lacquered, and only on conifers.",
+    fact: "A shelf with a surface so glossy it looks varnished. It is particular about where it grows: conifers, and hemlock above all, so finding one tells you what tree you are standing on.",
+    roleNote:
+      "It breaks down conifer wood, which is a harder meal than hardwood and has fewer takers.",
+    edibility: "inedible",
+    wikipedia: "https://en.wikipedia.org/wiki/Ganoderma_tsugae",
+    archetype: "shelf",
+    capColor: "#9c3b24",
+    stemColor: "#7d3320",
+    height: 0.6,
+    count: 4,
+  },
+  {
+    id: "scarlet-elf-cup",
+    commonName: "Scarlet Elf Cup",
+    scientificName: "Sarcoscypha austriaca",
+    homes: [{ park: "highland", area: "reservoir-rim" }],
+    window: DAY,
+    season: "January to April",
+    partyOnly: true,
+    hook: "Scarlet cups in the leaf litter, in winter.",
+    fact: "Small scarlet cups sitting in wet moss and leaf litter on fallen hardwood, and they come up in winter and early spring when there is almost nothing else to find. Alder, willow, maple and locust are the wood it likes.",
+    roleNote:
+      "One of the few things fruiting in the cold months, which is most of what makes it worth the walk.",
+    edibility: "inedible",
+    wikipedia: "https://en.wikipedia.org/wiki/Sarcoscypha_austriaca",
+    archetype: "cap",
+    capColor: "#c3352b",
+    stemColor: "#d8cdb4",
+    height: 0.4,
+    count: 6,
+  },
 ];
+
+/** Everything you can find on your own. See SOLO_PLANTS. */
+export const SOLO_FUNGI: Fungus[] = FUNGI.filter((fungus) => !fungus.partyOnly);
+
+/** The other half. See PARTY_PLANTS. */
+export const PARTY_FUNGI: Fungus[] = FUNGI.filter((fungus) => fungus.partyOnly);
 
 export const FUNGI_BY_ID = new Map(FUNGI.map((fungus) => [fungus.id, fungus]));
 

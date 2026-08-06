@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { FUNGI } from "../src/features/game/data/fungi";
+import { SOLO_FUNGI } from "../src/features/game/data/fungi";
 import {
   hasComeUp,
   scatterSpecies,
@@ -131,7 +131,8 @@ test.describe("the fungus flush follows the rain, a few days behind", () => {
       }
     }
 
-    const missing = FUNGI.filter((fungus) => !standing.has(fungus.id));
+    // SOLO_FUNGI: the badge this protects counts what you can find alone.
+    const missing = SOLO_FUNGI.filter((fungus) => !standing.has(fungus.id));
 
     expect(
       missing.map((fungus) => fungus.id),

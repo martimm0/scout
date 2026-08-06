@@ -155,12 +155,28 @@ function place(
   return spots;
 }
 
-export function scatterSpecies(): SpeciesInstance[] {
+/**
+ * Everything growing in the active park.
+ *
+ * `withParty` adds the twelve species that only come up when there are other
+ * people about. Off by default, so every solo caller and every existing test
+ * keeps the park it already had.
+ *
+ * The party species are APPENDED and change nothing else. Each species is
+ * placed from its own area and count, never from its position in the list, so
+ * adding to the end cannot shift a black-eyed susan somebody has already
+ * learned the position of. `party.spec.ts` pins that rather than trusting it.
+ */
+export function scatterSpecies(withParty = false): SpeciesInstance[] {
   const instances: SpeciesInstance[] = [];
 
   const park = activePark().id;
 
   for (const plant of PLANTS) {
+    if (plant.partyOnly && !withParty) {
+      continue;
+    }
+
     // Only the homes in THIS park. A species with no home here simply does not
     // grow here, which is the whole point of two parks with different flora.
     const home = plant.homes.find((entry) => entry.park === park);
@@ -192,6 +208,10 @@ export function scatterSpecies(): SpeciesInstance[] {
   }
 
   for (const fungus of FUNGI) {
+    if (fungus.partyOnly && !withParty) {
+      continue;
+    }
+
     const home = fungus.homes.find((entry) => entry.park === park);
 
     if (!home) {

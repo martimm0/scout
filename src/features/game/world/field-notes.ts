@@ -19,7 +19,7 @@
  */
 
 import { BADGES } from "../data/badges";
-import { PLANTS } from "../data/plants";
+import { PLANTS, SOLO_PLANTS } from "../data/plants";
 import { isActive, type Daylight } from "./daylight";
 import type { Park } from "./park";
 import { isInSeason, seasonFor, seasonWindow } from "./season";
@@ -41,6 +41,15 @@ export type FieldNotesInput = {
   weather: Weather;
   discoveredPlants: Record<string, boolean>;
   unlockedBadges: Record<string, boolean>;
+  /**
+   * Whether the party-only species are in the park with you.
+   *
+   * The card counts what is out there to find, so it has to agree with what was
+   * actually scattered. Counting all the plants regardless told a solo player
+   * there were eighteen flowers here they had not met when only sixteen exist
+   * for them, which is the card promising something the park cannot produce.
+   */
+  inParty?: boolean;
 };
 
 /** The part of the day, worded to read after a season: "Summer morning". */
@@ -64,9 +73,9 @@ function cap(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-/** The plants that grow in this park, in world order. */
-function plantsIn(park: Park) {
-  return PLANTS.filter((plant) =>
+/** The plants that grow in this park and can actually be found right now. */
+function plantsIn(park: Park, inParty: boolean) {
+  return (inParty ? PLANTS : SOLO_PLANTS).filter((plant) =>
     plant.homes.some((home) => home.park === park.id),
   );
 }
@@ -117,6 +126,7 @@ function softGoal(input: FieldNotesInput): FieldNote | undefined {
  */
 export function fieldNotesFor(input: FieldNotesInput): FieldNote[] {
   const { park, daylight, month, weather, discoveredPlants } = input;
+  const inParty = input.inParty ?? false;
   const notes: FieldNote[] = [];
 
   /**
@@ -137,7 +147,7 @@ export function fieldNotesFor(input: FieldNotesInput): FieldNote[] {
     tone: "sky",
   });
 
-  const here = plantsIn(park);
+  const here = plantsIn(park, inParty);
   // In season this month, regardless of the hour; and of those, open right now.
   const inSeason = here.filter((plant) =>
     isInSeason(seasonWindow(plant.bloom), month),
