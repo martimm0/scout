@@ -1,0 +1,24 @@
+{
+  // The room server is a Cloudflare Worker, not a browser and not Node.
+  //
+  // It gets its own project because @cloudflare/workers-types redefines
+  // globals the app also has, and referencing them from one file leaked into
+  // the whole program: the app's own `Response.json()` started resolving to the
+  // Workers signature and an unrelated file stopped compiling. Two runtimes,
+  // two configs.
+  //
+  // Everything else under party/ (the protocol, the game rules) is plain
+  // TypeScript with no runtime globals at all, so it compiles under both and is
+  // shared by the app, the tests and the worker.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["@cloudflare/workers-types"],
+    "moduleResolution": "bundler",
+    "module": "esnext",
+    "noEmit": true,
+    "jsx": "preserve"
+  },
+  "include": ["**/*.ts"],
+  "exclude": []
+}

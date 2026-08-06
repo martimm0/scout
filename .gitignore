@@ -20,3 +20,6 @@ tsconfig.tsbuildinfo
 /.vercel
 .dev.vars
 .partykit
+
+# Wrangler build artifacts and local Durable Object state.
+.wrangler

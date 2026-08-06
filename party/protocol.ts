@@ -166,8 +166,17 @@ export type ServerMessage =
    * private thing between the bees standing on one stalk, not news for the room.
    */
   | { t: "coop"; session: CoopView }
-  /** The room is full or the ticket is bad; the socket closes after this. */
-  | { t: "refused"; reason: "full" | "unauthorized" };
+  /**
+   * The room will not have this socket, and says why before closing.
+   *
+   * `replaced` is the odd one: you are not being turned away, your OTHER tab
+   * is now the one holding your seat. It is a message rather than a bare close
+   * because a close is not reliably delivered — workerd leaves a hibernatable
+   * socket in CLOSING and the far end never hears the handshake finish, so a
+   * replaced tab would sit there believing it was still in the party. Being
+   * told is the guarantee; the close is a courtesy on top of it.
+   */
+  | { t: "refused"; reason: "full" | "unauthorized" | "replaced" };
 
 export function parkOf(party: GardenPartyId): "frick" | "schenley" | "highland" {
   return party.slice("garden-".length) as "frick" | "schenley" | "highland";

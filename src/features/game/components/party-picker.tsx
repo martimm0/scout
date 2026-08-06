@@ -57,7 +57,7 @@ export function PartyPicker() {
         GARDEN_PARTIES.map(async (party) => {
           try {
             const response = await fetch(
-              `${scheme}://${host}/parties/main/${party}`,
+              `${scheme}://${host}/parties/garden/${party}`,
             );
 
             if (response.ok) {

@@ -1,0 +1,26 @@
+{
+  // The garden party room server.
+  //
+  // Not on Vercel with the rest of the game, because a room needs a socket that
+  // outlives a request and serverless functions do not have one. One Durable
+  // Object class, three instances of it, one per park.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "scout-garden",
+  "main": "party/index.ts",
+  "compatibility_date": "2025-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "durable_objects": {
+    "bindings": [{ "name": "Garden", "class_name": "Garden" }]
+  },
+  "migrations": [
+    {
+      // SQLite-backed, which is what puts Durable Objects on the free plan.
+      // This server stores nothing regardless: the class never writes, and the
+      // only thing it asks storage for is an alarm, which is a wake-up rather
+      // than a record.
+      "tag": "v1",
+      "new_sqlite_classes": ["Garden"]
+    }
+  ]
+}

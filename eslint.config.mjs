@@ -5,7 +5,15 @@ const eslintConfig = [
   ...nextVitals,
   ...nextTypescript,
   {
-    ignores: [".next/**", "node_modules/**", "next-env.d.ts"],
+    // `.wrangler` is the Worker's build output and local Durable Object state.
+    // Linting generated bundles produces dozens of warnings about code nobody
+    // wrote and drowns the ones about code somebody did.
+    ignores: [
+      ".next/**",
+      ".wrangler/**",
+      "node_modules/**",
+      "next-env.d.ts",
+    ],
   },
   {
     rules: {

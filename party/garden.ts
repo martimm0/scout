@@ -1,4 +1,10 @@
-import type * as Party from "partykit/server";
+import {
+  Server,
+  type Connection,
+  type ConnectionContext,
+  type Lobby,
+  type WSMessage,
+} from "partyserver";
 import { decode } from "next-auth/jwt";
 
 import {
@@ -65,7 +71,12 @@ const CORS = {
   "Access-Control-Allow-Origin": "*",
 } as const;
 
-export default class Garden implements Party.Server {
+export type Env = {
+  Garden: DurableObjectNamespace<Garden>;
+  AUTH_SECRET: string;
+};
+
+export class Garden extends Server<Env> {
   static options = { hibernate: true };
 
   /**
@@ -99,10 +110,8 @@ export default class Garden implements Party.Server {
   /** How long a finished Field Notes round stays on the board before it goes. */
   private static readonly FINISHED_FOR = 60_000;
 
-  constructor(readonly room: Party.Room) {}
-
   private ensureSeats() {
-    for (const conn of this.room.getConnections<Attachment>()) {
+    for (const conn of this.getConnections<Attachment>()) {
       const state = conn.state;
 
       if (state?.sub && !this.seats.has(state.sub)) {
@@ -119,71 +128,7 @@ export default class Garden implements Party.Server {
     }
   }
 
-  /**
-   * The gate in front of the whole room, HTTP and WebSocket alike.
-   *
-   * Runs in the lobby, BEFORE the room object is addressed, which is the entire
-   * point: a request for `garden-nope` must not bring a room called garden-nope
-   * into existence. Without this, `GET /parties/main/<anything>` answered 200
-   * and span up a Durable Object per made-up name, so an unauthenticated
-   * stranger with a for-loop could mint unbounded rooms on the account. There
-   * are exactly three parties and their names are a closed set, so anything else
-   * is answered here and never reaches a room.
-   *
-   * `onBeforeConnect` still checks the ticket. This one checks the address.
-   */
-  static onBeforeRequest(request: Party.Request, lobby: Party.Lobby) {
-    if (!(GARDEN_PARTIES as readonly string[]).includes(lobby.id)) {
-      return new Response("no such party", { status: 404, headers: CORS });
-    }
-
-    return request;
-  }
-
-  /**
-   * The door. Runs before the socket upgrades.
-   *
-   * The ticket is a short-lived JWT minted by the game's own server at
-   * `/api/party/ticket`, signed with the same AUTH_SECRET the session uses. The
-   * browser cannot read its own session cookie (httpOnly, different host), so
-   * the game hands it a ticket instead. No account, no ticket, no party.
-   */
-  static async onBeforeConnect(request: Party.Request, lobby: Party.Lobby) {
-    if (!(GARDEN_PARTIES as readonly string[]).includes(lobby.id)) {
-      return new Response("no such party", { status: 404 });
-    }
-
-    const ticket = new URL(request.url).searchParams.get("ticket");
-
-    if (!ticket) {
-      return new Response("a garden party needs an account", { status: 401 });
-    }
-
-    try {
-      const token = await decode({
-        token: ticket,
-        secret: lobby.env.AUTH_SECRET as string,
-        salt: "scout-party-ticket",
-      });
-
-      if (!token?.sub || typeof token.name !== "string") {
-        return new Response("bad ticket", { status: 401 });
-      }
-
-      request.headers.set("x-scout-sub", token.sub);
-      request.headers.set("x-scout-name", token.name);
-      request.headers.set(
-        "x-scout-pollinator",
-        typeof token.pollinator === "string" ? token.pollinator : "bee",
-      );
-
-      return request;
-    } catch {
-      return new Response("bad ticket", { status: 401 });
-    }
-  }
-
-  onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
+  onConnect(conn: Connection, ctx: ConnectionContext) {
     this.ensureSeats();
 
     const sub = ctx.request.headers.get("x-scout-sub");
@@ -207,9 +152,13 @@ export default class Garden implements Party.Server {
     const player: PartyPlayer = { sub, name, pollinator };
 
     if (returning) {
-      for (const other of this.room.getConnections<{ sub: string }>()) {
+      for (const other of this.getConnections<Attachment>()) {
         if (other.id !== conn.id && other.state?.sub === sub) {
-          other.close();
+          // TELL it, then close. A bare close leaves workerd's hibernatable
+          // socket in CLOSING and the far end never hears the handshake
+          // finish, so the replaced tab would sit there believing it was
+          // still in the party. The message is the guarantee.
+          this.refuse(other, "replaced");
         }
       }
     }
@@ -230,7 +179,7 @@ export default class Garden implements Party.Server {
     });
 
     if (!returning) {
-      this.broadcast({ t: "join", player }, sub);
+      this.tell({ t: "join", player }, sub);
     }
 
     // Whatever is being played right now, so a joiner can walk up to a table
@@ -238,7 +187,7 @@ export default class Garden implements Party.Server {
     this.send(conn, { t: "tables", tables: this.tables.map(tableView) });
   }
 
-  onMessage(raw: string | ArrayBuffer, conn: Party.Connection<Attachment>) {
+  onMessage(conn: Connection<Attachment>, raw: WSMessage) {
     this.ensureSeats();
 
     const sub = conn.state?.sub;
@@ -276,7 +225,7 @@ export default class Garden implements Party.Server {
           heading: p.heading,
           gesture: typeof p.gesture === "string" ? p.gesture : "none",
         };
-        this.broadcast({ t: "pos", sub, pose: seat.pose }, sub);
+        this.tell({ t: "pos", sub, pose: seat.pose }, sub);
         return;
       }
 
@@ -298,7 +247,7 @@ export default class Garden implements Party.Server {
         seat.recentChat.push(now);
         // To everyone INCLUDING the sender: one code path for drawing a
         // message, and your own line proves the room heard you.
-        this.broadcast({ t: "chat", sub, name: seat.player.name, text });
+        this.tell({ t: "chat", sub, name: seat.player.name, text });
         return;
       }
 
@@ -427,7 +376,7 @@ export default class Garden implements Party.Server {
         // the voices themselves never come through here at all.
         const target = message.to;
 
-        for (const other of this.room.getConnections<{ sub: string }>()) {
+        for (const other of this.getConnections<Attachment>()) {
           if (other.state?.sub === target) {
             this.send(other, { t: "rtc", from: sub, payload: message.payload });
           }
@@ -438,7 +387,7 @@ export default class Garden implements Party.Server {
     }
   }
 
-  onClose(conn: Party.Connection<Attachment>) {
+  onClose(conn: Connection<Attachment>) {
     this.ensureSeats();
 
     const sub = conn.state?.sub;
@@ -448,14 +397,14 @@ export default class Garden implements Party.Server {
     }
 
     // Only vacate the seat if this was the account's last connection.
-    for (const other of this.room.getConnections<{ sub: string }>()) {
+    for (const other of this.getConnections<Attachment>()) {
       if (other.id !== conn.id && other.state?.sub === sub) {
         return;
       }
     }
 
     this.seats.delete(sub);
-    this.broadcast({ t: "leave", sub });
+    this.tell({ t: "leave", sub });
 
     for (const key of [...this.coop.keys()]) {
       this.leaveFlower(sub, key);
@@ -477,7 +426,7 @@ export default class Garden implements Party.Server {
    * picker. Public on purpose: a count of bees is not a secret, and the picker
    * shows it before the player has decided to join.
    */
-  onRequest(request: Party.Request) {
+  onRequest(request: Request) {
     this.ensureSeats();
 
     if (request.method !== "GET") {
@@ -486,7 +435,7 @@ export default class Garden implements Party.Server {
 
     return Response.json(
       {
-        party: this.room.id,
+        party: this.name,
         count: this.seats.size,
         cap: PARTY_CAP,
       },
@@ -540,7 +489,7 @@ export default class Garden implements Party.Server {
       (table) => !tableIsStale(table, now, Garden.FINISHED_FOR),
     );
 
-    this.broadcast({ t: "tables", tables: this.tables.map(tableView) });
+    this.tell({ t: "tables", tables: this.tables.map(tableView) });
     this.scheduleTimeout(now);
   }
 
@@ -562,7 +511,7 @@ export default class Garden implements Party.Server {
       return;
     }
 
-    void this.room.storage.setAlarm(Math.max(now + 250, Math.min(...deadlines)));
+    void this.ctx.storage.setAlarm(Math.max(now + 250, Math.min(...deadlines)));
   }
 
   /**
@@ -612,7 +561,7 @@ export default class Garden implements Party.Server {
 
     const raw = JSON.stringify({ t: "coop", session } satisfies ServerMessage);
 
-    for (const conn of this.room.getConnections<Attachment>()) {
+    for (const conn of this.getConnections<Attachment>()) {
       if (
         conn.state?.sub &&
         session.members.some((member) => member.sub === conn.state!.sub)
@@ -643,19 +592,29 @@ export default class Garden implements Party.Server {
 
   /** Say why, then close. A silent refusal looks like a network fault and the
    *  client would retry it forever. */
-  private refuse(conn: Party.Connection, reason: "full" | "unauthorized") {
+  private refuse(
+    conn: Connection,
+    reason: "full" | "unauthorized" | "replaced",
+  ) {
     this.send(conn, { t: "refused", reason });
     conn.close(4000, reason);
   }
 
-  private send(conn: Party.Connection, message: ServerMessage) {
+  private send(conn: Connection, message: ServerMessage) {
     conn.send(JSON.stringify(message));
   }
 
-  private broadcast(message: ServerMessage, except?: string) {
+  /**
+   * To everybody in the room, or everybody but one.
+   *
+   * Named `tell` rather than `broadcast` because the base class has a
+   * `broadcast` of its own that takes a raw string, and overriding it with a
+   * different shape is how a subclass quietly breaks its parent.
+   */
+  private tell(message: ServerMessage, except?: string) {
     const raw = JSON.stringify(message);
 
-    for (const conn of this.room.getConnections<{ sub: string }>()) {
+    for (const conn of this.getConnections<Attachment>()) {
       if (except === undefined || conn.state?.sub !== except) {
         conn.send(raw);
       }
@@ -667,3 +626,69 @@ export default class Garden implements Party.Server {
  *  seen. The server forgets a message the moment it has finished relaying it,
  *  which is what "messages do not save" means when it is true. */
 export { CHAT_TTL_MS };
+
+/**
+ * The gate in front of the whole room, HTTP and WebSocket alike.
+ *
+ * Runs in the lobby, BEFORE the room object is addressed, which is the entire
+ * point: a request for `garden-nope` must not bring a room called garden-nope
+ * into existence. Without this, `GET /parties/main/<anything>` answered 200
+ * and span up a Durable Object per made-up name, so an unauthenticated
+ * stranger with a for-loop could mint unbounded rooms on the account. There
+ * are exactly three parties and their names are a closed set, so anything else
+ * is answered here and never reaches a room.
+ *
+ * `onBeforeConnect` still checks the ticket. This one checks the address.
+ */
+export function guardRoom(request: Request, lobby: Lobby<Env>) {
+  if (!(GARDEN_PARTIES as readonly string[]).includes(lobby.name)) {
+    return new Response("no such party", { status: 404, headers: CORS });
+  }
+
+  return request;
+}
+
+/**
+ * The door. Runs before the socket upgrades.
+ *
+ * The ticket is a short-lived JWT minted by the game's own server at
+ * `/api/party/ticket`, signed with the same AUTH_SECRET the session uses. The
+ * browser cannot read its own session cookie (httpOnly, different host), so
+ * the game hands it a ticket instead. No account, no ticket, no party.
+ */
+export function guardTicket(env: Env) {
+  return async function checkTicket(request: Request, lobby: Lobby<Env>) {
+    if (!(GARDEN_PARTIES as readonly string[]).includes(lobby.name)) {
+      return new Response("no such party", { status: 404 });
+    }
+
+    const ticket = new URL(request.url).searchParams.get("ticket");
+
+    if (!ticket) {
+      return new Response("a garden party needs an account", { status: 401 });
+    }
+
+    try {
+      const token = await decode({
+        token: ticket,
+        secret: env.AUTH_SECRET,
+        salt: "scout-party-ticket",
+      });
+
+      if (!token?.sub || typeof token.name !== "string") {
+        return new Response("bad ticket", { status: 401 });
+      }
+
+      request.headers.set("x-scout-sub", token.sub);
+      request.headers.set("x-scout-name", token.name);
+      request.headers.set(
+        "x-scout-pollinator",
+        typeof token.pollinator === "string" ? token.pollinator : "bee",
+      );
+
+      return request;
+    } catch {
+      return new Response("bad ticket", { status: 401 });
+    }
+  };
+}

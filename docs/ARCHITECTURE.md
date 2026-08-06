@@ -20,10 +20,18 @@ game IS, see [GAMEPLAN.md](GAMEPLAN.md). For how the data is shaped, see
 - **Zustand** for game state, with `persist` to localStorage.
 - **Auth.js v5** with Google, JWT sessions.
 - **Neon Postgres** via `@vercel/postgres`.
-- **PartyKit** for garden parties, which is the one piece that does not run on
-  Vercel: a room needs a socket that outlives a request, and serverless
-  functions do not have one. It is a second process in development
-  (`npx partykit dev`) and a Cloudflare Durable Object in production.
+- **Cloudflare Workers + Durable Objects** for garden parties, via
+  [`partyserver`](https://github.com/cloudflare/partyserver). This is the one
+  piece that does not run on Vercel: a room needs a socket that outlives a
+  request, and a serverless function does not have one. `wrangler dev --local`
+  in development, a deployed Worker in production.
+
+  It was written against PartyKit's hosted platform first, and that platform is
+  full: `partykit.dev` has hit Cloudflare's limit of 10,000 custom domains per
+  zone, so no new project can be deployed to it. The port cost very little,
+  because everything that matters was already in pure modules — the board
+  rules, the quip state machine, the table transitions, the protocol — and only
+  the shell of `party/garden.ts` had to change.
 - **Web Audio**, synthesized. No audio files.
 - **Playwright** across Chromium, Firefox and WebKit, plus `phone` and `tablet`
   projects with `hasTouch` for the touch controls. Those two are Chromium only,
@@ -570,11 +578,45 @@ passed the whole time; only driving a real browser found it.
 
 ## Deployment
 
-Vercel, plus one Cloudflare worker for the party server (`npx partykit deploy`).
-`NEXT_PUBLIC_PARTYKIT_HOST` tells the browser where that worker is, and it is
-baked in at build time, so it belongs on the app process rather than the test
-process. `AUTH_SECRET` must be set on **both** sides or the tickets one mints
-are refused by the other.
+Vercel for the game, and one Cloudflare Worker for the room server:
+
+```
+npx wrangler deploy
+npx wrangler secret put AUTH_SECRET     # the SAME secret the app signs with
+```
+
+`NEXT_PUBLIC_PARTYKIT_HOST` tells the browser where that Worker is. It is baked
+in at build time, so it belongs on the Vercel project rather than on the Worker
+or the test process, and deliberately NOT in `.env.local`: local development
+should talk to `wrangler dev`, not to production.
+
+`AUTH_SECRET` must match on both sides. It is the only thing making a ticket
+mean anything, and a mismatch does not fail loudly — the app keeps minting
+passes and the room keeps refusing them, so parties simply never open.
+
+### Two TypeScript projects
+
+`party/tsconfig.json` exists because `@cloudflare/workers-types` redefines
+globals the app also has. Referencing them from one file leaked into the whole
+program: the app's own `Response.json()` started resolving to the Workers
+signature and an unrelated file stopped compiling. Two runtimes, two configs,
+and `npm run typecheck` runs both.
+
+Everything else under `party/` is plain TypeScript with no runtime globals, so
+the protocol and the game rules compile under both and are shared by the app,
+the tests and the Worker. That sharing is the point: the client cannot disagree
+with the server about what a legal move is.
+
+### A close is not a delivery
+
+One real behavioural difference between the two runtimes, and it cost a bug.
+One-seat-per-account worked by closing the replaced tab's socket. On workerd a
+hibernatable socket goes to CLOSING and the far end never hears the handshake
+finish, so a replaced tab sat there believing it was still in the party.
+
+Relying on a transport state was the wrong instinct anyway. The room now sends
+`refused: "replaced"` and closes afterwards; being told is the guarantee and the
+close is a courtesy on top of it.
 
 Analytics and Speed Insights are first-party, cookieless, and therefore
 need no consent banner.

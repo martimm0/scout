@@ -144,10 +144,21 @@ export default defineConfig({
       timeout: 120_000,
     },
     {
-      command: `npx partykit dev --port ${PARTY_PORT}`,
+      /**
+       * The room server, as a real Cloudflare Worker.
+       *
+       * `wrangler dev` rather than a mock, because the whole point of the port
+       * was to run on Cloudflare and a stub would prove nothing about Durable
+       * Objects, hibernation or the router.
+       *
+       * `--local` keeps it on this machine: the suite must not need a network
+       * or a Cloudflare account to run, and a run that quietly deployed
+       * somewhere would be a run nobody could repeat.
+       */
+      command: `npx wrangler dev --local --port ${PARTY_PORT}`,
       // Any room answers 404 unless it is one of the three, so the readiness
       // probe asks for a real one.
-      url: `http://${PARTY_HOST}/parties/main/garden-frick`,
+      url: `http://${PARTY_HOST}/parties/garden/garden-frick`,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
     },

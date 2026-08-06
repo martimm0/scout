@@ -94,7 +94,7 @@ async function partyTicket(who: string) {
 
 /** The room's own head-count, read from node rather than from a page. */
 async function roomCount(room: string) {
-  const response = await fetch(`http://${PARTY_HOST}/parties/main/${room}`);
+  const response = await fetch(`http://${PARTY_HOST}/parties/garden/${room}`);
 
   if (!response.ok) {
     return -1;
@@ -106,7 +106,7 @@ async function roomCount(room: string) {
 function headCount(page: Page, party: string) {
   return page.evaluate(
     async ([host, room]) => {
-      const response = await fetch(`http://${host}/parties/main/${room}`);
+      const response = await fetch(`http://${host}/parties/garden/${room}`);
 
       return response.ok
         ? ((await response.json()) as { count: number }).count
@@ -137,7 +137,7 @@ test.describe("garden parties", () => {
     const status = await page.evaluate(async (host) => {
       return new Promise<string>((resolve) => {
         const socket = new WebSocket(
-          `ws://${host}/parties/main/garden-frick`,
+          `ws://${host}/parties/garden/garden-frick`,
         );
 
         socket.addEventListener("open", () => resolve("opened"));
@@ -155,7 +155,7 @@ test.describe("garden parties", () => {
     page,
   }) => {
     /**
-     * `GET /parties/main/<anything>` used to answer 200 and bring a Durable
+     * `GET /parties/garden/<anything>` used to answer 200 and bring a Durable
      * Object into existence for whatever name was asked for, so a stranger with
      * a for-loop could mint unbounded rooms on the account. There are exactly
      * three parties and the names are a closed set.
@@ -164,7 +164,7 @@ test.describe("garden parties", () => {
 
     const codes = await page.evaluate(async (host) => {
       const ask = async (room: string) =>
-        (await fetch(`http://${host}/parties/main/${room}`)).status;
+        (await fetch(`http://${host}/parties/garden/${room}`)).status;
 
       return {
         real: await ask("garden-frick"),
@@ -512,7 +512,7 @@ test.describe("garden parties", () => {
     const room = "garden-highland";
 
     const talker = new WebSocket(
-      `ws://${PARTY_HOST}/parties/main/${room}?ticket=${encodeURIComponent(
+      `ws://${PARTY_HOST}/parties/garden/${room}?ticket=${encodeURIComponent(
         await partyTicket("talker"),
       )}`,
     );
@@ -529,7 +529,7 @@ test.describe("garden parties", () => {
 
     // Somebody new walks in afterwards.
     const latecomer = new WebSocket(
-      `ws://${PARTY_HOST}/parties/main/${room}?ticket=${encodeURIComponent(
+      `ws://${PARTY_HOST}/parties/garden/${room}?ticket=${encodeURIComponent(
         await partyTicket("latecomer"),
       )}`,
     );
@@ -817,7 +817,7 @@ test.describe("garden parties", () => {
 
     const open = async (who: string) => {
       const socket = new WebSocket(
-        `ws://${PARTY_HOST}/parties/main/${room}?ticket=${encodeURIComponent(
+        `ws://${PARTY_HOST}/parties/garden/${room}?ticket=${encodeURIComponent(
           await partyTicket(who),
         )}`,
       );
@@ -934,7 +934,7 @@ test.describe("garden parties", () => {
 
     const open = async (who: string) => {
       const socket = new WebSocket(
-        `ws://${PARTY_HOST}/parties/main/garden-schenley?ticket=${encodeURIComponent(
+        `ws://${PARTY_HOST}/parties/garden/garden-schenley?ticket=${encodeURIComponent(
           await partyTicket(who),
         )}`,
       );
@@ -1091,7 +1091,7 @@ test.describe("garden parties", () => {
 
     const open = async (who: string) => {
       const socket = new WebSocket(
-        `ws://${PARTY_HOST}/parties/main/${room}?ticket=${encodeURIComponent(
+        `ws://${PARTY_HOST}/parties/garden/${room}?ticket=${encodeURIComponent(
           await partyTicket(who),
         )}`,
       );
@@ -1115,7 +1115,7 @@ test.describe("garden parties", () => {
 
       // The eleventh.
       const refused = new WebSocket(
-        `ws://${PARTY_HOST}/parties/main/${room}?ticket=${encodeURIComponent(
+        `ws://${PARTY_HOST}/parties/garden/${room}?ticket=${encodeURIComponent(
           await partyTicket("cap-eleventh"),
         )}`,
       );
@@ -1157,7 +1157,7 @@ test.describe("garden parties", () => {
      */
     const room = "garden-frick";
     const first = new WebSocket(
-      `ws://${PARTY_HOST}/parties/main/${room}?ticket=${encodeURIComponent(
+      `ws://${PARTY_HOST}/parties/garden/${room}?ticket=${encodeURIComponent(
         await partyTicket("twice"),
       )}`,
     );
@@ -1168,15 +1168,33 @@ test.describe("garden parties", () => {
 
     await expect.poll(() => roomCount(room)).toBe(1);
 
-    // The old tab is expected to be hung up on, so watch for that before the
-    // second one opens and the race is decided.
-    const firstClosed = new Promise<boolean>((resolve) => {
-      first.addEventListener("close", () => resolve(true));
+    /**
+     * The old tab is expected to be TOLD it has been replaced.
+     *
+     * This watched for a socket close first, and that is the wrong thing to
+     * watch: workerd leaves a hibernatable socket in CLOSING and never
+     * completes the handshake, so the far end sees `readyState` change and
+     * receives no close event at all. A tab that is half-shut and does not know
+     * it is exactly the bug this is here to prevent, so the guarantee has to be
+     * a message the client can act on rather than a transport state it might
+     * never observe.
+     */
+    const firstToldReplaced = new Promise<boolean>((resolve) => {
+      first.addEventListener("message", (event) => {
+        const message = JSON.parse(String(event.data)) as {
+          t: string;
+          reason?: string;
+        };
+
+        if (message.t === "refused" && message.reason === "replaced") {
+          resolve(true);
+        }
+      });
       setTimeout(() => resolve(false), 10_000);
     });
 
     const second = new WebSocket(
-      `ws://${PARTY_HOST}/parties/main/${room}?ticket=${encodeURIComponent(
+      `ws://${PARTY_HOST}/parties/garden/${room}?ticket=${encodeURIComponent(
         await partyTicket("twice"),
       )}`,
     );
@@ -1196,8 +1214,8 @@ test.describe("garden parties", () => {
      * hold is one nobody can use.
      */
     expect(
-      await firstClosed,
-      "the replaced tab was left connected",
+      await firstToldReplaced,
+      "the replaced tab was never told it had been replaced",
     ).toBe(true);
 
     first.close();

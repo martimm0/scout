@@ -53,6 +53,10 @@ export async function joinParty(party: GardenPartyId): Promise<void> {
 
   socket = new PartySocket({
     host: partyHost(),
+    // The Durable Object binding is called Garden, and the router kebab-cases
+    // it into the path. Leave this off and it addresses "main", which is not a
+    // room this worker has.
+    party: "garden",
     room: party,
     query: { ticket },
   });
@@ -121,7 +125,9 @@ export async function joinParty(party: GardenPartyId): Promise<void> {
         return;
 
       case "refused":
-        state.setStatus(message.reason);
+        // "replaced" is this tab losing its seat to another of your own, which
+        // is not a failure and should not read like one.
+        state.setStatus(message.reason === "replaced" ? "out" : message.reason);
         leaveParty(false);
         return;
     }
