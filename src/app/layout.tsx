@@ -7,6 +7,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import { AuthProvider } from "@/features/auth/components/session-provider";
 import { SignIn } from "@/features/auth/components/sign-in";
+import { NavMenu } from "@/components/nav-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { authConfigured } from "@/lib/env";
 import "./globals.css";
@@ -29,16 +30,33 @@ export const metadata: Metadata = {
   description: "A pollinator RPG based in Pittsburgh, PA",
 };
 
+/**
+ * What stays out on the bar.
+ *
+ * The two things you came to do, and the place everything you have found lives.
+ * Parties sits next to Play because it is the same verb with other people in it,
+ * and a lobby nobody can find from the nav is a lobby nobody joins.
+ */
 const navItems = [
   { href: "/play", label: "Play" },
-  // Next to Play, because it is the same verb with other people in it. A lobby
-  // nobody can find from the nav is a lobby nobody joins.
   { href: "/parties", label: "Parties" },
-  { href: "/about", label: "About" },
-  { href: "/offline", label: "Offline" },
-  { href: "/customize", label: "Customize" },
   { href: "/journal", label: "Journal" },
+];
+
+/**
+ * And what folds away behind one button.
+ *
+ * Settings and reading, in that order: the things you change about your own bee
+ * first, then the things you read once. None of them is something you reach for
+ * mid-session, which is the test for whether a link has earned a place on the
+ * bar.
+ */
+const moreItems = [
+  { href: "/customize", label: "Customize" },
   { href: "/profile", label: "Profile" },
+  { href: "/offline", label: "Offline run" },
+  { href: "/about", label: "About" },
+  { href: "/credits", label: "Credits" },
 ];
 
 export default function RootLayout({
@@ -78,6 +96,7 @@ export default function RootLayout({
                     {item.label}
                   </Link>
                 ))}
+                <NavMenu label="More" links={moreItems} />
                 {/* Renders nothing at all when Google isn't configured. */}
                 <SignIn configured={authConfigured} />
                 <ThemeToggle />

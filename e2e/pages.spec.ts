@@ -1653,3 +1653,77 @@ test.describe("a popover owns the keyboard", () => {
     ).toBeLessThan(0.5);
   });
 });
+
+test.describe("the top bar", () => {
+  test("folds the quieter links into one menu that behaves", async ({ page }) => {
+    /**
+     * Seven links, a sign-in button and a theme toggle was a wall of small
+     * words on a laptop and three wrapped lines on a phone. Three links stay
+     * out; the rest fold up.
+     *
+     * A disclosure, not a `role="menu"`: these are places to go, not commands,
+     * and telling a screen reader otherwise is worse than saying nothing.
+     */
+    await page.goto("/about");
+
+    const nav = page.getByRole("navigation", { name: "Primary navigation" });
+    const more = nav.getByRole("button", { name: "More" });
+
+    await expect(nav.getByRole("link", { name: "Play" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Parties" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Journal" })).toBeVisible();
+    await expect(more).toBeVisible();
+
+    // Shut, and genuinely absent rather than merely invisible: a hidden list is
+    // still in the tab order in some browsers.
+    await expect(more).toHaveAttribute("aria-expanded", "false");
+    await expect(nav.getByRole("link", { name: "Credits" })).toHaveCount(0);
+
+    await more.click();
+    await expect(more).toHaveAttribute("aria-expanded", "true");
+
+    for (const label of ["Customize", "Profile", "Offline run", "About", "Credits"]) {
+      await expect(nav.getByRole("link", { name: label })).toBeVisible();
+    }
+
+    // Escape shuts it and hands the keyboard back, rather than leaving focus
+    // somewhere invisible.
+    await page.keyboard.press("Escape");
+    await expect(more).toHaveAttribute("aria-expanded", "false");
+    await expect(more).toBeFocused();
+
+    // A click anywhere else shuts it too.
+    await more.click();
+    await expect(more).toHaveAttribute("aria-expanded", "true");
+    await page.locator("h1").first().click();
+    await expect(more).toHaveAttribute("aria-expanded", "false");
+
+    // And going somewhere shuts it, which an app-router layout will not do on
+    // its own: the header is not remounted between pages.
+    await more.click();
+    await nav.getByRole("link", { name: "Credits" }).click();
+    await page.waitForURL(/\/credits/);
+    await expect(more).toHaveAttribute("aria-expanded", "false");
+  });
+
+  test("the menu stays on screen on a phone", async ({ page }) => {
+    /**
+     * It did not. Anchoring the list to the button's left edge looked right
+     * until the nav wrapped, which puts "More" mid-row rather than near the
+     * left, and the list then ran off the right of a 375px screen.
+     */
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto("/about");
+
+    await page.getByRole("button", { name: "More" }).click();
+
+    const box = await page.locator(".nav-menu__list").boundingBox();
+
+    expect(box, "the menu did not open").toBeTruthy();
+    expect(box!.x, "the menu hangs off the left").toBeGreaterThanOrEqual(0);
+    expect(
+      box!.x + box!.width,
+      "the menu hangs off the right",
+    ).toBeLessThanOrEqual(375);
+  });
+});

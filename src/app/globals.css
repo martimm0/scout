@@ -194,6 +194,78 @@ textarea:focus-visible {
   background: var(--surface-soft);
 }
 
+/* The folded-up half of the nav. Anchors its own list, so the list hangs from
+   the button rather than from the header. */
+.nav-menu {
+  position: relative;
+}
+
+.nav-menu__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.94rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.nav-menu__button:hover,
+.nav-menu__button[aria-expanded="true"] {
+  color: var(--foreground);
+  background: var(--surface-soft);
+}
+
+.nav-menu__chevron {
+  font-size: 0.7em;
+  transition: transform 120ms ease;
+}
+
+.nav-menu__chevron[data-open="true"] {
+  transform: rotate(180deg);
+}
+
+.nav-menu__list {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  min-width: 11rem;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--background);
+  box-shadow: var(--shadow);
+}
+
+.nav-menu__list a {
+  display: block;
+  padding: 9px 12px;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.nav-menu__list a:hover,
+.nav-menu__list a:focus-visible {
+  color: var(--foreground);
+  background: var(--surface-soft);
+}
+
+/* Where you already are, said rather than guessed at. */
+.nav-menu__list a[aria-current="page"] {
+  color: var(--primary);
+}
+
 .main-content {
   flex: 1;
 }
@@ -335,6 +407,15 @@ p {
 
   .site-nav {
     justify-content: flex-start;
+  }
+
+  /* Anchored to the button's RIGHT edge on a phone too.
+     I first flipped this to `left: 0` on the assumption that a stacked header
+     puts the button near the left edge. It does not: the nav wraps and "More"
+     ends up mid-row, so opening leftward ran the list off the right of a 375px
+     screen. Clamped as well, so a long label can never do the same. */
+  .nav-menu__list {
+    max-width: calc(100vw - 32px);
   }
 
   .page-container {
