@@ -1,14 +1,7 @@
-.wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.who {
-  font-size: 0.86rem;
-  font-weight: 600;
-  color: var(--muted);
-}
+/* `.wrap` and `.who` used to hold a name and a Sign out button side by side on
+   the bar. Both moved into the account menu, which brings its own styles, so
+   they are gone rather than left behind: this sheet has exactly one importer,
+   which is what makes "unused" checkable at all here. */
 
 .button {
   padding: 7px 14px;

@@ -10,6 +10,7 @@ import {
   type Pose,
   type ServerMessage,
 } from "@party/protocol";
+import { countParty } from "./party-counters";
 import { partyPoses, usePartyStore } from "./party-store";
 
 /**
@@ -25,7 +26,7 @@ let expiryTimer: ReturnType<typeof setInterval> | null = null;
 /**
  * Where the party server lives.
  *
- * `npx partykit dev` serves on 1999 locally. In production this is the deployed
+ * `npx wrangler dev --local` serves on 1999 locally. In production this is the deployed
  * worker's host, set at build time. Read through a named constant rather than
  * inline so a missing variable is one obvious fallback rather than a socket
  * quietly opening against the wrong origin.
@@ -34,22 +35,34 @@ function partyHost() {
   return process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? "127.0.0.1:1999";
 }
 
+/** A pass into a room. Five minutes long, so it is fetched per connection. */
+async function freshTicket(): Promise<{ ticket: string }> {
+  const response = await fetch("/api/party/ticket");
+
+  if (!response.ok) {
+    // Reported through the socket failing rather than thrown: the caller is
+    // partysocket's own reconnect loop, which has nowhere to put an exception.
+    usePartyStore.getState().setStatus("unauthorized");
+
+    return { ticket: "" };
+  }
+
+  return (await response.json()) as { ticket: string };
+}
+
 export async function joinParty(party: GardenPartyId): Promise<void> {
   leaveParty();
 
   const store = usePartyStore.getState();
   store.setStatus("connecting");
 
-  // The ticket proves the account. Without one the door refuses, which is the
-  // entire meaning of "you need an account to join".
-  const response = await fetch("/api/party/ticket");
+  // Fail before opening a socket if there is no account, so the lobby can say
+  // so rather than showing a connection that will never work.
+  const first = await freshTicket();
 
-  if (!response.ok) {
-    store.setStatus("unauthorized");
+  if (!first.ticket) {
     return;
   }
-
-  const { ticket } = (await response.json()) as { ticket: string };
 
   socket = new PartySocket({
     host: partyHost(),
@@ -58,8 +71,31 @@ export async function joinParty(party: GardenPartyId): Promise<void> {
     // room this worker has.
     party: "garden",
     room: party,
-    query: { ticket },
+    /**
+     * A FUNCTION, not the ticket we just fetched.
+     *
+     * partysocket calls this on every connection attempt, and that is the whole
+     * point: a ticket lasts five minutes, and passing a fixed one meant every
+     * reconnect after that reused an expired pass. The socket would then be
+     * refused forever, against a server that was perfectly healthy, and the only
+     * way back was reloading the page. Handing it a function means a dropped
+     * connection re-authenticates itself.
+     */
+    query: freshTicket,
   });
+
+  /**
+   * A handle for the suite to drop the connection with, outside production.
+   *
+   * Testing that a reconnect re-authenticates needs a reconnect, and waiting
+   * for a real network to fail is not a test. Compiled out of the production
+   * bundle rather than shipped.
+   */
+  if (process.env.NODE_ENV !== "production") {
+    (
+      window as unknown as { __scoutPartySocketForTest?: PartySocket }
+    ).__scoutPartySocketForTest = socket;
+  }
 
   socket.addEventListener("message", (event) => {
     let message: ServerMessage;
@@ -74,6 +110,8 @@ export async function joinParty(party: GardenPartyId): Promise<void> {
 
     switch (message.t) {
       case "welcome":
+        countParty("joins");
+
         for (const player of message.players) {
           if (player.pose) {
             partyPoses.set(player.sub, player.pose);
@@ -133,11 +171,36 @@ export async function joinParty(party: GardenPartyId): Promise<void> {
     }
   });
 
+  /**
+   * Never got in at all.
+   *
+   * The room turns a bad ticket away at the HTTP upgrade, BEFORE a socket
+   * exists, so there is no `refused` message to receive: the browser reports a
+   * failed WebSocket and nothing else. That left the lobby sitting on "Going
+   * in" forever while the console filled with errors nobody was watching, which
+   * is the worst way for this to fail because the head-count beside it keeps
+   * working and makes the page look healthy.
+   *
+   * A socket that has never opened by now is a door that will not open. Say so.
+   */
+  const opened = { yet: false };
+
+  socket.addEventListener("open", () => {
+    opened.yet = true;
+  });
+
   socket.addEventListener("close", () => {
-    // A close after a refusal keeps the refusal on screen; a close out of
-    // nowhere is a lost connection, and PartySocket is already retrying.
     const status = usePartyStore.getState().status;
 
+    if (!opened.yet) {
+      usePartyStore.getState().setStatus("rejected");
+      leaveParty(false);
+
+      return;
+    }
+
+    // A close after a refusal keeps the refusal on screen; a close out of
+    // nowhere is a lost connection, and PartySocket is already retrying.
     if (status === "in") {
       usePartyStore.getState().setStatus("lost");
     }
@@ -184,6 +247,7 @@ export function sendChat(text: string) {
 
 export function openTable(kind: GameKind) {
   sendToParty({ t: "open", kind });
+  countParty("games_played");
 }
 
 export function sitAtTable(table: string) {

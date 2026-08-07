@@ -6,8 +6,9 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import { AuthProvider } from "@/features/auth/components/session-provider";
+import { ChooseUsername } from "@/features/auth/components/choose-username";
 import { SignIn } from "@/features/auth/components/sign-in";
-import { NavMenu } from "@/components/nav-menu";
+import { NavMenu, type NavItem } from "@/components/nav-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { authConfigured } from "@/lib/env";
 import "./globals.css";
@@ -40,7 +41,6 @@ export const metadata: Metadata = {
 const navItems = [
   { href: "/play", label: "Play" },
   { href: "/parties", label: "Parties" },
-  { href: "/journal", label: "Journal" },
 ];
 
 /**
@@ -51,12 +51,12 @@ const navItems = [
  * mid-session, which is the test for whether a link has earned a place on the
  * bar.
  */
-const moreItems = [
-  { href: "/customize", label: "Customize" },
-  { href: "/profile", label: "Profile" },
-  { href: "/offline", label: "Offline run" },
-  { href: "/about", label: "About" },
-  { href: "/credits", label: "Credits" },
+const moreItems: NavItem[] = [
+  { kind: "link", href: "/journal", label: "Journal" },
+  { kind: "link", href: "/customize", label: "Customize" },
+  { kind: "link", href: "/offline", label: "Offline run" },
+  { kind: "link", href: "/about", label: "About" },
+  { kind: "link", href: "/credits", label: "Credits" },
 ];
 
 export default function RootLayout({
@@ -96,13 +96,18 @@ export default function RootLayout({
                     {item.label}
                   </Link>
                 ))}
-                <NavMenu label="More" links={moreItems} />
+                <NavMenu items={moreItems} label="More" />
                 {/* Renders nothing at all when Google isn't configured. */}
                 <SignIn configured={authConfigured} />
                 <ThemeToggle />
               </nav>
             </div>
           </header>
+          {/* Asked once of anybody signed in who has not chosen a name, and in
+              the flow of the page rather than over it, so it can never sit on
+              top of a control. Renders nothing for everybody else. */}
+          <ChooseUsername />
+
           {/* A div, not a <main>. Every page renders its own <main>, and nesting two
               of them is invalid HTML and gives a screen reader two conflicting
               "main" landmarks to choose between. */}

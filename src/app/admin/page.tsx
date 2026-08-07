@@ -7,6 +7,7 @@ import {
   listWaitlist,
 } from "@/lib/accounts";
 import { auth } from "@/lib/auth";
+import { getInsights } from "@/lib/insights";
 import { env, isAdminEmail } from "@/lib/env";
 
 import { AdminDashboard } from "./admin-dashboard";
@@ -31,10 +32,11 @@ export default async function AdminPage() {
     notFound();
   }
 
-  const [analytics, accounts, waitlist] = await Promise.all([
+  const [analytics, accounts, waitlist, insights] = await Promise.all([
     getAnalytics(),
     listAccounts(),
     listWaitlist(),
+    getInsights(),
   ]);
 
   return (
@@ -43,6 +45,7 @@ export default async function AdminPage() {
         adminEmail={env.adminEmail}
         initialAccounts={accounts}
         initialAnalytics={analytics}
+        initialInsights={insights}
         initialWaitlist={waitlist}
       />
     </main>

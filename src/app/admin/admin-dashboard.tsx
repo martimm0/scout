@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import type { Account, Analytics, WaitlistEntry } from "@/lib/accounts";
+import type { Insights } from "@/lib/insights";
 
 import styles from "./admin-dashboard.module.css";
 
@@ -19,6 +20,7 @@ type Data = {
   analytics: Analytics;
   accounts: Account[];
   waitlist: WaitlistEntry[];
+  insights: Insights;
 };
 
 type Body =
@@ -26,6 +28,8 @@ type Body =
   | { action: "suspend"; userId: string }
   | { action: "unsuspend"; userId: string }
   | { action: "delete"; userId: string }
+  | { action: "setUsername"; userId: string; username: string }
+  | { action: "resetProgress"; userId: string }
   | { action: "removeWaitlist"; email: string };
 
 function when(iso: string): string {
@@ -40,17 +44,20 @@ export function AdminDashboard({
   adminEmail,
   initialAnalytics,
   initialAccounts,
+  initialInsights,
   initialWaitlist,
 }: {
   adminEmail: string;
   initialAnalytics: Analytics;
   initialAccounts: Account[];
+  initialInsights: Insights;
   initialWaitlist: WaitlistEntry[];
 }) {
   const [data, setData] = useState<Data>({
     analytics: initialAnalytics,
     accounts: initialAccounts,
     waitlist: initialWaitlist,
+    insights: initialInsights,
   });
   const [ceiling, setCeilingInput] = useState(String(initialAnalytics.ceiling));
   const [busy, setBusy] = useState(false);
@@ -80,6 +87,7 @@ export function AdminDashboard({
         analytics: fresh.analytics,
         accounts: fresh.accounts,
         waitlist: fresh.waitlist,
+        insights: fresh.insights,
       });
       setCeilingInput(String(fresh.analytics.ceiling));
     } finally {
@@ -87,7 +95,7 @@ export function AdminDashboard({
     }
   };
 
-  const { analytics, accounts, waitlist } = data;
+  const { analytics, accounts, waitlist, insights } = data;
 
   const stats: [string, string | number][] = [
     ["Accounts", `${analytics.accounts} / ${analytics.ceiling}`],
@@ -163,6 +171,7 @@ export function AdminDashboard({
                 <tr>
                   <th>Email</th>
                   <th>Name</th>
+                  <th>Username</th>
                   <th>Status</th>
                   <th>Joined</th>
                   <th>Last seen</th>
@@ -181,6 +190,31 @@ export function AdminDashboard({
                       <td>{account.email ?? "—"}</td>
                       <td>{account.name ?? "—"}</td>
                       <td>
+                        {/* Editable in place. Blank clears it, which hands the
+                            name back and puts them in front of the prompt
+                            again; that is the only way to free a name somebody
+                            should not have taken. */}
+                        <input
+                          aria-label={`Username for ${account.email ?? account.userId}`}
+                          className={styles.usernameInput}
+                          defaultValue={account.username ?? ""}
+                          disabled={busy}
+                          onBlur={(event) => {
+                            const next = event.target.value.trim();
+
+                            if (next !== (account.username ?? "")) {
+                              void act({
+                                action: "setUsername",
+                                userId: account.userId,
+                                username: next,
+                              });
+                            }
+                          }}
+                          placeholder="not chosen"
+                          type="text"
+                        />
+                      </td>
+                      <td>
                         <span
                           className={styles.badge}
                           data-status={account.status}
@@ -193,6 +227,29 @@ export function AdminDashboard({
                       <td>{account.discovered}</td>
                       <td>{account.pollinated}</td>
                       <td className={styles.rowActions}>
+                        {/* Wiping a save is offered on every row, the admin's
+                            own included: it is a thing a player asks for, and
+                            unlike suspend or delete it cannot lock anybody out
+                            of anything. */}
+                        <button
+                          className={styles.secondary}
+                          disabled={busy}
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                `Wipe the save for ${account.email ?? "this account"}? They keep their account and their name, and start the park again.`,
+                              )
+                            ) {
+                              void act({
+                                action: "resetProgress",
+                                userId: account.userId,
+                              });
+                            }
+                          }}
+                          type="button"
+                        >
+                          Reset save
+                        </button>
                         {isSelf ? (
                           <span className={styles.you}>you</span>
                         ) : (
@@ -274,6 +331,124 @@ export function AdminDashboard({
             ))}
           </ul>
         )}
+      </section>
+
+      {/* ------------------------------------------------------------------ *
+       * Insights.
+       *
+       * All read-only, all derived from saves that already exist. Nothing here
+       * ranks one player against another: the game has no leaderboard and a
+       * "top players" table would be that leaderboard entered through the back
+       * door. These answer "is somebody stuck" and "is this plant findable".
+       * ------------------------------------------------------------------ */}
+
+      <section className={styles.panel}>
+        <h2>Activity</h2>
+        <div className={styles.stats}>
+          {(
+            [
+              ["Active this week", insights.activeLastWeek],
+              ["Active this month", insights.activeLastMonth],
+              ["Signed in, never played", insights.neverPlayed],
+            ] as [string, number][]
+          ).map(([label, value]) => (
+            <div className={styles.stat} key={label}>
+              <span className={styles.statLabel}>{label}</span>
+              <span className={styles.statValue}>{value}</span>
+            </div>
+          ))}
+        </div>
+
+        {insights.signupsByWeek.length > 0 ? (
+          <ol className={styles.spark}>
+            {insights.signupsByWeek.map((week) => (
+              <li key={week.week}>
+                <span className={styles.sparkWeek}>{week.week}</span>
+                <span
+                  aria-hidden
+                  className={styles.sparkBar}
+                  style={{ "--n": week.accounts } as React.CSSProperties}
+                />
+                <span className={styles.sparkCount}>{week.accounts}</span>
+              </li>
+            ))}
+          </ol>
+        ) : null}
+      </section>
+
+      <section className={styles.panel}>
+        <h2>How far people get</h2>
+        <p className={styles.panelNote}>
+          Medians, not averages: one completionist would drag a mean far away
+          from anybody&apos;s actual afternoon.
+        </p>
+        <div className={styles.stats}>
+          {(
+            [
+              ["Species found", insights.medianSpeciesFound],
+              ["Pollinated", insights.medianPollinated],
+              ["Badges", insights.medianBadges],
+            ] as [string, number][]
+          ).map(([label, value]) => (
+            <div className={styles.stat} key={label}>
+              <span className={styles.statLabel}>{label}</span>
+              <span className={styles.statValue}>{value}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className={styles.panel}>
+        <h2>Which species people actually find</h2>
+        <p className={styles.panelNote}>
+          Rarest first. A species nobody has found is either very well hidden or
+          genuinely unreachable, and the second has happened twice.
+        </p>
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Species</th>
+                <th>Found by</th>
+                <th>Pollinated by</th>
+                <th>Quiz passed by</th>
+              </tr>
+            </thead>
+            <tbody>
+              {insights.species.slice(0, 20).map((row) => (
+                <tr key={row.id}>
+                  <td>{row.id}</td>
+                  <td>{row.found}</td>
+                  <td>{row.pollinated}</td>
+                  <td>{row.quizPassed}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className={styles.panel}>
+        <h2>Garden parties</h2>
+        <p className={styles.panelNote}>
+          Totals, never events. The room stores nothing at all, and a row per
+          join would be a record of who was with whom and when, which is the
+          thing it refuses to keep.
+        </p>
+        <div className={styles.stats}>
+          {(
+            [
+              ["Joins", insights.party.joins ?? 0],
+              ["Worked a flower together", insights.party.coop_pollinations ?? 0],
+              ["Games opened", insights.party.games_played ?? 0],
+            ] as [string, number][]
+          ).map(([label, value]) => (
+            <div className={styles.stat} key={label}>
+              <span className={styles.statLabel}>{label}</span>
+              <span className={styles.statValue}>{value}</span>
+            </div>
+          ))}
+        </div>
       </section>
     </div>
   );

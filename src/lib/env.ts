@@ -22,8 +22,10 @@ export const env = {
   // Vercel Postgres injects POSTGRES_URL; a plain Neon/Postgres string works too.
   databaseUrl: process.env.POSTGRES_URL ?? process.env.DATABASE_URL ?? "",
   assetBaseUrl: process.env.NEXT_PUBLIC_ASSET_BASE_URL ?? "",
-  // Who gets the admin door. One address, the owner's, overridable for a fork.
-  adminEmail: (process.env.ADMIN_EMAIL ?? "miles@relai.us").toLowerCase(),
+  // Who gets the admin door. The owner's address, overridable for a fork.
+  adminEmail: (
+    process.env.ADMIN_EMAIL ?? "martin.mufuka.miles@gmail.com"
+  ).toLowerCase(),
 } as const;
 
 /** True for the one account allowed into the admin tool. */

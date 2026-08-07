@@ -632,7 +632,7 @@ export { CHAT_TTL_MS };
  *
  * Runs in the lobby, BEFORE the room object is addressed, which is the entire
  * point: a request for `garden-nope` must not bring a room called garden-nope
- * into existence. Without this, `GET /parties/main/<anything>` answered 200
+ * into existence. Without this, `GET /parties/garden/<anything>` answered 200
  * and span up a Durable Object per made-up name, so an unauthenticated
  * stranger with a for-loop could mint unbounded rooms on the account. There
  * are exactly three parties and their names are a closed set, so anything else

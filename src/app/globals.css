@@ -245,7 +245,8 @@ textarea:focus-visible {
   box-shadow: var(--shadow);
 }
 
-.nav-menu__list a {
+.nav-menu__list a,
+.nav-menu__action {
   display: block;
   padding: 9px 12px;
   border-radius: 8px;
@@ -256,9 +257,37 @@ textarea:focus-visible {
 }
 
 .nav-menu__list a:hover,
-.nav-menu__list a:focus-visible {
+.nav-menu__list a:focus-visible,
+.nav-menu__action:hover,
+.nav-menu__action:focus-visible {
   color: var(--foreground);
   background: var(--surface-soft);
+}
+
+/* A button that has to sit flush with the links beside it.
+   `font-family` only, NOT the `font` shorthand: the shorthand resets size and
+   weight too, so it quietly undid the 0.92rem/700 the rule above sets for both
+   and Sign out came out a size larger and a weight lighter than the links
+   around it. */
+.nav-menu__action {
+  width: 100%;
+  border: none;
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Who you are. Not a control, so it does not light up on hover. */
+.nav-menu__note {
+  display: block;
+  padding: 9px 12px 5px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
 }
 
 /* Where you already are, said rather than guessed at. */

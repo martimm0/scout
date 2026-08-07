@@ -199,3 +199,75 @@
   font-size: 0.82rem;
   color: var(--muted, #6b7280);
 }
+
+/* ------------------------------------------------------------------ *
+ * Insights
+ * ------------------------------------------------------------------ */
+
+.panelNote {
+  margin: -4px 0 14px;
+  max-width: 46rem;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+/* Editable in place. Narrow, because a username is short by rule. */
+.usernameInput {
+  width: 12ch;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 7px;
+  background: var(--background);
+  color: inherit;
+  font: inherit;
+  font-size: 0.84rem;
+}
+
+.usernameInput:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.usernameInput::placeholder {
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* Sign-ups per week. A list of bars rather than a chart library: it is a dozen
+   numbers, and a dependency for a dozen numbers is a dependency to keep. */
+.spark {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.spark li {
+  display: grid;
+  grid-template-columns: 6rem 1fr 2rem;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.82rem;
+}
+
+.sparkWeek {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sparkBar {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--primary);
+  /* One account is a visible sliver rather than nothing at all. */
+  width: calc(12px + var(--n, 0) * 18px);
+  max-width: 100%;
+}
+
+.sparkCount {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

@@ -4,39 +4,48 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
-export type NavLink = { href: string; label: string };
+/**
+ * What can sit in one of these.
+ *
+ * Three kinds, because the account menu needs all three: places to go, a thing
+ * to do, and a line that is just information. A menu that only held links would
+ * have pushed Sign out back out onto the bar, which is the crowding this exists
+ * to remove.
+ */
+export type NavItem =
+  | { kind: "link"; href: string; label: string }
+  | { kind: "action"; label: string; onSelect: () => void }
+  | { kind: "note"; label: string };
 
 /**
  * The rest of the nav, folded up.
  *
- * The bar had seven links, a sign-in button and a theme toggle in it, which on a
- * laptop is a wall of small words and on a phone wrapped onto three lines. The
- * two things you actually came to do stay out on the bar; everything else lives
- * behind one button.
+ * The bar had seven links, a name, a sign-out button and a theme toggle in it,
+ * which on a laptop is a wall of small words and on a phone wrapped onto three
+ * lines. What you came to do stays out; everything else lives behind a button.
  *
  * A DISCLOSURE, not a menubar. `role="menu"` and its arrow-key model are for
  * application menus (cut, copy, paste), and a screen reader user meeting it on a
  * list of links is told these are commands rather than places to go. A button
- * with `aria-expanded` and a plain list of links underneath is the pattern that
- * matches what this is, and it needs no key handling that browsers do not
- * already give links.
+ * with `aria-expanded` and a plain list underneath is the pattern that matches
+ * what this is, and it needs no key handling browsers do not already give.
  *
  * Three things it has to do, and each one is a way these usually go wrong:
  *
  *  - **Escape closes it and gives focus back to the button.** Otherwise the
  *    keyboard is left somewhere invisible.
  *  - **A click anywhere else closes it.** A menu that only closes by its own
- *    button is one people leave open by accident and then can't see past.
+ *    button is one people leave open by accident and then cannot see past.
  *  - **Navigating closes it.** In an app-router app the layout is not remounted
- *    between pages, so without this the menu stays hanging open over the page it
- *    just took you to.
+ *    between pages, so without this it stays hanging open over the page it just
+ *    took you to.
  */
 export function NavMenu({
+  items,
   label,
-  links,
 }: {
+  items: NavItem[];
   label: string;
-  links: NavLink[];
 }) {
   const wrap = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
@@ -46,15 +55,14 @@ export function NavMenu({
   /**
    * Open, and the page it was opened on.
    *
-   * DERIVED rather than closed by an effect. In an app-router app the layout is
-   * not remounted between pages, so a menu left open hangs over the page it just
-   * took you to; the obvious fix is an effect on `pathname` that calls setOpen,
-   * and that is a synchronous setState in an effect, which cascades a render and
-   * which the linter rightly refuses.
+   * DERIVED rather than closed by an effect. The obvious way to close on
+   * navigation is an effect on `pathname` calling setState, and that is a
+   * synchronous setState in an effect, which cascades a render and which the
+   * linter rightly refuses.
    *
-   * Remembering WHERE it was opened says the same thing without a render: if the
-   * path has moved on, it is shut. It also covers the back button and any other
-   * navigation, which a click handler on the links would not.
+   * Remembering WHERE it was opened says the same thing without a render: if
+   * the path has moved on, it is shut. It also covers the back button, which a
+   * click handler on the links would not.
    */
   const [openedOn, setOpenedOn] = useState<string | null>(null);
   const open = openedOn === pathname;
@@ -112,18 +120,39 @@ export function NavMenu({
 
       {/* Rendered only when open. A hidden list that is merely invisible is
           still in the tab order in some browsers, which is a keyboard user
-          tabbing through six links that are not on screen. */}
+          tabbing through six things that are not on screen. */}
       {open ? (
         <ul className="nav-menu__list" id={id}>
-          {links.map((link) => (
-            <li key={link.href}>
-              <Link
-                aria-current={pathname === link.href ? "page" : undefined}
-                href={link.href}
-                onClick={() => setOpen(false)}
-              >
-                {link.label}
-              </Link>
+          {items.map((item) => (
+            /* Keyed by kind AND label. The label alone is not safe: one of
+               these is the player's own display name, so somebody called
+               "Profile" would collide with the link below them. */
+            <li key={`${item.kind}:${item.label}`}>
+              {item.kind === "link" ? (
+                <Link
+                  aria-current={pathname === item.href ? "page" : undefined}
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                >
+                  {item.label}
+                </Link>
+              ) : item.kind === "action" ? (
+                <button
+                  className="nav-menu__action"
+                  onClick={() => {
+                    setOpen(false);
+                    item.onSelect();
+                  }}
+                  type="button"
+                >
+                  {item.label}
+                </button>
+              ) : (
+                // Who you are, said once at the top. Not a control, so not
+                // focusable: a keyboard user tabbing onto a dead line is a
+                // keyboard user wondering what they just landed on.
+                <span className="nav-menu__note">{item.label}</span>
+              )}
             </li>
           ))}
         </ul>

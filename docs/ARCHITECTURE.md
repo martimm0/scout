@@ -412,7 +412,7 @@ the courtesy, not the enforcement.** The socket is the enforcement, and
 `party.spec.ts` proves it by opening one with no ticket at all.
 
 `onBeforeRequest` guards the room NAME, in the lobby, before the room object is
-addressed. Without it `GET /parties/main/<anything>` answered 200 and brought a
+addressed. Without it `GET /parties/garden/<anything>` answered 200 and brought a
 Durable Object into being for whatever name was asked for, so an unauthenticated
 stranger with a for-loop could mint unbounded rooms on the account. There are
 exactly three parties and the names are a closed set.

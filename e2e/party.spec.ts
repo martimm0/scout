@@ -3,7 +3,12 @@ import { readFileSync } from "node:fs";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { encode } from "next-auth/jwt";
 
-import { dismissTutorial, resetProgress, signIn } from "./helpers";
+import {
+  dismissTutorial,
+  nameThePlayer,
+  resetProgress,
+  signIn,
+} from "./helpers";
 import {
   setActivePark,
   startPosition,
@@ -46,14 +51,18 @@ async function closePlayer(page: Page) {
 /** A signed-in page with its own account, in its own context. */
 async function playerPage(browser: Browser, who: string): Promise<Page> {
   const context = await browser.newContext();
+  const name = who[0].toUpperCase() + who.slice(1);
 
-  // A distinct display name, so a board that says who won is saying something.
-  await signIn(
-    context,
-    `party-${who}`,
-    `${who}@example.com`,
-    who[0].toUpperCase() + who.slice(1),
-  );
+  /**
+   * A real account with a real username.
+   *
+   * The party ticket carries the USERNAME, so a player who has not chosen one
+   * appears to everybody else as "A bee". That is right for the game and wrong
+   * for a test that reads a name off a board: with two unnamed players, "Ada
+   * took it" and "Bo took it" are both "A bee took it".
+   */
+  await nameThePlayer(`party-${who}`, `${who}@example.com`, name);
+  await signIn(context, `party-${who}`, `${who}@example.com`, name);
 
   const page = await context.newPage();
 
@@ -1072,6 +1081,61 @@ test.describe("garden parties", () => {
         socket.close();
       }
     }
+  });
+
+  test("a reconnect asks for a new pass rather than reusing a stale one", async ({
+    browser,
+  }) => {
+    test.setTimeout(180_000);
+
+    /**
+     * A ticket lasts five minutes. The socket does not.
+     *
+     * The ticket used to be fetched once and handed to partysocket as a fixed
+     * value, so every reconnect presented the same pass. After five minutes
+     * that pass is expired and the room refuses it, forever, against a server
+     * that is perfectly healthy — and the only way back was reloading the page.
+     * It looks exactly like a broken server from the console.
+     *
+     * So the assertion is not "it connects", which was always true. It is that
+     * the ticket ENDPOINT is asked again when the socket comes back, which is
+     * the thing that makes a reconnect survive.
+     */
+    const page = await playerPage(browser, "ada");
+
+    let tickets = 0;
+
+    await page.route("**/api/party/ticket", async (route) => {
+      tickets += 1;
+      await route.continue();
+    });
+
+    await page.goto("/parties");
+    await page.getByRole("button", { name: /Join the Frick/ }).click();
+    await page.waitForURL(/\/play/);
+    await page.waitForTimeout(2500);
+
+    const afterJoining = tickets;
+
+    expect(afterJoining, "joining asked for no ticket at all").toBeGreaterThan(
+      0,
+    );
+
+    // Drop the connection the way a flaky network would, and let partysocket
+    // put it back.
+    await page.evaluate(() => {
+      const holder = window as unknown as {
+        __scoutPartySocketForTest?: { reconnect: () => void };
+      };
+
+      holder.__scoutPartySocketForTest?.reconnect();
+    });
+
+    await expect
+      .poll(() => tickets, { timeout: 30_000 })
+      .toBeGreaterThan(afterJoining);
+
+    await closePlayer(page);
   });
 
   test("the cap is ten, and the eleventh is told why", async () => {

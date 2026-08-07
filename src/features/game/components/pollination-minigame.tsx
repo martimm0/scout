@@ -19,6 +19,7 @@ import {
   stopWorking,
   workOn,
 } from "../state/party-client";
+import { countParty } from "../state/party-counters";
 import { usePartyStore } from "../state/party-store";
 import { MINIGAMES } from "./minigames";
 import styles from "./pollination-minigame.module.css";
@@ -188,6 +189,7 @@ function MinigameRun({
         // because it is a fact about YOUR afternoon and belongs in your save.
         if (together) {
           recordCoop();
+          countParty("coop_pollinations");
         }
       } else {
         playSound("pollinateFail");

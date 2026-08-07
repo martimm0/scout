@@ -111,6 +111,43 @@ function authSecret() {
 }
 
 /**
+ * Give a test player an account and a name of their own.
+ *
+ * The suite mints session cookies directly, which is the right way to reach the
+ * signed-in paths, but it means no `accounts` row exists: in production that is
+ * created by the Auth.js sign-in callback. And since the party ticket now
+ * carries the USERNAME rather than the Google name, a player without one shows
+ * up in chat and on boards as "A bee", so any test that reads a name off the
+ * screen has to give them one first.
+ *
+ * Calls the same function the sign-in callback calls, so it cannot drift from
+ * what really happens. A no-op without a database, like everything else here.
+ */
+export async function nameThePlayer(
+  userId: string,
+  email: string,
+  username: string,
+) {
+  const url = /^POSTGRES_URL=(.*)$/m
+    .exec(readFileSync(".env.local", "utf8"))?.[1]
+    ?.trim()
+    .replace(/^["']|["']$/g, "");
+
+  if (!url) {
+    return;
+  }
+
+  process.env.POSTGRES_URL = url;
+
+  const { registerSignIn, setUsername } = await import(
+    "../src/lib/accounts"
+  );
+
+  await registerSignIn({ userId, email, name: username });
+  await setUsername(userId, username);
+}
+
+/**
  * Sign the test in.
  *
  * The saved game is behind a sign-in now, so a suite that does not authenticate

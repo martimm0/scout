@@ -597,6 +597,91 @@ there, because the world is deterministic and people learn where things are.
 The scatter takes a flag (`scatterSpecies(withParty)`), off by default, so every
 solo caller and every existing test keeps the park it already had.
 
+## Usernames
+
+Two to twenty-four characters, no spaces, and unique. `src/lib/username.ts` holds
+the rules and both the form and the route import it: the form is a courtesy to
+somebody typing, the route is the thing that decides, and two copies of the rules
+would eventually disagree.
+
+Letters from any script are allowed, because refusing anything outside A-Z
+refuses people. What is excluded is punctuation that reads as something else in
+a chat line: `@`, `#`, `/`, angle brackets.
+
+**Uniqueness is settled by the database, not by looking first.** Two people
+typing the same name at the same moment both pass a `SELECT` and both proceed;
+only a constraint can decide between them. `setUsername` writes and catches the
+unique violation, and the index is partial and case-folded:
+
+```sql
+CREATE UNIQUE INDEX accounts_username_key
+ON accounts (LOWER(username)) WHERE username IS NOT NULL
+```
+
+The partial clause is what lets every account that predates usernames sit at
+NULL without colliding with the others. `LOWER` is what stops "Bee" and "bee"
+being two different people, which would make the distinction a trap rather than
+a feature. The case you typed is what gets stored and shown.
+
+**Null is the whole prompting mechanism.** A brand-new account and an account
+from before usernames both have no username, which is the same question, so
+there is one prompt and no separate "has been asked" flag. A flag would be a
+second thing that could disagree with the first.
+
+**Claiming a name never CREATES an account.** It is an `UPDATE`, and no row
+means a refusal. `registerSignIn` owns account creation because that is where
+the ceiling, the waitlist and the suspension check live; an upsert here meant a
+player whose account had just been deleted, still holding a valid JWT, could
+post a username to put a row back and walk round all three.
+
+**The prompt is never shown over the park.** It is a full-screen scrim, and one
+of those over a 3D scene somebody is flying eats every click and keypress meant
+for the game. It did exactly that to the whole test suite before anybody
+noticed, because an unnamed signed-in player could no longer press anything on
+`/play`.
+
+**The party ticket carries the username, never the Google name.** That is what
+this is for: the ticket is what the room puts on chat lines and over bees, so
+signing in with Google used to put a person's legal name in a chat window next
+to strangers. `username.spec.ts` decodes a real ticket and asserts both halves
+of that, and the assertion fails if the route goes back to the session name.
+
+## The admin tool
+
+One address, from `ADMIN_EMAIL`. Everyone else gets a 404 rather than a locked
+door: a page that announces itself is a page worth attacking.
+
+Beyond the ceiling and the waitlist it can now edit a player's username, wipe a
+save without deleting the account, and read four views of how the game is going.
+Every action is re-checked against the gate in the route, because hiding a
+control is not the same as refusing an action, and `admin.spec.ts` posts each
+one as a non-admin to prove it.
+
+Two rules the tool keeps deliberately:
+
+**The admin cannot suspend or delete themselves.** A locked-out owner has no way
+back in. Wiping your own save IS allowed, because it cannot lock anybody out of
+anything and is a thing you might genuinely want.
+
+**Nothing here ranks players against each other.** The game has no leaderboard
+and a "top players" table would be that leaderboard entered through the back
+door. The per-player view answers "is this person stuck"; the aggregate answers
+"is this plant findable". Medians rather than means, because one completionist
+drags a mean away from anybody's actual afternoon.
+
+Garden party numbers are **totals, never events**. The room stores nothing at
+all, and a row per join would be a record of who was in a room with whom and
+when, which is exactly what the room refuses to keep. A counter answers "is
+anybody using this" and describes nobody.
+
+And only things that happen **once a session**: joins, co-op pollinations, games
+opened. There was a chat counter, and it was wrong in a way worth remembering.
+It fired a serverless request for every line anybody typed, which put a
+per-message cost back on the one feature whose whole design is that the room
+stores nothing and costs nothing. "Is anybody chatting" is already answered by
+joins, and a counter that scales with typing rather than with people is not
+worth what it costs.
+
 ## Adding things
 
 **A species:** add the record with its `homes`, source a licensed photograph and

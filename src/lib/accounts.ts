@@ -1,6 +1,7 @@
 import { sql } from "@vercel/postgres";
 
 import { databaseConfigured } from "./env";
+import { usernameProblem } from "./username";
 
 /**
  * Accounts, the ceiling, and the waitlist.
@@ -21,7 +22,10 @@ export type AccountStatus = "active" | "suspended";
 export type Account = {
   userId: string;
   email: string | null;
+  /** What Google calls them. Not shown to other players. */
   name: string | null;
+  /** What they chose to be called, and what other players see. */
+  username: string | null;
   status: AccountStatus;
   createdAt: string;
   lastSeen: string;
@@ -67,6 +71,30 @@ async function ensureSchema() {
     )
   `;
 
+  /**
+   * The chosen name, added after the table existed.
+   *
+   * `ADD COLUMN IF NOT EXISTS` rather than a migration file, to match how the
+   * rest of this schema is built: a fresh deploy is still "set the env vars and
+   * go". Every account that predates this has NULL here, which is exactly what
+   * the sign-in flow uses to know it must ask.
+   */
+  await sql`ALTER TABLE accounts ADD COLUMN IF NOT EXISTS username TEXT`;
+
+  /**
+   * Unique, case-insensitively, and only over the rows that have one.
+   *
+   * A plain UNIQUE would let one account hold the name in lower case and
+   * another in title case, which makes telling two players apart in a chat line
+   * a trap rather than a feature. The partial index is what allows every
+   * existing account to sit at NULL without colliding with each other.
+   */
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS accounts_username_key
+    ON accounts (LOWER(username))
+    WHERE username IS NOT NULL
+  `;
+
   await sql`
     CREATE TABLE IF NOT EXISTS waitlist (
       email      TEXT PRIMARY KEY,
@@ -81,7 +109,69 @@ async function ensureSchema() {
     )
   `;
 
+  /**
+   * Party usage counters.
+   *
+   * The room server stores NOTHING, by design and on purpose: chat that is
+   * promised to vanish must not sit in a log. So anything we want to know about
+   * garden parties has to be counted here, by the app, and it is deliberately
+   * counts rather than events. A row per join would be a record of who was in a
+   * room with whom and when, which is exactly the thing the room refuses to
+   * keep; a running total answers "is anybody using this" without describing
+   * anybody's afternoon.
+   */
+  await sql`
+    CREATE TABLE IF NOT EXISTS party_counters (
+      name  TEXT PRIMARY KEY,
+      value BIGINT NOT NULL DEFAULT 0
+    )
+  `;
+
   schemaReady = true;
+}
+
+/** The things worth counting about garden parties. A closed set, on purpose. */
+export type PartyCounter = "joins" | "coop_pollinations" | "games_played";
+
+export async function bumpPartyCounter(
+  name: PartyCounter,
+  by = 1,
+): Promise<void> {
+  if (!databaseConfigured) {
+    return;
+  }
+
+  await ensureSchema();
+
+  try {
+    await sql`
+      INSERT INTO party_counters (name, value)
+      VALUES (${name}, ${by})
+      ON CONFLICT (name) DO UPDATE SET value = party_counters.value + ${by}
+    `;
+  } catch {
+    // A counter is not worth failing a player's action over.
+  }
+}
+
+export async function readPartyCounters(): Promise<Record<string, number>> {
+  if (!databaseConfigured) {
+    return {};
+  }
+
+  await ensureSchema();
+
+  try {
+    const { rows } = await sql<{ name: string; value: string }>`
+      SELECT name, value FROM party_counters
+    `;
+
+    return Object.fromEntries(
+      rows.map((row) => [row.name, Number(row.value)]),
+    );
+  } catch {
+    return {};
+  }
 }
 
 export async function getCeiling(): Promise<number> {
@@ -238,6 +328,158 @@ export async function isSuspended(userId: string): Promise<boolean> {
   return (await accountStatus(userId)) === "suspended";
 }
 
+/**
+ * What this player is called, or null if they have not chosen yet.
+ *
+ * Null is the signal the whole prompting flow runs on: every account that
+ * existed before usernames has one, and so does every account made since, until
+ * they pick. There is no separate "has been asked" flag, because a flag can
+ * disagree with the thing it describes.
+ */
+export async function getUsername(userId: string): Promise<string | null> {
+  if (!databaseConfigured) {
+    return null;
+  }
+
+  await ensureSchema();
+
+  try {
+    const { rows } = await sql<{ username: string | null }>`
+      SELECT username FROM accounts WHERE user_id = ${userId}
+    `;
+
+    return rows[0]?.username ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export type SetUsernameResult =
+  | "ok"
+  | "taken"
+  | "invalid"
+  | "unavailable"
+  /** Signed in, but there is no account row to attach a name to. */
+  | "no-account";
+
+/**
+ * Claim a name.
+ *
+ * The uniqueness race is handled by the DATABASE, not by looking first. Two
+ * people typing the same name at the same moment both pass a SELECT and both
+ * proceed to write; only a constraint can actually decide between them. So this
+ * writes and catches the violation, which is the one way to be sure the answer
+ * it gives is true.
+ */
+export async function setUsername(
+  userId: string,
+  raw: string,
+): Promise<SetUsernameResult> {
+  const wanted = raw.trim();
+
+  if (usernameProblem(wanted)) {
+    return "invalid";
+  }
+
+  if (!databaseConfigured) {
+    return "unavailable";
+  }
+
+  await ensureSchema();
+
+  try {
+    /**
+     * UPDATE only. Never an insert.
+     *
+     * This used to upsert, which meant claiming a name would CREATE an accounts
+     * row if none existed, and account creation is `registerSignIn`'s job
+     * because that is where the ceiling, the waitlist and the suspension check
+     * live. A player whose account an admin had just deleted still holds a valid
+     * JWT for its lifetime, and could have posted a username to put a row back
+     * — walking around the ceiling and partly undoing the deletion.
+     *
+     * No row means no account, which is a refusal rather than an invitation.
+     */
+    const { rowCount } = await sql`
+      UPDATE accounts SET username = ${wanted} WHERE user_id = ${userId}
+    `;
+
+    if (!rowCount) {
+      return "no-account";
+    }
+
+    return "ok";
+  } catch (error) {
+    // 23505 is unique_violation. Anything else is a real fault and should not
+    // be reported to the player as "that name is taken".
+    const code = (error as { code?: string })?.code;
+
+    if (code === "23505") {
+      return "taken";
+    }
+
+    throw error;
+  }
+}
+
+/**
+ * The admin changing somebody's name for them.
+ *
+ * Same rules and the same constraint as a player choosing their own: an admin
+ * who could set a name the rules forbid would be an admin who could break the
+ * chat for everybody else, and one who could duplicate a name would undo the
+ * only thing making a username worth having.
+ *
+ * Passing an empty string CLEARS it, which is how you hand a name back after
+ * taking one away, and it puts that account back in front of the prompt.
+ */
+export async function adminSetUsername(
+  userId: string,
+  raw: string,
+): Promise<SetUsernameResult> {
+  const wanted = raw.trim();
+
+  if (wanted === "") {
+    if (!databaseConfigured) {
+      return "unavailable";
+    }
+
+    await ensureSchema();
+
+    const { rowCount } = await sql`
+      UPDATE accounts SET username = NULL WHERE user_id = ${userId}
+    `;
+
+    return rowCount ? "ok" : "no-account";
+  }
+
+  return setUsername(userId, wanted);
+}
+
+/**
+ * Wipe somebody's save without deleting their account.
+ *
+ * A separate thing from deleting them: this is for a player who asks to start
+ * again, and it leaves the account, the seat and the username alone. Deleting
+ * the row rather than writing an empty one, so the next load is a genuine fresh
+ * start rather than an empty object that the merge would union with.
+ */
+export async function resetProgressFor(userId: string): Promise<boolean> {
+  if (!databaseConfigured) {
+    return false;
+  }
+
+  await ensureSchema();
+
+  try {
+    await sql`DELETE FROM player_progress WHERE user_id = ${userId}`;
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function listAccounts(): Promise<Account[]> {
   if (!databaseConfigured) {
     return [];
@@ -251,6 +493,7 @@ export async function listAccounts(): Promise<Account[]> {
     user_id: string;
     email: string | null;
     name: string | null;
+    username: string | null;
     status: AccountStatus;
     created_at: string;
     last_seen: string;
@@ -262,6 +505,7 @@ export async function listAccounts(): Promise<Account[]> {
       a.user_id,
       a.email,
       a.name,
+      a.username,
       a.status,
       a.created_at,
       a.last_seen,
@@ -276,6 +520,7 @@ export async function listAccounts(): Promise<Account[]> {
   return rows.map((row) => ({
     userId: row.user_id,
     email: row.email,
+    username: row.username,
     name: row.name,
     status: row.status,
     createdAt: row.created_at,

@@ -40,6 +40,15 @@ export type PartyStatus =
   | "in"
   | "full"
   | "unauthorized"
+  /**
+   * The door would not open at all.
+   *
+   * Distinct from `unauthorized`, which is the room telling you why. This is
+   * the socket failing before there is a socket to be told anything on, which
+   * in practice means the ticket did not verify: the pass is signed with one
+   * secret and checked against another.
+   */
+  | "rejected"
   | "lost";
 
 type PartyState = {

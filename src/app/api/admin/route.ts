@@ -1,15 +1,18 @@
 import { NextResponse } from "next/server";
 
 import {
+  adminSetUsername,
   deleteAccount,
   getAnalytics,
   listAccounts,
   listWaitlist,
   removeFromWaitlist,
+  resetProgressFor,
   setAccountStatus,
   setCeiling,
 } from "@/lib/accounts";
 import { auth } from "@/lib/auth";
+import { getInsights } from "@/lib/insights";
 import { env, isAdminEmail } from "@/lib/env";
 
 /**
@@ -34,13 +37,14 @@ export async function GET() {
     return notFound();
   }
 
-  const [analytics, accounts, waitlist] = await Promise.all([
+  const [analytics, accounts, waitlist, insights] = await Promise.all([
     getAnalytics(),
     listAccounts(),
     listWaitlist(),
+    getInsights(),
   ]);
 
-  return NextResponse.json({ analytics, accounts, waitlist });
+  return NextResponse.json({ analytics, accounts, waitlist, insights });
 }
 
 /**
@@ -71,6 +75,8 @@ type Action =
   | { action: "suspend"; userId: string }
   | { action: "unsuspend"; userId: string }
   | { action: "delete"; userId: string }
+  | { action: "setUsername"; userId: string; username: unknown }
+  | { action: "resetProgress"; userId: string }
   | { action: "removeWaitlist"; email: string };
 
 export async function POST(request: Request) {
@@ -121,6 +127,33 @@ export async function POST(request: Request) {
     case "delete":
       await deleteAccount(body.userId);
       break;
+    case "setUsername": {
+      if (typeof body.username !== "string") {
+        return NextResponse.json({ error: "bad-username" }, { status: 400 });
+      }
+
+      const result = await adminSetUsername(body.userId, body.username);
+
+      if (result === "taken") {
+        return NextResponse.json({ error: "taken" }, { status: 409 });
+      }
+
+      if (result !== "ok") {
+        return NextResponse.json({ error: result }, { status: 400 });
+      }
+
+      break;
+    }
+    case "resetProgress":
+      /**
+       * Wipes the save, keeps the account.
+       *
+       * Deliberately allowed on the admin's own row, unlike suspend and delete:
+       * wiping your own progress is a thing you might genuinely want, and it
+       * cannot lock you out of the tool the way suspending yourself would.
+       */
+      await resetProgressFor(body.userId);
+      break;
     case "removeWaitlist":
       await removeFromWaitlist(body.email);
       break;
@@ -128,10 +161,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "unknown-action" }, { status: 400 });
   }
 
-  const [analytics, accounts, waitlist] = await Promise.all([
+  const [analytics, accounts, waitlist, insights] = await Promise.all([
     getAnalytics(),
     listAccounts(),
     listWaitlist(),
+    getInsights(),
   ]);
 
   // Echo `env.adminEmail` so the client can grey out the admin's own row without
@@ -141,6 +175,7 @@ export async function POST(request: Request) {
     analytics,
     accounts,
     waitlist,
+    insights,
     adminEmail: env.adminEmail,
   });
 }

@@ -1671,8 +1671,10 @@ test.describe("the top bar", () => {
 
     await expect(nav.getByRole("link", { name: "Play" })).toBeVisible();
     await expect(nav.getByRole("link", { name: "Parties" })).toBeVisible();
-    await expect(nav.getByRole("link", { name: "Journal" })).toBeVisible();
     await expect(more).toBeVisible();
+
+    // And only those. Everything else is behind the button, which is the point.
+    await expect(nav.getByRole("link")).toHaveCount(2);
 
     // Shut, and genuinely absent rather than merely invisible: a hidden list is
     // still in the tab order in some browsers.
@@ -1682,7 +1684,7 @@ test.describe("the top bar", () => {
     await more.click();
     await expect(more).toHaveAttribute("aria-expanded", "true");
 
-    for (const label of ["Customize", "Profile", "Offline run", "About", "Credits"]) {
+    for (const label of ["Journal", "Customize", "Offline run", "About", "Credits"]) {
       await expect(nav.getByRole("link", { name: label })).toBeVisible();
     }
 
@@ -1704,6 +1706,60 @@ test.describe("the top bar", () => {
     await nav.getByRole("link", { name: "Credits" }).click();
     await page.waitForURL(/\/credits/);
     await expect(more).toHaveAttribute("aria-expanded", "false");
+  });
+
+  test("the account folds up too, and can still sign you out", async ({
+    page,
+  }) => {
+    /**
+     * The right-hand side was a full name, a Sign out button and a theme
+     * toggle, which on a name like "Miles Mufuka Martin" is most of the bar.
+     * The name becomes a first name on a button, and the rest goes inside.
+     *
+     * Sign out has to STILL BE REACHABLE, which is the thing that would be
+     * quietly lost by folding it away and getting the menu wrong.
+     */
+    await signIn(page.context(), "nav-player", "nav@example.com", "Ada Lovelace");
+    await page.goto("/about");
+
+    const nav = page.getByRole("navigation", { name: "Primary navigation" });
+    const account = nav.getByRole("button", { name: /^Ada/ });
+
+    await expect(account, "the account menu is not on the bar").toBeVisible();
+
+    // The full name is not out on the bar any more.
+    await expect(nav.getByText("Ada Lovelace")).toHaveCount(0);
+
+    await account.click();
+
+    // It is inside, along with the way out.
+    await expect(nav.getByText("Ada Lovelace")).toBeVisible();
+    await expect(
+      nav.getByRole("button", { name: "Sign out" }),
+      "there is no way to sign out any more",
+    ).toBeVisible();
+
+    // The Sign out control must look like the links beside it rather than
+    // inheriting the browser's button font, which is a size larger and a
+    // weight lighter.
+    const [link, action] = await nav.evaluate(() => {
+      const read = (el: Element | null) => {
+        if (!el) {
+          return null;
+        }
+
+        const style = getComputedStyle(el);
+
+        return `${style.fontSize}/${style.fontWeight}/${style.color}`;
+      };
+
+      return [
+        read(document.querySelector(".nav-menu__list a")),
+        read(document.querySelector(".nav-menu__action")),
+      ];
+    });
+
+    expect(action, "Sign out does not match the links beside it").toBe(link);
   });
 
   test("the menu stays on screen on a phone", async ({ page }) => {

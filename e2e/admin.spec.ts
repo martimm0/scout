@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { env } from "../src/lib/env";
+
 import { signIn } from "./helpers";
 
 /**
@@ -11,7 +13,12 @@ import { signIn } from "./helpers";
  * session email, minted the same way Auth.js would issue it.
  */
 
-const ADMIN = "miles@relai.us";
+/**
+ * Read from the same place the app reads it, rather than written out twice.
+ * A test that hard-codes the admin address goes on passing after somebody
+ * changes who the admin is, which is the one thing this file exists to check.
+ */
+const ADMIN = env.adminEmail;
 
 test.describe("the admin tool is the admin's alone", () => {
   test("a signed-out stranger sees no dashboard, and the API is 404", async ({
@@ -126,5 +133,134 @@ test.describe("the admin tool is the admin's alone", () => {
     await page.request.post("/api/admin", {
       data: { action: "setCeiling", ceiling: 100 },
     });
+  });
+});
+
+test.describe("the admin can act on players", () => {
+  /**
+   * Every one of these is asked of the API, not the page.
+   *
+   * The dashboard hides controls from a non-admin, and hiding is not a gate: a
+   * stranger with a terminal never sees the page at all. What has to hold is
+   * that the ROUTE refuses them.
+   */
+  test("a non-admin cannot use any of the player actions", async ({ page }) => {
+    await signIn(page.context(), "not-admin", "someone@example.com");
+    await page.goto("/");
+
+    for (const body of [
+      { action: "setUsername", userId: "anyone", username: "taken" },
+      { action: "resetProgress", userId: "anyone" },
+      { action: "delete", userId: "anyone" },
+      { action: "suspend", userId: "anyone" },
+      { action: "setCeiling", ceiling: 9999 },
+    ]) {
+      const response = await page.request.post("/api/admin", { data: body });
+
+      expect(
+        response.status(),
+        `${body.action} was allowed for a non-admin`,
+      ).toBe(404);
+    }
+  });
+
+  test("the admin can set and clear a player's username", async ({
+    browser,
+  }) => {
+    // A real player to act on, with a name of their own choosing first.
+    const player = await browser.newContext();
+
+    await signIn(player, "target-player", "target@example.com");
+
+    const playerPage = await player.newPage();
+
+    await playerPage.goto("/");
+
+    const wanted = `tgt${Date.now().toString(36)}`;
+    const claimed = await playerPage.request.post("/api/username", {
+      data: { username: wanted },
+    });
+
+    test.skip(
+      claimed.status() === 501,
+      "no database configured, so usernames cannot be tested",
+    );
+    expect(claimed.status()).toBe(200);
+
+    const admin = await browser.newContext();
+
+    await signIn(admin, "the-admin", ADMIN);
+
+    const adminPage = await admin.newPage();
+
+    await adminPage.goto("/");
+
+    const find = async () => {
+      const data = (await (
+        await adminPage.request.get("/api/admin")
+      ).json()) as { accounts: { userId: string; username: string | null }[] };
+
+      return data.accounts.find((a) => a.userId === "target-player");
+    };
+
+    expect((await find())?.username).toBe(wanted);
+
+    // The admin renames them, and the rules still apply: an admin who could set
+    // a name the rules forbid could break the chat for everybody else.
+    const bad = await adminPage.request.post("/api/admin", {
+      data: {
+        action: "setUsername",
+        userId: "target-player",
+        username: "has spaces",
+      },
+    });
+
+    expect(bad.status(), "the admin bypassed the username rules").toBe(400);
+    expect((await find())?.username, "the bad name was stored").toBe(wanted);
+
+    // And clearing it hands the name back, which is the only way to free one.
+    const cleared = await adminPage.request.post("/api/admin", {
+      data: { action: "setUsername", userId: "target-player", username: "" },
+    });
+
+    expect(cleared.ok()).toBe(true);
+    expect(
+      (await find())?.username,
+      "clearing a username did not clear it",
+    ).toBeNull();
+
+    await player.close();
+    await admin.close();
+  });
+
+  test("the admin still cannot suspend or delete themselves", async ({
+    page,
+  }) => {
+    /**
+     * The existing guard, re-checked because the actions around it changed. A
+     * locked-out owner has no way back in, so this refuses rather than allows.
+     */
+    await signIn(page.context(), "the-admin", ADMIN);
+    await page.goto("/admin");
+
+    const data = (await (await page.request.get("/api/admin")).json()) as {
+      accounts: { userId: string; email: string | null }[];
+    };
+    const self = data.accounts.find(
+      (a) => (a.email ?? "").toLowerCase() === ADMIN,
+    );
+
+    test.skip(!self, "no database configured, so there is no admin row");
+
+    for (const action of ["suspend", "delete"]) {
+      const response = await page.request.post("/api/admin", {
+        data: { action, userId: self!.userId },
+      });
+
+      expect(
+        response.status(),
+        `the admin could ${action} themselves out of the tool`,
+      ).toBe(400);
+    }
   });
 });

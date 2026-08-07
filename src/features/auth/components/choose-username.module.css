@@ -1,0 +1,129 @@
+/* Asked once, over whatever page you happened to land on after signing in.
+   Same furniture as the game's own popovers so it does not read as a different
+   product interrupting you. */
+
+/*
+ * In the flow of the page, at the top. It covers nothing because it cannot.
+ *
+ * This took three goes, and each failure is worth remembering.
+ *
+ * It began as a full-screen scrim, which ate every click beneath it: a
+ * signed-in player with no name could not press Join, take a photograph or
+ * change their bee.
+ *
+ * Then it was a card pinned bottom-right, which blocked nothing in the
+ * pointer-events sense and still sat physically on top of whatever was in that
+ * corner. On the party lobby that was Highland's Join button, because Highland
+ * is the rightmost of three cards. One test caught it; the two before it had
+ * clicked Frick, on the left, and passed.
+ *
+ * A banner in normal flow displaces content instead of covering it, so there is
+ * no corner it can be wrong about and no page it has to know anything about.
+ */
+.anchor {
+  width: min(1120px, calc(100% - 40px));
+  margin: 20px auto 0;
+}
+
+.card {
+  width: 100%;
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 20px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.title {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+  color: var(--card-ink);
+}
+
+.note {
+  margin: 0 0 16px;
+  color: var(--card-ink-soft);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+}
+
+.label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--card-ink-soft);
+  margin-bottom: 6px;
+}
+
+.input {
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 11px 13px;
+  background: var(--background);
+  color: var(--card-ink);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+/* Always present, so the box does not jump when a rule is broken. */
+.hint {
+  min-height: 1.4em;
+  margin: 7px 0 0;
+  color: var(--card-ink-soft);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.primary {
+  border: none;
+  border-radius: 999px;
+  padding: 10px 18px;
+  background: var(--primary);
+  color: #fffdf6;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.primary:disabled {
+  background: rgba(60, 52, 36, 0.18);
+  color: var(--card-ink-soft);
+  cursor: not-allowed;
+}
+
+/* Not a hard gate. Somebody who came to look at flowers should be able to go
+   and look at flowers. */
+.later {
+  border: none;
+  background: none;
+  color: var(--card-ink-soft);
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+  text-decoration: underline;
+}

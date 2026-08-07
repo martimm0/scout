@@ -175,6 +175,15 @@ export function PartyPicker() {
         </p>
       ) : null}
 
+      {status === "rejected" ? (
+        <p className={styles.trouble} role="alert">
+          The party server would not let us in, and it is not something you did.
+          The pass the game hands out is signed with one key and checked with
+          another, which means the two halves are configured with different
+          secrets. Nothing is broken in your account and nothing is lost.
+        </p>
+      ) : null}
+
       {status === "lost" ? (
         <p className={styles.trouble} role="alert">
           The connection dropped. Nothing you found is lost, it is already in

@@ -1,5 +1,6 @@
 import { encode } from "next-auth/jwt";
 
+import { getUsername } from "@/lib/accounts";
 import { auth } from "@/lib/auth";
 import { env } from "@/lib/env";
 
@@ -27,10 +28,21 @@ export async function GET() {
     );
   }
 
+  /**
+   * The CHOSEN name, never the Google one.
+   *
+   * This is the whole reason usernames exist. The ticket is what the room puts
+   * on your chat lines and over your bee, so signing in with a Google account
+   * used to put a person's legal name in a chat window next to strangers. A
+   * player who has not chosen yet is "A bee" until they do, which is a fair
+   * thing to be called and gives away nothing.
+   */
+  const username = await getUsername(session.user.id);
+
   const ticket = await encode({
     token: {
       sub: session.user.id,
-      name: session.user.name ?? "A bee",
+      name: username ?? "A bee",
     },
     secret: env.authSecret || "scout-local-mode-no-signin-possible",
     salt: "scout-party-ticket",
