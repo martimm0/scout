@@ -72,6 +72,34 @@ function median(values: number[]): number {
     : Math.round((sorted[middle - 1] + sorted[middle]) / 2);
 }
 
+/**
+ * The Monday of the week a timestamp falls in, as a plain date string.
+ *
+ * All of it in UTC, which sounds like a detail and is not. This used to read
+ * the day and date in LOCAL time and then format the result with
+ * `toISOString`, which formats in UTC, and mixing the two gets both answers
+ * wrong: the label lands on the day either side of Monday depending on the
+ * server's offset, and two accounts created in the same week can be given
+ * different keys and drawn as separate bars. One week, two columns, neither
+ * one starting on a Monday.
+ *
+ * Whether the week should be a Pittsburgh week or a UTC one is a real question
+ * with a boring answer, since this only decides which bar a sign-up sits in.
+ * Being consistent is what matters, so this is UTC throughout.
+ */
+export function mondayOf(timestamp: string | Date): string {
+  const at = new Date(timestamp);
+  const monday = new Date(
+    Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()),
+  );
+
+  // getUTCDay is 0 on Sunday, so +6 % 7 makes Monday the start of the week
+  // rather than the day after it.
+  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
+
+  return monday.toISOString().slice(0, 10);
+}
+
 export async function getInsights(): Promise<Insights> {
   if (!databaseConfigured) {
     return EMPTY;
@@ -164,12 +192,7 @@ export async function getInsights(): Promise<Insights> {
     const week = new Map<string, number>();
 
     for (const account of accounts) {
-      const at = new Date(account.created_at);
-      // ISO-ish week bucket: the Monday of that week, as a date string.
-      const monday = new Date(at);
-
-      monday.setDate(at.getDate() - ((at.getDay() + 6) % 7));
-      const key = monday.toISOString().slice(0, 10);
+      const key = mondayOf(account.created_at);
 
       week.set(key, (week.get(key) ?? 0) + 1);
     }

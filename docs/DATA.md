@@ -674,6 +674,16 @@ all, and a row per join would be a record of who was in a room with whom and
 when, which is exactly what the room refuses to keep. A counter answers "is
 anybody using this" and describes nobody.
 
+Sign-ups are bucketed **by the Monday of their week, in UTC throughout**. That
+sounds like a detail and is not: the first version read the day and date in local
+time and then formatted the result with `toISOString`, which formats in UTC, and
+mixing the two got both halves wrong. Every bar was labelled a day late in any
+timezone west of Greenwich, so the weeks started on Tuesdays, and two accounts
+created either side of midnight in the same week were drawn as two separate weeks.
+Whether a week should be a Pittsburgh week or a UTC one is a real question with a
+boring answer, since this only decides which bar a sign-up sits in; being
+consistent is the part that matters.
+
 And only things that happen **once a session**: joins, co-op pollinations, games
 opened. There was a chat counter, and it was wrong in a way worth remembering.
 It fired a serverless request for every line anybody typed, which put a

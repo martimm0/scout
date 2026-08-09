@@ -128,23 +128,52 @@ export async function nameThePlayer(
   email: string,
   username: string,
 ) {
+  if (!(await registerAccount(userId, email, username))) {
+    return;
+  }
+
+  const { setUsername } = await import("../src/lib/accounts");
+
+  await setUsername(userId, username);
+}
+
+/**
+ * Just the account, with no name attached.
+ *
+ * Split out from `nameThePlayer` because several tests need an account to exist
+ * and then want to claim the name THROUGH THE API, which is the path a real
+ * player takes and therefore the path worth testing.
+ *
+ * Not optional, and that is the point. Claiming a username is UPDATE-only now,
+ * so with no row it answers 403 and the test that meant to exercise the happy
+ * path exercises the refusal instead. Two tests here were passing purely on a
+ * leftover row an older, buggier version of `setUsername` had created by
+ * upserting; a fresh database would have failed both, and the suite would have
+ * looked broken by the deploy rather than by this.
+ *
+ * Returns whether there is a database at all, so callers can skip honestly.
+ */
+export async function registerAccount(
+  userId: string,
+  email: string,
+  name = email,
+): Promise<boolean> {
   const url = /^POSTGRES_URL=(.*)$/m
     .exec(readFileSync(".env.local", "utf8"))?.[1]
     ?.trim()
     .replace(/^["']|["']$/g, "");
 
   if (!url) {
-    return;
+    return false;
   }
 
   process.env.POSTGRES_URL = url;
 
-  const { registerSignIn, setUsername } = await import(
-    "../src/lib/accounts"
-  );
+  const { registerSignIn } = await import("../src/lib/accounts");
 
-  await registerSignIn({ userId, email, name: username });
-  await setUsername(userId, username);
+  await registerSignIn({ userId, email, name });
+
+  return true;
 }
 
 /**

@@ -4,44 +4,13 @@ import { readFileSync } from "node:fs";
 
 import { decode } from "next-auth/jwt";
 
-import { resetProgress, signIn } from "./helpers";
+import { registerAccount, resetProgress, signIn } from "./helpers";
 import {
   USERNAME_MAX,
   USERNAME_MIN,
   usernameKey,
   usernameProblem,
 } from "../src/lib/username";
-
-/**
- * Register an account the way a real Google sign-in does.
- *
- * The suite mints session cookies directly, which is the right way to test the
- * signed-in paths, but it means no `accounts` row is ever created: in
- * production that happens in the Auth.js sign-in callback. Tests that need a
- * real account have to do the same thing that callback does, and calling the
- * same function is how they stay in step with it.
- *
- * This became necessary the moment claiming a username stopped creating rows of
- * its own, which it should never have done.
- */
-async function registerAccount(userId: string, email: string) {
-  const url = /^POSTGRES_URL=(.*)$/m
-    .exec(readFileSync(".env.local", "utf8"))?.[1]
-    ?.trim()
-    .replace(/^["']|["']$/g, "");
-
-  if (!url) {
-    return false;
-  }
-
-  process.env.POSTGRES_URL = url;
-
-  const { registerSignIn } = await import("../src/lib/accounts");
-
-  await registerSignIn({ userId, email, name: email });
-
-  return true;
-}
 
 /** The secret the running dev server is using, read the way the helpers do. */
 function authSecret() {

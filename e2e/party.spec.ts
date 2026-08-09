@@ -1138,6 +1138,84 @@ test.describe("garden parties", () => {
     await closePlayer(page);
   });
 
+  test("a reconnect that can never be authorised gives up instead of hammering", async ({
+    browser,
+  }) => {
+    test.setTimeout(180_000);
+
+    /**
+     * The other half of reconnecting: knowing when to stop.
+     *
+     * Fetching a fresh ticket per attempt is what makes a dropped connection
+     * survive, but it also means a ticket endpoint that has started saying no
+     * gets asked again on every retry. That happens for real: sign out in
+     * another tab, or have an account deleted while the park is still open,
+     * and every future ticket is a 401.
+     *
+     * Retrying forever there is not resilience. It is a tab left open all
+     * afternoon quietly spending a Worker request and a serverless invocation
+     * per attempt, on a free tier, to be told no every single time.
+     *
+     * So the assertion is that the attempts STOP. Counted rather than eyeballed,
+     * because with backoff a runaway loop looks calm for the first few seconds
+     * and only shows itself if you keep watching.
+     */
+    const page = await playerPage(browser, "giveup");
+
+    let tickets = 0;
+    let refuse = false;
+
+    await page.route("**/api/party/ticket", async (route) => {
+      tickets += 1;
+
+      if (refuse) {
+        // What a signed-out session actually gets.
+        await route.fulfill({
+          status: 401,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "not-signed-in" }),
+        });
+
+        return;
+      }
+
+      await route.continue();
+    });
+
+    await page.goto("/parties");
+    await page.getByRole("button", { name: /Join the Frick/ }).click();
+    await page.waitForURL(/\/play/);
+    await page.waitForTimeout(2500);
+
+    // Signed in and in the park. Now take the account away underneath them.
+    refuse = true;
+
+    const beforeDrop = tickets;
+
+    await page.evaluate(() => {
+      const holder = window as unknown as {
+        __scoutPartySocketForTest?: { reconnect: () => void };
+      };
+
+      holder.__scoutPartySocketForTest?.reconnect();
+    });
+
+    // Long enough for backoff to be irrelevant: a loop that is still going at
+    // twenty seconds is a loop that is never going to stop on its own.
+    await page.waitForTimeout(20_000);
+
+    const settled = tickets;
+
+    await page.waitForTimeout(15_000);
+
+    expect(
+      tickets - settled,
+      `still asking for tickets it will never be given: ${tickets - beforeDrop} attempts and counting`,
+    ).toBe(0);
+
+    await closePlayer(page);
+  });
+
   test("the cap is ten, and the eleventh is told why", async () => {
     test.setTimeout(180_000);
 

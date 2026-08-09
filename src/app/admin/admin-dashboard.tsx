@@ -62,6 +62,17 @@ export function AdminDashboard({
   const [ceiling, setCeilingInput] = useState(String(initialAnalytics.ceiling));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * Bumped after every action, and used to remount the username inputs.
+   *
+   * They are uncontrolled, so `defaultValue` is read once and ignored on every
+   * render after. That is fine while the server agrees with the box, and wrong
+   * the moment it does not: a name refused as already taken stayed in the cell
+   * looking saved, so the table showed one thing and the database held another.
+   * Remounting puts every cell back to what is actually stored, which after a
+   * refusal is the old name and after a success is the new one.
+   */
+  const [settled, setSettled] = useState(0);
 
   const act = async (body: Body) => {
     setBusy(true);
@@ -92,6 +103,7 @@ export function AdminDashboard({
       setCeilingInput(String(fresh.analytics.ceiling));
     } finally {
       setBusy(false);
+      setSettled((n) => n + 1);
     }
   };
 
@@ -199,6 +211,7 @@ export function AdminDashboard({
                           className={styles.usernameInput}
                           defaultValue={account.username ?? ""}
                           disabled={busy}
+                          key={`${account.userId}:${settled}`}
                           onBlur={(event) => {
                             const next = event.target.value.trim();
 

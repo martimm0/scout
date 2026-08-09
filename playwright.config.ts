@@ -1,4 +1,43 @@
+import { readFileSync } from "node:fs";
+
 import { defineConfig, devices } from "@playwright/test";
+
+/**
+ * The app's own variables, in the test process, before anything reads them.
+ *
+ * Next loads `.env.local` for the server; the Playwright process gets nothing,
+ * and several tests reach into `src/lib` directly to set up a player. Those
+ * modules decide ONCE, at import time, whether there is a database — so whether
+ * a test could see one came down to whether some other import had already
+ * pulled `src/lib/env` in first. `admin.spec.ts` imports it at the top, so every
+ * account its helpers tried to create was silently discarded, and the tests then
+ * passed on a leftover row from an older version rather than on their own setup.
+ *
+ * A config file is evaluated before any spec, which makes this the one place the
+ * answer can be the same for all of them. Deliberately does not overwrite
+ * anything already set, so `PLAYWRIGHT_PORT=... POSTGRES_URL=... npx playwright`
+ * still wins.
+ */
+function loadLocalEnv() {
+  let text: string;
+
+  try {
+    text = readFileSync(".env.local", "utf8");
+  } catch {
+    // No file. Local mode, and the tests that need a database skip and say so.
+    return;
+  }
+
+  for (const line of text.split("\n")) {
+    const match = /^\s*([A-Z0-9_]+)\s*=\s*(.*)$/.exec(line);
+
+    if (match && !process.env[match[1]]) {
+      process.env[match[1]] = match[2].trim().replace(/^["']|["']$/g, "");
+    }
+  }
+}
+
+loadLocalEnv();
 
 /**
  * WebGL in headless Chromium needs to be told to use a real backend, or the game
@@ -31,6 +70,9 @@ const PARTY_HOST = `127.0.0.1:${PARTY_PORT}`;
 
 export default defineConfig({
   testDir: "./e2e",
+  // Invented players are real rows while the suite runs, and nobody's business
+  // afterwards. See the file for why this can only ever reach example.com.
+  globalTeardown: "./e2e/global-teardown.ts",
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,

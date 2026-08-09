@@ -35,17 +35,53 @@ function partyHost() {
   return process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? "127.0.0.1:1999";
 }
 
+/**
+ * Set when the ticket endpoint has said no in a way that will not change.
+ *
+ * Read by the close handler to decide between retrying and giving up, because
+ * by the time the socket closes the reason it never opened is long gone.
+ */
+let ticketDenied = false;
+
 /** A pass into a room. Five minutes long, so it is fetched per connection. */
 async function freshTicket(): Promise<{ ticket: string }> {
-  const response = await fetch("/api/party/ticket");
+  let response: Response;
+
+  try {
+    response = await fetch("/api/party/ticket");
+  } catch {
+    /**
+     * The network, not the answer. Worth retrying, so this deliberately does
+     * NOT set `ticketDenied`.
+     *
+     * Caught rather than thrown because the caller is partysocket's own
+     * reconnect loop, which has nowhere to put an exception: letting this
+     * reject takes the retry machinery down with it.
+     */
+    return { ticket: "" };
+  }
 
   if (!response.ok) {
-    // Reported through the socket failing rather than thrown: the caller is
-    // partysocket's own reconnect loop, which has nowhere to put an exception.
+    /**
+     * 401 and 403 are settled facts: not signed in, or no account to be in a
+     * party with. Asking again in four seconds gets the same answer, and the
+     * fifty after that get it too.
+     *
+     * Everything else (a 500, a deploy mid-flight) is a bad moment rather than
+     * a verdict, and reconnecting through those is the whole point of having a
+     * retry loop. Telling the two apart is the difference between resilience
+     * and a tab that spends the afternoon being refused.
+     */
+    if (response.status === 401 || response.status === 403) {
+      ticketDenied = true;
+    }
+
     usePartyStore.getState().setStatus("unauthorized");
 
     return { ticket: "" };
   }
+
+  ticketDenied = false;
 
   return (await response.json()) as { ticket: string };
 }
@@ -55,6 +91,10 @@ export async function joinParty(party: GardenPartyId): Promise<void> {
 
   const store = usePartyStore.getState();
   store.setStatus("connecting");
+
+  // A fresh attempt starts with no verdict against it. Signing back in and
+  // trying again must not be refused on the strength of the last session.
+  ticketDenied = false;
 
   // Fail before opening a socket if there is no account, so the lobby can say
   // so rather than showing a connection that will never work.
@@ -191,6 +231,22 @@ export async function joinParty(party: GardenPartyId): Promise<void> {
 
   socket.addEventListener("close", () => {
     const status = usePartyStore.getState().status;
+
+    /**
+     * Turned away for a reason that will still be true next time.
+     *
+     * Checked BEFORE the never-opened case, because this can happen to a socket
+     * that opened perfectly well an hour ago: sign out in another tab, or have
+     * an account deleted mid-session, and every ticket from then on is a 401.
+     * Without this the retry loop runs until the tab is closed, spending a
+     * Worker request and a serverless invocation each time to be told no.
+     */
+    if (ticketDenied) {
+      usePartyStore.getState().setStatus("unauthorized");
+      leaveParty(false);
+
+      return;
+    }
 
     if (!opened.yet) {
       usePartyStore.getState().setStatus("rejected");

@@ -29,8 +29,8 @@ game IS, see [GAMEPLAN.md](GAMEPLAN.md). For how the data is shaped, see
   It was written against PartyKit's hosted platform first, and that platform is
   full: `partykit.dev` has hit Cloudflare's limit of 10,000 custom domains per
   zone, so no new project can be deployed to it. The port cost very little,
-  because everything that matters was already in pure modules — the board
-  rules, the quip state machine, the table transitions, the protocol — and only
+  because everything that matters was already in pure modules (the board
+  rules, the quip state machine, the table transitions, the protocol) and only
   the shell of `party/garden.ts` had to change.
 - **Web Audio**, synthesized. No audio files.
 - **Playwright** across Chromium, Firefox and WebKit, plus `phone` and `tablet`
@@ -389,6 +389,34 @@ draws whatever Pittsburgh is really doing. Any assertion about its pixels has to
 clear a flat fill rather than a sunny afternoon, or it passes all day and fails at
 sunset.
 
+### The suite has a real account in a real database
+
+Tests mint session cookies directly, which is the right way to reach the signed-in
+paths and means the app cannot tell an invented player from anybody else. That is
+the point, and it has two consequences worth stating.
+
+The first is that **a test needing an account has to create one**, through
+`registerAccount` in `e2e/helpers.ts`, which calls the same `registerSignIn` the
+Auth.js callback calls. A signed-in cookie alone leaves no `accounts` row, and
+since claiming a username is UPDATE-only it answers 403 rather than creating one.
+Two admin tests were passing without this, on a row an older upserting version had
+left behind months earlier; a fresh database would have failed both, and it would
+have looked like the deploy's fault.
+
+The second is that **invented players are real rows**, so `e2e/global-teardown.ts`
+removes them at the end of a run. It matches on `@example.com`, which RFC 2606
+reserves so it can never belong to a real person, so it cannot reach a player's
+account however the suite is run. This mattered more once the admin tool existed:
+"Accounts: 10 of 100" is a number somebody acts on, and eight of those ten were
+Ada, Bo and other people who do not exist, each holding a seat against the ceiling.
+
+`playwright.config.ts` loads `.env.local` into the test process before any spec is
+imported. Modules under `src/lib` decide **once, at import time**, whether there is
+a database, so without this it came down to import order: `admin.spec.ts` pulls in
+`src/lib/env` at the top of the file, which fixed the answer at "no database" before
+any helper could set `POSTGRES_URL`, and every account those helpers tried to create
+was silently discarded.
+
 ## Garden parties
 
 Three standing rooms, one per park, up to ten players in each. Nobody creates
@@ -410,6 +438,21 @@ JWT signed with the same `AUTH_SECRET`, and the room verifies it on the far
 side. `/parties` also refuses to render without a session, but **that page is
 the courtesy, not the enforcement.** The socket is the enforcement, and
 `party.spec.ts` proves it by opening one with no ticket at all.
+
+The five minutes is why the client hands partysocket a **function** rather than a
+ticket. It calls that function on every connection attempt, so a fixed value meant
+every reconnect after the first five minutes presented an expired pass and was
+refused forever, against a server that was perfectly healthy, with a page reload
+the only way back. From the console it looks exactly like a broken server.
+
+Fetching per attempt then raises the opposite question: when to stop asking. A 401
+or 403 is a settled fact (signed out in another tab, or an account deleted
+mid-session) and asking again in four seconds gets the same answer, so the client
+gives up and says so. Anything else, including a network failure or a 500 from a
+deploy mid-flight, is a bad moment rather than a verdict and is worth retrying.
+Getting this wrong is not a broken feature but a quiet one: a tab left open all
+afternoon, spending a Worker request and a serverless invocation per attempt, on a
+free tier, to be told no every time.
 
 `onBeforeRequest` guards the room NAME, in the lobby, before the room object is
 addressed. Without it `GET /parties/garden/<anything>` answered 200 and brought a
@@ -514,7 +557,7 @@ others write Field Notes.
 board two browsers can disagree about, and the first disagreement is
 unrecoverable because neither side is wrong by its own reckoning. Every rules
 function returns null for an illegal move, so the server's handler is "apply it,
-and if nothing comes back, nothing happened" — a malformed move from a broken
+and if nothing comes back, nothing happened": a malformed move from a broken
 client and a cheat from a clever one take exactly the same path. The board greys
 out what it cannot play using the SAME functions, because two implementations of
 "is this legal" would eventually disagree and the one the player sees would be
@@ -524,7 +567,7 @@ Tables are never stored, like everything else here. **What makes that safe is
 the pose stream**: every player broadcasts about seven times a second for as long
 as their tab is open, so an occupied room is never idle and never evicted, and a
 room only hibernates once it is empty. That does mean presence traffic is
-load-bearing for the games — if poses ever stop while somebody is still
+load-bearing for the games. If poses ever stop while somebody is still
 connected, a Field Notes round would quietly vanish during its own writing phase.
 
 Field Notes gets one alarm for the whole room, set to the earliest deadline any
@@ -591,7 +634,7 @@ or the test process, and deliberately NOT in `.env.local`: local development
 should talk to `wrangler dev`, not to production.
 
 `AUTH_SECRET` must match on both sides. It is the only thing making a ticket
-mean anything, and a mismatch does not fail loudly — the app keeps minting
+mean anything, and a mismatch does not fail loudly: the app keeps minting
 passes and the room keeps refusing them, so parties simply never open.
 
 ### Two TypeScript projects
