@@ -21,6 +21,7 @@ import {
   scatterSpecies,
 } from "../src/features/game/world/species-scatter";
 import { setActivePark } from "../src/features/game/world/terrain";
+import { requirementFor } from "../src/features/game/state/game-store";
 
 /**
  * Seasons are read out of the sourced strings, not invented, so the load-bearing
@@ -211,7 +212,17 @@ test.describe("a park can always be finished, whatever the month", () => {
    */
   test.afterEach(() => setActivePark("frick"));
 
-  /** Distinct plant ids the discovery loop would actually accept, by the real rule. */
+  /**
+   * Distinct plant ids the discovery loop would actually accept, by the real
+   * rule, across the whole day.
+   *
+   * This used to pin noon, so that only the calendar was under test, and that
+   * was right until the park grew a flora that only opens after dark. Sweeping
+   * the clock keeps the calendar as the subject (the question is still "can this
+   * month be finished") and makes the test STRONGER rather than weaker: a plant
+   * whose window excluded every hour would have been invisible to the noon
+   * version and is now a failure.
+   */
   const findablePlants = (
     park: "frick" | "schenley" | "highland",
     month: number,
@@ -221,8 +232,33 @@ test.describe("a park can always be finished, whatever the month", () => {
     const ids = new Set<string>();
 
     for (const instance of scatterSpecies()) {
-      // Noon, so the daily window is open and only the calendar is under test.
-      if (instance.species.kind === "plant" && isFindable(instance, 12, month)) {
+      if (instance.species.kind !== "plant") {
+        continue;
+      }
+
+      for (let hour = 0; hour < 24; hour += 1) {
+        if (isFindable(instance, hour, month)) {
+          ids.add(instance.id);
+          break;
+        }
+      }
+    }
+
+    return ids;
+  };
+
+  /** The same question asked at one hour, for the tests that are about the clock. */
+  const findableAt = (
+    park: "frick" | "schenley" | "highland",
+    month: number,
+    hour: number,
+  ) => {
+    setActivePark(park);
+
+    const ids = new Set<string>();
+
+    for (const instance of scatterSpecies()) {
+      if (instance.species.kind === "plant" && isFindable(instance, hour, month)) {
         ids.add(instance.id);
       }
     }
@@ -252,10 +288,15 @@ test.describe("a park can always be finished, whatever the month", () => {
   });
 
   test("half of Frick is reachable in the leanest month, so Schenley can open", () => {
-    const total = PLANTS.filter((plant) =>
-      plant.homes.some((home) => home.park === "frick"),
-    ).length;
-    const needed = Math.ceil(total * 0.5);
+    /**
+     * Against the REAL door, not against a fraction recomputed here.
+     *
+     * The threshold is a pinned number now, precisely so that adding species
+     * cannot move it under a player mid-game, and a test that recalculates
+     * `ceil(total * 0.5)` would keep agreeing with itself while drifting away
+     * from what the game actually asks.
+     */
+    const needed = requirementFor("schenley", {})!.needed;
 
     for (let month = 1; month <= 12; month += 1) {
       const found = findablePlants("frick", month).size;
@@ -263,6 +304,28 @@ test.describe("a park can always be finished, whatever the month", () => {
       expect(
         found,
         `only ${found} of Frick's plants are findable in month ${month}, and Schenley needs ${needed}`,
+      ).toBeGreaterThanOrEqual(needed);
+    }
+  });
+
+  test("the daytime park is still finishable without ever flying at night", () => {
+    /**
+     * The other half of adding a night flora, and the one worth guarding.
+     *
+     * Three species now open only after dark, which is the point of them. What
+     * must NOT happen is a player who only ever plays in the afternoon being
+     * quietly locked out of a park: the unlock ladder has to remain clearable
+     * in daylight alone, or the night shift stops being an invitation and
+     * becomes a toll.
+     */
+    const needed = requirementFor("schenley", {})!.needed;
+
+    for (let month = 1; month <= 12; month += 1) {
+      const byDay = findableAt("frick", month, 13).size;
+
+      expect(
+        byDay,
+        `Frick offers only ${byDay} plants by daylight in month ${month}, and Schenley needs ${needed}`,
       ).toBeGreaterThanOrEqual(needed);
     }
   });

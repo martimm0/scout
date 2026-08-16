@@ -3,6 +3,8 @@
 import { useEffect, useRef } from "react";
 
 import { useGameStore, type GameState } from "./game-store";
+import { addMark } from "../world/marks";
+import { mergeSeedlings } from "../world/seedlings";
 
 /**
  * Autosave and resume.
@@ -37,6 +39,8 @@ function toSaved(state: GameState) {
     seenWeather: state.seenWeather,
     winterKnown: state.winterKnown,
     pollinatedPlants: state.pollinatedPlants,
+    seedlings: state.seedlings,
+    marks: state.marks,
     unlockedMapAreas: state.unlockedMapAreas,
     unlockedBadges: state.unlockedBadges,
     unlockedJournalEntries: state.unlockedJournalEntries,
@@ -109,6 +113,29 @@ export function mergeInto(
     seenWeather: union(local.seenWeather, remote.seenWeather),
     winterKnown: union(local.winterKnown, remote.winterKnown),
     pollinatedPlants: union(local.pollinatedPlants, remote.pollinatedPlants),
+    /**
+     * Seed set on any device is seed set, and it keeps the EARLIER date.
+     *
+     * The rules live in `mergeSeedlings` rather than here, and they used to
+     * live here, inline, which is how the cap got lost: this spread local over
+     * remote and returned it, so two devices each sitting at the limit merged
+     * to twice the limit and syncing was itself the way around the bound.
+     */
+    seedlings: mergeSeedlings(local.seedlings, remote.seedlings),
+    /**
+     * Marks are merged by spot and kept newest-first, then capped.
+     *
+     * Not monotonic like everything else here, and deliberately: a mark is
+     * about where the forage is NOW, so it expires, and a union that never
+     * dropped anything would hand a player back every pin they had ever
+     * dropped on two devices. `addMark` already owns the dedupe, the cap and
+     * the expiry, so folding the remote ones through it one at a time keeps
+     * one set of rules rather than two that can disagree.
+     */
+    marks: (remote.marks ?? []).reduce(
+      (all, mark) => addMark(all, mark, Date.now()),
+      local.marks,
+    ),
     unlockedMapAreas: union(local.unlockedMapAreas, remote.unlockedMapAreas),
     unlockedBadges: union(local.unlockedBadges, remote.unlockedBadges),
     unlockedJournalEntries: union(

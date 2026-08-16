@@ -38,6 +38,21 @@ import { FUNGUS_PHOTOS } from "../src/features/game/data/fungus-photos";
 import { PLANT_PHOTOS } from "../src/features/game/data/plant-photos";
 import { SCHENLEY_PHOTOS } from "../src/features/game/data/schenley-photos";
 import { HIGHLAND_PHOTOS } from "../src/features/game/data/highland-photos";
+import { SPECIES_LIST } from "../src/features/game/models/pollinators";
+
+/**
+ * Put the world module back after every test.
+ *
+ * `setActivePark` is module state in the TEST process, not just in the browser,
+ * and helpers like `nearestPlantToSpawn` read it. A test that moves it and does
+ * not move it back hands the wrong park to every test that runs after it in the
+ * same worker, which then flies to coordinates from one park inside another,
+ * lands on nothing, and fails for a reason that looks like anything but this.
+ *
+ * `season.spec.ts` has done this from the start; three other files did not.
+ */
+test.afterEach(() => setActivePark("frick"));
+
 
 /** The pages around the game: landing, customize, journal, credits, offline. */
 
@@ -65,18 +80,26 @@ test("customize saves a name, and rejects an empty one", async ({ page }) => {
   await expect(save).toBeDisabled();
 });
 
-test("customize offers all three species, and each one really renders", async ({
+test("customize offers every species, and each one really renders", async ({
   page,
 }) => {
   await page.addInitScript(() => window.localStorage.clear());
   await page.goto("/customize");
 
-  // All three are offered again — and this time each is a real model. The rule
-  // that matters is the one that got broken before: the picker must never offer
-  // a species the scene cannot render. So every option here has to survive being
-  // selected and flown.
-  for (const species of ["Bee", "Hoverfly", "Butterfly"]) {
-    await expect(page.getByRole("button", { name: new RegExp(species) })).toBeVisible();
+  /**
+   * Driven from the registry, not from a list typed in here.
+   *
+   * The rule that matters is the one that got broken before: the picker must
+   * never offer a species the scene cannot render. A hand-written list of three
+   * names went on passing when a fourth body was added, and would have gone on
+   * passing if that fourth had been broken, which is the whole failure mode
+   * this test exists to catch.
+   */
+  for (const spec of SPECIES_LIST) {
+    await expect(
+      page.getByRole("button", { name: new RegExp(spec.label) }),
+      `${spec.id} is not offered`,
+    ).toBeVisible();
   }
 });
 
@@ -84,7 +107,7 @@ test("each species can be selected and flown", async ({ page }) => {
   await signIn(page.context());
   test.setTimeout(180_000);
 
-  for (const species of ["Hoverfly", "Butterfly", "Bee"]) {
+  for (const species of SPECIES_LIST.map((spec) => spec.label)) {
     await page.addInitScript(() => window.localStorage.clear());
     await page.goto("/customize");
 
@@ -496,8 +519,21 @@ test("the album fills up, and a full album refuses rather than quietly binning t
   // The journal says so, and offers the way out.
   await page.reload();
   await page.getByRole("button", { name: "Photos" }).click();
+
+  /**
+   * Wait for the album to actually be there before asking what it says.
+   *
+   * The banner is rendered from the loaded photo list, and the list is fetched
+   * after paint. Asserting the message first raced that fetch: fifty base64
+   * images is a real amount of decoding, and under load WebKit lost the race
+   * while passing comfortably on its own. Waiting on the count first is both
+   * the fix and a stronger assertion, since the message is only meaningful if
+   * the album behind it is genuinely full.
+   */
+  await expect(page.getByRole("link", { name: "Download" })).toHaveCount(50, {
+    timeout: 30_000,
+  });
   await expect(page.getByText(/Your album is full/)).toBeVisible();
-  await expect(page.getByRole("link", { name: "Download" }).first()).toBeVisible();
 
   // Delete one, and there is room again.
   await page.getByRole("button", { name: "Remove" }).first().click();

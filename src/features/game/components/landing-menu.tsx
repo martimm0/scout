@@ -1,11 +1,17 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { FUNGI_BY_ID } from "../data/fungi";
 import { PLANTS_BY_ID } from "../data/plants";
 import { triviaFor } from "../data/trivia";
 import { useGameStore } from "../state/game-store";
+import {
+  FORAGERS,
+  occupancyOf,
+  VISIT_SECONDS,
+  type Occupancy,
+} from "../world/foragers";
 import { isInSeason, seasonWindow } from "../world/season";
 import { askingWinterName } from "../world/winter";
 import styles from "./landing-menu.module.css";
@@ -20,7 +26,13 @@ import styles from "./landing-menu.module.css";
  *
  * Both offer the quiz, because reading the entry ought to be worth something.
  */
-export function LandingMenu({ month }: { month: number }) {
+export function LandingMenu({
+  busy,
+  month,
+}: {
+  busy?: "on" | "off";
+  month: number;
+}) {
   const landedOn = useGameStore((state) => state.ui.landedOn);
   const activeEntry = useGameStore((state) => state.ui.activeEntry);
   const takeOff = useGameStore((state) => state.takeOff);
@@ -65,9 +77,61 @@ export function LandingMenu({ month }: { month: number }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [activeEntry, landedOn, takeOff]);
 
+  /**
+   * The clock, while you are standing on something.
+   *
+   * The insect on the flower leaves after about eighteen seconds, and the whole
+   * point of saying so is that waiting is a real choice: a card that worked the
+   * answer out once would tell you to wait and never notice the wait was over.
+   *
+   * The clock is read in the timer callback rather than in render, because
+   * reading it in render is impure and the linter is right to say so. `land`
+   * stamps the arrival in the event handler, where reading a clock is exactly
+   * the right thing to do, and this only has to keep up afterwards. One second
+   * is plenty for a number on a card.
+   */
+  const [now, setNow] = useState(0);
+
+  useEffect(() => {
+    if (!landedOn || busy) {
+      return;
+    }
+
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+
+    return () => clearInterval(timer);
+  }, [busy, landedOn]);
+
   if (!landedOn) {
     return null;
   }
+
+  /**
+   * Who is on this flower, if anybody.
+   *
+   * `busy` pins it for the suite, the same way `hour` pins the clock. Fungi are
+   * excluded rather than exempted by accident: this is about a flower's pollen
+   * being spent, and nothing about a mushroom works that way.
+   */
+  const occupancy: Occupancy | null =
+    landedOn.kind !== "plant"
+      ? null
+      : busy === "on"
+        ? { forager: FORAGERS[0], freeIn: VISIT_SECONDS }
+        : busy === "off"
+          ? null
+          : occupancyOf(
+              landedOn.key,
+              /**
+               * The later of "when you landed" and "the last tick".
+               *
+               * `now` starts at zero on every landing and only moves once the
+               * interval has fired, so the max is what makes this correct on the
+               * first paint AND correct a moment later, without an effect
+               * reaching back to reset it.
+               */
+              Math.max(landedOn.at ?? 0, now) / 1000,
+            );
 
   const isPlant = landedOn.kind === "plant";
   const plant = isPlant ? PLANTS_BY_ID.get(landedOn.id) : undefined;
@@ -159,6 +223,29 @@ export function LandingMenu({ month }: { month: number }) {
                 Learn it before you work it
               </span>
               <span className={styles.actionNote}>{plant!.demanding}</span>
+            </div>
+          ) : isPlant && occupancy ? (
+            /**
+             * Somebody got there first, and for once you can see it.
+             *
+             * This is a slice of the one visit in five moved out of a dice roll
+             * at the end of a minigame and into the world, where it can be read
+             * before you spend twelve seconds on it. It is not a punishment and
+             * it is not a wall: the flower comes free in under half a minute,
+             * the card counts it down, and the button appears by itself when it
+             * does. Or fly on, which is what a bee does.
+             */
+            <div className={styles.disabled}>
+              <span className={styles.actionTitle}>
+                Somebody is already on it
+              </span>
+              <span className={styles.actionNote}>
+                A {occupancy.forager.species.toLowerCase()} (
+                {occupancy.forager.scientificName}) is{" "}
+                {occupancy.forager.doing}. Its pollen is spent for the moment.
+                Free again in about {Math.ceil(occupancy.freeIn)}s, or fly on:
+                there are plenty more.
+              </span>
             </div>
           ) : isPlant ? (
             <button

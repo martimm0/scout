@@ -5,8 +5,8 @@ import { buildVoxelGeometry, shade, tint, type VoxelPalette } from "./voxel";
 /**
  * A pollinator species, as data.
  *
- * The bee, the hoverfly and the butterfly are the same machine with different
- * numbers in it: the same text-art voxel pipeline, the same part names, the same
+ * The bee, the hoverfly, the butterfly and the moth are the same machine with
+ * different numbers in it: the same text-art voxel pipeline, the same part names, the same
  * animation rig. What differs is the art, the proportions, and how the thing
  * flies — and all three of those live in a spec object rather than in a fork of
  * the model component.
@@ -85,7 +85,7 @@ export type SpeciesWings = {
 };
 
 export type SpeciesSpec = {
-  id: "bee" | "hoverfly" | "butterfly";
+  id: "bee" | "hoverfly" | "butterfly" | "moth";
   label: string;
   /** One line, in the customize screen and the journal. */
   flightNote: string;

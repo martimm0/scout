@@ -2,6 +2,7 @@ import type { PollinatorType } from "../state/game-store";
 import { BEE_SPEC, beeWingLayers } from "./bee";
 import { BUTTERFLY_SPEC } from "./butterfly";
 import { HOVERFLY_SPEC } from "./hoverfly";
+import { MOTH_SPEC } from "./moth";
 import {
   buildRaincoatGeometry,
   buildSpeciesGeometry,
@@ -13,18 +14,21 @@ import {
 } from "./species";
 
 /**
- * The three pollinators.
+ * The four pollinators.
  *
- * Adding a fourth means writing one spec file. Nothing in the model component,
- * the flight loop or the customize screen needs to know it exists.
+ * The moth was the fourth, and it cost exactly one spec file: nothing in the
+ * model component, the flight loop or the customize screen had to learn it
+ * exists. That claim had been sitting in this comment untested since there were
+ * three, and it turned out to be true.
  */
 export const SPECIES: Record<PollinatorType, SpeciesSpec> = {
   bee: BEE_SPEC,
   hoverfly: HOVERFLY_SPEC,
   butterfly: BUTTERFLY_SPEC,
+  moth: MOTH_SPEC,
 };
 
-export const SPECIES_LIST = [BEE_SPEC, HOVERFLY_SPEC, BUTTERFLY_SPEC];
+export const SPECIES_LIST = [BEE_SPEC, HOVERFLY_SPEC, BUTTERFLY_SPEC, MOTH_SPEC];
 
 export function speciesFor(type: PollinatorType) {
   return SPECIES[type] ?? BEE_SPEC;

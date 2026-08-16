@@ -7,7 +7,9 @@ import {
   MINIGAME_SPEC,
   minigameFor,
   resolvePollination,
+  VISIT_FAILURE_RATE,
 } from "../src/features/game/data/pollination";
+import { OCCUPIED_FRACTION } from "../src/features/game/world/foragers";
 import { isOut, scatterSpecies } from "../src/features/game/world/species-scatter";
 import { setActivePark, startPosition } from "../src/features/game/world/terrain";
 
@@ -84,8 +86,21 @@ test.describe("the pollination resolver", () => {
       return failures / N;
     };
 
-    // Average play lands on the documented one in five.
-    expect(failureAt(0.5)).toBeCloseTo(0.2, 1);
+    /**
+     * Average play lands on the documented one in five, COUNTING THE FLOWERS
+     * somebody else is already on.
+     *
+     * That composition is the assertion, not the resolver's own number. A slice
+     * of the one in five now happens before a minigame ever starts, so checking
+     * the resolver alone would pass at 0.2 while real visits failed at one in
+     * four, which is the game making a claim its mechanics do not honour. That
+     * exact bug is why the three original minigames were replaced.
+     */
+    const visitFailure =
+      OCCUPIED_FRACTION + (1 - OCCUPIED_FRACTION) * failureAt(0.5);
+
+    expect(visitFailure).toBeCloseTo(VISIT_FAILURE_RATE, 2);
+    expect(VISIT_FAILURE_RATE).toBe(0.2);
     // Good play is meaningfully better than bad play. This is the whole point of
     // a minigame that has a skill spread.
     expect(failureAt(1)).toBeLessThan(failureAt(0));

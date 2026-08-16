@@ -3,10 +3,18 @@ import { accessoryUnlocked } from "../data/accessories";
 import type { Accessory } from "../models/species";
 import { PLANTS_BY_ID, SOLO_PLANTS } from "../data/plants";
 import { isInSeason, seasonWindow } from "../world/season";
-import { PARKS, PARK_LIST, setActivePark, type ParkId } from "../world/terrain";
+import { addSeedling, seedSpot, type Seedling } from "../world/seedlings";
+import { addMark, type Mark } from "../world/marks";
+import {
+  activePark,
+  PARKS,
+  PARK_LIST,
+  setActivePark,
+  type ParkId,
+} from "../world/terrain";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-export type PollinatorType = "bee" | "hoverfly" | "butterfly";
+export type PollinatorType = "bee" | "hoverfly" | "butterfly" | "moth";
 
 export type Pollinator = {
   type: PollinatorType;
@@ -61,6 +69,26 @@ export type SpeciesRef = {
   id: string;
   /** The specific instance, so the card hangs over the right one. */
   key: string;
+  /**
+   * When you arrived, in milliseconds.
+   *
+   * Set by `land`, and only by `land`. Whether another insect is on a flower is
+   * a function of the wall clock, and the landing card has to answer that on its
+   * very first paint or it flashes a Pollinate button for one frame before
+   * replacing it. Reading the clock in render is impure and the linter says so,
+   * quite correctly, so the moment is stamped here in the event handler where
+   * reading it is exactly the right thing to do.
+   */
+  at?: number;
+  /**
+   * Where the instance stands, in world X and Z.
+   *
+   * Carried so that a flower which takes can set seed NEAR ITSELF. Optional
+   * because plenty of refs are built for things that never need it (an entry
+   * opened from the journal has no position and does not want one).
+   */
+  x?: number;
+  z?: number;
 };
 
 export type UIModalState = {
@@ -81,6 +109,13 @@ export type UIModalState = {
    * two asters forty units apart are two different jobs.
    */
   minigameInstance: string | null;
+  /**
+   * WHERE that flower stands.
+   *
+   * Kept beside the instance key because a flower that takes sets seed where it
+   * is, and by the time the minigame resolves the landing card is long gone.
+   */
+  minigameSpot: { x: number; z: number } | null;
   /** The species whose quiz is running. */
   quiz: SpeciesRef | null;
   /** The plant being named from its winter form, if any. */
@@ -141,6 +176,27 @@ export type GameState = {
    */
   coopPollinated: boolean;
   pollinatedPlants: BooleanRecord;
+  /**
+   * Seed you have set, and where.
+   *
+   * The one part of the save that changes the WORLD rather than the record of
+   * it. Every other field here is a note about what you have seen; this puts
+   * plants in the park that were not there before, because you pollinated the
+   * flowers that made them.
+   *
+   * Keyed by the instance that set it, which caps it: pollinating the same
+   * stalk twice replaces its seedling rather than stacking a thicket on one
+   * spot. See `world/seedlings.ts`.
+   */
+  seedlings: Record<string, Seedling>;
+  /**
+   * Patches you have danced about.
+   *
+   * A list rather than a record, because these are ordered by when and capped:
+   * newest first, oldest dropped. See `world/marks.ts` for why they expire at
+   * all, which is the same reason a real dance is over in a minute.
+   */
+  marks: Mark[];
   unlockedMapAreas: BooleanRecord;
   /** The park you are flying. Not progress: just where you are. */
   currentPark: ParkId;
@@ -192,6 +248,10 @@ export type GameActions = {
   discoverPlant: (plantId: string) => void;
   enterPark: (park: ParkId) => void;
   pollinatePlant: (plantId: string) => void;
+  /** A flower took: record the seed it set, and where. */
+  setSeed: (instance: string, plantId: string, x: number, z: number) => void;
+  /** Dance about a patch, so you can find it again. */
+  markPatch: (mark: Omit<Mark, "at" | "park">) => void;
   unlockMapArea: (areaId: string) => void;
   unlockBadge: (badgeId: string) => void;
   unlockJournalEntry: (entryId: string) => void;
@@ -287,6 +347,7 @@ const initialUi: UIModalState = {
   nearby: null,
   activeEntry: null,
   landedOn: null,
+  minigameSpot: null,
   minigamePlantId: null,
   minigameInstance: null,
   quiz: null,
@@ -384,7 +445,10 @@ export function requirementFor(park: ParkId, discovered: BooleanRecord) {
 
   return {
     from: PARKS[requires.park],
-    needed: Math.ceil(plantsIn(requires.park).length * requires.fraction),
+    // Pinned, not derived. See the comment on `requires` in `world/park.ts`:
+    // a door computed from the current species count moves under a player
+    // every time content is added.
+    needed: requires.needed,
     found: plantsFoundIn(discovered, requires.park),
   };
 }
@@ -442,6 +506,8 @@ const initialProgress = {
   winterKnown: {},
   coopPollinated: false,
   pollinatedPlants: {},
+  seedlings: {},
+  marks: [],
   currentPark: "frick" as ParkId,
   // Frick is where you start. Schenley has to be earned.
   unlockedParks: { frick: true } as BooleanRecord,
@@ -545,6 +611,69 @@ export const useGameStore = create<GameStore>()(
       return { currentPark: park };
     }),
 
+  /**
+   * A flower took, so it sets seed.
+   *
+   * Keyed by the instance that set it, so working the same stalk every day
+   * leaves one seedling beside it rather than a thicket. Deliberately separate
+   * from `pollinatePlant`, which is monotonic and fires only the FIRST time you
+   * pollinate a species: seed is set every time a flower takes, and a player who
+   * has already met goldenrod should still be able to sow more of it.
+   */
+  setSeed: (instance, plantId, x, z) =>
+    set((state) => {
+      if (!PLANTS_BY_ID.has(plantId)) {
+        return state;
+      }
+
+      const spot = seedSpot(instance, x, z);
+
+      return {
+        seedlings: addSeedling(state.seedlings, instance, {
+          plant: plantId,
+          /**
+           * The park you are FLYING, not the one your save prefers.
+           *
+           * These are not the same, and assuming they were was a real bug. The
+           * scene builds `partyPark ?? forcedPark ?? storedPark` and points the
+           * world module at it, but `currentPark` is only ever written by
+           * `enterPark`: join a party at Highland with a save that says Frick
+           * and every seed you set was filed under Frick, at Highland's
+           * coordinates. It would then either surface in the wrong park in a
+           * nonsense spot or be silently dropped by the waterline check, and
+           * nothing anywhere would report a problem.
+           *
+           * `activePark()` is the ground truth by construction: it is the
+           * terrain that is actually built under you.
+           */
+          park: activePark().id,
+          x: spot.x,
+          z: spot.z,
+          at: Date.now(),
+        }),
+        unlockedJournalEntries: {
+          ...state.unlockedJournalEntries,
+          "concept:seed-set": true,
+        },
+      };
+    }),
+
+  markPatch: (mark) =>
+    set((state) => ({
+      // The park is taken from the world, not from the caller, for the same
+      // reason as `setSeed` above: two callers would each have to remember, and
+      // one of them (a mark arriving from a party) had it wrong.
+      marks: addMark(
+        state.marks,
+        { ...mark, park: activePark().id, at: Date.now() },
+        Date.now(),
+      ),
+      unlockedJournalEntries: {
+        ...state.unlockedJournalEntries,
+        "concept:waggle-dance": true,
+      },
+    })),
+
   pollinatePlant: (plantId) =>
     set((state) => {
       if (state.pollinatedPlants[plantId]) {
@@ -645,7 +774,10 @@ export const useGameStore = create<GameStore>()(
 
   closeEntry: () => set((state) => ({ ui: { ...state.ui, activeEntry: null } })),
 
-  land: (ref) => set((state) => ({ ui: { ...state.ui, landedOn: ref } })),
+  land: (ref) =>
+    set((state) => ({
+      ui: { ...state.ui, landedOn: { ...ref, at: ref.at ?? Date.now() } },
+    })),
 
   takeOff: () => set((state) => ({ ui: { ...state.ui, landedOn: null } })),
 
@@ -662,11 +794,27 @@ export const useGameStore = create<GameStore>()(
         return state;
       }
 
+      /**
+       * The spot comes from the landing, not from the caller.
+       *
+       * You are standing on the flower when this is called, and `landedOn`
+       * already knows where it is. Taking it from there rather than adding two
+       * more arguments means no caller can forget to pass it and quietly get a
+       * seedling at the world origin. Matched on the key so a stale landing
+       * cannot lend its position to a different flower.
+       */
+      const landed = state.ui.landedOn;
+      const spot =
+        landed && landed.key === instance && landed.x !== undefined
+          ? { x: landed.x, z: landed.z ?? 0 }
+          : null;
+
       return {
         ui: {
           ...state.ui,
           minigamePlantId: plantId,
           minigameInstance: instance ?? null,
+          minigameSpot: spot,
           landedOn: null,
         },
       };
@@ -674,7 +822,12 @@ export const useGameStore = create<GameStore>()(
 
   endMinigame: () =>
     set((state) => ({
-      ui: { ...state.ui, minigamePlantId: null, minigameInstance: null },
+      ui: {
+        ...state.ui,
+        minigamePlantId: null,
+        minigameInstance: null,
+        minigameSpot: null,
+      },
     })),
 
   startQuiz: (ref) =>
@@ -893,6 +1046,8 @@ export const useGameStore = create<GameStore>()(
         winterKnown: state.winterKnown,
         coopPollinated: state.coopPollinated,
         pollinatedPlants: state.pollinatedPlants,
+        seedlings: state.seedlings,
+        marks: state.marks,
         unlockedMapAreas: state.unlockedMapAreas,
         unlockedParks: state.unlockedParks,
         currentPark: state.currentPark,

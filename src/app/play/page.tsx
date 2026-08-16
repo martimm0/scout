@@ -69,8 +69,20 @@ export default async function PlayPage({
   // and no way for a test to check it falls.
   const weather = weatherPreset(String(params.weather ?? ""));
 
+  /**
+   * `?busy=on` puts another insect on every flower; `?busy=off` clears them all.
+   *
+   * The same reasoning as `?weather=`. Which flowers have somebody on them is a
+   * function of the wall clock, so without this a test would have to wait for
+   * the meadow to come round to the flower it is standing on, and would be
+   * asserting against a moving target when it got there.
+   */
+  const raw_busy = String(params.busy ?? "");
+  const busy = raw_busy === "on" || raw_busy === "off" ? raw_busy : undefined;
+
   return (
     <GameScene
+      busy={busy}
       debug={debug}
       hour={hour}
       month={month}

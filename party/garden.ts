@@ -251,6 +251,59 @@ export class Garden extends Server<Env> {
         return;
       }
 
+      /**
+       * A waggle dance, relayed and forgotten.
+       *
+       * Same treatment as chat, for the same reason: it happened in a room you
+       * were both in and the room stores nothing. Rate limited on the same
+       * budget as chat, because a dance drops a pin on nine other screens and
+       * is therefore worth more to somebody determined to be a nuisance.
+       *
+       * The coordinates are the dancer's claim and are NOT checked against
+       * their pose. A liar can send you to an empty patch of grass, which is
+       * exactly what an honest bee dancing about a flower somebody has since
+       * stripped can also do. There is nothing to win here and nothing to
+       * corrupt: the mark is a note on a screen, not a fact about the world.
+       */
+      case "mark": {
+        const species = typeof message.species === "string" ? message.species : "";
+        const commonName =
+          typeof message.commonName === "string" ? message.commonName : "";
+
+        if (!species || species.length > 64 || commonName.length > 64) {
+          return;
+        }
+
+        if (!Number.isFinite(message.x) || !Number.isFinite(message.z)) {
+          return;
+        }
+
+        const now = Date.now();
+        seat.recentChat = seat.recentChat.filter((at) => now - at < 10_000);
+
+        if (seat.recentChat.length >= 4) {
+          return;
+        }
+
+        seat.recentChat.push(now);
+
+        // To everybody EXCEPT the dancer: their own mark is already on their
+        // record, put there before this was ever sent.
+        this.tell(
+          {
+            t: "mark",
+            sub,
+            name: seat.player.name,
+            species,
+            commonName,
+            x: message.x,
+            z: message.z,
+          },
+          sub,
+        );
+        return;
+      }
+
       case "open": {
         const kind = message.kind;
 

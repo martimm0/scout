@@ -67,6 +67,8 @@ function MinigameRun({
 }) {
   const endMinigame = useGameStore((state) => state.endMinigame);
   const pollinatePlant = useGameStore((state) => state.pollinatePlant);
+  const setSeed = useGameStore((state) => state.setSeed);
+  const spot = useGameStore((state) => state.ui.minigameSpot);
   const recordAttempt = useGameStore((state) => state.recordPollinationAttempt);
   const recordScore = useGameStore((state) => state.recordMinigameScore);
   const recordCoop = useGameStore((state) => state.recordCoopPollination);
@@ -183,6 +185,19 @@ function MinigameRun({
 
       if (success) {
         pollinatePlant(plant.id);
+
+        /**
+         * And it sets seed.
+         *
+         * The whole point of the feature: the park is not the same afterwards.
+         * Guarded on knowing WHICH flower and WHERE, because a seedling at the
+         * world origin would be worse than none, and co-op resolves through
+         * this same path from a room message that may carry neither.
+         */
+        if (instance && spot) {
+          setSeed(instance, plant.id, spot.x, spot.z);
+        }
+
         playSound("pollinateSuccess");
 
         // Worked alongside somebody. Recorded here rather than on the server,
@@ -204,12 +219,15 @@ function MinigameRun({
       });
     },
     [
+      instance,
       plant.id,
       kind,
       recordAttempt,
       recordScore,
       pollinatePlant,
       recordCoop,
+      setSeed,
+      spot,
       together,
     ],
   );

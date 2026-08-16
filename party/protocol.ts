@@ -136,7 +136,17 @@ export type ClientMessage =
   | { t: "workOn"; instance: string; plant: string }
   /** A floret matched or a word made, shared with everybody on the same plant. */
   | { t: "found"; instance: string; token: string }
-  | { t: "stopWorking"; instance: string };
+  | { t: "stopWorking"; instance: string }
+  /**
+   * A waggle dance: where the good forage is.
+   *
+   * Relayed to the room and stored nowhere, like chat. A dance is a thing that
+   * happened in a room you were both in, and the room keeps nothing on purpose.
+   * The position is the DANCER's word for it and the server does not check it;
+   * the worst a liar can do is send somebody to an empty patch of grass, which
+   * is also the worst a mistaken bee can do.
+   */
+  | { t: "mark"; species: string; commonName: string; x: number; z: number };
 
 /** Server to client. */
 export type ServerMessage =
@@ -149,6 +159,16 @@ export type ServerMessage =
   | { t: "leave"; sub: string }
   | { t: "pos"; sub: string; pose: Pose }
   | { t: "chat"; sub: string; name: string; text: string }
+  /** Somebody danced. Carries who, so the mark can say whose it is. */
+  | {
+      t: "mark";
+      sub: string;
+      name: string;
+      species: string;
+      commonName: string;
+      x: number;
+      z: number;
+    }
   | { t: "rtc"; from: string; payload: unknown }
   /**
    * Every table in the room, every time any of them changes.

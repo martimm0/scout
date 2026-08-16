@@ -52,11 +52,25 @@ test.describe("what the party species must not change", () => {
      */
     setActivePark("frick");
 
-    expect(plantsIn("frick")).toHaveLength(16);
+    /**
+     * The doors, as literal numbers.
+     *
+     * This used to also assert Frick had exactly sixteen plants and to
+     * recompute Highland's threshold as `ceil(schenley.length * 0.5)`, which
+     * made it a test about the species COUNT. That was the right test while the
+     * threshold was a fraction of that count, and it is the wrong one now: the
+     * requirement is pinned precisely so the count can grow without the door
+     * moving, so tying the assertion back to the count would reintroduce the
+     * coupling this is here to prevent. Three night-blooming species shipped
+     * and these two numbers did not move, which is the whole claim.
+     */
     expect(requirementFor("schenley", {})?.needed).toBe(8);
-    expect(requirementFor("highland", {})?.needed).toBe(
-      Math.ceil(plantsIn("schenley").length * 0.5),
-    );
+    expect(requirementFor("highland", {})?.needed).toBe(7);
+
+    // And the door is genuinely independent of how many plants exist: every
+    // park has more than its threshold, and adding more cannot change it.
+    expect(plantsIn("frick").length).toBeGreaterThanOrEqual(8);
+    expect(plantsIn("schenley").length).toBeGreaterThanOrEqual(7);
 
     // And no party plant can ever satisfy it.
     const found: Record<string, boolean> = {};

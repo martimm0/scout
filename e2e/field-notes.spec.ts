@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { dismissTutorial, enterGame } from "./helpers";
+import { plantsIn } from "../src/features/game/state/game-store";
 
 /**
  * Field notes: the "what's out today" card.
@@ -34,15 +35,26 @@ test.describe("field notes", () => {
     // Signs in and wipes the save, so every plant is unmet.
     await enterGame(page, 13);
 
-    // A clear summer midday: flowers are open, and a wiped save has met none of
-    // Frick's sixteen plants.
+    /**
+     * A clear summer midday: flowers are open, and a wiped save has met none of
+     * Frick's plants.
+     *
+     * The COUNT is derived rather than typed in. It was the literal 16, which
+     * broke the day three night-blooming species shipped, and it would have
+     * broken for every future species too. Worse, a hard-coded number that
+     * happens to be right tells you nothing about whether the card is counting
+     * the correct set: `plantsIn` is the same function the card reads, so this
+     * now asserts they agree rather than asserting a constant against itself.
+     */
     await pin(page, "hour=13&month=7&weather=clear");
     const summer = (await notes(page)).join(" \n ");
     expect(summer).toContain("Frick Park");
     expect(summer).toContain("Summer");
     expect(summer).toContain("Clear");
     expect(summer).toMatch(/flowers are open/);
-    expect(summer).toMatch(/16 flowers here you have not met/);
+    expect(summer).toMatch(
+      new RegExp(`${plantsIn("frick").length} flowers here you have not met`),
+    );
 
     // A clear spring midday: the ephemerals are out, and the card calls them out
     // before they shut for the afternoon.

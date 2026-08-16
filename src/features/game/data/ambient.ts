@@ -21,7 +21,7 @@
 import type { Phase } from "../world/daylight";
 import type { Weather } from "../world/weather";
 
-export type AmbientKind = "pollinator" | "bird" | "firefly";
+export type AmbientKind = "pollinator" | "bird" | "firefly" | "moth";
 
 export type AmbientCohort = {
   id: string;
@@ -79,6 +79,39 @@ export const AMBIENT_COHORTS: AmbientCohort[] = [
     // Birds are out in most weather, but a thunderstorm puts them in the trees.
     active: (phase, weather) =>
       DAY.includes(phase) && weather.condition !== "thunderstorm",
+  },
+  {
+    id: "moths",
+    kind: "moth",
+    species: "Hawk moths and owlet moths",
+    note: "The night shift, working the flowers that opened at dusk.",
+    /**
+     * Fewer than the fireflies and much bigger.
+     *
+     * A meadow at night is not empty, it is differently occupied: most moth
+     * species outnumber most butterfly species several times over, and almost
+     * nobody sees them. They are here so the dark reads as a shift change
+     * rather than as the park with the lights off.
+     */
+    count: 22,
+    // Pale and dusty, the colour a moth looks in the moment it crosses a torch
+    // beam. Not additive: a moth is a body, not a light, which is the whole
+    // difference between it and the firefly below.
+    color: "#cbb897",
+    size: 1.6,
+    band: [10, 40],
+    speed: 8,
+    /**
+     * Out from dusk until dawn, and grounded by the same things that ground a
+     * bee, plus one of their own: moths cannot fly in much wind at all. Their
+     * wing loading is low, which is why a breezy night is a quiet night and why
+     * a light trap catches almost nothing when it is gusty.
+     */
+    active: (phase, weather) =>
+      (phase === "dusk" || phase === "night" || phase === "dawn") &&
+      weather.temperature >= 8 &&
+      weather.wind < 20 &&
+      weather.falling === "none",
   },
   {
     id: "fireflies",

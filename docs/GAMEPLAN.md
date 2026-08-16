@@ -70,7 +70,17 @@ real photograph, or take off.
   naive insect fails at these. So do you, until you understand them.
 - When a flower takes, the bee does a little waggle where you can see it, the
   moment the panel is out of the way. A real bee dances to tell the hive it found
-  something, so ours dances too.
+  something, so ours dances too, and now it means something: press **G** beside
+  anything worth coming back to and the patch is marked. A column of light stands
+  over it, it goes in the journal with a bearing, and in a garden party everybody
+  in the room sees where you danced. The dance encodes direction and distance, it
+  won von Frisch a Nobel Prize, and it was sitting in the game as an animation
+  that did nothing.
+- **A flower that takes sets seed.** Not a line of text: an actual plant, of that
+  species, beside the one you worked, small at first and full size in about a
+  week of real days. Your park slowly stops looking like a fresh one. The
+  timescale is compressed and the journal says so plainly, because a seed set in
+  August really germinates the following spring at the earliest.
 - Everything you find goes in the journal: plants, fungi, photographs, places,
   ecology, badges.
 
@@ -86,8 +96,13 @@ would be strange to build the most recognisable thing in the park and not let yo
 
 You are not the only thing alive in it. Other foragers work the same meadow by
 day, a bird turns slow circles over the canopy, and at dusk the fireflies come up
-out of the grass. They are ambience, not quarry: you do not collect them, they
-never block you, and they are not flowers to pollinate. They are here so the park
+out of the grass. They are not quarry: you do not collect them, and they are not
+flowers to pollinate. They are not purely decorative either, which is a change
+from how this used to read. A few of them are ON a flower at any moment, you can
+see that from the air, and landing on one tells you who is there and how long
+they will be. Wait about twenty seconds or fly on. That is a slice of the one
+visit in five moved out of a dice roll and into the world, where it can be read
+before you spend twelve seconds on a minigame. They are here so the park
 reads as a place rather than a diorama, and because a real park at this scale is
 thick with life.
 
@@ -107,6 +122,25 @@ for. Every line of it is derived, not written. It is the clock, the real weather
 the bloom windows and your own journal, said out loud. It is how a park that is a
 different place every hour tells you which hour you have walked into, and it never
 sets a quota or scolds you for a slow day.
+
+## The night shift
+
+The park has always got darker after dusk and otherwise carried on. Now there is
+a flora that only opens then, and moths working it.
+
+Three species, one per park, and all three are moth flowers by the same three
+signals: pale (colour is useless by starlight), scented after dark and not
+before, and built as a tube too deep for most mouths. The evening primrose opens
+over about a minute while you watch. Jimsonweed is a white trumpet the length of
+your hand and poisonous in every part. The night-flowering catchfly rolls its
+petals into twists by day and looks like a weed.
+
+And there is a fourth body to fly. The moth is not a drab butterfly: they are two
+branches of one order, moths outnumber butterflies about nine to one, and the
+differences are structural. Feathered antennae instead of a club. A thick furred
+thorax, which is insulation, which is what lets it shiver its flight muscles
+warm and work a flower on a night far too cold for any bee. It is the fastest
+thing you can fly and it holds a hover where a butterfly drifts.
 
 ## The parks
 
@@ -258,14 +292,18 @@ Three parks are the first three, and Pittsburgh has plenty more.
 Everything above is built and playable. As of the last update:
 
 - 3 parks, 23 areas
-- 61 species: 40 plants and 21 fungi, 10 of them living in more than one park.
-  49 of those are findable alone; the other 12 only come out when there are
-  other people in the park
-- 183 hand-written trivia questions, three for every species
-- 61 photographs, every one licensed and credited
+- 64 species: 43 plants and 21 fungi, 10 of them living in more than one park.
+  52 of those are findable alone; the other 12 only come out when there are
+  other people in the park. Three open only after dark
+- 13 connections: what the species have to do with each other, every one sourced,
+  opening when you have found both ends
+- 192 hand-written trivia questions, three for every species
+- 61 photographs, every one licensed and credited. The three night bloomers are
+  waiting on theirs
 - 44 badges, 10 accessories, 6 of them earned
+- 4 bodies to fly: bee, hoverfly, butterfly, moth
 - Played by keyboard and mouse, or by two thumbs on a phone or a tablet
-- 576 tests across Chromium, Firefox, WebKit, and a phone and a tablet
+- Tests across Chromium, Firefox, WebKit, and a phone and a tablet
 
 ## Garden parties
 

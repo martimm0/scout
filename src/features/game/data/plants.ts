@@ -25,6 +25,20 @@ const DAYLIGHT: TimeWindow = {
 };
 
 /**
+ * The other shift.
+ *
+ * Wraps past midnight, which `isActive` handles and which nothing in the game
+ * needed until now: these open as the light goes and are finished by the time
+ * anybody sensible is awake. A park with a night flora is a different park
+ * after dark rather than the same park with the lights off.
+ */
+const NIGHT: TimeWindow = {
+  from: 19,
+  to: 6,
+  note: "Opens at dusk and is over by morning.",
+};
+
+/**
  * Sixteen plants that actually grow in Frick Park, sorted into the habitats
  * where you'd actually find them: spring ephemerals on the woodland floor,
  * moisture-lovers down along Nine Mile Run, sun-lovers out in the meadow, and a
@@ -852,6 +866,68 @@ export const PLANTS: Plant[] = [
     leafColor: "#5a8746",
     height: 5.5,
     count: 4,
+  },
+  /**
+   * The night shift.
+   *
+   * Three real species that really open after dark in western Pennsylvania, and
+   * they are the reason the moths exist. All three are moth flowers by the same
+   * three signals: white or pale (visible by starlight when colour is useless),
+   * scented at night and not by day, and built as a tube too deep for most
+   * mouths but not for a hawk moth's tongue.
+   *
+   * Deliberately spread one per park, so no park is the daytime one.
+   */
+  {
+    id: "evening-primrose",
+    commonName: "Common Evening Primrose",
+    scientificName: "Oenothera biennis",
+    homes: [{ park: "frick", area: "bowling-green" }],
+    bloom: "June to September",
+    window: NIGHT,
+    hook: "Opens in about a minute, at dusk, while you watch.",
+    fact: "Most flowers open too slowly to see. This one does not: on a summer evening the buds swell, the sepals let go, and the petals swing open over roughly a minute, often several on a spike within the same half hour. By the following midday each flower is finished and going limp.",
+    pollinatorNote: "Pale yellow, scented after dark, and shaped for the tongue of a hawk moth. Bees get the leftovers in the morning.",
+    wikipedia: "https://en.wikipedia.org/wiki/Oenothera_biennis",
+    archetype: "spike",
+    bloomColor: "#f6e27a",
+    leafColor: "#6d8a52",
+    height: 2.4,
+    count: 5,
+  },
+  {
+    id: "jimsonweed",
+    commonName: "Jimsonweed",
+    scientificName: "Datura stramonium",
+    homes: [{ park: "schenley", area: "flagstaff-hill" }],
+    bloom: "July to October",
+    window: NIGHT,
+    hook: "A white trumpet the length of your hand, open only at night.",
+    fact: "Every part of it is poisonous, and dangerously unpredictably so: the amount of alkaloid varies enormously between plants, between seasons, and between one part of the same plant and another. That variability is exactly what makes it kill people who thought they knew the dose.",
+    pollinatorNote: "A trumpet far too deep for most insects, opening at dusk and scented at night. It is built for hawk moths, which hover at it like hummingbirds.",
+    wikipedia: "https://en.wikipedia.org/wiki/Datura_stramonium",
+    archetype: "low",
+    bloomColor: "#f4f1e4",
+    leafColor: "#4f6f43",
+    height: 1.8,
+    count: 4,
+  },
+  {
+    id: "night-flowering-catchfly",
+    commonName: "Night-flowering Catchfly",
+    scientificName: "Silene noctiflora",
+    homes: [{ park: "highland", area: "lake-carnegie" }],
+    bloom: "June to September",
+    window: NIGHT,
+    hook: "Rolls its petals shut at dawn and looks like nothing all day.",
+    fact: "Walk past it in daylight and you would not look twice: the petals roll up lengthwise into thin twists and the whole plant reads as a weedy nothing. After dark they unroll, turn white, and start to smell. The sticky hairs on its stems are what the catchfly name is about, and small insects do get stuck on them.",
+    pollinatorNote: "White, night-scented and tubular, which is the moth signal in three parts. The stickiness is thought to keep crawling insects off the nectar it is saving for them.",
+    wikipedia: "https://en.wikipedia.org/wiki/Silene_noctiflora",
+    archetype: "low",
+    bloomColor: "#f3f0e8",
+    leafColor: "#71875a",
+    height: 1.5,
+    count: 5,
   },
 ];
 

@@ -203,10 +203,23 @@
   color: var(--muted);
 }
 
+/* Which species a connection is between, under its title. Small and quiet: it
+   is a list of names you already know, not the point of the entry. */
+.rowMeta {
+  margin: 0 0 8px;
+  font-size: 0.84rem;
+  color: var(--muted);
+  letter-spacing: 0.01em;
+}
+
 .rowText {
   margin: 0;
   font-size: 0.94rem;
   line-height: 1.6;
+}
+
+.rowText + .rowText {
+  margin-top: 10px;
 }
 
 .row[data-locked="true"] .rowText {

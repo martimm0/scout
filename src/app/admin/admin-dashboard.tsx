@@ -207,7 +207,19 @@ export function AdminDashboard({
                             again; that is the only way to free a name somebody
                             should not have taken. */}
                         <input
-                          aria-label={`Username for ${account.email ?? account.userId}`}
+                          /**
+                           * Labelled by the account id, not the email.
+                           *
+                           * Nothing makes `accounts.email` unique: the primary
+                           * key is the user id, and two rows may legitimately
+                           * carry the same address. When they do, two controls
+                           * on this page end up with identical accessible
+                           * names, which is ambiguous for anybody driving it by
+                           * screen reader and ambiguous for anything driving it
+                           * by script. The address is still in the row, one
+                           * cell to the left.
+                           */
+                          aria-label={`Username for account ${account.userId}`}
                           className={styles.usernameInput}
                           defaultValue={account.username ?? ""}
                           disabled={busy}

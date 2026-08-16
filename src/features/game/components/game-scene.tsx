@@ -24,7 +24,7 @@ import { trackEvent } from "@/lib/analytics";
 import { playSound, setAreaAmbience } from "../audio/sound";
 import { speciesFor } from "../models/pollinators";
 import { PollinatorModel } from "./pollinator-model";
-import { sendPose } from "../state/party-client";
+import { sendMark, sendPose } from "../state/party-client";
 import { updateVoiceDistances } from "../state/party-voice";
 import { usePartyStore } from "../state/party-store";
 import { parkOf } from "@party/protocol";
@@ -38,7 +38,9 @@ import { SpeciesField } from "./species-field";
 import { WeatherLayer } from "./weather";
 import { AmbientLife } from "./ambient-life";
 import { FieldNotes } from "./field-notes";
+import { FlowerVisitors } from "./flower-visitors";
 import { LandingMenu } from "./landing-menu";
+import { PatchMarks } from "./patch-marks";
 import { RotateNotice } from "./rotate-notice";
 import { TouchControls } from "./touch-controls";
 import {
@@ -56,7 +58,7 @@ import { ProgressionWatcher } from "./progression-watcher";
 import { SoundToggle } from "./sound-toggle";
 import { CloudSyncBadge } from "./cloud-sync-badge";
 import { MAX_PHOTOS, usePhotoStore } from "../state/photo-store";
-import { PLANTS } from "../data/plants";
+import { PLANTS, PLANTS_BY_ID } from "../data/plants";
 import {
   scatterSpecies,
   hasComeUp,
@@ -65,6 +67,7 @@ import {
   DISCOVERY_RADIUS,
   type SpeciesInstance,
 } from "../world/species-scatter";
+import { seedlingInstances } from "../world/seedlings";
 import { resolveCollision } from "../world/collision";
 import {
   daylightAt,
@@ -276,6 +279,7 @@ function axis(keys: Set<string>, negative: string[], positive: string[]) {
 }
 
 function R3FViewport({
+  busy,
   canvasRef,
   daylight,
   month,
@@ -283,6 +287,8 @@ function R3FViewport({
   weather,
   weatherIsReal,
 }: {
+  /** Pins who is on the flowers. Test hook, same as the pinned hour. */
+  busy?: "on" | "off";
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   daylight: Daylight;
   month: number;
@@ -376,6 +382,7 @@ function R3FViewport({
       if (mounted) {
         root.render(
           <ScoutScene
+            busy={busy}
             daylight={daylight}
             month={month}
             onDebugChange={onDebugChange}
@@ -417,6 +424,7 @@ function R3FViewport({
   useEffect(() => {
     rootRef.current?.render(
       <ScoutScene
+        busy={busy}
         daylight={daylight}
         month={month}
         onDebugChange={onDebugChange}
@@ -424,18 +432,21 @@ function R3FViewport({
         weatherIsReal={weatherIsReal}
       />,
     );
-  }, [daylight, month, onDebugChange, weather, weatherIsReal]);
+  }, [busy, daylight, month, onDebugChange, weather, weatherIsReal]);
 
   return <canvas className={styles.canvas} ref={canvasRef} />;
 }
 
 function ScoutScene({
+  busy,
   daylight,
   month,
   onDebugChange,
   weather,
   weatherIsReal,
 }: {
+  /** Pins who is on the flowers. Test hook, same as the pinned hour. */
+  busy?: "on" | "off";
   daylight: Daylight;
   month: number;
   onDebugChange: (state: DebugState) => void;
@@ -582,9 +593,57 @@ function ScoutScene({
    * Precautionary, and still unmeasured. It wants a real mid-range phone.
    */
   const drawnFlush = coarsePointerNow() ? Math.min(flush, 0.5) : flush;
+
+  /**
+   * What YOU put here.
+   *
+   * Subscribed rather than read once, unlike the scatter: a seed set this
+   * afternoon should appear beside the flower that set it while you are still
+   * standing there, not on your next visit. The scatter can be read once because
+   * nothing a player does changes it, and that is exactly what stopped being
+   * true here.
+   */
+  const seedlings = useGameStore((state) => state.seedlings);
+
+  /**
+   * The park being FLOWN, not the one the save prefers.
+   *
+   * `state.currentPark` is the wrong question here for the same reason it was
+   * the wrong one in `setSeed`: it is only written by entering a park
+   * deliberately, so in a garden party it still names your own park while you
+   * are standing in somebody else's. Filtering seedlings by it meant a party
+   * showed none of yours at all, because `seedlingInstances` refuses a park
+   * that is not the one built.
+   *
+   * Safe to read rather than subscribe: `R3FViewport` is keyed on the derived
+   * park, so this whole tree is remounted when it changes, and `setActivePark`
+   * runs in the parent's render before any child of it renders.
+   */
+  const park = activePark().id;
+
+  /**
+   * Rebuilt when the save changes, and otherwise every few minutes.
+   *
+   * A seedling grows continuously, so its scale is a function of the clock. It
+   * does NOT need to be a function of the frame: a plant that takes eight days
+   * to reach full size grows about a thousandth of itself in a minute, and
+   * rebuilding the world's geometry sixty times a second to show that would be
+   * absurd. `grownAt` ticks slowly and the geometry follows it.
+   */
+  const [grownAt, setGrownAt] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setGrownAt(Date.now()), 60_000);
+
+    return () => clearInterval(timer);
+  }, []);
+
   const species = useMemo(
-    () => scattered.filter((instance) => hasComeUp(instance, drawnFlush)),
-    [scattered, drawnFlush],
+    () => [
+      ...scattered.filter((instance) => hasComeUp(instance, drawnFlush)),
+      ...seedlingInstances(seedlings, park, grownAt),
+    ],
+    [drawnFlush, grownAt, park, scattered, seedlings],
   );
   /** What the floating card is attached to. */
   const [nearbyInstance, setNearbyInstance] = useState<SpeciesInstance | null>(
@@ -626,6 +685,38 @@ function ScoutScene({
           kind: code === GREET_KEY ? "greet" : "dance",
           time: 0,
         };
+
+        /**
+         * And a dance beside a flower MARKS it.
+         *
+         * The animation already existed and meant nothing, which is a waste of
+         * the most famous fact in insect biology: a bee dances to tell the hive
+         * where the forage is. Now it does that. Only beside something (there is
+         * nothing to say about an empty patch of grass) and only about plants,
+         * because a mushroom is not forage and never was.
+         */
+        if (code === DANCE_KEY) {
+          const store = useGameStore.getState();
+          const near = store.ui.nearby;
+
+          if (near?.kind === "plant" && near.x !== undefined) {
+            store.markPatch({
+              species: near.id,
+              commonName: PLANTS_BY_ID.get(near.id)?.commonName ?? near.id,
+              x: near.x,
+              z: near.z ?? 0,
+            });
+
+            // Tell the room, so the dance reaches somebody. This is the whole
+            // point of a dance: it is addressed to other bees.
+            sendMark({
+              species: near.id,
+              commonName: PLANTS_BY_ID.get(near.id)?.commonName ?? near.id,
+              x: near.x,
+              z: near.z ?? 0,
+            });
+          }
+        }
       }
 
       // Take the raincoat off, or put it back on. Only while it is raining: you
@@ -1186,6 +1277,9 @@ function ScoutScene({
               kind: nearestInstance.species.kind,
               id: nearestInstance.id,
               key: nearestInstance.key,
+              // Carried so a flower that takes can set seed where it stands.
+              x: nearestInstance.position[0],
+              z: nearestInstance.position[2],
             }
           : null,
       );
@@ -1358,6 +1452,16 @@ function ScoutScene({
       <Landmarks />
       <Foliage month={month} />
       <SpeciesField hour={daylight.hour} month={month} instances={species} />
+      {/* The insects already on the flowers. Drawn after the field so they sit
+          on top of the blooms they are working rather than inside them. */}
+      <FlowerVisitors
+        busy={busy}
+        hour={daylight.hour}
+        instances={species}
+        month={month}
+      />
+      {/* Columns of light over patches somebody danced about. */}
+      <PatchMarks />
 
       {/* What is actually falling on Pittsburgh right now. */}
       <WeatherLayer weather={weather} />
@@ -1423,12 +1527,15 @@ function ScoutScene({
 }
 
 export function GameScene({
+  busy,
   debug = false,
   hour,
   month: forcedMonth,
   park: forcedPark,
   weather: forcedWeather,
 }: {
+  /** Pins who is on the flowers. Test hook, same as `hour`. */
+  busy?: "on" | "off";
   debug?: boolean;
   /** Pins the park's clock. Test hook; undefined in every real session. */
   hour?: number;
@@ -1758,6 +1865,7 @@ export function GameScene({
             anything less than a remount would leave one park's trees standing in
             another park's ground. */}
         <R3FViewport
+          busy={busy}
           canvasRef={canvasRef}
           daylight={daylight}
           key={currentPark}
@@ -1990,7 +2098,7 @@ export function GameScene({
       <PartyGames />
 
       <PlantEntry />
-      <LandingMenu month={month} />
+      <LandingMenu busy={busy} month={month} />
       <WinterId />
       <Quiz />
       <PollinationMinigame />

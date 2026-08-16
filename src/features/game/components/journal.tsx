@@ -4,10 +4,12 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 
 import { BADGES } from "../data/badges";
-import { EDIBILITY_LABEL, FUNGI } from "../data/fungi";
+import { CONNECTIONS, needsParty } from "../data/connections";
+import { bearingFrom, type Mark } from "../world/marks";
+import { EDIBILITY_LABEL, FUNGI, FUNGI_BY_ID } from "../data/fungi";
 import { CONCEPTS, POLLINATOR_ENTRIES } from "../data/journal";
 import { photoFor } from "../data/plant-photos";
-import { describeHomes, PLANTS } from "../data/plants";
+import { describeHomes, PLANTS, PLANTS_BY_ID } from "../data/plants";
 import { countUnlocked, useGameStore } from "../state/game-store";
 import { MAX_PHOTOS, usePhotoStore } from "../state/photo-store";
 import { WEATHER_MOMENTS } from "../world/weather-moments";
@@ -78,6 +80,8 @@ type Tab =
   | "pollinators"
   | "areas"
   | "concepts"
+  | "connections"
+  | "marks"
   | "weather"
   | "badges";
 
@@ -88,6 +92,8 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "pollinators", label: "Pollinators" },
   { id: "areas", label: "Map areas" },
   { id: "concepts", label: "Ecology" },
+  { id: "connections", label: "Connections" },
+  { id: "marks", label: "Danced about" },
   { id: "weather", label: "Weather" },
   { id: "badges", label: "Badges" },
 ];
@@ -99,6 +105,37 @@ const TABS: { id: Tab; label: string }[] = [
  * entry that says nothing teaches nothing and tempts nobody; a locked entry that
  * says "there's a darker wood than the one you know" sends somebody flying.
  */
+/**
+ * The common name of a plant or a fungus, whichever it is.
+ *
+ * Connections cross between the two kingdoms, so a lookup that knew about only
+ * one of them would render half the names as raw ids.
+ */
+/**
+ * A mark, said in a way somebody can act on.
+ *
+ * Measured from the world origin, which is the middle of the park to within a
+ * few units: Frick and Schenley are centred on it exactly and Highland is ten
+ * out of a span of five hundred and forty. Raw world coordinates would be
+ * honest and useless, since nobody can fly toward "z -61".
+ *
+ * The origin rather than the start point on purpose. Where you spawn is a
+ * corner of the park you happen to arrive at, so a bearing from it would be
+ * relative to a spot with no name and no visible presence; the middle is at
+ * least somewhere you can orient against from the air.
+ */
+function describeMark(mark: Mark): string {
+  const { distance, compass } = bearingFrom(mark, 0, 0);
+
+  return `about ${Math.round(distance)} out, ${compass} of the middle`;
+}
+
+function nameOf(id: string): string {
+  return (
+    PLANTS_BY_ID.get(id)?.commonName ?? FUNGI_BY_ID.get(id)?.commonName ?? id
+  );
+}
+
 export function Journal() {
   const [tab, setTab] = useState<Tab>("plants");
 
@@ -112,6 +149,7 @@ export function Journal() {
   const weatherSeen = useGameStore((state) => state.seenWeather);
   const winterKnown = useGameStore((state) => state.winterKnown);
   const stats = useGameStore((state) => state.stats);
+  const marks = useGameStore((state) => state.marks);
   const photos = usePhotoStore((state) => state.photos);
   const photoMode = usePhotoStore((state) => state.mode);
   const photosLoaded = usePhotoStore((state) => state.loaded);
@@ -494,6 +532,98 @@ export function Journal() {
               </li>
             );
           })}
+        </ul>
+      ) : null}
+
+      {/**
+        * What the species have to do with each other.
+        *
+        * Locked ones show WHICH species are still missing rather than a coy
+        * "???". A locked entry that teaches nothing tempts nobody, and here the
+        * missing names are themselves the hint: "you have the milkweed, go and
+        * find the swamp milkweed" is a reason to go back out.
+        */}
+      {tab === "connections" ? (
+        // A stable hook for the suite, like `data-minigame` on the games. The
+        // class name is hashed by CSS Modules and the parks panel above uses
+        // `data-locked` too, so a test reaching for either finds the wrong list.
+        <ul className={styles.list} data-journal-tab="connections">
+          {CONNECTIONS.map((connection) => {
+            const missing = connection.between.filter(
+              (id) => !discovered[id] && !foundFungi[id],
+            );
+            const unlocked = missing.length === 0;
+
+            return (
+              <li
+                className={styles.row}
+                data-locked={!unlocked}
+                key={connection.id}
+              >
+                <p className={styles.rowTitle}>{connection.title}</p>
+                <p className={styles.rowMeta}>
+                  {connection.between.map((id) => nameOf(id)).join(" · ")}
+                  {/* Said out loud rather than left to be discovered. A solo
+                      player who can never open this should know that is why,
+                      not think they missed something in the wood. */}
+                  {needsParty(connection) ? " · Only in a garden party" : ""}
+                </p>
+                {unlocked ? (
+                  <>
+                    <p className={styles.rowText}>{connection.body}</p>
+                    <p className={styles.rowText}>
+                      <a
+                        href={connection.source}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        Read more
+                      </a>
+                    </p>
+                  </>
+                ) : (
+                  <p className={styles.rowText}>
+                    Still to find:{" "}
+                    {missing.map((id) => nameOf(id)).join(", ")}.
+                  </p>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+
+      {/**
+        * Patches you or somebody else danced about.
+        *
+        * Bearings rather than coordinates, because "x 182, z -61" is not
+        * something anybody can fly toward, and the park is measured from a
+        * corner nobody can see. They expire, which is the point of them: a
+        * dance is about where the forage is now.
+        */}
+      {tab === "marks" ? (
+        <ul className={styles.list} data-journal-tab="marks">
+          {marks.length === 0 ? (
+            <li className={styles.row} data-locked="true">
+              <p className={styles.rowTitle}>Nothing danced about yet</p>
+              <p className={styles.rowText}>
+                Fly up to something worth coming back to and press{" "}
+                <kbd>G</kbd>. A honeybee that finds good forage goes home and
+                dances the direction and the distance, and the hive flies out to
+                a flower it has never seen. In a garden party, everybody sees
+                where you danced.
+              </p>
+            </li>
+          ) : (
+            marks.map((mark) => (
+              <li className={styles.row} key={`${mark.at}-${mark.species}`}>
+                <p className={styles.rowTitle}>{mark.commonName}</p>
+                <p className={styles.rowMeta}>
+                  {PARKS[mark.park].label} · {describeMark(mark)}
+                </p>
+              </li>
+            ))
+          )}
         </ul>
       ) : null}
 

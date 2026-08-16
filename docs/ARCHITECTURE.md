@@ -120,11 +120,19 @@ shape of the curve and that every winter month has white ground.
 
 ### 2. Species are specs, not subclasses
 
-Bee, hoverfly and butterfly are three `SpeciesSpec` data objects feeding **one**
-shared model component and **one** animation rig. There is no per-species
-branching anywhere in the render path. A hoverfly is different because its spec
-says two wings and halteres, not because a component checks `if (type ===
-"hoverfly")`.
+Bee, hoverfly, butterfly and moth are four `SpeciesSpec` data objects feeding
+**one** shared model component and **one** animation rig. There is no
+per-species branching anywhere in the render path. A hoverfly is different
+because its spec says two wings and halteres, not because a component checks
+`if (type === "hoverfly")`.
+
+The moth was the test of that claim, which had been sitting in this file
+untested since there were three. It cost one spec file and four one-line
+additions (the two type unions, the registry, the starter list) and nothing in
+the model component, the flight loop or the customize screen had to learn it
+exists. The two tests that cover the picker used to name three species by hand,
+so they went on passing when a fourth arrived and would have gone on passing had
+it been broken; they read `SPECIES_LIST` now.
 
 ### 3. A park is data, and `terrain.ts` is a facade
 
@@ -378,6 +386,11 @@ flush is the one thing in the game that is not about the current sky at all: bot
 presets look identical out of the window, and one of them fills the wood with
 mushrooms. There is no other way to drive that from a test.
 
+`?busy=on` and `?busy=off` pin who is on the flowers. Which of them have another
+insect working them is a function of the wall clock, so without the pin a test
+would have to wait for the meadow to come round to the flower it is standing on,
+and would be asserting against a moving target by the time it got there.
+
 `?month=` earns its place the same way `?hour=` did. The suite flies in **July**,
 when the most is in bloom at once, except the minigame tests, which pick a month
 per game: Frick's shrubs and trees play `seeds` and flower in spring, while its
@@ -388,6 +401,27 @@ One more thing the suite cannot pin: `/offline` takes no query params at all, so
 draws whatever Pittsburgh is really doing. Any assertion about its pixels has to
 clear a flat fill rather than a sunny afternoon, or it passes all day and fails at
 sunset.
+
+### `setActivePark` is module state in the TEST process too
+
+The world module is a facade over whichever park is active, and `setActivePark`
+moves it. That is true inside the browser AND inside the Playwright process,
+where helpers like `nearestPlantToSpawn` read it to work out where to fly.
+
+So a test that moves the park and does not move it back hands the wrong park to
+every test after it in the same worker. Those tests then compute one park's
+coordinates and fly to them inside another, land on nothing, and fail in ways
+that look like anything except the actual cause: a dance that records nothing, a
+pollination that never takes, "six visits and not one of them took". It hides
+completely when you run one test by name, because that skips whatever did the
+moving.
+
+Every file that moves the park now ends each test with
+`test.afterEach(() => setActivePark("frick"))`. Four of the six were missing it,
+two of those long-standing. It is worth knowing how badly this reads from the
+outside: it produced a hundred failures in one project and looked exactly like a
+loaded machine, and a run genuinely starved at the same time made that story fit
+well enough to survive a first look.
 
 ### The suite has a real account in a real database
 
@@ -416,6 +450,65 @@ a database, so without this it came down to import order: `admin.spec.ts` pulls 
 `src/lib/env` at the top of the file, which fixed the answer at "no database" before
 any helper could set `POSTGRES_URL`, and every account those helpers tried to create
 was silently discarded.
+
+### The park changes, and the save is why
+
+Three of the newer systems put things in the world that no scatter produced, and
+they share one rule: the world is built from pure data PLUS the player's save,
+and the save half is subscribed rather than read once.
+
+- **`world/seedlings.ts`.** A flower that takes sets seed, and the seedling is
+  emitted as an ordinary `SpeciesInstance`. That is the whole trick: it needs no
+  branch in the field, the discovery sweep, the landing code or the tag, because
+  it IS a plant of a species that already exists. It refuses to build for a park
+  that is not the active one, because `terrainHeight` is a facade over whichever
+  park is loaded and would otherwise plant Schenley's seedlings at Frick's ground
+  heights, silently.
+- **`world/foragers.ts`.** Who is on which flower, as a pure function of the
+  instance key and the wall clock. Deterministic like the scatter, and for the
+  same reason. It carries half of an arithmetic contract with
+  `data/pollination.ts`, which derives its own failure rate from this one so the
+  documented one visit in five stays true.
+- **`world/marks.ts`.** Patches somebody danced about. The only part of the save
+  that is not monotonic: marks expire after three days, because a dance is about
+  where the forage is now.
+
+The scatter is memoised once at mount and these are not, which is exactly the
+difference: nothing a player does changes the scatter, and changing the world is
+the entire point of these.
+
+**Everything here reads the park you are FLYING, from `activePark()`, never
+`currentPark`.** Writers and readers both, which took two passes to get right:
+fixing the writers left the renderers filtering by the save's park, so a garden
+party drew none of your seedlings and none of the marks anybody danced. They are not the same thing and assuming they were was a real
+bug. The scene builds `partyPark ?? forcedPark ?? storedPark` and points the
+world module at that, but `currentPark` in the save is only ever written by
+`enterPark`: join a party at Highland with a save that says Frick and every seed
+you set was filed under Frick at Highland's coordinates, to surface in the wrong
+park in a nonsense spot or vanish into the waterline check, silently. The store
+now takes the park from the world rather than accepting it from a caller, so
+there is no longer a parameter two call sites can each get wrong, and the two
+components that draw this state read `activePark()` directly. They may read it
+rather than subscribe because `R3FViewport` is keyed on the derived park, so the
+whole tree remounts when it changes.
+
+The seedling record also has a real cap, and the cap has to survive a sync. The
+first version of the cloud merge spread one save over the other and returned it,
+so two devices each sitting at the limit came back with twice the limit: syncing
+was itself the way around the bound. `mergeSeedlings` owns both the tie-break
+and the trim, so there is one set of rules rather than two that can disagree.
+
+### The park unlock is a pinned number, not a fraction
+
+`requires` used to say `fraction: 0.5` and the threshold was computed against
+however many plants that park currently had. That makes the door move every time
+a species ships: the day three plants landed in Frick, every player halfway
+through it would have been told they now needed nine flowers instead of eight,
+having done nothing wrong.
+
+It is a count now (Frick 8, Schenley 7), pinned to exactly what the fractions
+produced on the day it changed, so nobody's progress moved by a single flower.
+Adding content is free from here.
 
 ## Garden parties
 

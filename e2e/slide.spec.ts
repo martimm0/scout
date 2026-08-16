@@ -5,6 +5,20 @@ import { slideRide } from "../src/features/game/world/slide-ride";
 import { setActivePark, terrainHeight } from "../src/features/game/world/terrain";
 
 /**
+ * Put the world module back after every test.
+ *
+ * `setActivePark` is module state in the TEST process, not just in the browser,
+ * and helpers like `nearestPlantToSpawn` read it. A test that moves it and does
+ * not move it back hands the wrong park to every test that runs after it in the
+ * same worker, which then flies to coordinates from one park inside another,
+ * lands on nothing, and fails for a reason that looks like anything but this.
+ *
+ * `season.spec.ts` has done this from the start; three other files did not.
+ */
+test.afterEach(() => setActivePark("frick"));
+
+
+/**
  * The Blue Slide ride.
  *
  * The cheap test first: the ride LINE is pure and derived from the slide's own

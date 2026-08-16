@@ -40,9 +40,24 @@ export type Park = {
    * A park with no requirement is where you start.
    */
   requires?: {
-    /** Half of this park's plants, found. */
+    /** Whose plants you have to have found. */
     park: ParkId;
-    fraction: number;
+    /**
+     * How many, as a PINNED COUNT rather than a fraction.
+     *
+     * This was `fraction: 0.5`, multiplied by however many plants that park had
+     * at the moment somebody looked. That makes the door move every time a
+     * species is added: the day two new plants land in Frick, everybody
+     * halfway through it is told they now need nine instead of eight, having
+     * done nothing wrong. A player who was one flower from Schenley is
+     * suddenly two.
+     *
+     * The numbers here are exactly what the fractions produced on the day this
+     * changed (Frick 16 plants, so 8; Schenley 14, so 7), so nobody's progress
+     * moved by a single flower when it did. From here on adding content is free
+     * and the door stays where it is, which is the point.
+     */
+    needed: number;
   };
 
   world: { minX: number; maxX: number; minZ: number; maxZ: number };

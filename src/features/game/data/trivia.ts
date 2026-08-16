@@ -20,6 +20,120 @@ export type Question = {
 };
 
 export const TRIVIA: Record<string, Question[]> = {
+  "evening-primrose": [
+    {
+      ask: "What can you actually watch this flower do at dusk?",
+      options: [
+        "Open, over about a minute",
+        "Turn from white to yellow",
+        "Fold its leaves up",
+        "Pull itself down to the ground",
+      ],
+      answer: 0,
+      because:
+        "Almost no flower opens fast enough to see. This one swings open over roughly a minute as the light goes, and often several on the same spike do it within the same half hour.",
+    },
+    {
+      ask: "Why is it pale yellow and scented only after dark?",
+      options: [
+        "It is addressed to moths",
+        "It is addressed to bats",
+        "Yellow lasts longer in rain",
+        "The scent would attract deer by day",
+      ],
+      answer: 0,
+      because:
+        "Colour is close to useless at night, so a night flower goes pale and pays for scent instead. Spending on a smell nobody is awake to follow would be waste, so it holds it until dusk.",
+    },
+    {
+      ask: "How long does one of its flowers last?",
+      options: [
+        "Less than a day",
+        "About a week",
+        "The whole summer",
+        "Until it is pollinated, however long that takes",
+      ],
+      answer: 0,
+      because:
+        "Open at dusk, finished by the following midday. The plant makes its display new every evening rather than maintaining one.",
+    },
+  ],
+  jimsonweed: [
+    {
+      ask: "What shape is a jimsonweed flower, and why?",
+      options: [
+        "A long trumpet, for a hawk moth's tongue",
+        "A flat landing pad, for beetles",
+        "A tight tube, for hummingbirds",
+        "A hanging bell, for bats",
+      ],
+      answer: 0,
+      because:
+        "A white trumpet the length of a hand, open at night. Almost nothing can reach the bottom of it, which is the point: a hawk moth can, and hovers at it like a hummingbird.",
+    },
+    {
+      ask: "How poisonous is it?",
+      options: [
+        "Very, and unpredictably so",
+        "Mildly, and only the seeds",
+        "Only if eaten in quantity",
+        "Not at all, despite the reputation",
+      ],
+      answer: 0,
+      because:
+        "Every part of it, and the dangerous part is the variability: the alkaloid content differs hugely between plants, seasons and even parts of one plant. That is what kills people who believed they knew the dose.",
+    },
+    {
+      ask: "When are its flowers open?",
+      options: [
+        "At night",
+        "Only in full midday sun",
+        "All the time",
+        "Only after rain",
+      ],
+      answer: 0,
+      because:
+        "They open at dusk and are done by morning, which is why almost everyone who knows the plant knows it by its spiny seed pods instead.",
+    },
+  ],
+  "night-flowering-catchfly": [
+    {
+      ask: "Why is it easy to walk straight past in daylight?",
+      options: [
+        "Its petals roll up into thin twists",
+        "It grows flat against the ground",
+        "The flowers close underground",
+        "It has no flowers until autumn",
+      ],
+      answer: 0,
+      because:
+        "The petals roll up lengthwise by day and the whole plant reads as a weedy nothing. After dark they unroll, turn white, and start to smell.",
+    },
+    {
+      ask: "What is the catchfly name about?",
+      options: [
+        "Sticky hairs on the stems",
+        "A trap that closes on insects",
+        "A smell like rotting meat",
+        "Flowers that shut on visitors",
+      ],
+      answer: 0,
+      because:
+        "The stems are sticky enough that small insects get caught. It is not a carnivorous plant and gains no food from them: the leading explanation is that it keeps crawlers off the nectar it is saving for moths.",
+    },
+    {
+      ask: "White, night-scented and tubular. What does that combination say?",
+      options: [
+        "A moth flower",
+        "A beetle flower",
+        "A wind-pollinated flower",
+        "A flower that has given up on pollinators",
+      ],
+      answer: 0,
+      because:
+        "Those three together are the classic moth syndrome. Pale to be seen without colour vision, scented to be found in the dark, and tubular to be reachable only by a long tongue.",
+    },
+  ],
   "common-milkweed": [
     {
       ask: "Milkweed does not dust a bee with loose pollen. What does it do instead?",

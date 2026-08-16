@@ -170,6 +170,21 @@ function Cohort({ cohort }: { cohort: AmbientCohort }) {
           ? 0.8
           : 0.4 + 0.6 * Math.pow(Math.max(0, Math.sin(t * 1.6 + home.phase)), 2);
         size = cohort.size * pulse;
+      } else if (cohort.kind === "moth") {
+        /**
+         * Nothing flies like a moth.
+         *
+         * A bee's path is a purposeful wander; a moth's is erratic on a much
+         * shorter timescale, all sudden changes of direction. That jitter is
+         * genuinely how they avoid bats, whose sonar cannot lead a target that
+         * will not hold a heading, and it is the one thing that makes a moth
+         * read as a moth from a distance rather than as a pale bee.
+         */
+        const jitter = Math.sin(t * 6.1 + home.phase) * Math.cos(t * 4.7);
+        x = home.x + (Math.sin(t + home.phase) + jitter * 0.5) * home.radius;
+        z = home.z + (Math.cos(t * 1.1 + home.phase) + jitter * 0.4) * home.radius;
+        const ground = terrainHeight(x, z);
+        y = ground + home.band * 0.5 + Math.sin(t * 3.4 + home.phase) * 4;
       } else {
         // A forager, wandering its patch a bloom's height off the ground.
         x = home.x + Math.sin(t + home.phase) * home.radius;

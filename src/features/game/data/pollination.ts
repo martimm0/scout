@@ -2,11 +2,18 @@
  * Pollination: the verb the game is named for.
  *
  * Three light minigames, chosen per plant so a species always plays the same way
- * and you learn its rhythm. Roughly one attempt in five fails — and failure is
- * never the player being bad at a game. It's weather, timing, or a flower that
- * someone else got to first. That's what pollinating is actually like.
+ * and you learn its rhythm. Roughly one VISIT in five comes to nothing, and
+ * failure is never the player being bad at a game. It's weather, timing, or a
+ * flower that someone else got to first. That's what pollinating is actually
+ * like.
+ *
+ * That one in five is now split across two places: a flower somebody else is
+ * already on, which you can see before you land, and the roll at the end of a
+ * minigame. `VISIT_FAILURE_RATE` below is the number the game promises, and
+ * `BASE_FAILURE_RATE` is derived from it rather than typed in beside it.
  */
 
+import { OCCUPIED_FRACTION } from "../world/foragers";
 import { ANAGRAM_WORDS } from "./anagram-words";
 import type { Plant, PlantArchetype } from "./plants";
 
@@ -70,11 +77,27 @@ export function minigameFor(plant: Plant): MinigameKind {
 }
 
 /**
- * The failure rate. Deliberately about one in five: often enough that success
- * means something, rare enough that it never feels like the game is stonewalling
- * you. Skill shifts it — playing the minigame well earns a bonus below.
+ * The failure rate AT THE MINIGAME. Not the whole story any more.
+ *
+ * One flower visit in five comes to nothing, and that number is now shared
+ * between two places. A slice of it happens before you ever start a game: some
+ * flowers have another insect on them, you can see that from outside, and
+ * landing on one is a visit that came to nothing. See `world/foragers.ts`.
+ *
+ * So this is what is left over, and it is derived rather than typed in:
+ *
+ *   OCCUPIED_FRACTION + (1 - OCCUPIED_FRACTION) x BASE_FAILURE_RATE = 0.2
+ *
+ * Deriving it matters. Leaving this at 0.2 while adding a second way to fail
+ * would have quietly pushed real visit failure to about one in four, and the
+ * game would be making a claim its own mechanics did not honour, which is
+ * precisely the bug the pollination minigames already had once. Rule 3 is only
+ * worth anything if the arithmetic behind it is actually true.
  */
-export const BASE_FAILURE_RATE = 0.2;
+export const VISIT_FAILURE_RATE = 0.2;
+
+export const BASE_FAILURE_RATE =
+  (VISIT_FAILURE_RATE - OCCUPIED_FRACTION) / (1 - OCCUPIED_FRACTION);
 
 /**
  * Messages for a failed attempt.

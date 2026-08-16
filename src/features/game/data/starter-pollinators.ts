@@ -49,5 +49,22 @@ export const STARTER_POLLINATORS: StarterPollinator[] = [
     description: "A bright butterfly with broad wings and a graceful meadow glide.",
     flightNote: "Gentle glide, large wings, visible color from far away.",
   },
+  {
+    type: "moth",
+    name: "Vesper",
+    // Dusty pale browns. A moth advertising to a bird that cannot see it would
+    // be paying for nothing, so it is camouflage rather than warning colours.
+    bodyColor: "#c8b183",
+    wingColor: "#b7ac97",
+    wingStyle: "broad",
+    trailEffect: "sparkle",
+    trailColor: "#e8dcc0",
+    accentColor: "#4a4038",
+    accessory: "none",
+    raincoatColor: "#f7e07a",
+    description:
+      "A furred hawk moth for the night shift, when the primrose and the jimsonweed are open and nothing else is.",
+    flightNote: "The fastest thing here, and the only one awake after dark.",
+  },
 ];
 

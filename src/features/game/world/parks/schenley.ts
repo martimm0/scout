@@ -82,7 +82,7 @@ export const SCHENLEY: Park = {
   label: "Schenley Park",
   blurb:
     "Glass and lawns on top, and then the ground opens into Panther Hollow, which is a hundred feet deep and as wild as anything in Frick.",
-  requires: { park: "frick", fraction: 0.5 },
+  requires: { park: "frick", needed: 8 },
 
   world: { minX: -340, maxX: 340, minZ: -250, maxZ: 250 },
   // Panther Hollow Lake and Westinghouse Pond both sit at this surface.

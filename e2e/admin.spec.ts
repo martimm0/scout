@@ -374,7 +374,7 @@ test.describe("the admin table tells the truth about itself", () => {
 
     await adminPage.goto("/admin");
 
-    const cell = adminPage.getByLabel("Username for snapback@example.com");
+    const cell = adminPage.getByLabel("Username for account snapback-player");
 
     await expect(cell).toHaveValue(wanted);
 
@@ -383,13 +383,22 @@ test.describe("the admin table tells the truth about itself", () => {
     await cell.fill("not a name");
     await cell.blur();
 
+    /**
+     * Scoped by its text, not just by its role.
+     *
+     * Next renders its own route announcer as `<div role="alert">`, so a bare
+     * `getByRole("alert")` matches two elements and trips strict mode. It
+     * happened to resolve in Chromium and failed in Firefox, which is the worst
+     * kind of test bug: browser-dependent, and nothing to do with the thing
+     * under test.
+     */
     await expect(
-      adminPage.getByRole("alert"),
+      adminPage.getByRole("alert").filter({ hasText: /\w/ }),
       "the refusal was never reported",
     ).toBeVisible();
 
     await expect(
-      adminPage.getByLabel("Username for snapback@example.com"),
+      adminPage.getByLabel("Username for account snapback-player"),
       "the cell kept a name the database refused",
     ).toHaveValue(wanted);
 

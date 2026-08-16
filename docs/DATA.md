@@ -692,6 +692,58 @@ stores nothing and costs nothing. "Is anybody chatting" is already answered by
 joins, and a counter that scales with typing rather than with people is not
 worth what it costs.
 
+## Connections
+
+`data/connections.ts` holds what the species have to do with each other: milkweed
+and its pollinia, the two lobelias splitting their customers between a
+hummingbird and a bumblebee, the destroying angel that looks like a puffball
+until you slice it. One opens when you have found every species in it.
+
+**Hand-written and sourced, and that is the whole design decision.** It would be
+trivial to generate hundreds of these from what the records already share: same
+area, same bloom window, same archetype. "These two grow in the same field" is a
+coincidence, not an ecological fact, and shipping one dressed as the other is
+exactly the prettier lie rule 1 refuses. Every entry carries a Wikipedia link
+verified to return 200, and a link that cannot be sourced means the entry does
+not ship.
+
+Two of them need a species you can only meet in a garden party, which is allowed;
+what is not allowed is failing to say so, since a solo player would otherwise see
+a locked entry and think they had missed something in the wood. The flag is
+DERIVED from the species rather than typed in beside the entry, so it cannot go
+stale when the data changes.
+
+## What your work leaves in the world
+
+Two records in the save put things into the park rather than describing it.
+
+**`seedlings`** is a record per flower you successfully pollinated: species,
+park, position, and when. It is keyed by the INSTANCE, so working the same stalk
+every afternoon leaves one plant beside it rather than a thicket on one spot.
+
+That keying is not a cap, which is easy to assume and wrong. A seedling is an
+ordinary instance, so it can be landed on and worked like anything else, and
+working it keys a new record off ITS key: `seed-plant-goldenrod-3` sets
+`seed-seed-plant-goldenrod-3`, which sets another. Each generation costs eight
+days of growing, so it is slow, and slow is not bounded. So there is a real cap
+(`MAX_SEEDLINGS`), oldest dropped first. Refusing to let a seedling set seed
+would have been the tidier fix and a lie, because a plant grown from seed sets
+seed, and that is precisely how a meadow works. Merged across devices by keeping the EARLIER timestamp, because a
+seedling is measured by how long it has been growing and taking the later one
+would shrink a week-old plant back to a sprout.
+
+**`marks`** is what the waggle dance leaves. Unlike everything else in the save
+it is not monotonic: marks expire after three days and the list is capped at
+twelve, newest first. That is deliberate and it is the honest version of the
+thing being modelled. A real dance is over in under a minute and its information
+is stale by the afternoon, because the flower it points at will have been
+stripped. A record that never expired would silt up into a hundred pins over a
+park you had finished.
+
+Marks arriving from a garden party go straight into the save and the name of
+whoever danced is thrown away. A mark is a note about a place, not a record of
+who you were in a room with, and the room keeps nothing about that on purpose.
+
 ## Adding things
 
 **A species:** add the record with its `homes`, source a licensed photograph and

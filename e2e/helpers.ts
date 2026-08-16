@@ -301,13 +301,21 @@ export async function enterGame(
    * clear afternoon and differ only in rain that fell days ago.
    */
   weather?: string,
+  /**
+   * Pins who is on the flowers, for the tests about somebody getting there
+   * first. Which flowers are busy is a function of the wall clock, so without
+   * this a test would have to wait for the meadow to come round to the flower
+   * it is standing on.
+   */
+  busy?: "on" | "off",
 ) {
   await signIn(page.context());
   await resetProgress(page);
   await page.addInitScript(() => window.localStorage.clear());
   await page.goto(
     `/play?debug=1&hour=${hour}&month=${month}` +
-      (weather ? `&weather=${weather}` : ""),
+      (weather ? `&weather=${weather}` : "") +
+      (busy ? `&busy=${busy}` : ""),
   );
   await page.waitForTimeout(2500);
 

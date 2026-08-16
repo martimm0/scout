@@ -10,6 +10,7 @@ import {
   type Pose,
   type ServerMessage,
 } from "@party/protocol";
+import { useGameStore } from "./game-store";
 import { countParty } from "./party-counters";
 import { partyPoses, usePartyStore } from "./party-store";
 
@@ -197,6 +198,24 @@ export async function joinParty(party: GardenPartyId): Promise<void> {
         });
         return;
 
+      case "mark":
+        /**
+         * Somebody else danced, so their patch goes on your record too.
+         *
+         * Straight into the save rather than into party state, because a mark
+         * is useful after the party ends: the flowers are still there. It is
+         * also why the name of whoever danced is not kept. This is a note about
+         * a place, not a record of who you were in a room with, and the room
+         * keeps nothing about that on purpose.
+         */
+        useGameStore.getState().markPatch({
+          species: message.species,
+          commonName: message.commonName,
+          x: message.x,
+          z: message.z,
+        });
+        return;
+
       case "rtc":
         // Handed to the voice layer when it is up; ignored until then.
         rtcHandler?.(message.from, message.payload);
@@ -296,6 +315,22 @@ export function sendPose(pose: Pose) {
 
 export function sendChat(text: string) {
   sendToParty({ t: "chat", text });
+}
+
+/**
+ * Tell the room where the good forage is.
+ *
+ * A no-op outside a party, like every other sender here, so the caller does not
+ * need to know whether anybody is listening. Dancing alone in a wood is still
+ * dancing.
+ */
+export function sendMark(mark: {
+  species: string;
+  commonName: string;
+  x: number;
+  z: number;
+}) {
+  sendToParty({ t: "mark", ...mark });
 }
 
 /* The party games. The room referees every one of these; the client is only

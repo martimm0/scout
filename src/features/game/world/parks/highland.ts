@@ -124,7 +124,7 @@ export const HIGHLAND: Park = {
   label: "Highland Park",
   blurb:
     "Water on a hilltop. Two enormous walled reservoirs holding the city's drinking water, a fountain at the gates, and a wooded slope falling away to the Allegheny.",
-  requires: { park: "schenley", fraction: 0.5 },
+  requires: { park: "schenley", needed: 7 },
 
   world: { minX: -320, maxX: 320, minZ: -280, maxZ: 260 },
   /**
