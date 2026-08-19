@@ -134,7 +134,7 @@ export function Terrain({ month }: { month: number }) {
 
 /**
  * One flat sheet across the whole map. It only shows through where the ground
- * drops below it, which — by construction — is exactly the creek at the bottom
+ * drops below it, which (by construction) is exactly the creek at the bottom
  * of the ravine. No spline, no ribbon mesh, no seams.
  */
 export function Creek() {

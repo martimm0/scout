@@ -11,7 +11,7 @@ import {
 } from "./terrain";
 
 /**
- * Quad size. The world is now 700x520, so this can't stay at 1.4 — that would be
+ * Quad size. The world is now 700x520, so this can't stay at 1.4, that would be
  * 370k triangles of ground. Four units per quad is coarse to a human and vast to
  * a bee, which is exactly the register we want.
  */
@@ -52,7 +52,7 @@ export function buildTerrainGeometry(): BufferGeometry {
   // Sample the height field ONCE per grid corner and reuse it.
   //
   // The naive version calls terrainHeight for every triangle corner and then
-  // terrainSlope (four more height lookups) for every face — around a quarter of
+  // terrainSlope (four more height lookups) for every face, around a quarter of
   // a million noise evaluations for a world this size, which cost nine seconds of
   // load. Each corner is shared by up to six triangles, so caching the grid and
   // taking the slope from neighbouring samples removes almost all of that work.

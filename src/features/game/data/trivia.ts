@@ -69,7 +69,7 @@ export const TRIVIA: Record<string, Question[]> = {
       ],
       answer: 0,
       because:
-        "A white trumpet the length of a hand, open at night. Almost nothing can reach the bottom of it, which is the point: a hawk moth can, and hovers at it like a hummingbird.",
+        "A trumpet the length of a hand, white or washed with violet, open at night. Almost nothing can reach the bottom of it, which is the point: a hawk moth can, and hovers at it like a hummingbird.",
     },
     {
       ask: "How poisonous is it?",
@@ -107,7 +107,7 @@ export const TRIVIA: Record<string, Question[]> = {
       ],
       answer: 0,
       because:
-        "The petals roll up lengthwise by day and the whole plant reads as a weedy nothing. After dark they unroll, turn white, and start to smell.",
+        "The petals roll up lengthwise by day and the whole plant reads as a weedy nothing. After dark they open out, white or washed with pink, and start to smell.",
     },
     {
       ask: "What is the catchfly name about?",
@@ -122,7 +122,7 @@ export const TRIVIA: Record<string, Question[]> = {
         "The stems are sticky enough that small insects get caught. It is not a carnivorous plant and gains no food from them: the leading explanation is that it keeps crawlers off the nectar it is saving for moths.",
     },
     {
-      ask: "White, night-scented and tubular. What does that combination say?",
+      ask: "Pale, night-scented and tubular. What does that combination say?",
       options: [
         "A moth flower",
         "A beetle flower",

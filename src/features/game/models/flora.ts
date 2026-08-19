@@ -4,8 +4,8 @@ import type { Plant } from "../data/plants";
 import { buildBoxGeometry, shade, tint, type Box } from "./voxel";
 
 /**
- * Sixteen plants, six shapes. Each species is a set of numbers — height, bloom
- * colour, leaf colour, archetype — and the archetype decides what it grows into.
+ * Sixteen plants, six shapes. Each species is a set of numbers, height, bloom
+ * colour, leaf colour, archetype, and the archetype decides what it grows into.
  * Hand-modelling sixteen flowers would look no better and would be sixteen times
  * the work to change.
  */
@@ -21,7 +21,7 @@ function stem(height: number, color: string, width = 0.09): Box {
 }
 
 /**
- * Paired leaves stepping up the stalk — each with a midrib and a droop at the
+ * Paired leaves stepping up the stalk, each with a midrib and a droop at the
  * tip, because a leaf that is one flat slab reads as a plank.
  */
 function leaves(height: number, color: string, pairs: number, span: number): Box[] {

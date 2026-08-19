@@ -34,7 +34,7 @@ export type Pose = {
   z: number;
   altitude: number;
   heading: number;
-  /** "none" | "greet" | "dance" — mirrored so the gesture is visible to others. */
+  /** "none" | "greet" | "dance", mirrored so the gesture is visible to others. */
   gesture: string;
 };
 
@@ -92,7 +92,7 @@ export type TableView = {
  * different black-eyed susans forty units apart are doing two different things,
  * and joining them would be baffling.
  *
- * `finds` are opaque tokens the game decides the meaning of — a matched floret,
+ * `finds` are opaque tokens the game decides the meaning of, a matched floret,
  * a word made. The room does not know what they mean and does not need to; it
  * keeps the set and tells everybody, which is the whole of co-operation here.
  */
@@ -191,7 +191,7 @@ export type ServerMessage =
    *
    * `replaced` is the odd one: you are not being turned away, your OTHER tab
    * is now the one holding your seat. It is a message rather than a bare close
-   * because a close is not reliably delivered — workerd leaves a hibernatable
+   * because a close is not reliably delivered, workerd leaves a hibernatable
    * socket in CLOSING and the far end never hears the handshake finish, so a
    * replaced tab would sit there believing it was still in the party. Being
    * told is the guarantee; the close is a courtesy on top of it.

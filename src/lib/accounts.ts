@@ -396,7 +396,7 @@ export async function setUsername(
      * because that is where the ceiling, the waitlist and the suspension check
      * live. A player whose account an admin had just deleted still holds a valid
      * JWT for its lifetime, and could have posted a username to put a row back
-     * — walking around the ceiling and partly undoing the deletion.
+     * walking around the ceiling and partly undoing the deletion.
      *
      * No row means no account, which is a refusal rather than an invitation.
      */

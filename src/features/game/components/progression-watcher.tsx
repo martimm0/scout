@@ -32,7 +32,7 @@ export function ProgressionWatcher() {
       }
 
       // Badges are evaluated after journal unlocks, because some badges are
-      // about the journal — otherwise "Well Read" would always be one entry
+      // about the journal: otherwise "Well Read" would always be one entry
       // behind the thing that earned it.
       const badges = evaluateBadges(useGameStore.getState());
 

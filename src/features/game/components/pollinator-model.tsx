@@ -23,7 +23,7 @@ export type PollinatorAnimationState =
   | "pollinating";
 
 type Tuning = {
-  /** Wingbeat in radians per second. Nowhere near a real bee's 200Hz — that
+  /** Wingbeat in radians per second. Nowhere near a real bee's 200Hz, that
    *  would just strobe. Fast enough to read as a blur, slow enough to see. */
   wingSpeed: number;
   wingAmplitude: number;
@@ -326,7 +326,7 @@ export function PollinatorModel({
     }
 
     if (bodyRef.current) {
-      // Squash and stretch on the downstroke — the bee compresses as it pushes
+      // Squash and stretch on the downstroke: the bee compresses as it pushes
       // air down. Tiny, but it's most of what makes the thing feel alive.
       const squash =
         1 + beat * 0.035 + (gesture?.kind === "dance" ? Math.sin(gestureTime * 14) * 0.06 : 0);
@@ -343,14 +343,14 @@ export function PollinatorModel({
 
     if (rightHindRef.current && leftHindRef.current) {
       // A bee's hind wings hook to the forewings and follow. A butterfly's sweep
-      // nearly as far. A hoverfly has none — those are halteres, and they barely
+      // nearly as far. A hoverfly has none: those are halteres, and they barely
       // move, which is exactly why it can hold a position in a breeze.
       rightHindRef.current.rotation.z = flap * anim.hindWingFollow;
       leftHindRef.current.rotation.z = -flap * anim.hindWingFollow;
     }
 
     if (abdomenRef.current) {
-      // The abdomen lags the thorax and pumps gently, like breathing — and
+      // The abdomen lags the thorax and pumps gently, like breathing, and
       // waggles hard when dancing, which is the part a real bee actually does.
       abdomenRef.current.rotation.x =
         Math.sin(wingPhase.current * 0.5) * 0.04 + current.pitch * -0.35;
@@ -360,7 +360,7 @@ export function PollinatorModel({
     }
 
     if (headRef.current) {
-      // The head holds level against the body's pitch — animals stabilise gaze.
+      // The head holds level against the body's pitch: animals stabilise gaze.
       headRef.current.rotation.x = current.pitch * -0.55;
     }
 

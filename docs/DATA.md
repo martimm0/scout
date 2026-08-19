@@ -13,8 +13,20 @@ a park, a flower, a badge or a hat should be, and is, a data change.
 The second principle is that **every fact is sourced**. Not remembered, not
 inferred from a name. Every Wikipedia URL is checked to return 200. Every
 photograph's author and licence come from the Commons API rather than from
-memory. When a claim cannot be verified it does not ship, however good a line it
-would have made.
+memory, and `scripts/source-photo.mjs` is how: it fetches the credit, REFUSES
+any licence outside Public Domain, CC0, CC BY and CC BY-SA before downloading
+anything, and writes the file at the width the rest of the set uses. That script
+was described here long before it existed in the repository, which meant the
+next person to add a species had the choice of doing it by hand from memory,
+which is exactly how a wrong attribution gets in.
+
+When a claim cannot be verified it does not ship, however good a line it would
+have made.
+
+A test now asserts the other half: no species ships without a photograph, and
+every credit carries an author, a usable licence and a Commons file page. Three
+species shipped with none at all and nothing noticed, because an entry with no
+figure renders perfectly well and reads as a design choice rather than a hole.
 
 The facts that slip through are the ones nothing checks, and the parks' own
 **coordinates** were the clearest example. Frick's were 40.4406, -79.9959 from the
@@ -70,10 +82,17 @@ areas, which meant a second park's areas could not be typed at all. `AreaId` is 
 bare string now. Area ids are globally unique by construction: they are real
 place names, and there is no Panther Hollow in Frick.
 
-### The 10% that are demanding
+### The handful that are demanding
 
-A tenth of each park's flowers refuse to be pollinated until you have passed
-their quiz: 2 of 16 in Frick, 2 of 14 in Schenley, 2 of 12 in Highland.
+Two flowers in each park refuse to be pollinated until you have passed their
+quiz: 2 of 17 in Frick, 2 of 15 in Schenley, 2 of 13 in Highland, so somewhere
+between one in eight and one in six.
+
+It began as a flat tenth and has drifted up as species were added without adding
+gated ones, which is fine at this size and worth watching: the point is a
+handful per park, not a ratio. `pages.spec.ts` holds it between a twentieth and
+a fifth rather than to a number, because you cannot gate six tenths of a
+milkweed.
 
 They are **hand-picked, not hashed**, because the gate has to mean something.
 Every one has a real mechanism a real insect has to learn: milkweed's pollinia
@@ -236,8 +255,9 @@ used to break that. The scene and the card each hold a window keydown listener,
 both fired on the one keypress, and closing the entry also took off: the player
 who chose Look it up instead came back to open air and had to find the plant and
 land on it all over again. The card's listener now stands down while the entry is
-open on top of it. The trap in testing this is that the store re-renders through
-`useSyncExternalStore`, which flushes synchronously, so merely mentioning
+open on top of it. The trap in testing this is that the store re-renders through the
+`useSyncExternalStore` that Zustand subscribes with, which flushes
+synchronously, so merely mentioning
 `ui.activeEntry` in the effect's dependencies makes the cleanup remove the
 listener mid-dispatch and the second handler silently never runs. That masks the
 bug rather than fixing it, which is why the guard is the early return and not the
@@ -300,8 +320,8 @@ so a new one that does not is caught rather than silently shown every month.
   anywhere, so the discovery loop, the motes and the tag ask this one.
 
 They were one function, and that was a soft-lock. Discovery needed the bloom, so
-only seven of Frick's sixteen plants existed in July, while Schenley opens on
-eight: a player starting in the wrong month could never progress. `season.spec.ts`
+barely half of Frick's plants existed in July, fewer than the eight Schenley
+opens on: a player starting in the wrong month could never progress. `season.spec.ts`
 now walks all twelve months and asserts every plant stays findable in each, which is
 the check that was missing. A plant out of its month is still drawn, drab and
 closed; a fungus out of its season really is gone, because mushrooms rot away.
@@ -372,8 +392,14 @@ the moment there are two.
 
 ### The unlock chain
 
-Declared on the park, not in the store: Frick opens Schenley (half of Frick's
-plants), Schenley opens Highland (half of Schenley's). A fourth park is a data
+Declared on the park, not in the store: Frick opens Schenley (8 of Frick's
+plants), Schenley opens Highland (7 of Schenley's). Those are PINNED COUNTS
+rather than fractions of however many plants a park currently has, which is the
+whole point: a fraction moves the door every time a species ships, so the day
+three night bloomers landed, everybody halfway through Frick would have been
+told they now needed nine flowers instead of eight, having done nothing wrong.
+The numbers are what the old fractions produced on the day they were pinned, so
+nobody's progress moved by a single flower. A fourth park is a data
 change.
 
 ## The save file
@@ -584,7 +610,7 @@ them:
 
 | Counter | Why it must stay solo |
 | --- | --- |
-| `plantsIn` (the park unlock ladder) | Frick has sixteen plants you can find alone and Schenley opens at half of them. Counting the party plants makes that nine, so a door somebody was walking towards moves further away, over a feature they may never have opened. |
+| `plantsIn` (the park unlock ladder) | Schenley opens at 8 of Frick's plants. Counting the party plants towards that would move a door somebody was walking towards further away, over a feature they may never have opened. The threshold is a pinned number rather than a fraction now, which closes the same hole from the other side. |
 | `speciesOf` (the per-park badges) | "Every plant in Frick" has to go on meaning what it meant before parties existed. |
 | `both-parks` (the completionist badge) | Otherwise it becomes unobtainable without other people. |
 | The counts in GAMEPLAN.md | Said as two numbers now, because one would be a lie in both directions. |

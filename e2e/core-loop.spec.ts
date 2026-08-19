@@ -12,7 +12,7 @@ import {
  * The core loop: fly, find, pollinate, learn.
  *
  * These are slow because they drive a real 3D game in a real browser. That is
- * the point — every serious bug in this project's history typechecked cleanly
+ * the point: every serious bug in this project's history typechecked cleanly
  * and only surfaced when something actually flew the bee.
  */
 
@@ -40,7 +40,7 @@ test.describe("core loop", () => {
     const before = await readout(page);
     expect(before.Heading).toBe("0 deg");
 
-    // Plain mouse movement over the canvas — no click, no button held.
+    // Plain mouse movement over the canvas, no click, no button held.
     const canvas = page.locator("canvas").first();
     const box = await canvas.boundingBox();
 

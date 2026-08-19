@@ -7,7 +7,7 @@ import { defineConfig, devices } from "@playwright/test";
  *
  * Next loads `.env.local` for the server; the Playwright process gets nothing,
  * and several tests reach into `src/lib` directly to set up a player. Those
- * modules decide ONCE, at import time, whether there is a database — so whether
+ * modules decide ONCE, at import time, whether there is a database, so whether
  * a test could see one came down to whether some other import had already
  * pulled `src/lib/env` in first. `admin.spec.ts` imports it at the top, so every
  * account its helpers tried to create was silently discarded, and the tests then
@@ -48,7 +48,7 @@ loadLocalEnv();
 /**
  * The port, overridable.
  *
- * It was pinned to 3000, which is fine until something else is already on 3000 —
+ * It was pinned to 3000, which is fine until something else is already on 3000,
  * and because `reuseExistingServer` is on outside CI, Playwright would then
  * happily REUSE that stranger and run the whole suite against somebody else's
  * app. The failures that produces are baffling, and the passes are worse. Set
@@ -95,7 +95,7 @@ export default defineConfig({
         ...devices["Desktop Chrome"],
         // Headless Chromium needs a real GL backend or the canvas renders
         // nothing and every scene test fails for reasons unrelated to the code.
-        // These flags are Chromium-only — passing them to Firefox or WebKit
+        // These flags are Chromium-only, passing them to Firefox or WebKit
         // makes the browser refuse to launch at all.
         launchOptions: {
           args: [

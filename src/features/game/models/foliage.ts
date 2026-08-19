@@ -5,7 +5,7 @@ import { buildBoxGeometry, type Box } from "./voxel";
 /**
  * The park's furniture, sized for an insect.
  *
- * A bee here is under a unit long. So a hemlock is seventy units — a tower you
+ * A bee here is under a unit long. So a hemlock is seventy units, a tower you
  * fly *around*, not over. A fallen log is a tunnel. An acorn is a boulder. A
  * blade of grass comes up past your head.
  *
@@ -57,7 +57,7 @@ function oak(): Box[] {
   ];
 }
 
-/** Understorey shrub — spicebush and viburnum height. */
+/** Understorey shrub: spicebush and viburnum height. */
 function shrub(): Box[] {
   return [
     { position: [0, 5, 0], size: [15, 10, 14], color: "#3f7340" },
@@ -67,7 +67,7 @@ function shrub(): Box[] {
 }
 
 /**
- * A fallen log. At this scale it isn't scenery, it's terrain — a wall you go
+ * A fallen log. At this scale it isn't scenery, it's terrain, a wall you go
  * around or a tunnel you thread.
  */
 function log(): Box[] {
@@ -143,7 +143,7 @@ function fern(): Box[] {
 }
 
 /**
- * Grass. The single most important model here — a lawn you could mow is, from
+ * Grass. The single most important model here, a lawn you could mow is, from
  * a bee's height, a forest of blades taller than you are. Nothing else sells the
  * scale as cheaply.
  */
@@ -207,7 +207,7 @@ function branch(): Box[] {
  * Leaf litter. A drift of fallen leaves.
  *
  * This is where the queen bumblebees sleep through the winter, which is one very
- * good reason not to rake the woods clean — and it's in the journal.
+ * good reason not to rake the woods clean, and it's in the journal.
  */
 function leafLitter(): Box[] {
   const boxes: Box[] = [];
@@ -244,7 +244,7 @@ function clover(): Box[] {
  *
  * It grows in dense stands nothing else can get through, it feeds almost nobody,
  * and Frick's volunteers spend thousands of hours a year pulling it. It is here
- * because a park is not only the things you want in it — and because you cannot
+ * because a park is not only the things you want in it, and because you cannot
  * pollinate it, which is the lesson.
  */
 function knotweed(): Box[] {

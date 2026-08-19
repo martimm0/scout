@@ -3,7 +3,7 @@ import type { GameState } from "./game-store";
 /**
  * Which gameplay events teach which ecology concept.
  *
- * Two of them — mutualism and pollination failure — are unlocked directly by the
+ * Two of them: mutualism and pollination failure, are unlocked directly by the
  * store at the moment they happen, because they're taught by the act itself. The
  * rest are earned by accumulating enough of the park to have noticed the pattern.
  */

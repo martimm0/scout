@@ -15,7 +15,7 @@ import { setActivePark, startPosition } from "../src/features/game/world/terrain
  * Shared driving for the game tests.
  *
  * State is read by walking the debug overlay's dt/dd pairs, not by regex over
- * innerText — a regex over the whole page is exactly how an earlier version of
+ * innerText: a regex over the whole page is exactly how an earlier version of
  * these scripts reported "no readout" for a bug that lived entirely in the test.
  */
 

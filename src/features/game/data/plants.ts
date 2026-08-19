@@ -75,7 +75,7 @@ export type Plant = {
   fact: string;
   /** Why a pollinator cares. */
   pollinatorNote: string;
-  /** Verified — every one of these returns 200. A dead "learn more" is worse
+  /** Verified: every one of these returns 200. A dead "learn more" is worse
    *  than none, so these are written out rather than guessed from the name. */
   wikipedia: string;
   /**
@@ -902,12 +902,14 @@ export const PLANTS: Plant[] = [
     homes: [{ park: "schenley", area: "flagstaff-hill" }],
     bloom: "July to October",
     window: NIGHT,
-    hook: "A white trumpet the length of your hand, open only at night.",
+    hook: "A trumpet the length of your hand, open only at night.",
     fact: "Every part of it is poisonous, and dangerously unpredictably so: the amount of alkaloid varies enormously between plants, between seasons, and between one part of the same plant and another. That variability is exactly what makes it kill people who thought they knew the dose.",
     pollinatorNote: "A trumpet far too deep for most insects, opening at dusk and scented at night. It is built for hawk moths, which hover at it like hummingbirds.",
     wikipedia: "https://en.wikipedia.org/wiki/Datura_stramonium",
     archetype: "low",
-    bloomColor: "#f4f1e4",
+    // White washed with violet, which is what Datura actually is and what the
+    // photograph shows. It was flat white.
+    bloomColor: "#ece4f2",
     leafColor: "#4f6f43",
     height: 1.8,
     count: 4,
@@ -920,11 +922,12 @@ export const PLANTS: Plant[] = [
     bloom: "June to September",
     window: NIGHT,
     hook: "Rolls its petals shut at dawn and looks like nothing all day.",
-    fact: "Walk past it in daylight and you would not look twice: the petals roll up lengthwise into thin twists and the whole plant reads as a weedy nothing. After dark they unroll, turn white, and start to smell. The sticky hairs on its stems are what the catchfly name is about, and small insects do get stuck on them.",
-    pollinatorNote: "White, night-scented and tubular, which is the moth signal in three parts. The stickiness is thought to keep crawling insects off the nectar it is saving for them.",
+    fact: "Walk past it in daylight and you would not look twice: the petals roll up lengthwise into thin twists and the whole plant reads as a weedy nothing. After dark they open out, white or washed with pink, and start to smell. The sticky hairs on its stems are what the catchfly name is about, and small insects do get stuck on them.",
+    pollinatorNote: "Pale, night-scented and tubular, which is the moth signal in three parts. The stickiness is thought to keep crawling insects off the nectar it is saving for them.",
     wikipedia: "https://en.wikipedia.org/wiki/Silene_noctiflora",
     archetype: "low",
-    bloomColor: "#f3f0e8",
+    // White to pale pink, as the photograph shows. It was flat white.
+    bloomColor: "#f6ecef",
     leafColor: "#71875a",
     height: 1.5,
     count: 5,

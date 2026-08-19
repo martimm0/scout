@@ -9,7 +9,7 @@ import type { Colors, SpeciesSpec } from "./species";
  *  - **Eyes.** A fly's eyes are enormous and meet across the top of its head.
  *    They are most of the animal's face. Get these right and it reads as a fly
  *    before anything else does.
- *  - **One pair of wings.** Flies are Diptera — two wings, not four. The hind
+ *  - **One pair of wings.** Flies are Diptera, two wings, not four. The hind
  *    pair evolved into halteres, little gyroscopic knobs, which is *why* it can
  *    hang in the air like that. The knobs are modelled.
  *  - **Flat, not fuzzy.** A bee is a fur coat. A hoverfly is bare and shiny,
@@ -22,7 +22,7 @@ import type { Colors, SpeciesSpec } from "./species";
  *
  * Short and shallow on purpose. The first version was as tall and deep as the
  * thorax, and with dark eyes the whole front half of the animal fused into one
- * black brick — you couldn't tell it was a fly, or that it had a face.
+ * black brick: you couldn't tell it was a fly, or that it had a face.
  */
 const HEAD_LAYERS = [
   ["..DDD..", ".DDDDD.", "..DDD.."],

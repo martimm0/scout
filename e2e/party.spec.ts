@@ -1094,7 +1094,7 @@ test.describe("garden parties", () => {
      * The ticket used to be fetched once and handed to partysocket as a fixed
      * value, so every reconnect presented the same pass. After five minutes
      * that pass is expired and the room refuses it, forever, against a server
-     * that is perfectly healthy — and the only way back was reloading the page.
+     * that is perfectly healthy, and the only way back was reloading the page.
      * It looks exactly like a broken server from the console.
      *
      * So the assertion is not "it connects", which was always true. It is that

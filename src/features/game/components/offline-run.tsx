@@ -20,7 +20,7 @@ function formatClock(seconds: number) {
  * The ten-minute run.
  *
  * No account, no saved progress, and a clock that doesn't stop. It should not
- * feel like a demo with the good parts taken out — it's the honest version of
+ * feel like a demo with the good parts taken out, it's the honest version of
  * being an insect. Your time is genuinely short, and what you do with it is the
  * whole point.
  */

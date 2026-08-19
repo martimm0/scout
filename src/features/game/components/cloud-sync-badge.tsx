@@ -18,7 +18,7 @@ const LABEL: Record<CloudStatus, string> = {
  * Runs the autosave, and tells the player the truth about where their progress
  * actually lives.
  *
- * Signed out, or cloud saves not configured, it says "saved on this device" —
+ * Signed out, or cloud saves not configured, it says "saved on this device",
  * which is true, and is a great deal more useful than a silent absence. When a
  * save fails it says so, and says the progress is still safe locally, because it
  * is: localStorage has already taken it.

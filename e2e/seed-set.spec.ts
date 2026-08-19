@@ -35,7 +35,7 @@ const DAY = 24 * 60 * 60 * 1000;
  * and `nearestPlantToSpawn` reads it. Two tests here move it to Schenley, and
  * without this the next test computed a Schenley plant's coordinates, flew to
  * them inside Frick, landed on nothing and reported "six visits and not one of
- * them took" — a failure that looks exactly like bad luck with the dice and is
+ * them took": a failure that looks exactly like bad luck with the dice and is
  * nothing of the sort. It only showed up when the whole file ran, because
  * running one test by name skipped the test that did the moving.
  *

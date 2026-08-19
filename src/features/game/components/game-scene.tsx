@@ -119,8 +119,8 @@ type DebugState = {
 };
 
 /**
- * The bee is now roughly bee-sized — under a unit long against seventy-unit
- * trees — so everything that used to be tuned against a bee the size of a shrub
+ * The bee is now roughly bee-sized, under a unit long against seventy-unit
+ * trees: so everything that used to be tuned against a bee the size of a shrub
  * has to be retuned. It flies faster because the park is enormous, and the
  * camera sits close because at this scale a few units back is already a long way.
  */
@@ -350,7 +350,7 @@ function R3FViewport({
       // Do NOT touch canvas.width/height here. Those are the drawing buffer, and
       // three sizes it as CSS size x pixel ratio. Forcing it to the CSS size on a
       // retina screen leaves the GL viewport twice the buffer, so you render the
-      // bottom-left quadrant blown up 2x — the bee ends up in the top-right
+      // bottom-left quadrant blown up 2x, the bee ends up in the top-right
       // corner instead of centred, and only on HiDPI displays.
       /**
        * A phone is not a desktop GPU, and this scene was tuned for one.
@@ -652,7 +652,7 @@ function ScoutScene({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Keyed off event.code — the physical key — rather than event.key, which
+      // Keyed off event.code (the physical key) rather than event.key, which
       // is whatever the OS layout decided to produce. On a Dvorak or AZERTY
       // layout, or with a modifier held, event.key for the D key is not "d".
       const code = event.code;
@@ -675,7 +675,7 @@ function ScoutScene({
       }
 
       // Gestures. Ignore auto-repeat, and don't let one interrupt another
-      // mid-spin — otherwise leaning on the key leaves the bee stuck facing you.
+      // mid-spin, otherwise leaning on the key leaves the bee stuck facing you.
       if (
         (code === GREET_KEY || code === DANCE_KEY) &&
         !event.repeat &&
@@ -770,7 +770,7 @@ function ScoutScene({
     const handleMouseMove = (event: MouseEvent) => {
       // Look on plain mouse movement over the scene. Requiring a held button
       // (or a click into pointer lock) first meant that simply moving the mouse
-      // did nothing at all — so the view never turned, and the bee dutifully
+      // did nothing at all, so the view never turned, and the bee dutifully
       // following a view that never moved looked exactly like a bee that
       // followed nothing.
       //
@@ -804,8 +804,8 @@ function ScoutScene({
         deltaY = event.movementY;
       } else {
         // WebKit only populates movementX/movementY while the pointer is LOCKED.
-        // Outside pointer lock it reports 0, so hover-to-look — which is how the
-        // game is actually played — simply does nothing in Safari. Deriving the
+        // Outside pointer lock it reports 0, so hover-to-look, which is how the
+        // game is actually played, simply does nothing in Safari. Deriving the
         // delta from clientX/clientY ourselves works in every engine.
         const last = lastPointerRef.current;
 
@@ -815,8 +815,8 @@ function ScoutScene({
         lastPointerRef.current = { x: event.clientX, y: event.clientY };
       }
 
-      // The mouse turns you. Yaw grows clockwise — forward is (sin y, 0, -cos y)
-      // — so moving the mouse right must ADD, or the world comes out mirrored.
+      // The mouse turns you. Yaw grows clockwise: forward is (sin y, 0, -cos y)
+      // so moving the mouse right must ADD, or the world comes out mirrored.
       yawRef.current += deltaX * MOUSE_SENSITIVITY;
       // Positive pitch lifts the camera and tips the view DOWN at the park, so
       // pushing the mouse forward (negative delta) has to lower it, i.e. look up.
@@ -1122,7 +1122,7 @@ function ScoutScene({
     if (gesture.kind !== "none") {
       gesture.time += delta;
 
-      // Flying cancels it — you shouldn't be stuck admiring the bee's back while
+      // Flying cancels it: you shouldn't be stuck admiring the bee's back while
       // trying to get somewhere.
       if (gesture.time >= GESTURE_DURATION[gesture.kind] || throttle !== 0) {
         gestureRef.current = { kind: "none", time: 0 };
@@ -1131,14 +1131,14 @@ function ScoutScene({
 
     const activeGesture = gestureRef.current.kind;
 
-    // The bee faces where you're looking — which is also where it flies. During
+    // The bee faces where you're looking, which is also where it flies. During
     // a gesture it swings a half-turn to face the camera instead, then comes
     // back on its own.
     //
     // Note the NEGATED yaw. three's rotation.y = t sends the model's -Z nose to
     // (-sin t, 0, -cos t), while the camera's forward is (+sin t, 0, -cos t).
     // The X components have opposite signs, so feeding yaw in directly turns the
-    // bee the wrong way — mirrored about the view axis. At yaw 0 the two agree,
+    // bee the wrong way: mirrored about the view axis. At yaw 0 the two agree,
     // which is exactly why this survived so long: every screenshot taken facing
     // straight ahead looks perfect, and the bee only peels away once you turn.
     const facing = activeGesture === "none" ? -yaw : -yaw + Math.PI;
@@ -1151,7 +1151,7 @@ function ScoutScene({
     pollinator.rotation.y = pollinatorYawRef.current;
 
     // Bank into the turn. Roll comes from how hard you're steering, not from
-    // sideways velocity — there is no sideways velocity any more.
+    // sideways velocity: there is no sideways velocity any more.
     pollinator.rotation.z =
       clamp(-turnInput * 0.2 * (hasMovementInput ? 1 : 0.45), -0.24, 0.24) +
       (hasMovementInput ? 0 : Math.sin(elapsed * 3) * 0.03);
@@ -1172,7 +1172,7 @@ function ScoutScene({
 
     // The camera orbits the bee on a sphere. It used to only shift its HEIGHT by
     // a few units with pitch, which meant you could never actually tilt the view
-    // down and look at the park you were flying over — the horizon stayed pinned
+    // down and look at the park you were flying over, the horizon stayed pinned
     // at the bee no matter what you did with the mouse.
     const pitch = pitchRef.current;
     const cosPitch = Math.cos(pitch);
@@ -1198,7 +1198,7 @@ function ScoutScene({
     camera.lookAt(cameraTarget);
 
     // The sun rides along with the bee. A directional light's shadow camera can
-    // only cover a small box, and the world is 140x110 — parking it at the
+    // only cover a small box, and the world is 140x110, parking it at the
     // origin would leave the bee shadowless almost everywhere.
     const sun = sunRef.current;
 

@@ -2,7 +2,7 @@
  * The journal: the player's pollinator record.
  *
  * Tone is casual-adult and slightly Pokédex-like. Locked entries are written to
- * be intriguing without giving the thing away — a locked entry that just says
+ * be intriguing without giving the thing away, a locked entry that just says
  * "???" teaches nothing and tempts nobody.
  *
  * Entry ids are namespaced, and the store already emits them:

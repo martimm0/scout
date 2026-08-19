@@ -24,7 +24,7 @@ export type Badge = {
   name: string;
   /** Shown once earned. */
   description: string;
-  /** Shown while locked — intriguing, but not a walkthrough. */
+  /** Shown while locked: intriguing, but not a walkthrough. */
   hint: string;
   earned: (state: GameState) => boolean;
 };

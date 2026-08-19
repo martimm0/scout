@@ -12,7 +12,7 @@ import styles from "./starter-selection.module.css";
 
 export function StarterVisual({ pollinator }: { pollinator: Pollinator }) {
   const cssVars = {
-    // The player's own accent, not a hardcoded one — otherwise the preview
+    // The player's own accent, not a hardcoded one, otherwise the preview
     // silently ignores the colour they just picked.
     "--starter-accent": pollinator.accentColor,
     "--starter-body": pollinator.bodyColor,

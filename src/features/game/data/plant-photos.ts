@@ -146,6 +146,42 @@ export const PLANT_PHOTOS: Record<string, PlantPhoto> = {
     licenseUrl: "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
     sourceUrl: "https://commons.wikimedia.org/wiki/File:Cercis_canadensis,_2021-04-24,_Fox_Chapel,_01.jpg",
   },
+
+  /**
+   * The night shift.
+   *
+   * Sourced with `scripts/source-photo.mjs`, which is in the repository now
+   * rather than being a thing somebody once ran: it asks the Commons API for
+   * the credit, refuses any licence this project may not use, and writes the
+   * file at the width the rest of the set is.
+   */
+  "evening-primrose": {
+    src: "/images/plants/evening-primrose.jpg",
+    title: "Oenothera biennis, Vic-la-Gardiole 01.jpg",
+    author: "Christian Ferrer",
+    license: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Oenothera_biennis,_Vic-la-Gardiole_01.jpg",
+  },
+  jimsonweed: {
+    src: "/images/plants/jimsonweed.jpg",
+    title: "Datura stramonium 2 (2005 07 07).jpg",
+    author: "Taka",
+    license: "CC BY-SA 3.0",
+    licenseUrl: "http://creativecommons.org/licenses/by-sa/3.0",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Datura_stramonium_2_(2005_07_07).jpg",
+  },
+  "night-flowering-catchfly": {
+    src: "/images/plants/night-flowering-catchfly.jpg",
+    title: "Silene noctiflora kz01.jpg",
+    author: "Krzysztof Ziarnek, Kenraiz",
+    license: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Silene_noctiflora_kz01.jpg",
+  },
 };
 
 /**

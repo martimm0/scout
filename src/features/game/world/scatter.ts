@@ -21,7 +21,7 @@ export type Placement = {
 /** Spacing of the candidate grid for trees and large props. */
 const CELL = 19;
 
-/** Grass gets its own, much finer grid — it has to be everywhere. */
+/** Grass gets its own, much finer grid, it has to be everywhere. */
 const GRASS_CELL = 7;
 
 /**
@@ -30,7 +30,7 @@ const GRASS_CELL = 7;
  * isn't a bowling green.
  */
 
-/** Anything steeper than this is bare — trees don't grow on the cliff faces. */
+/** Anything steeper than this is bare, trees don't grow on the cliff faces. */
 const MAX_SLOPE = 0.9;
 
 /**
@@ -144,7 +144,7 @@ export function scatterFoliage(): FoliageScatter {
         continue;
       }
 
-      // Cattails and knotweed crowd the water's edge — that's the whole point of
+      // Cattails and knotweed crowd the water's edge, that's the whole point of
       // both of them, so they get placed closer in than anything else.
       if (
         area === "nine-mile-run" &&

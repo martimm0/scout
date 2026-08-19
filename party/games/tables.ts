@@ -38,7 +38,7 @@ import {
  * rules are: the room calls these, and so can a test, without a socket.
  *
  * Tables are never written to storage. A hibernating room forgets its games,
- * which is correct — an empty room has nothing in progress worth resuming — and
+ * which is correct: an empty room has nothing in progress worth resuming, and
  * it keeps the Durable Object free of stored state.
  */
 

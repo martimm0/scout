@@ -1,8 +1,8 @@
 /**
  * Environment, and what the app is allowed to assume about it.
  *
- * Everything here is optional. Scout has to run with an empty `.env` — no Google
- * client, no database — because that is how it runs on a fresh clone, and a game
+ * Everything here is optional. Scout has to run with an empty `.env`, no Google
+ * client, no database, because that is how it runs on a fresh clone, and a game
  * that crashes on boot because nobody configured OAuth is a game nobody plays.
  *
  * With the variables absent the app runs in **local mode**: progress lives in

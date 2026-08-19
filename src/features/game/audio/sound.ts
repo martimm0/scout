@@ -2,7 +2,7 @@
  * Sound, synthesized in the browser.
  *
  * No audio files. Everything here is oscillators and envelopes through the Web
- * Audio API — which means no assets to license, nothing to download, and a
+ * Audio API, which means no assets to license, nothing to download, and a
  * chiptune character that matches the voxel art without anybody having to make
  * it match. It also means the whole soundtrack costs a few kilobytes of code.
  *
@@ -189,7 +189,7 @@ export function playSound(name: SoundName) {
       break;
 
     case "pollinateFail":
-      // Soft, low, and short. Disappointed, never harsh — this is not a buzzer,
+      // Soft, low, and short. Disappointed, never harsh: this is not a buzzer,
       // because failing to pollinate a flower is not a mistake.
       blip(now, 330, 0.16, "sine", 0.14, master);
       blip(now + 0.13, 262, 0.26, "sine", 0.12, master);

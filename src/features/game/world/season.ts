@@ -308,7 +308,7 @@ export function seasonLook(month: number): SeasonLook {
      * 0.32 on 31 December to 0.67 on 1 January, straight over the 0.5 where the
      * sine peaks, so the deepest snow of the year was never drawn at all. Snow
      * topped out at the turn of the year, was gone by the end of January, and
-     * February — one of the snowiest months Pittsburgh has — was bare ground for
+     * February: one of the snowiest months Pittsburgh has, was bare ground for
      * all twenty-eight days of it. The comment above claimed the peak was in
      * January and the code did not do that.
      */

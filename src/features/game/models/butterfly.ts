@@ -12,7 +12,7 @@ import type { Colors, SpeciesSpec } from "./species";
  *    that would look ridiculous on anything else.
  *  - **Clubbed antennae.** The single feature that separates a butterfly from a
  *    moth, so they get a proper knob on the end.
- *  - **A coiled proboscis** under the head — the drinking straw it feeds through.
+ *  - **A coiled proboscis** under the head, the drinking straw it feeds through.
  *
  * It flies the way it looks: slowly, floatily, and with an enormous bob. It is
  * the least efficient pollinator in the park and by far the nicest to watch.
@@ -25,7 +25,7 @@ const HEAD_LAYERS = [
   ["..DDD..", ".DDDDD.", "..DDD.."],
 ];
 
-// Small and furred — butterflies are surprisingly fuzzy across the shoulders.
+// Small and furred: butterflies are surprisingly fuzzy across the shoulders.
 const THORAX_LAYERS = [
   ["..FFF..", "..FFF..", "..FFF.."],
   [".FFFFF.", ".FFFFF.", ".FFFFF."],
@@ -42,7 +42,7 @@ const ABDOMEN_LAYERS = [
 
 /**
  * The forewing. Body colour panelled by dark veins (V), rimmed with white
- * spots (M) — which is exactly how you know a monarch from across a meadow.
+ * spots (M), which is exactly how you know a monarch from across a meadow.
  */
 const WING_LAYERS = [
   [
@@ -133,7 +133,7 @@ export const BUTTERFLY_SPEC: SpeciesSpec = {
     bob: 2.4,
     // Hindwings are hooked to the forewings and sweep almost as far.
     hindWingFollow: 0.88,
-    // Held high at rest — that upward V is the resting butterfly pose.
+    // Held high at rest: that upward V is the resting butterfly pose.
     wingRest: 0.5,
   },
 
@@ -152,7 +152,7 @@ export const BUTTERFLY_SPEC: SpeciesSpec = {
   },
 
   palette: ({ accentColor, bodyColor }: Colors) => ({
-    // Wing panels take the BODY colour, not the wing colour — a monarch's wings
+    // Wing panels take the BODY colour, not the wing colour, a monarch's wings
     // are the animal. The "wing colour" would render them as glass.
     B: bodyColor,
     V: "#231a12",

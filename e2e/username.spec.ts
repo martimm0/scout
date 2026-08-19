@@ -251,8 +251,8 @@ test.describe("claiming a name", () => {
      *
      * `registerSignIn` owns account creation, because that is where the ceiling,
      * the waitlist and the suspension check live. This used to upsert, so a
-     * player whose account an admin had just deleted — still holding a valid JWT
-     * for its lifetime — could post a username and put a row back, walking round
+     * player whose account an admin had just deleted, still holding a valid JWT
+     * for its lifetime: could post a username and put a row back, walking round
      * the ceiling and partly undoing the deletion.
      */
     /**

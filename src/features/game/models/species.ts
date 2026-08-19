@@ -8,7 +8,7 @@ import { buildVoxelGeometry, shade, tint, type VoxelPalette } from "./voxel";
  * The bee, the hoverfly, the butterfly and the moth are the same machine with
  * different numbers in it: the same text-art voxel pipeline, the same part names, the same
  * animation rig. What differs is the art, the proportions, and how the thing
- * flies — and all three of those live in a spec object rather than in a fork of
+ * flies: and all three of those live in a spec object rather than in a fork of
  * the model component.
  *
  * That is the whole reason the bee was authored as data in the first place.
@@ -75,7 +75,7 @@ export type SpeciesWings = {
   /**
    * Whether the wing material is tinted by the player's wing colour.
    *
-   * A bee's and a hoverfly's wings are glass — tint away. A butterfly's wings
+   * A bee's and a hoverfly's wings are glass, tint away. A butterfly's wings
    * are the ANIMAL: patterned panels with veins and spots, carried in the vertex
    * colours. Multiplying those by a wing colour would wash the pattern out into
    * a stained-glass smear, so a butterfly's material stays white and lets the

@@ -11,6 +11,8 @@ import {
   basePalette,
   disposePollinatorGeometry,
 } from "../src/features/game/models/species";
+import { FUNGI } from "../src/features/game/data/fungi";
+import { photoFor } from "../src/features/game/data/plant-photos";
 import { PLANTS } from "../src/features/game/data/plants";
 import { triviaFor } from "../src/features/game/data/trivia";
 import { isActive } from "../src/features/game/world/daylight";
@@ -262,5 +264,54 @@ test.describe("the moth you can fly", () => {
 
     expect(entry, "no journal entry for the moth").toBeTruthy();
     expect(entry!.body.length).toBeGreaterThan(200);
+  });
+});
+
+test.describe("every species is illustrated and credited", () => {
+  test("no species ships without a photograph", () => {
+    /**
+     * The gap this closes was real and invisible.
+     *
+     * Three night bloomers shipped with no photograph, and nothing anywhere
+     * noticed: the entry renders without the figure, so it looks like a design
+     * choice rather than a hole. Sixty-one species had one and three did not,
+     * which is precisely the kind of quiet inconsistency that never gets found
+     * by looking.
+     */
+    for (const species of [...PLANTS, ...FUNGI]) {
+      expect(
+        photoFor(species.id),
+        `${species.id} has no photograph`,
+      ).toBeTruthy();
+    }
+  });
+
+  test("every photograph carries a licence this project may use", () => {
+    /**
+     * Rule 2: every photograph's author and licence come from the Commons API
+     * rather than from memory. A credit that is present but wrong is worse than
+     * a missing one, because it looks discharged.
+     *
+     * The licence set is the same one `scripts/source-photo.mjs` enforces at
+     * the point of download, so this is the second half of a rule the tooling
+     * already applies once.
+     */
+    const allowed = /^(public domain|cc0|cc by)/i;
+
+    for (const species of [...PLANTS, ...FUNGI]) {
+      const photo = photoFor(species.id)!;
+
+      expect(photo.author.length, `${species.id} has no author`).toBeGreaterThan(1);
+      expect(photo.license, `${species.id} has licence "${photo.license}"`).toMatch(
+        allowed,
+      );
+
+      // Not a share-alike-forbidding or non-commercial variant sneaking in
+      // under a name that starts the same way.
+      expect(photo.license, `${species.id} is non-free`).not.toMatch(/nc|nd/i);
+
+      expect(photo.sourceUrl).toMatch(/^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
+      expect(photo.licenseUrl).toMatch(/^https?:\/\//);
+    }
   });
 });

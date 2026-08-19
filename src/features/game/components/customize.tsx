@@ -93,7 +93,7 @@ function validateName(raw: string) {
 /**
  * Pollinator customization.
  *
- * The species picker offers all three again — and this time each one is a real
+ * The species picker offers all three again, and this time each one is a real
  * model that really flies differently. It was bee-only for a while precisely
  * because the scene rendered a bee whatever you picked, and a chooser that hands
  * you a bee whatever you choose is just lying to you.

@@ -104,7 +104,7 @@ export const BASE_FAILURE_RATE =
  *
  * These carry the whole tone of the game. Every one of them is a fact about
  * pollination, and none of them says you did badly. A bee that misses a flower
- * hasn't failed at anything — it just flies to the next one.
+ * hasn't failed at anything: it just flies to the next one.
  */
 export const FAILURE_MESSAGES = [
   "Too windy this time. The pollen blew right off you.",
@@ -152,7 +152,7 @@ export const MINIGAME_SPEC: Record<MinigameKind, MinigameSpec> = {
  * Resolve an attempt.
  *
  * `performance` is 0–1 from the minigame. Playing well cuts the failure rate but
- * never to zero — a bee at the top of its game still gets rained on. Playing
+ * never to zero: a bee at the top of its game still gets rained on. Playing
  * badly raises it but never to certainty, so nobody gets stuck.
  */
 export function resolvePollination(performance: number, roll: number) {

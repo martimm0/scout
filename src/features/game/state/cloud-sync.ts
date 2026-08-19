@@ -12,7 +12,7 @@ import { mergeSeedlings } from "../world/seedlings";
  * Saves are debounced rather than fired per event. The docs list seven "major
  * events" that should trigger a save (plant discovered, pollinated, area
  * unlocked, badge earned, journal entry unlocked, pollinator customised, session
- * end) — but pollinating one flower fires four of those at once, and posting four
+ * end), but pollinating one flower fires four of those at once, and posting four
  * near-identical documents in the same tick is just noise. Watching the state and
  * writing 1.5s after it settles covers every one of them and cannot miss a new
  * event type somebody adds later.
@@ -53,7 +53,7 @@ function toSaved(state: GameState) {
 /**
  * Merge a cloud save into the local store.
  *
- * Progress is monotonic — you never un-discover a plant — so the merge is a
+ * Progress is monotonic (you never un-discover a plant) so the merge is a
  * union rather than a replacement. That means a player who played signed-out on
  * this machine and then signs in keeps both halves of what they did, instead of
  * watching the server overwrite their afternoon.
@@ -172,7 +172,7 @@ export function mergeInto(
 
 /**
  * Keeps the store and the server in step. A no-op when the player is signed out
- * or cloud saves aren't configured — in which case localStorage is still doing
+ * or cloud saves aren't configured, in which case localStorage is still doing
  * its job and nothing is lost.
  */
 export function useCloudSync(
@@ -267,7 +267,7 @@ export function useCloudSync(
       timer.current = window.setTimeout(flush, DEBOUNCE_MS);
     });
 
-    // Session end. `visibilitychange` rather than `beforeunload` — the latter is
+    // Session end. `visibilitychange` rather than `beforeunload`, the latter is
     // unreliable on mobile and increasingly ignored, and this fires when the tab
     // is backgrounded too, which is when most people actually leave.
     const onHide = () => {

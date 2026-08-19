@@ -248,7 +248,7 @@ test("the debug overlay is hidden from players, and the stats panel is renamed",
   await signIn(page.context());
   await page.addInitScript(() => window.localStorage.clear());
 
-  // Plain /play — what a player actually loads.
+  // Plain /play, what a player actually loads.
   await page.goto("/play");
   await page.waitForTimeout(3000);
 
@@ -256,7 +256,7 @@ test("the debug overlay is hidden from players, and the stats panel is renamed",
   await expect(page.getByText("Game State")).toHaveCount(0);
   await expect(page.getByText("Scout Stats")).toBeVisible();
 
-  // ?debug=1 brings it back — the e2e suite reads flight state out of it, so it
+  // ?debug=1 brings it back; the e2e suite reads flight state out of it, so it
   // must keep working even though players never see it.
   await page.goto("/play?debug=1");
   await page.waitForTimeout(3000);
@@ -1013,8 +1013,9 @@ test.describe("the difficult flowers", () => {
         `${park}: ${demanding.length}/${plants.length} gated (${Math.round(share * 100)}%) - ${demanding.map((p) => p.id).join(", ")}`,
       );
 
-      // Roughly a tenth. Not a fraction of a flower: 10% of 16 is 1.6, and you
-      // cannot gate six tenths of a milkweed.
+      // A handful per park rather than a ratio. You cannot gate six tenths of a
+      // milkweed, so this is a band and not a number: it sat at a flat tenth
+      // once and drifts as species are added without adding gated ones.
       expect(share).toBeGreaterThan(0.05);
       expect(share).toBeLessThan(0.2);
     }

@@ -8,7 +8,7 @@ import { authConfigured, env } from "./env";
  * Google sign-in.
  *
  * The provider list is empty when Google isn't configured. Auth.js is perfectly
- * happy with that — `auth()` simply returns no session — which is what lets the
+ * happy with that: `auth()` simply returns no session, which is what lets the
  * whole game run on a fresh clone with an empty `.env` instead of exploding at
  * import time.
  *
@@ -26,7 +26,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       ]
     : [],
   // Auth.js throws "there was a problem with the server configuration" on every
-  // session fetch if it has no secret — which, with an empty .env, means the
+  // session fetch if it has no secret, which, with an empty .env, means the
   // console fills with errors and SessionProvider never settles. With no
   // providers configured nobody can sign in anyway, so a placeholder secret is
   // harmless and keeps local mode genuinely silent.
@@ -63,7 +63,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       return true;
     },
     jwt({ token, profile }) {
-      // Google's `sub` is the stable, permanent user id. The email is not — people
+      // Google's `sub` is the stable, permanent user id. The email is not, people
       // change them, and a save file keyed on an email quietly detaches from its
       // owner the day they do.
       if (profile?.sub) {

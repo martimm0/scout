@@ -14,7 +14,7 @@
   place-items: center;
   padding: 24px;
 
-  /* Warm and translucent. The park stays visible and alive behind it — a black
+  /* Warm and translucent. The park stays visible and alive behind it, a black
      scrim would blank out the world and make this feel like a system error. */
   background: rgba(48, 38, 20, 0.32);
   backdrop-filter: blur(2px) saturate(1.05);

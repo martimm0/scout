@@ -59,7 +59,7 @@ function blueSlide(): Box[] {
 }
 
 /**
- * The stone gatehouse at the Beechwood Boulevard entrance — the twin-pillared
+ * The stone gatehouse at the Beechwood Boulevard entrance, the twin-pillared
  * gates you walk through to get into the park.
  */
 function gatehouse(): Box[] {
@@ -81,8 +81,8 @@ function gatehouse(): Box[] {
 }
 
 /**
- * The Frick Environmental Center. Rebuilt in 2016 as a Living Building — net
- * zero water and energy — which is exactly the sort of thing this game should be
+ * The Frick Environmental Center. Rebuilt in 2016 as a Living Building, net
+ * zero water and energy, which is exactly the sort of thing this game should be
  * pointing at.
  */
 function environmentalCenter(): Box[] {
@@ -95,13 +95,13 @@ function environmentalCenter(): Box[] {
     { position: [0, 12, 23.5], size: [64, 15, 1.5], color: "#8fc4d8" },
     // Chimney / stair core.
     { position: [-28, 30, -10], size: [12, 14, 12], color: "#a89e8c" },
-    // Rain garden cistern — the building harvests its own water.
+    // Rain garden cistern: the building harvests its own water.
     { position: [44, 7, 12], size: [14, 14, 14], color: "#6f7f6a" },
   ];
 }
 
 /**
- * The lawn bowling green — the only one in Pittsburgh — with its clipped hedge
+ * The lawn bowling green (the only one in Pittsburgh) with its clipped hedge
  * and the little clubhouse beside it.
  */
 function bowlingGreen(): Box[] {
@@ -139,7 +139,7 @@ function tennisCourts(): Box[] {
     boxes.push({ position: [0, 1.1, z + 19], size: [70, 0.4, 1], color: "#e8e2d2" });
   }
 
-  // Chain-link surround — a wall, from here.
+  // Chain-link surround, a wall, from here.
   for (const [x, z, w, d] of [
     [0, -54, 78, 2],
     [0, 54, 78, 2],
@@ -185,7 +185,7 @@ function steppingStone(): Box[] {
  * It collapsed on the morning of 28 January 2022, hours before the President was
  * due in town to talk about infrastructure. Nobody died. It was rebuilt and
  * reopened in under a year, and it is now the single most Pittsburgh object in
- * Pittsburgh — a city of four hundred bridges that dropped one into a ravine and
+ * Pittsburgh: a city of four hundred bridges that dropped one into a ravine and
  * then put it back faster than anyone believed possible.
  *
  * It carries Forbes Avenue over the top of Fern Hollow. From down here it is the
@@ -312,7 +312,7 @@ function culvert(): Box[] {
 /**
  * A slag outcrop.
  *
- * Nine Mile Run's valley was filled with steel-mill slag — millions of tons of
+ * Nine Mile Run's valley was filled with steel-mill slag, millions of tons of
  * it, dumped for decades. The restoration moved what it could and planted over
  * the rest, but the stuff is still under everything, and it still breaks the
  * surface. Glassy, sharp, and faintly wrong-coloured.

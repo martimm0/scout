@@ -5,12 +5,12 @@ import { track } from "@vercel/analytics";
  *
  * Page views alone tell you nothing about a game. What matters is the funnel:
  * do people finish the tutorial, do they ever find a plant, do they pollinate
- * one — and, the question this game is actually built around, does a failed
+ * one: and, the question this game is actually built around, does a failed
  * pollination make them leave? If failure is driving people off, the twenty
  * percent is wrong and the copy isn't doing its job.
  *
  * Nothing here identifies anybody. There is no user id, no session stitching,
- * and no third-party script — Vercel Analytics is first-party and cookieless,
+ * and no third-party script, Vercel Analytics is first-party and cookieless,
  * which is why the site needs no consent banner.
  */
 

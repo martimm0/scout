@@ -237,7 +237,7 @@ export type GameState = {
   pendingBadges: string[];
 };
 
-/** Only the on/off flags in the UI state — not the plant ids alongside them. */
+/** Only the on/off flags in the UI state, not the plant ids alongside them. */
 export type ToggleableModal = {
   [Key in keyof UIModalState]: UIModalState[Key] extends boolean ? Key : never;
 }[keyof UIModalState];
@@ -1034,7 +1034,7 @@ export const useGameStore = create<GameStore>()(
       name: "scout-game-state",
       // Progress persists locally. Server autosave is Milestone 14 and out of
       // scope, but a journal and a badge shelf that empty themselves on every
-      // reload aren't worth building — so they live in localStorage for now.
+      // reload aren't worth building, so they live in localStorage for now.
       partialize: (state) => ({
         pollinator: state.pollinator,
         discoveredPlants: state.discoveredPlants,

@@ -84,7 +84,7 @@ function cap(fungus: Fungus): Box[] {
   const { capColor, height, stemColor } = fungus;
 
   return [
-    // Stem, with the ring and the bulbous volva at the base — the two features
+    // Stem, with the ring and the bulbous volva at the base, the two features
     // that identify a deadly Amanita, and which people miss.
     { position: [0, height * 0.45, 0], size: [0.28, height * 0.9, 0.28], color: stemColor },
     { position: [0, height * 0.12, 0], size: [0.5, 0.22, 0.5], color: tint(stemColor, 0.1) },

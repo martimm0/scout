@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import { env } from "@/lib/env";
 
 /**
- * `GET /api/party/ticket` — a short-lived pass into a garden party.
+ * `GET /api/party/ticket`, a short-lived pass into a garden party.
  *
  * The PartyKit server is on a different host, so the session cookie never
  * reaches it, and being httpOnly the browser cannot read it out to forward it.

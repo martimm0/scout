@@ -17,7 +17,7 @@ import type { Colors, SpeciesSpec, WingStyle } from "./species";
  *  - Bands are one voxel. Two-voxel bands turn the abdomen into a black slab.
  *  - Short and fat beats long and flat. A long body reads as an aircraft.
  *
- * Resist adding voxels — chunky reads better at chase-camera distance.
+ * Resist adding voxels, chunky reads better at chase-camera distance.
  */
 
 export const VOXEL_SIZE = 0.055;
@@ -33,14 +33,14 @@ const DETAIL_SIZE = 0.04;
 // is a blank cream wall, and a chitin-dark face plate merges with the black eyes
 // into one featureless slab. The face has to sit between the two.
 const HEAD_LAYERS = [
-  // y0 — chin
+  // y0: chin
   [
     "..CCC..",
     ".CCCCC.",
     ".FFFFF.",
     "..FFF..",
   ],
-  // y1 — eyes begin
+  // y1: eyes begin
   [
     "EECCCEE",
     "EECCCEE",
@@ -54,14 +54,14 @@ const HEAD_LAYERS = [
     "FFFFFFF",
     ".FFFFF.",
   ],
-  // y3 — one glint voxel at the top outer corner of each eye
+  // y3: one glint voxel at the top outer corner of each eye
   [
     "GECCCEG",
     "EEFFFEE",
     "FFFFFFF",
     ".FFFFF.",
   ],
-  // y4 — fuzzy crown
+  // y4: fuzzy crown
   [
     ".FFFFF.",
     ".FFFFF.",
@@ -113,7 +113,7 @@ const THORAX_LAYERS = [
 
 // Gold / black / gold / black / gold, then a stinger. One-voxel bands.
 const ABDOMEN_LAYERS = [
-  // y0 — belly
+  // y0: belly
   [
     "..BBB..",
     "..SSS..",
@@ -131,7 +131,7 @@ const ABDOMEN_LAYERS = [
     "..BBB..",
     ".......",
   ],
-  // y2 — widest
+  // y2: widest
   [
     "BBBBBBB",
     "SSSSSSS",
@@ -140,7 +140,7 @@ const ABDOMEN_LAYERS = [
     ".BBBBB.",
     "...D...",
   ],
-  // y3 — widest
+  // y3: widest
   [
     "BBBBBBB",
     "SSSSSSS",
@@ -158,7 +158,7 @@ const ABDOMEN_LAYERS = [
     "..BBB..",
     ".......",
   ],
-  // y5 — back
+  // y5: back
   [
     "..BBB..",
     "..SSS..",
@@ -170,7 +170,7 @@ const ABDOMEN_LAYERS = [
 ];
 
 // One voxel thick, rooted at x=0 so it hinges at the shoulder. A paddle, not a
-// helicopter blade — long thin wings make the bee look like an aircraft.
+// helicopter blade: long thin wings make the bee look like an aircraft.
 const WING_LAYERS = [
   [
     "..WWWW.",
@@ -181,7 +181,7 @@ const WING_LAYERS = [
   ],
 ];
 
-/** Long and tapered — a hoverfly's wing on a bee. */
+/** Long and tapered: a hoverfly's wing on a bee. */
 const WING_LONG_LAYERS = [
   [
     "...WWWWW.",
@@ -209,7 +209,7 @@ const WING_BY_STYLE: Record<WingStyle, string[][]> = {
 };
 
 // X is the accent colour the player picks. R/Y/N are the flower's own colours.
-// None of these letters may collide with the body palette — C is the head's face
+// None of these letters may collide with the body palette, C is the head's face
 // plate and G is the eye glint, and reusing either repaints the bee's face.
 
 const HIND_WING_LAYERS = [
@@ -223,7 +223,7 @@ const HIND_WING_LAYERS = [
 // Three pairs, splayed down and out. Barely visible in flight, but the
 // silhouette is wrong without them.
 const LEG_LAYERS = [
-  // y0 — feet
+  // y0: feet
   [
     ".L.....L.",
     ".........",
@@ -231,7 +231,7 @@ const LEG_LAYERS = [
     ".........",
     ".L.....L.",
   ],
-  // y1 — hips
+  // y1: hips
   [
     "..L...L..",
     ".........",

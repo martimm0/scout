@@ -151,8 +151,8 @@ what actually distinguishes them on the ground.
 | Park | The shape of it | Opens when |
 | --- | --- | --- |
 | **Frick** | A wood with a creek at the bottom. It asks you to go down into it. | You start here |
-| **Schenley** | Glass and mown lawns on top, and then the ground tears open into Panther Hollow, a hundred feet deep, with four bronze panthers on the bridge above it. | Half of Frick's plants found |
-| **Highland** | Water on a hilltop: two walled reservoirs holding the city's drinking water, a hundred and fifty feet above the Allegheny. Fly over a wall and there is a lake. | Half of Schenley's plants found |
+| **Schenley** | Glass and mown lawns on top, and then the ground tears open into Panther Hollow, a hundred feet deep, with four bronze panthers on the bridge above it. | 8 of Frick's plants found |
+| **Highland** | Water on a hilltop: two walled reservoirs holding the city's drinking water, a hundred and fifty feet above the Allegheny. Fly over a wall and there is a lake. | 7 of Schenley's plants found |
 
 Some species live in more than one park, because they really do. Goldenrod is
 goldenrod: one journal entry, two addresses, and finding it once means you have
@@ -182,8 +182,8 @@ in July, because the real one is not either.
 whole game. A trout lily in July is still a trout lily: leaves, a name, an entry
 worth reading, a quiz to fail. So the journal fills all year round and only the
 work waits for the flower. Gating discovery on the bloom instead was a real bug and
-a bad one, because Schenley opens on half of Frick's plants and only seven of the
-sixteen flower in July: a player who started in the wrong month could never
+a bad one, because Schenley opens on eight of Frick's plants and barely half of
+them flower in July: a player who started in the wrong month could never
 progress at all. A fungus is the other way, and there the season really is the
 gate, because mushrooms come up and rot away.
 
@@ -298,8 +298,9 @@ Everything above is built and playable. As of the last update:
 - 13 connections: what the species have to do with each other, every one sourced,
   opening when you have found both ends
 - 192 hand-written trivia questions, three for every species
-- 61 photographs, every one licensed and credited. The three night bloomers are
-  waiting on theirs
+- 64 photographs, every one licensed and credited, and a test that says so:
+  no species ships without one, and no licence outside Public Domain, CC0,
+  CC BY and CC BY-SA gets in
 - 44 badges, 10 accessories, 6 of them earned
 - 4 bodies to fly: bee, hoverfly, butterfly, moth
 - Played by keyboard and mouse, or by two thumbs on a phone or a tablet

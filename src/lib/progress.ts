@@ -8,7 +8,7 @@ import { databaseConfigured } from "./env";
  * Deliberately tiny. Everything the game needs to remember is either a boolean
  * keyed by id ("have you found the trillium") or a small counter, so the whole
  * thing serialises to a few hundred bytes of JSON and there is nothing to
- * migrate when a plant or a badge is added — an unknown key simply isn't set.
+ * migrate when a plant or a badge is added, an unknown key simply isn't set.
  *
  * It is stored as a single JSONB column rather than normalised into tables. A
  * schema of `players`, `discovered_plants`, `unlocked_badges`… would be the
@@ -50,7 +50,7 @@ let schemaReady = false;
  * Create the table on first use.
  *
  * One table, one row per player. Doing this lazily rather than in a migration
- * step keeps a fresh deploy to "set the env vars and go" — and `IF NOT EXISTS`
+ * step keeps a fresh deploy to "set the env vars and go", and `IF NOT EXISTS`
  * makes it safe to run on every cold start.
  */
 async function ensureSchema() {

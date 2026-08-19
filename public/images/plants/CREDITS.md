@@ -1,8 +1,8 @@
 # Plant photo credits
 
 Every photograph below comes from [Wikimedia Commons](https://commons.wikimedia.org) and is
-Public Domain, CC0, CC BY, or CC BY-SA. Images were resized to ~900px wide and re-encoded as JPEG;
-no other modifications were made. Attribution is reproduced here to satisfy the CC BY / CC BY-SA terms.
+Public Domain, CC0, CC BY, or CC BY-SA. Images were resized to 900px wide and re-encoded as JPEG;
+no other modifications were made. `scripts/source-photo.mjs` does the fetching and the resizing. Attribution is reproduced here to satisfy the CC BY / CC BY-SA terms.
 
 | Plant | Species | File | Author | License | Source |
 | --- | --- | --- | --- | --- | --- |
@@ -49,3 +49,6 @@ above, checked against the Commons API rather than against an earlier note.
 | Bleeding Fairy Helmet | _Mycena haematopus_ | `fungi/bleeding-fairy-helmet.jpg` | Stu's Images | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) | [Commons file page](https://commons.wikimedia.org/wiki/File:Mycena_haematopus%2C_Burgundydrop_Bonnet.jpg) |
 | Hemlock Varnish Shelf | _Ganoderma tsugae_ | `fungi/hemlock-varnish-shelf.jpg` | RattBoy | [CC BY-SA 3.0](http://creativecommons.org/licenses/by-sa/3.0/) | [Commons file page](https://commons.wikimedia.org/wiki/File:Ganoderma_tsugae.jpg) |
 | Scarlet Elf Cup | _Sarcoscypha austriaca_ | `fungi/scarlet-elf-cup.jpg` | Holger Krisp | [CC BY 3.0](https://creativecommons.org/licenses/by/3.0) | [Commons file page](https://commons.wikimedia.org/wiki/File:Sarcoscypha_austriaca_1.jpg) |
+| Common Evening Primrose | _Oenothera biennis_ | `evening-primrose.jpg` | Christian Ferrer | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) | [Commons file page](https://commons.wikimedia.org/wiki/File:Oenothera_biennis,_Vic-la-Gardiole_01.jpg) |
+| Jimsonweed | _Datura stramonium_ | `jimsonweed.jpg` | Taka | [CC BY-SA 3.0](http://creativecommons.org/licenses/by-sa/3.0) | [Commons file page](https://commons.wikimedia.org/wiki/File:Datura_stramonium_2_(2005_07_07).jpg) |
+| Night-flowering Catchfly | _Silene noctiflora_ | `night-flowering-catchfly.jpg` | Krzysztof Ziarnek, Kenraiz | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) | [Commons file page](https://commons.wikimedia.org/wiki/File:Silene_noctiflora_kz01.jpg) |

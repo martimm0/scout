@@ -192,7 +192,7 @@ export function buildVoxelGeometry(part: VoxelPart): BufferGeometry {
         for (const face of FACES) {
           const [nx, ny, nz] = face.normal;
 
-          // Skip faces buried against a neighbour — nobody will ever see them.
+          // Skip faces buried against a neighbour, nobody will ever see them.
           if (solid(x + nx, y + ny, z + nz)) {
             continue;
           }

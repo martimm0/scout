@@ -43,7 +43,7 @@ export function buildPollinatorGeometry(
   const spec = speciesFor(type);
 
   // Wing style is the bee's alone. A butterfly's wings ARE the butterfly, and a
-  // hoverfly has exactly the two it needs — restyling either would just be
+  // hoverfly has exactly the two it needs, restyling either would just be
   // vandalism.
   const resolved: SpeciesSpec = spec.supportsWingStyle
     ? {
