@@ -730,6 +730,32 @@ should talk to `wrangler dev`, not to production.
 mean anything, and a mismatch does not fail loudly: the app keeps minting
 passes and the room keeps refusing them, so parties simply never open.
 
+### The primary domain, and the one variable that pins it
+
+The game is served from **scout-game.3sb.io**.
+
+Nothing in the code knows that. No URL is hardcoded anywhere, the manifest's
+`start_url` is relative, and Auth.js infers its own base URL from the request
+host on Vercel. Pointing a new domain at the project is genuinely a DNS change
+and nothing else.
+
+With one exception, and it is the one that bites. If `AUTH_URL` is set in the
+Vercel environment it overrides that inference, and it overrides it everywhere:
+every callback Auth.js advertises, and the address it sends you back to after
+Google. A domain whose `AUTH_URL` still names the previous one loads perfectly,
+plays perfectly, and quietly deposits anybody who signs in back on the old
+address. `/api/auth/providers` is where to look; it prints the callback URL it
+believes in.
+
+So `AUTH_URL` either names the primary domain or is absent, and absent is the
+better answer: unset, Auth.js follows whatever host the request arrived on, which
+is right for the primary domain, for a second domain, and for every preview
+deployment without any of them being listed anywhere.
+
+Each domain that people actually sign in from has to be registered with Google
+as an authorised redirect URI (`https://<domain>/api/auth/callback/google`).
+That one does fail loudly, with `redirect_uri_mismatch`.
+
 ### Two TypeScript projects
 
 `party/tsconfig.json` exists because `@cloudflare/workers-types` redefines
