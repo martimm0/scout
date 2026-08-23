@@ -315,3 +315,61 @@ test.describe("every species is illustrated and credited", () => {
     }
   });
 });
+
+test.describe("the licence gate on the sourcing script", () => {
+  test("it passes what the project may use and refuses the rest", async () => {
+    /**
+     * The one thing in `source-photo.mjs` that must not be wrong.
+     *
+     * Everything else there costs a retry. This costs shipping somebody's
+     * photograph against their terms, and it is a single regular expression
+     * standing between the two, which nothing was checking.
+     *
+     * Both directions, because a gate that accepts everything passes any test
+     * that only feeds it good input.
+     */
+    const { mayUse } = await import("../scripts/source-photo.mjs");
+
+    for (const licence of [
+      "CC BY-SA 4.0",
+      "CC BY-SA 3.0",
+      "CC BY 2.0",
+      "CC0",
+      "CC0 1.0",
+      "Public domain",
+      "public domain",
+    ]) {
+      expect(mayUse(licence), `${licence} was refused`).toBe(true);
+    }
+
+    for (const licence of [
+      // The non-commercial and no-derivatives variants, which start with the
+      // same four characters as the ones that are fine.
+      "CC BY-NC 4.0",
+      "CC BY-NC-SA 4.0",
+      "CC BY-ND 3.0",
+      "CC BY-NC-ND 2.0",
+      "All rights reserved",
+      "Fair use",
+      // And anything it cannot read at all. This fails CLOSED: a template id
+      // rather than a short name, or nothing, is refused rather than guessed.
+      "cc-by-nc-4.0",
+      "",
+      null,
+      undefined,
+    ]) {
+      expect(mayUse(licence), `${licence} was accepted`).toBe(false);
+    }
+  });
+
+  test("importing it does not run the command line", async () => {
+    /**
+     * It exports a function and it is also a script. Without a guard, importing
+     * the one runs the other: the first version of this printed a usage message
+     * and called `process.exit(1)` through the middle of the test process.
+     */
+    const script = await import("../scripts/source-photo.mjs");
+
+    expect(typeof script.mayUse).toBe("function");
+  });
+});

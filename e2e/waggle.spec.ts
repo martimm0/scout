@@ -278,6 +278,99 @@ test.describe("dancing in the park", () => {
     ).toBe("schenley");
   });
 
+  test("a mark from a park that no longer exists does not take the page down", async ({
+    page,
+  }) => {
+    /**
+     * A save is allowed to be older than the code.
+     *
+     * `PARKS[mark.park].label` throws on an id the game no longer has, and this
+     * is a LIST: one stale row would have taken the whole journal page with it
+     * rather than rendering one odd line. The seedlings already assumed a save
+     * could outlive the data it names; the marks quietly had not.
+     *
+     * Driven by seeding a save directly, because there is no way to get a park
+     * removed from the game from inside a test, and the point is what happens
+     * when one has been.
+     */
+    await signIn(page.context());
+    await page.addInitScript(() => {
+      window.localStorage.setItem(
+        "scout-game-state",
+        JSON.stringify({
+          version: 0,
+          state: {
+            marks: [
+              {
+                species: "canada-goldenrod",
+                commonName: "Canada Goldenrod",
+                park: "a-park-that-was-removed",
+                x: 0,
+                z: -300,
+                at: Date.now(),
+              },
+            ],
+          },
+        }),
+      );
+    });
+
+    const errors: string[] = [];
+
+    page.on("pageerror", (error) => errors.push(error.message));
+
+    await page.goto("/journal");
+    await page.getByRole("button", { name: "Danced about" }).click();
+
+    const list = page.locator("[data-journal-tab='marks']");
+
+    // The page is standing, the row is there, and it says so plainly rather
+    // than rendering "undefined" at somebody.
+    await expect(list).toContainText("Canada Goldenrod");
+    await expect(list).toContainText("no longer here");
+    await expect(list).not.toContainText("undefined");
+
+    expect(errors, `the journal threw: ${errors[0]}`).toEqual([]);
+  });
+
+  test("a save naming a park that no longer exists still opens the park", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+
+    /**
+     * The same class of bug as the mark above, on the page that matters most.
+     *
+     * `setActivePark` has always fallen back to Frick on an id the game no
+     * longer has, so the terrain built perfectly; `PARKS[currentPark].label`
+     * had no such fallback, so the loading title threw and took `/play` with
+     * it. The world was fine and the page was white.
+     *
+     * `/api/progress` stores whatever JSON it is handed, which is why this is
+     * not only a hand-edited localStorage away.
+     */
+    await signIn(page.context());
+    await page.addInitScript(() => {
+      window.localStorage.setItem(
+        "scout-game-state",
+        JSON.stringify({
+          version: 0,
+          state: { currentPark: "a-park-that-was-removed", tutorialSeen: true },
+        }),
+      );
+    });
+
+    const errors: string[] = [];
+
+    page.on("pageerror", (error) => errors.push(error.message));
+
+    await page.goto("/play?debug=1&hour=12&month=7");
+    await page.waitForTimeout(4000);
+
+    expect(errors, `/play threw: ${errors[0]}`).toEqual([]);
+    await expect(page.locator("canvas").first()).toBeVisible();
+  });
+
   test("the journal lists it, with a bearing rather than coordinates", async ({
     page,
   }) => {

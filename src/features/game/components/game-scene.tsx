@@ -94,7 +94,6 @@ import {
   terrainHeight,
   world,
   GROUND_CLEARANCE,
-  PARKS,
   PARK_LIST,
   type ParkId,
 } from "../world/terrain";
@@ -1586,7 +1585,22 @@ export function GameScene({
    */
   useMemo(() => setActivePark(currentPark), [currentPark]);
 
-  const park = PARKS[currentPark];
+  /**
+   * The park that was actually BUILT, not the id the save asked for.
+   *
+   * `setActivePark` falls back to Frick on an id the game no longer has, so the
+   * world is always something. `PARKS[currentPark]` had no such fallback, and
+   * `park.label` a few hundred lines down would throw on the same input: the
+   * terrain would build perfectly and the page would go white on the loading
+   * title. A save is allowed to be older than the code, and `/api/progress`
+   * stores whatever JSON it is handed, so this is not only a hand-edited
+   * localStorage away.
+   *
+   * Reading the world back is also the honest answer, for the same reason the
+   * seedlings and the marks read it: whatever is under you is what should be
+   * named on screen.
+   */
+  const park = activePark();
   const elsewhere = PARK_LIST.filter(
     (other) =>
       other.id !== currentPark &&

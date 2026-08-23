@@ -28,6 +28,15 @@ every credit carries an author, a usable licence and a Commons file page. Three
 species shipped with none at all and nothing noticed, because an entry with no
 figure renders perfectly well and reads as a design choice rather than a hole.
 
+The licence gate itself is tested too, in both directions, because it is one
+regular expression standing between the project and shipping somebody's
+photograph against their terms. It has to refuse the non-commercial and
+no-derivatives variants, which begin with the same four characters as the ones
+that are fine, and it fails CLOSED: a template id rather than a short name, or
+an empty string, is refused rather than guessed at. Dropping the negative
+lookahead makes the test say `CC BY-NC 4.0 was accepted`, which is how we know
+it is checking anything.
+
 The facts that slip through are the ones nothing checks, and the parks' own
 **coordinates** were the clearest example. Frick's were 40.4406, -79.9959 from the
 day the weather shipped, which is not Frick Park: it is about eight kilometres west
@@ -103,9 +112,8 @@ and pollinate nothing; pawpaw is not advertising to bees at all. A naive insect
 fails at these.
 
 The `demanding` string is the reason, shown to the player when the button is
-inert. A test asserts the share per park stays near a tenth, and it has already
-caught two mistakes: a shared species counted against both its parks, and a whole
-park shipping at 0%.
+inert. The test on the share has already caught two mistakes: a shared species
+counted against both its parks, and a whole park shipping at 0%.
 
 `canPollinate(state, plantId, month)` is where both gates live, the quiz and the
 bloom, and `startMinigame` consults it rather than trusting the button. The month
@@ -128,11 +136,18 @@ The windows are true to life rather than balanced:
 
 - `EPHEMERAL` (6 to 14): woodland spring ephemerals genuinely close by
   mid-afternoon. Also Ohio spiderwort, whose flower lasts one morning.
-- `DAYLIGHT` (7 to 19): everything else that flowers. Shut after dark.
+- `DAYLIGHT` (7 to 19): most of what flowers. Shut after dark.
+- `NIGHT` (19 to 6): the evening primrose, the jimsonweed and the
+  night-flowering catchfly, which open as the light goes and are finished by
+  morning. This is the window that wraps midnight.
 - Fungi have their own: `DAWN`, `DAY`, `NIGHT`, `DUSK`.
 
-The consequence is the point: after dark **nothing is pollinatable anywhere**,
-and only fungi are out.
+**This section used to end by saying that after dark nothing is pollinatable
+anywhere and only fungi are out.** That was true for as long as every flower
+was a daylight flower, and the night flora made a liar of it: there are three
+species you can only work after dark, one per park, and they are the reason the
+moths exist. A park with a night flora is a different park after dark rather
+than the same park with the lights off.
 
 ### The flush: last week's weather, not today's
 

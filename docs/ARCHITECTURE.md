@@ -498,6 +498,33 @@ so two devices each sitting at the limit came back with twice the limit: syncing
 was itself the way around the bound. `mergeSeedlings` owns both the tie-break
 and the trim, so there is one set of rules rather than two that can disagree.
 
+### A save is allowed to be older than the code
+
+Species, parks and badges are data, so any of them can be removed, and a save
+written before that removal still names the thing. `/api/progress` also stores
+whatever JSON it is handed, so a bad value is not only a hand-edited
+localStorage away.
+
+Every read of saved data against a registry therefore has to survive a miss, and
+three of them did not:
+
+- **A seedling naming a species that is gone** is skipped rather than crashing
+  the scatter. This one was written that way from the start and is the reason
+  the other two were found.
+- **A mark naming a park that is gone** used to reach `PARKS[id].label`, and the
+  marks tab is a LIST: one stale row took the whole journal page down rather
+  than rendering one odd line.
+- **A save naming a park that is gone** used to do the same on `/play`.
+  `setActivePark` has always fallen back to Frick, so the terrain built
+  perfectly and then the loading title threw. The world was fine and the page
+  was white.
+
+The last two now read the world back rather than the save, which is the same
+move the seedlings and the marks already make for the park they record against:
+whatever is actually under you is what should be named on screen. Both have a
+test that seeds a save naming a park that does not exist and asserts nothing
+throws.
+
 ### The park unlock is a pinned number, not a fraction
 
 `requires` used to say `fraction: 0.5` and the threshold was computed against

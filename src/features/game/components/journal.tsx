@@ -112,6 +112,23 @@ const TABS: { id: Tab; label: string }[] = [
  * one of them would render half the names as raw ids.
  */
 /**
+ * The park's name, and never a crash.
+ *
+ * `PARKS[id].label` throws on an id the game no longer has, and this is a LIST:
+ * one stale mark would take the whole journal page down rather than rendering
+ * one odd row. A save is allowed to be older than the code, which the seedlings
+ * already assume and which this had quietly not.
+ *
+ * Marks are always written with the park you are flying, so reaching this needs
+ * a park to have been removed from the data, or a save to have been edited by
+ * hand. Both are cheap to survive and neither is worth a blank page.
+ */
+function parkLabel(id: string): string {
+  return (PARKS as Record<string, { label: string }>)[id]?.label ??
+    "A park that is no longer here";
+}
+
+/**
  * A mark, said in a way somebody can act on.
  *
  * Measured from the world origin, which is the middle of the park to within a
@@ -619,7 +636,7 @@ export function Journal() {
               <li className={styles.row} key={`${mark.at}-${mark.species}`}>
                 <p className={styles.rowTitle}>{mark.commonName}</p>
                 <p className={styles.rowMeta}>
-                  {PARKS[mark.park].label} · {describeMark(mark)}
+                  {parkLabel(mark.park)} · {describeMark(mark)}
                 </p>
               </li>
             ))

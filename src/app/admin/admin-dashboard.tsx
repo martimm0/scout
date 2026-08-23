@@ -199,8 +199,11 @@ export function AdminDashboard({
 
                   return (
                     <tr key={account.userId} data-suspended={account.status === "suspended"}>
-                      <td>{account.email ?? "—"}</td>
-                      <td>{account.name ?? "—"}</td>
+                      {/* A word rather than a dash. It is the only copy left
+                          in the game that was a bare glyph, and a screen reader
+                          makes nothing useful of one. */}
+                      <td>{account.email ?? "None"}</td>
+                      <td>{account.name ?? "None"}</td>
                       <td>
                         {/* Editable in place. Blank clears it, which hands the
                             name back and puts them in front of the prompt

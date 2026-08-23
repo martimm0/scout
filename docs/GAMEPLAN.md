@@ -165,9 +165,12 @@ dusk in Squirrel Hill it is dusk in the game. That is the conceit: you are
 visiting a specific place, not running a simulation on your own schedule.
 
 What you can find changes with the hour, and it changes because it is true:
-spring ephemerals shut by mid-afternoon, everything that flowers is closed after
-dark, and the fungi keep their own hours. After dark there is nothing to
-pollinate anywhere in the park, and the jack-o'-lantern is out, glowing.
+spring ephemerals shut by mid-afternoon, most of what flowers is closed after
+dark, and the fungi keep their own hours. This used to say that after dark there
+was nothing to pollinate anywhere in the park, and for a long time there was
+not. Three species open as the light goes, one per park, so the dark is a shift
+change rather than a closing time: the jack-o'-lantern is out and glowing, the
+moths are up, and the evening primrose is opening while you watch.
 
 The park also keeps **Pittsburgh's calendar**. What is in bloom is what is really
 in bloom that week: trout lily in April, goldenrod in the fall, and across the

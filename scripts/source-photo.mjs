@@ -14,8 +14,8 @@
  *   node scripts/source-photo.mjs <slug> "<File:Name.jpg>"
  *   node scripts/source-photo.mjs --search "Silene noctiflora"
  *
- * The first form downloads the image to `public/images/plants/<slug>.jpg` at the
- * ~900px the rest of the set uses and prints the record to paste into
+ * The first form downloads the image to `public/images/plants/<slug>.jpg`,
+ * resizes it to the width the rest of the set uses and prints the record to paste into
  * `plant-photos.ts` and the row for `CREDITS.md`. The second lists candidates
  * with their licences so you can pick one.
  *
@@ -25,11 +25,53 @@
  * checked the licence on is the same failure wearing a different hat.
  */
 
+import { pathToFileURL } from "node:url";
+
 const AGENT = "scout-photo-sourcing/1.0 (https://github.com/martimm0/scout)";
 const API = "https://commons.wikimedia.org/w/api.php";
 
+/** What every other image in the set is. */
+const TARGET_WIDTH = 900;
+
+/**
+ * Resize in place, and say so if it cannot.
+ *
+ * `sips` ships with macOS, which is where this is run. Somewhere without it
+ * gets a file at whatever width Commons served and a line saying exactly that,
+ * which is better than a silent inconsistency in the set.
+ */
+async function resizeTo(width, path) {
+  const { execFile } = await import("node:child_process");
+  const { promisify } = await import("node:util");
+  const run = promisify(execFile);
+
+  try {
+    await run("sips", ["--resampleWidth", String(width), path, "--out", path]);
+  } catch {
+    console.warn(
+      `could not resize ${path} to ${width}px (no sips?). ` +
+        "Resize it before committing, or the set stops being uniform.",
+    );
+  }
+}
+
 /** Licences the project may actually use. Anything else is a refusal. */
 const ALLOWED = [/^public domain/i, /^cc0/i, /^cc by(?!-nc|-nd)/i];
+
+/**
+ * Whether this project may ship an image under this licence.
+ *
+ * Exported so it can be tested, because it is the one thing here that must not
+ * be wrong: everything else costs a retry, and this costs shipping somebody's
+ * photograph against their terms. It fails CLOSED by construction. Commons
+ * writes short names as "CC BY-SA 4.0", and anything it phrases differently
+ * (a template id like "cc-by-nc-4.0", an empty string, a licence nobody has
+ * seen before) matches none of the patterns and is refused rather than guessed
+ * at.
+ */
+export function mayUse(licence) {
+  return ALLOWED.some((pattern) => pattern.test((licence ?? "").trim()));
+}
 
 async function api(params) {
   const url = `${API}?${new URLSearchParams({ format: "json", ...params })}`;
@@ -97,7 +139,7 @@ async function search(term) {
     }
 
     const licence = info.extmetadata?.LicenseShortName?.value ?? "";
-    const ok = ALLOWED.some((pattern) => pattern.test(licence)) ? " " : "x";
+    const ok = mayUse(licence) ? " " : "x";
 
     console.log(
       `${ok} ${String(info.width).padStart(5)}x${String(info.height).padEnd(5)} ` +
@@ -113,9 +155,10 @@ async function fetchOne(slug, file) {
     titles: title,
     prop: "imageinfo",
     iiprop: "extmetadata|url|mime|size",
-    // Commons resizes for us, which is how the set stays at a consistent width
-    // without a local image toolchain.
-    iiurlwidth: "900",
+    // Ask Commons for something near the target so we are not downloading a
+    // six thousand pixel original to shrink it. It serves the nearest size it
+    // keeps rather than the one asked for, which is why `resizeTo` follows.
+    iiurlwidth: String(TARGET_WIDTH),
   });
 
   const page = Object.values(data?.query?.pages ?? {})[0];
@@ -128,7 +171,7 @@ async function fetchOne(slug, file) {
   const meta = info.extmetadata ?? {};
   const licence = meta.LicenseShortName?.value ?? "";
 
-  if (!ALLOWED.some((pattern) => pattern.test(licence))) {
+  if (!mayUse(licence)) {
     throw new Error(
       `refusing ${title}: licence is "${licence}", which is not one this project may use`,
     );
@@ -146,6 +189,15 @@ async function fetchOne(slug, file) {
   const path = `public/images/plants/${slug}.jpg`;
 
   await writeFile(path, Buffer.from(await image.arrayBuffer()));
+
+  /**
+   * Commons serves the nearest thumbnail size it keeps, not the one you asked
+   * for: a request for 900 comes back 960. That is close enough to look fine
+   * and not close enough to be what this says it does, and the first three
+   * images through here were resized by hand afterwards, which the next person
+   * would have had no way of knowing to do.
+   */
+  await resizeTo(TARGET_WIDTH, path);
 
   const record = {
     src: `/images/plants/${slug}.jpg`,
@@ -165,13 +217,28 @@ async function fetchOne(slug, file) {
   );
 }
 
-const [first, second] = process.argv.slice(2);
+/**
+ * Only when run, never when imported.
+ *
+ * `mayUse` is exported so it can be tested, and without this guard the act of
+ * importing it ran the command line block: a test that asked one question about
+ * a licence string got the usage message and a `process.exit(1)` through the
+ * middle of its own process.
+ */
+const RUN_DIRECTLY =
+  process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 
-if (first === "--search") {
-  await search(second);
-} else if (first && second) {
-  await fetchOne(first, second);
-} else {
-  console.error("usage: source-photo.mjs <slug> <File:Name.jpg> | --search <term>");
-  process.exit(1);
+if (RUN_DIRECTLY) {
+  const [first, second] = process.argv.slice(2);
+
+  if (first === "--search") {
+    await search(second);
+  } else if (first && second) {
+    await fetchOne(first, second);
+  } else {
+    console.error(
+      "usage: source-photo.mjs <slug> <File:Name.jpg> | --search <term>",
+    );
+    process.exit(1);
+  }
 }

@@ -151,7 +151,7 @@ export const MINIGAME_SPEC: Record<MinigameKind, MinigameSpec> = {
 /**
  * Resolve an attempt.
  *
- * `performance` is 0–1 from the minigame. Playing well cuts the failure rate but
+ * `performance` is 0 to 1 from the minigame. Playing well cuts the failure rate but
  * never to zero: a bee at the top of its game still gets rained on. Playing
  * badly raises it but never to certainty, so nobody gets stuck.
  */
