@@ -81,7 +81,16 @@ test.describe("field notes", () => {
     await pin(page, "hour=22&month=7&weather=clear");
     const night = (await notes(page)).join(" \n ");
     expect(night).toMatch(/night in Frick Park/i);
-    expect(night).toMatch(/Nothing is open to pollinate after dark/);
+    /**
+     * The night line, and it used to assert the opposite.
+     *
+     * This checked for "Nothing is open to pollinate after dark", which was
+     * true for as long as every flower was a daylight flower and became a
+     * stale claim the moment three species shipped that open only then. The
+     * card derives the count now, so this asks for the count.
+     */
+    expect(night).toMatch(/(One flower is|\d+ flowers are) open after dark/);
+    expect(night).toMatch(/moth flower/);
     expect(night).toMatch(/makes its own light|does not close|old wood was glowing/);
   });
 

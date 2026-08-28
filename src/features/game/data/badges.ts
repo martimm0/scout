@@ -172,7 +172,7 @@ export const BADGES: Badge[] = [
   {
     id: "night-shift",
     name: "Night Shift",
-    description: "You came to the park after dark, when the flowers were shut.",
+    description: "You came to the park after dark, when the day flowers were shut and the night ones were open.",
     hint: "The park does not close.",
     earned: (state) => Boolean(state.seenPhases.night),
   },
@@ -277,7 +277,7 @@ export const BADGES: Badge[] = [
   {
     id: "second-park",
     name: "A Second Park",
-    description: "Half of Frick's flowers found, and Schenley opened.",
+    description: "Eight of Frick's flowers found, and Schenley opened.",
     hint: "There is another park in this city.",
     earned: (state) => parkUnlocked(state, "schenley"),
   },
@@ -326,7 +326,7 @@ export const BADGES: Badge[] = [
   {
     id: "third-park",
     name: "A Third Park",
-    description: "Half of Schenley's flowers found, and Highland opened.",
+    description: "Seven of Schenley's flowers found, and Highland opened.",
     hint: "There is a park in this city with a lake on top of a hill.",
     earned: (state) => parkUnlocked(state, "highland"),
   },

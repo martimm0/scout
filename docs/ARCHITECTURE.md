@@ -423,6 +423,29 @@ outside: it produced a hundred failures in one project and looked exactly like a
 loaded machine, and a run genuinely starved at the same time made that story fit
 well enough to survive a first look.
 
+### Telling a regression from a tired machine
+
+A full run is three projects of about 250 tests each, and on a loaded machine
+some of them fail for reasons that have nothing to do with the code. The
+difference is worth stating, because getting it wrong has cost this project both
+ways: a whole afternoon chasing a hundred phantom failures, and separately a
+real bug nearly waved through as noise.
+
+**A regression fails in every project, reproduces on its own, and fails the same
+way twice.** The copy change that broke the field notes card failed in Chromium,
+Firefox and WebKit, at the same assertion, every time.
+
+**A tired machine fails one test per run, a different one each time, and passes
+in isolation in twenty seconds.** WebKit in particular hangs on `page.goto` into
+`/play` under sustained load: the navigation never completes, the whole test
+budget goes with it, and the same test is fine on its own in half a minute. It
+has done this twice in different tests.
+
+So the first question about a failure is not what it says, it is whether it says
+it again. Runtime is the cheap tell: a full project is about twenty-six minutes,
+and a run that has taken two hours is reporting on the machine rather than on
+the code.
+
 ### The suite has a real account in a real database
 
 Tests mint session cookies directly, which is the right way to reach the signed-in

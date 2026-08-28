@@ -10,11 +10,9 @@ import {
   type Mark,
 } from "../src/features/game/world/marks";
 import {
-  dismissTutorial,
   enterGame,
   flyToPlant,
   nearestPlantToSpawn,
-  resetProgress,
   signIn,
   TEST_HOUR,
   TEST_MONTH,
@@ -209,13 +207,7 @@ test.describe("dancing in the park", () => {
      * Driven through `?park=`, which produces the same disagreement without
      * needing a second player.
      */
-    await signIn(page.context());
-    await resetProgress(page);
-    await page.addInitScript(() => window.localStorage.clear());
-    await page.goto(`/play?debug=1&hour=${TEST_HOUR}&month=${TEST_MONTH}&park=schenley`);
-    await page.waitForTimeout(2500);
-    await dismissTutorial(page);
-    await page.waitForTimeout(1200);
+    await enterGame(page, TEST_HOUR, TEST_MONTH, undefined, undefined, "schenley");
 
     setActivePark("schenley");
 

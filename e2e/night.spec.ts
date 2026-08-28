@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 
+import { enterGame } from "./helpers";
 import { AMBIENT_COHORTS } from "../src/features/game/data/ambient";
 import { POLLINATOR_ENTRIES } from "../src/features/game/data/journal";
 import { STARTER_POLLINATORS } from "../src/features/game/data/starter-pollinators";
@@ -371,5 +372,37 @@ test.describe("the licence gate on the sourcing script", () => {
     const script = await import("../scripts/source-photo.mjs");
 
     expect(typeof script.mayUse).toBe("function");
+  });
+});
+
+test.describe("the card says what the park is doing after dark", () => {
+  test("it counts the night flowers instead of asserting there are none", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+
+    /**
+     * The card's whole purpose is to say what the park is doing right now, and
+     * the night line was the one thing on it that was not looking: it asserted
+     * that nothing is open to pollinate after dark without consulting the
+     * count, which was true for as long as every flower was a daylight flower.
+     * Three species then shipped that open only after dark, and the card went
+     * on telling players there was nothing out there while the evening primrose
+     * was open beside them.
+     *
+     * August, because that is when all three night bloomers are in season.
+     */
+    await enterGame(page, 23, 8);
+
+    const text = (
+      await page.locator('aside[aria-label="Field notes"] li').allTextContents()
+    ).join(" ");
+
+    expect(text, "no field notes rendered at all").not.toBe("");
+    expect(
+      text,
+      "the card still claims nothing is open after dark",
+    ).not.toContain("Nothing is open to pollinate after dark");
+    expect(text).toMatch(/open after dark/);
   });
 });

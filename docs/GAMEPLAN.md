@@ -125,6 +125,22 @@ sets a quota or scolds you for a slow day.
 
 ## The night shift
 
+**Shipping this meant six pieces of player-facing copy stopped being true**, and
+they were found later than they should have been, in a pass looking for exactly
+this. The about page told players there was nothing to pollinate at night. The
+first-flight tutorial, which is the first thing anybody reads, said flowers shut
+at dusk. A journal entry said the meadow is shut after dark and nothing is
+flowering anywhere. And the field notes card, whose whole purpose is to say what
+the park is doing right now, asserted that nothing was open without ever
+consulting the count, so it told you the park was empty while the evening
+primrose was open beside you.
+
+A feature that hides itself in the copy is worse than one that was never built,
+because the writing is what sends anybody looking. Two badge descriptions and
+the about page were also still describing the park unlock as "half of Frick's
+flowers", which stopped being true when the threshold was pinned to a count.
+
+
 The park has always got darker after dusk and otherwise carried on. Now there is
 a flora that only opens then, and moths working it.
 

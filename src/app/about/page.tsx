@@ -53,10 +53,13 @@ export default function AboutPage() {
           The park keeps <strong>Pittsburgh time</strong>, whatever time it is
           where you are. If it is dusk in Squirrel Hill it is dusk in the game.
           What you can find changes with the hour: the spring ephemerals shut by
-          mid-afternoon, everything that flowers is closed after dark, and the
-          fungi keep their own hours. Come back at night and there is nothing to
-          pollinate anywhere in the park, but the jack-o&apos;-lantern is out, and
-          it is glowing.
+          mid-afternoon, most of what flowers is closed after dark, and the fungi
+          keep their own hours. Come back at night and it is a different park
+          rather than an empty one. Three flowers open as the light goes, one in
+          each park, and they are built for moths: pale, because colour is
+          useless by starlight, and scented only after dark. The evening primrose
+          opens over about a minute, while you watch. The jack-o&apos;-lantern is
+          out, and it is glowing.
         </p>
       </section>
 
@@ -95,11 +98,12 @@ export default function AboutPage() {
           </Card>
           <Card title="Earn the second park">
             <p>
-              Find half of Frick&apos;s flowers and Schenley Park opens: Phipps in
-              glass on the plateau, and the ground falling a hundred feet into
+              Find eight of Frick&apos;s flowers and Schenley Park opens: Phipps
+              in glass on the plateau, and the ground falling a hundred feet into
               Panther Hollow. Keep going and Highland Park opens too: two walled
               reservoirs on a hilltop and a wooded slope down to the Allegheny.
-              Each park has its own flora, and a few species live in all of them.
+              Each park has its own flora, and ten species grow in more than one,
+              because goldenrod is goldenrod wherever you meet it.
             </p>
           </Card>
         </div>

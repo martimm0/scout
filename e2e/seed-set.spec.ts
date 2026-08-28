@@ -1,12 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
-  dismissTutorial,
   enterGame,
   flyToPlant,
   nearestPlantToSpawn,
-  resetProgress,
-  signIn,
   TEST_HOUR,
   TEST_MONTH,
 } from "./helpers";
@@ -294,15 +291,7 @@ test.describe("the park you are flying, not the one your save prefers", () => {
      * needing a second player, and which the game already documents as granting
      * no progress.
      */
-    await signIn(page.context());
-    await resetProgress(page);
-    await page.addInitScript(() => window.localStorage.clear());
-    await page.goto(
-      `/play?debug=1&hour=${TEST_HOUR}&month=${TEST_MONTH}&park=schenley&busy=off`,
-    );
-    await page.waitForTimeout(2500);
-    await dismissTutorial(page);
-    await page.waitForTimeout(1200);
+    await enterGame(page, TEST_HOUR, TEST_MONTH, undefined, "off", "schenley");
 
     // The save still says Frick: `?park=` deliberately does not change it.
     expect(

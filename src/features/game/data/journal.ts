@@ -78,7 +78,7 @@ export const CONCEPTS: ConceptEntry[] = [
   {
     id: "day-and-night",
     title: "Day and Night",
-    body: "The park is not one place. Trout lily and trillium open with the sun and close by mid-afternoon, because holding a flower open costs energy and there is no point paying for it when the pollinators have gone. After dark the meadow is shut and nothing is flowering anywhere, and that is precisely when the fungi are out. If you only ever visit at noon you will see maybe half of what is here.",
+    body: "The park is not one place. Trout lily and trillium open with the sun and close by mid-afternoon, because holding a flower open costs energy and there is no point paying for it when the pollinators have gone. After dark most of the meadow is shut, and the few flowers that open then are moth flowers: pale, scented, and built for a tongue you will not find on a bee. It is also precisely when the fungi are out. If you only ever visit at noon you will see maybe half of what is here.",
     hint: "Come back at another hour and see what changed.",
   },
   {

@@ -308,6 +308,15 @@ export async function enterGame(
    * it is standing on.
    */
   busy?: "on" | "off",
+  /**
+   * Pins the park, for the tests about the park you are FLYING differing from
+   * the one your save prefers.
+   *
+   * Those two tests each hand-rolled this navigation, which is how they came to
+   * be the only ones in the suite not going through here. Same three lines,
+   * separately maintained, and separately able to drift.
+   */
+  park?: string,
 ) {
   await signIn(page.context());
   await resetProgress(page);
@@ -315,7 +324,8 @@ export async function enterGame(
   await page.goto(
     `/play?debug=1&hour=${hour}&month=${month}` +
       (weather ? `&weather=${weather}` : "") +
-      (busy ? `&busy=${busy}` : ""),
+      (busy ? `&busy=${busy}` : "") +
+      (park ? `&park=${park}` : ""),
   );
   await page.waitForTimeout(2500);
 

@@ -160,9 +160,25 @@ export function fieldNotesFor(input: FieldNotesInput): FieldNote[] {
   // fact and not a disappointment: it is the point of night, and the point of
   // winter. Each says which door will open, and when.
   if (daylight.phase === "night") {
+    /**
+     * DERIVED, like every other line on this card.
+     *
+     * This used to assert that nothing is open to pollinate after dark, without
+     * consulting `openNow` at all. That was true for as long as every flower
+     * was a daylight flower, and then three species shipped that open only
+     * after dark: the card went on telling players there was nothing out there
+     * while the evening primrose was open beside them. A card whose whole
+     * purpose is to say what the park is doing right now must not be the one
+     * thing in the game that is not looking.
+     */
     notes.push({
       id: "bloom",
-      text: "Nothing is open to pollinate after dark. The fungi keep their own hours, and something out here is glowing.",
+      text:
+        openNow.length === 0
+          ? "Nothing is open to pollinate after dark. The fungi keep their own hours, and something out here is glowing."
+          : openNow.length === 1
+            ? "One flower is open after dark, and it is a moth flower: pale, and scented only now. The fungi keep their own hours too, and something out here is glowing."
+            : `${openNow.length} flowers are open after dark, and they are moth flowers: pale, and scented only now. The fungi keep their own hours too, and something out here is glowing.`,
       tone: "bloom",
     });
   } else if (inSeason.length === 0) {
