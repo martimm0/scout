@@ -27,7 +27,17 @@
   margin: 0 auto;
   border-radius: 14px;
   overflow: hidden;
-  background: #10140d;
+  /**
+   * Light enough to see a dark bee against.
+   *
+   * This was the page background, near black, which was fine for the default
+   * bee and nearly invisible for the two species that are actually dark: the
+   * butterfly is a dark brown body and the moth is deliberately dusty and
+   * camouflaged. Only ever seen before the camera starts, since the video
+   * covers it completely afterwards, but that is the moment somebody decides
+   * whether to grant the camera at all.
+   */
+  background: linear-gradient(#4d5745, #262d20);
   touch-action: none;
 }
 
