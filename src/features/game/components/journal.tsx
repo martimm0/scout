@@ -266,6 +266,27 @@ export function Journal() {
 
             return (
               <li className={styles.card} data-locked={!found} key={plant.id}>
+                {/**
+                 * An undiscovered species that needs company says so.
+                 *
+                 * Six plants and six fungi only come up in a garden party, and
+                 * the counters legitimately include them: a party player can
+                 * reach all of them, and a denominator that shrank for solo
+                 * players would read "40 / 37" for anybody who joined one.
+                 *
+                 * What was missing is the reason. A solo completionist stalled
+                 * at 37 of 43 with nothing anywhere to say why, hunting a wood
+                 * that does not contain them. The connections layer already
+                 * says "Only in a garden party" for exactly this, and the
+                 * species it was built to protect did not.
+                 *
+                 * Only while undiscovered: once you have met it in a party, how
+                 * you got there stops being the useful fact about it.
+                 */}
+                {!found && plant.partyOnly ? (
+                  <p className={styles.partyOnly}>Only in a garden party</p>
+                ) : null}
+
                 {found && photo ? (
                   <Image
                     alt={plant.commonName}
@@ -354,6 +375,11 @@ export function Journal() {
 
             return (
               <li className={styles.card} data-locked={!found} key={fungus.id}>
+                {/* Same as the plants: six of these only fruit in company. */}
+                {!found && fungus.partyOnly ? (
+                  <p className={styles.partyOnly}>Only in a garden party</p>
+                ) : null}
+
                 {found && photo ? (
                   <Image
                     alt={fungus.commonName}

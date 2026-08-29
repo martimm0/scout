@@ -322,3 +322,15 @@
 .parks {
   margin: 1.5rem 0;
 }
+
+/* Marks an undiscovered species that only comes up in a garden party, so a
+   solo player hunting the last six of forty-three knows why the wood does not
+   contain them. Quiet: it is a note about where to look, not a badge. */
+.partyOnly {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  text-transform: uppercase;
+}

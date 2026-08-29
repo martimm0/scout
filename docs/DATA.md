@@ -625,6 +625,19 @@ them:
 
 | Counter | Why it must stay solo |
 | --- | --- |
+The DISPLAY counters are the exception, and deliberately: "Found 0 / 43" counts
+every plant in the game, party species included. Shrinking the denominator for
+solo players would read "40 / 37" for anybody who joined a party, which is worse
+than the problem it solves.
+
+What was missing was the reason. A solo completionist stalled at 37 of 43 with
+nothing anywhere to say why, hunting a wood that does not contain the other six:
+`partyOnly` appeared in the data, in the counters and in the tests, and nowhere
+at all in the interface. The journal marks an undiscovered party species "Only
+in a garden party" now, which is what the connections layer already did for
+exactly this reason. The label goes once you have found it, because how you got
+there stops being the useful fact about a species you have met.
+
 | `plantsIn` (the park unlock ladder) | Schenley opens at 8 of Frick's plants. Counting the party plants towards that would move a door somebody was walking towards further away, over a feature they may never have opened. The threshold is a pinned number rather than a fraction now, which closes the same hole from the other side. |
 | `speciesOf` (the per-park badges) | "Every plant in Frick" has to go on meaning what it meant before parties existed. |
 | `both-parks` (the completionist badge) | Otherwise it becomes unobtainable without other people. |

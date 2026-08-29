@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { enterGame } from "./helpers";
+
 import {
   FUNGI,
   FUNGI_BY_ID,
@@ -280,6 +282,40 @@ test.describe("the twelve themselves", () => {
       expect(species.commonName).toBeTruthy();
       expect(species.scientificName).toBeTruthy();
     }
+  });
+
+  test("the journal says which ones need company, so 37 of 43 has a reason", async ({
+    page,
+  }) => {
+    /**
+     * The counters legitimately include the party species: somebody who joins a
+     * party can reach all of them, and a denominator that shrank for solo
+     * players would read "40 / 37" for anybody who did.
+     *
+     * What was missing is the reason. A solo completionist stalled at 37 of 43
+     * with nothing anywhere to say why, hunting a wood that does not contain
+     * them: `partyOnly` appeared in the data, in the counters and in the tests,
+     * and nowhere at all in the interface.
+     *
+     * Shown only while undiscovered, because once you have met one in a party,
+     * how you got there stops being the useful fact about it.
+     */
+    await enterGame(page);
+    await page.goto("/journal");
+
+    const label = page.getByText("Only in a garden party");
+
+    // One per undiscovered party species, across the two tabs.
+    await page.getByRole("button", { name: "Plants" }).click();
+    await expect(label).toHaveCount(PARTY_PLANTS.length);
+
+    await page.getByRole("button", { name: "Fungi" }).click();
+    await expect(label).toHaveCount(PARTY_FUNGI.length);
+
+    // And the solo species are not labelled, or the note would mean nothing.
+    expect(PARTY_PLANTS.length + PARTY_FUNGI.length).toBeLessThan(
+      PLANTS.length + FUNGI.length,
+    );
   });
 
   test("the ids are unique across the whole game", () => {
