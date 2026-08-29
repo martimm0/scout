@@ -1,7 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { FUNGI_BY_ID, SOLO_FUNGI } from "../src/features/game/data/fungi";
-import { PLANTS_BY_ID, SOLO_PLANTS } from "../src/features/game/data/plants";
+import { EDIBILITY_LABEL, FUNGI, FUNGI_BY_ID } from "../src/features/game/data/fungi";
+import {
+  PARTY_PLANTS,
+  PLANTS,
+  PLANTS_BY_ID,
+  SOLO_PLANTS,
+} from "../src/features/game/data/plants";
 import {
   REFUSAL,
   answerFor,
@@ -9,6 +14,7 @@ import {
   vocabulary,
 } from "../src/features/game/world/answers";
 import { PARKS } from "../src/features/game/world/terrain";
+import { isInSeason, seasonWindow } from "../src/features/game/world/season";
 import { signIn } from "./helpers";
 
 /**
@@ -183,8 +189,13 @@ test.describe("the pollinator answers questions", () => {
     await expect(self).toHaveAttribute("data-answer", "pollinator:bee");
 
     const progress = await ask(page, "how many have I found");
+    /**
+     * The whole game in the denominator, party species included, because the
+     * journal's own counter reads "Found 0 / 43" and these are the same
+     * question asked in two rooms.
+     */
     await expect(progress).toHaveText(
-      `${KNOWN_PLANTS.length} of ${SOLO_PLANTS.length} flowers, and ${KNOWN_FUNGI.length} of ${SOLO_FUNGI.length} fungi.`,
+      `${KNOWN_PLANTS.length} of ${PLANTS.length} flowers, and ${KNOWN_FUNGI.length} of ${FUNGI.length} fungi.`,
     );
   });
 });
@@ -320,6 +331,82 @@ test.describe("the answerer refuses honestly", () => {
     }
   });
 
+  test("it never says a flower is open in a month it does not bloom", () => {
+    /**
+     * `isActive` reads the clock and nothing else, so this used to answer
+     * "Opens with the sun. It is open now" about a spring flower in July, one
+     * question after the bloom answer had said it was out of season. The game
+     * contradicting itself in two consecutive sentences is the night shift
+     * bug in miniature, and it shipped that way once already.
+     *
+     * Driven over every plant rather than one, at a midday hour when the
+     * daylight species genuinely are open, so the only thing that can produce
+     * an "open now" is the season being ignored.
+     */
+    for (const plant of PLANTS) {
+      const month = isInSeason(seasonWindow(plant.bloom), 7) ? 1 : 7;
+      const answer = answerFor({
+        ...empty,
+        found: { plants: { [plant.id]: true }, fungi: {} },
+        month,
+        hour: 12,
+        question: `when is ${plant.scientificName} open`,
+      });
+
+      expect(
+        answer.text,
+        `${plant.commonName} blooms ${plant.bloom} and was called open in month ${month}`,
+      ).not.toContain("It is open now.");
+      expect(answer.text).toContain("out of season");
+    }
+  });
+
+  test("a deadly mushroom is not hedged at", () => {
+    /**
+     * The caveat used to be one line for all five edibilities, and it had
+     * "though" in it: "Eastern Destroying Angel is deadly. I am a bee in a
+     * game, though, so do not eat anything on my say so." "Though" signals
+     * contrast, so it read as walking the danger back, on the one surface in
+     * this game that says anything at all about eating.
+     */
+    for (const fungus of FUNGI) {
+      const answer = answerFor({
+        ...empty,
+        found: { plants: {}, fungi: { [fungus.id]: true } },
+        question: `can I eat ${fungus.scientificName}`,
+      });
+
+      expect(answer.id).toBe(`fungus:${fungus.id}`);
+      expect(answer.text).toContain(EDIBILITY_LABEL[fungus.edibility].toLowerCase());
+
+      if (fungus.edibility === "toxic" || fungus.edibility === "deadly") {
+        expect(answer.text, `${fungus.commonName} is hedged at`).not.toContain("though");
+        expect(answer.text).toContain("not a thing to be wrong about");
+      }
+    }
+  });
+
+  test("it does not answer what visits a fungus, because it does not know", () => {
+    // `roleNote` is what the fungus DOES. Answering "what visits turkey tail"
+    // with a paragraph about lignin is answering a different question well.
+    const answer = answerFor({
+      ...empty,
+      found: { plants: {}, fungi: { "turkey-tail": true } },
+      question: "what visits turkey tail",
+    });
+
+    expect(answer.text).toBe(REFUSAL);
+
+    // Asked about generally it still says everything it knows.
+    const general = answerFor({
+      ...empty,
+      found: { plants: {}, fungi: { "turkey-tail": true } },
+      question: "tell me about turkey tail",
+    });
+
+    expect(general.text).toContain(FUNGI_BY_ID.get("turkey-tail")!.roleNote);
+  });
+
   test("a park you earned but never had flagged counts as open", () => {
     /**
      * The store's `parkUnlocked` is `flag OR count >= needed`, and its comment
@@ -347,6 +434,46 @@ test.describe("the answerer refuses honestly", () => {
     expect(answer.id).toBe("park:schenley");
     expect(answer.text).toContain("already open");
     expect(vocabulary({ found, unlockedParks: {} }).parks).toBe(2);
+  });
+
+  test("a species met at a party counts in the display and not in the ladder", () => {
+    /**
+     * Both halves of the solo rule at once.
+     *
+     * A party species gates nothing, so it counts towards what the companion
+     * says it knows and it will answer questions about it: refusing to discuss
+     * a flower somebody has actually met would be strange, and undercounting it
+     * would be a false line in player copy. But the park ladder must not move,
+     * because a door that shifts under somebody over a feature they may never
+     * have opened is worse than a locked one.
+     */
+    const party = PARTY_PLANTS.find((plant) =>
+      plant.homes.some((home) => home.park === "frick"),
+    );
+    expect(party, "there is a party plant in Frick").toBeTruthy();
+
+    const soloFrick = SOLO_PLANTS.filter((plant) =>
+      plant.homes.some((home) => home.park === "frick"),
+    ).slice(0, 3);
+
+    const found = {
+      plants: {
+        ...Object.fromEntries(soloFrick.map((plant) => [plant.id, true])),
+        [party!.id]: true,
+      },
+      fungi: {},
+    };
+
+    // Counted, and answerable.
+    expect(vocabulary({ found, unlockedParks: {} }).plants).toBe(4);
+    expect(
+      answerFor({ ...empty, found, question: `tell me about ${party!.scientificName}` }).id,
+    ).toBe(`plant:${party!.id}`);
+
+    // And the ladder has not moved: three, not four.
+    expect(
+      answerFor({ ...empty, found, question: "how do I unlock schenley" }).text,
+    ).toContain("You have 3.");
   });
 
   test("a park is never a secret, because the picker already tells you", () => {

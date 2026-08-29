@@ -26,8 +26,8 @@ import { AREA_BLURB } from "../data/areas";
 import { CONNECTIONS, connectionOpen } from "../data/connections";
 import {
   EDIBILITY_LABEL,
+  FUNGI,
   FUNGI_BY_ID,
-  SOLO_FUNGI,
   type Fungus,
 } from "../data/fungi";
 import {
@@ -37,6 +37,7 @@ import {
   type PollinatorEntry,
 } from "../data/journal";
 import {
+  PLANTS,
   PLANTS_BY_ID,
   SOLO_PLANTS,
   describeHomes,
@@ -46,7 +47,7 @@ import { triviaFor } from "../data/trivia";
 import { isActive } from "./daylight";
 import { hash01 } from "./hash01";
 import { allAreas, type Park, type ParkId } from "./park";
-import { describeSeasonWindow, seasonWindow } from "./season";
+import { describeSeasonWindow, isInSeason, seasonWindow } from "./season";
 import { PARKS, PARK_LIST } from "./terrain";
 
 type BooleanRecord = Record<string, boolean>;
@@ -79,12 +80,14 @@ export type AskInput = {
   /** Pittsburgh hour, for "is it open right now". */
   hour: number;
   /**
-   * Party species exist only inside a garden party, and every pool in the game
-   * filters them out by default. `field-notes.ts` carries the scar: its card
-   * once told a solo player about eighteen flowers when sixteen existed for
-   * them.
+   * There is deliberately no `inParty` here.
+   *
+   * Every other pool in the game filters party species out by default, because
+   * they gate things a solo player cannot reach. Nothing here gates anything:
+   * the question is not "can you find this" but "have you met this", and a
+   * species you met at a garden party is one you met. It stays askable
+   * afterwards, which is the right answer to "I saw that, tell me more".
    */
-  inParty?: boolean;
 };
 
 /** The one thing it says when it cannot answer. Nothing is appended to it. */
@@ -287,7 +290,15 @@ function candidatesFor(question: string): Match[] {
   return scored;
 }
 
-/** How many of a park's solo flowers this save has met. */
+/**
+ * How many of a park's SOLO flowers this save has met.
+ *
+ * The one counter here that stays solo, and the only one that should. It feeds
+ * the park unlock ladder, and counting a party species towards Schenley would
+ * move a door somebody was already walking towards, over a feature they may
+ * never have opened. Everything else in this file counts what you have met,
+ * because nothing else in this file gates anything.
+ */
 function foundIn(park: ParkId, discovered: BooleanRecord): number {
   return SOLO_PLANTS.filter(
     (plant) =>
@@ -517,8 +528,31 @@ function where(homes: Plant["homes"]): string {
 const ONE_IN_FIVE =
   "About one visit in five comes to nothing. Wind, timing, or somebody was there first. That is the arithmetic, not you doing it wrong.";
 
+/**
+ * What goes after an edibility, and it is deliberately not one line.
+ *
+ * It was, and the one line had "though" in it: "Eastern Destroying Angel is
+ * deadly. I am a bee in a game, though, so do not eat anything on my say so."
+ * "Though" signals contrast, so the sentence reads as walking the danger back,
+ * which is the exact opposite of what it should do on the one surface in this
+ * game that says anything about eating. It also gave a choice edible and a
+ * deadly amanita identical treatment, flattening the most important
+ * distinction the data has.
+ *
+ * The rest of the game shows edibility as a colour-coded label with no words
+ * around it at all. Being asked directly is different from reading a card, and
+ * an answer to "can I eat this" should not sound like advice.
+ */
+const EDIBILITY_CAVEAT: Record<Fungus["edibility"], string> = {
+  choice: "I am a bee in a game, so do not eat anything on my say so.",
+  edible: "I am a bee in a game, so do not eat anything on my say so.",
+  inedible: "I am a bee in a game, so do not eat anything on my say so.",
+  toxic: "Nothing here is a field guide, and that is not a thing to be wrong about.",
+  deadly: "Nothing here is a field guide, and that is not a thing to be wrong about.",
+};
+
 const NOT_A_FIELD_GUIDE =
-  "I am a bee in a game, though, so do not eat anything on my say so.";
+  "I am a bee in a game, so do not eat anything on my say so.";
 
 function plantAnswer(
   plant: Plant,
@@ -537,12 +571,28 @@ function plantAnswer(
       );
     }
 
-    case "window":
+    case "window": {
+      /**
+       * The season decides this before the hour gets a say.
+       *
+       * `isActive` only reads the clock, so asking when wild geranium is open
+       * in July got "Opens with the sun. It is open now" about a flower that
+       * finished in June, one question after the bloom answer had said it was
+       * out of season. The game contradicting itself in two consecutive
+       * sentences is the night shift bug again, in miniature.
+       */
+      if (!isInSeason(seasonWindow(plant.bloom), input.month)) {
+        return said(
+          `${plant.window.note} Not this month, though: ${plant.commonName} is out of season.`,
+        );
+      }
+
       return said(
         `${plant.window.note} ${
           isActive(plant.window, input.hour) ? "It is open now." : "It is shut at this hour."
         }`,
       );
+    }
 
     case "homes":
       return said(`${plant.commonName} grows at ${where(plant.homes)}.`);
@@ -583,22 +633,36 @@ function fungusAnswer(
     case "bloom":
       return said(`${fungus.commonName} fruits ${fungus.season.toLowerCase()}.`);
 
-    case "window":
+    case "window": {
+      if (!isInSeason(seasonWindow(fungus.season), input.month)) {
+        return said(
+          `${fungus.window.note} Not this month, though: ${fungus.commonName} is out of season.`,
+        );
+      }
+
       return said(
         `${fungus.window.note} ${
           isActive(fungus.window, input.hour) ? "It is out now." : "Not at this hour."
         }`,
       );
+    }
 
     case "homes":
       return said(`${fungus.commonName} grows at ${where(fungus.homes)}.`);
 
     case "visitors":
-      return said(fungus.roleNote);
+      /**
+       * Refused on purpose. `roleNote` is what the fungus DOES, not who calls
+       * on it, and answering "what visits turkey tail" with a paragraph about
+       * lignin is answering a different question well. Fungi do get visitors
+       * and the data does not know which, so this is a gap rather than an
+       * answer. Asked about generally, `fact` still carries the roleNote.
+       */
+      return null;
 
     case "edibility":
       return said(
-        `${fungus.commonName} is ${EDIBILITY_LABEL[fungus.edibility].toLowerCase()}. ${NOT_A_FIELD_GUIDE}`,
+        `${fungus.commonName} is ${EDIBILITY_LABEL[fungus.edibility].toLowerCase()}. ${EDIBILITY_CAVEAT[fungus.edibility]}`,
       );
 
     case "fact":
@@ -639,13 +703,23 @@ function parkAnswer(park: Park, intent: Intent | null, input: AskInput): Answer 
   return null;
 }
 
+/**
+ * The whole game, party species included, because this is a DISPLAY counter.
+ *
+ * The solo-only rule exists to protect counters that GATE something: the park
+ * unlock ladder and the badges, where counting a party species would move a
+ * door somebody was already walking towards. Nothing is gated here. DATA.md
+ * states the exception out loud, and the journal already obeys it with
+ * "Found 0 / 43". Answering "2 of 37" to the same question the journal answers
+ * "2 / 43" would be the game disagreeing with itself in two rooms.
+ */
 function progressAnswer(input: AskInput): Answer {
-  const plants = SOLO_PLANTS.filter((plant) => input.found.plants[plant.id]).length;
-  const fungi = SOLO_FUNGI.filter((fungus) => input.found.fungi[fungus.id]).length;
+  const plants = PLANTS.filter((plant) => input.found.plants[plant.id]).length;
+  const fungi = FUNGI.filter((fungus) => input.found.fungi[fungus.id]).length;
 
   return {
     id: "progress",
-    text: `${plants} of ${SOLO_PLANTS.length} flowers, and ${fungi} of ${SOLO_FUNGI.length} fungi.`,
+    text: `${plants} of ${PLANTS.length} flowers, and ${fungi} of ${FUNGI.length} fungi.`,
   };
 }
 
@@ -794,9 +868,12 @@ export function vocabulary(input: {
   found: Found;
   unlockedParks: BooleanRecord;
 }): { plants: number; fungi: number; parks: number } {
+  // Everything found, party species included: this counts what it can actually
+  // talk about, and it can talk about anything you have met. Saying "3 flowers"
+  // while answering questions about a fourth is a false line in player copy.
   return {
-    plants: SOLO_PLANTS.filter((plant) => input.found.plants[plant.id]).length,
-    fungi: SOLO_FUNGI.filter((fungus) => input.found.fungi[fungus.id]).length,
+    plants: PLANTS.filter((plant) => input.found.plants[plant.id]).length,
+    fungi: FUNGI.filter((fungus) => input.found.fungi[fungus.id]).length,
     parks: PARK_LIST.filter((park) => parkOpen(park, input)).length,
   };
 }
@@ -831,7 +908,7 @@ export type FactInput = {
 export function factOfTheDay(input: FactInput): Answer {
   const pool: Answer[] = [];
 
-  for (const plant of SOLO_PLANTS) {
+  for (const plant of PLANTS) {
     if (!input.found.plants[plant.id]) {
       continue;
     }
@@ -848,7 +925,7 @@ export function factOfTheDay(input: FactInput): Answer {
     });
   }
 
-  for (const fungus of SOLO_FUNGI) {
+  for (const fungus of FUNGI) {
     if (!input.found.fungi[fungus.id]) {
       continue;
     }

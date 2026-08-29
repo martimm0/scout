@@ -658,6 +658,13 @@ making.
    Reading only the flag told somebody "eight flowers in Frick Park opens
    Schenley Park, you have eight" about a park the rest of the game had already
    opened, and counted one park where the picker showed two.
+
+   There is deliberately **no** `inParty` flag on the input, unlike
+   `fieldNotesFor`. Every other pool filters party species out because they gate
+   things a solo player cannot reach; nothing here gates anything. The question
+   is not "can you find this" but "have you met this", and a species met at a
+   garden party stays askable afterwards, which is the right answer to "I saw
+   that, tell me more".
 5. **Classify an intent** from ordered keyword sets: bloom, window, homes,
    edibility, failure, visitors, winter, unlock, connection, progress, self.
    Each composes its sentence from named fields. Where the field is absent it
@@ -668,6 +675,39 @@ making.
    thing, and they get its `fact`. Something left ("what colour are milkweed
    leaves") is a question the data cannot answer, and handing back the generic
    fact would be pretending otherwise.
+
+### Three things it had to be corrected about
+
+All three were found by dumping what it actually says and reading it, which is
+the same method that caught the six pieces of copy the night shift falsified.
+None of them would have failed a test that had been written first, because the
+code did exactly what it was written to do.
+
+**The season decides before the hour does.** `isActive` reads only the clock, so
+"when is wild geranium open" in July answered "Opens with the sun. It is open
+now" about a flower that finished in June, one question after the bloom answer
+had said it was out of season. The game contradicting itself in two consecutive
+sentences is the night shift bug in miniature. Both the plant and the fungus
+window answers check the season first now, and a test drives every plant in the
+game at a midday hour so the only thing that can produce an "open now" is the
+season being ignored.
+
+**A deadly mushroom is not hedged at.** The caveat after an edibility was one
+line for all five, and it contained "though": "Eastern Destroying Angel is
+deadly. I am a bee in a game, though, so do not eat anything on my say so."
+"Though" signals contrast, so it read as walking the danger back, on the one
+surface in this game that says anything at all about eating. It also gave a
+choice edible and a deadly amanita identical treatment, flattening the most
+important distinction in the data. Toxic and deadly get their own line now.
+Worth noting that the rest of the game shows edibility as a colour-coded label
+with no words around it at all: being asked directly is a different thing from
+reading a card, and this is the only place the game answers the question.
+
+**It does not know what visits a fungus.** `roleNote` is what the fungus does,
+so "what visits turkey tail" was answered with a paragraph about lignin, which
+is answering a different question well. Fungi do get visitors and the data does
+not record which, so that is a gap and it says so. Asked about generally, `fact`
+still carries the roleNote.
 
 Every refusal is the same line, `REFUSAL`, and nothing is appended to it. That
 only works as a design if the boundary is visible, so the page prints what it
@@ -708,15 +748,31 @@ its job rather than a gap to fill in later.
 
 **The important part is what they must not change.** Adding species to a game
 that counts species is the kind of edit that breaks something quietly and
-somewhere else, so `SOLO_PLANTS` and `SOLO_FUNGI` exist and four counters read
+somewhere else, so `SOLO_PLANTS` and `SOLO_FUNGI` exist and five counters read
 them:
 
 | Counter | Why it must stay solo |
 | --- | --- |
-The DISPLAY counters are the exception, and deliberately: "Found 0 / 43" counts
-every plant in the game, party species included. Shrinking the denominator for
-solo players would read "40 / 37" for anybody who joined a party, which is worse
-than the problem it solves.
+| `plantsIn` (the park unlock ladder) | Schenley opens at 8 of Frick's plants. Counting the party plants towards that would move a door somebody was walking towards further away, over a feature they may never have opened. The threshold is a pinned number rather than a fraction now, which closes the same hole from the other side. |
+| `foundIn` (the same ladder, in `world/answers.ts`) | Pocket will tell you how far off a park is, and it has to give the same number the picker does. |
+| `speciesOf` (the per-park badges) | "Every plant in Frick" has to go on meaning what it meant before parties existed. |
+| `both-parks` (the completionist badge) | Otherwise it becomes unobtainable without other people. |
+| The counts in GAMEPLAN.md | Said as two numbers now, because one would be a lie in both directions. |
+
+**The test is whether the counter GATES something.** Every one of those decides
+whether a door opens or a badge is earned. A counter that only tells you a
+number is the opposite case and must count the whole game.
+
+So the DISPLAY counters are the exception, and deliberately: "Found 0 / 43"
+counts every plant in the game, party species included. Shrinking the
+denominator for solo players would read "40 / 37" for anybody who joined a
+party, which is worse than the problem it solves. Pocket follows the same rule,
+and had to be corrected to: it answers "how many have I found" out of `PLANTS`
+and `FUNGI` and counts what it can talk about the same way, because it will
+happily discuss a flower you met at a party and saying "3 flowers" while
+answering questions about a fourth is a false line in player copy. Answering
+"2 of 37" to the question the journal answers "2 / 43" would be the game
+disagreeing with itself in two rooms.
 
 What was missing was the reason. A solo completionist stalled at 37 of 43 with
 nothing anywhere to say why, hunting a wood that does not contain the other six:
@@ -725,11 +781,6 @@ at all in the interface. The journal marks an undiscovered party species "Only
 in a garden party" now, which is what the connections layer already did for
 exactly this reason. The label goes once you have found it, because how you got
 there stops being the useful fact about a species you have met.
-
-| `plantsIn` (the park unlock ladder) | Schenley opens at 8 of Frick's plants. Counting the party plants towards that would move a door somebody was walking towards further away, over a feature they may never have opened. The threshold is a pinned number rather than a fraction now, which closes the same hole from the other side. |
-| `speciesOf` (the per-park badges) | "Every plant in Frick" has to go on meaning what it meant before parties existed. |
-| `both-parks` (the completionist badge) | Otherwise it becomes unobtainable without other people. |
-| The counts in GAMEPLAN.md | Said as two numbers now, because one would be a lie in both directions. |
 
 `party-species.spec.ts` pins those as NUMBERS rather than asserting the badges
 still exist, and a separate test compares the scatter with and without the party
