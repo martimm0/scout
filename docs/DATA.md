@@ -610,6 +610,94 @@ from the save, and the one soft goal from an unearned badge's own `hint`. It rea
 data and writes strings; it never sets a quota and never scolds, which is a
 content rule as much as a code one.
 
+## Pocket, and what it will say
+
+`world/answers.ts` is the second module in the `field-notes.ts` shape: pure, no
+React and no store, plain values in and one `Answer` (`{ id, text, wikipedia? }`)
+out. It backs the ask box and the fact of the day on `/pocket`.
+
+**There is no model behind it and there is not going to be one.** Two reasons.
+The first is the principle at the top of this file: an unsourced fact does not
+ship, and nothing can stop a language model inventing a milkweed fact that reads
+exactly like the four real ones beside it. The second is that the game must never
+tell anybody how it was made, and a function that can only emit sentences
+assembled from `plants.ts` has no sentence about a framework to emit. That is a
+structural prohibition rather than a promise, which is the only kind worth
+making.
+
+### How a typed string becomes an answer
+
+1. **The made-of guard.** A word list and a phrase list, checked first. Be honest
+   about what it is worth: the vocabulary is closed, so "how was this built"
+   already resolves no subject and refuses on its own. The guard earns its lines
+   on one case, a question that names a species AND asks a made-of question.
+   "Did you use AI to write the milkweed fact" would otherwise resolve milkweed,
+   match no intent, fall back to the milkweed fact, and read as a smug dodge.
+2. **Normalise.** Lowercase, unaccent, and **join on apostrophes rather than
+   splitting**: "dutchman's" split becomes "dutchman", which matches neither the
+   common name nor the id `dutchmans-breeches`, so the species was unaskable by
+   its own name.
+3. **Resolve a subject** against a vocabulary built once at module load from
+   every plant, fungus, park, area, concept and pollinator entry. A word is
+   worth one over the number of subjects that share it, so "common" and
+   "eastern" decide nothing, and saying a whole name outranks any amount of word
+   overlap. A tie is answered with a question ("Common Milkweed or Swamp
+   Milkweed?") rather than a coin toss.
+4. **Gate on the save.** A species you have not found refuses in the **same
+   words** as a question it could not parse. "You have not found that yet" would
+   be friendlier and would confirm that the species exists, which is the
+   discovery the game is built on. Parks, concepts and pollinator entries are
+   never gated: the park picker already names all three parks and prints what
+   each costs, so refusing "how do I unlock Schenley" would keep a secret that
+   is on another page of the same site.
+
+   Whether a park is **open** is derived rather than read off `unlockedParks`,
+   mirroring `parkUnlocked` in the store: the flag records the moment it
+   happened and the count of found flowers is the truth, so a save written
+   before the flag existed is not locked out of a park it has already earned.
+   Reading only the flag told somebody "eight flowers in Frick Park opens
+   Schenley Park, you have eight" about a park the rest of the game had already
+   opened, and counted one park where the picker showed two.
+5. **Classify an intent** from ordered keyword sets: bloom, window, homes,
+   edibility, failure, visitors, winter, unlock, connection, progress, self.
+   Each composes its sentence from named fields. Where the field is absent it
+   refuses instead of guessing, which is why only the four species carrying a
+   sourced `winter` line will answer a winter question.
+6. **No rule matched?** Strip the stopwords, the intent words and the subject's
+   own name, and look at what is left. Nothing left means they asked about the
+   thing, and they get its `fact`. Something left ("what colour are milkweed
+   leaves") is a question the data cannot answer, and handing back the generic
+   fact would be pretending otherwise.
+
+Every refusal is the same line, `REFUSAL`, and nothing is appended to it. That
+only works as a design if the boundary is visible, so the page prints what it
+knows underneath the box: "It knows 14 flowers, 3 fungi and 2 parks so far."
+
+### The fact of the day
+
+`factOfTheDay` indexes a sorted pool of everything unlocked, seeded with
+`pittsburghDate()` through the shared `world/hash01.ts`. Nothing is stored. The
+alternative was freezing the choice in the save, which means a new field through
+`partialize`, the progress payload and the cross-device merge, to buy a
+guarantee nobody asked for. The visible consequence is that finding a new flower
+can change today's fact, which reads as a reward.
+
+Trivia `because` paragraphs are the first choice of text, because they are the
+best prose in the repository and nothing outside a quiz reads them. One gate:
+only from a species whose quiz you have already passed, or the fact of the day
+would quietly hand you the answer to a question you have not been asked.
+
+Frick needs nothing to unlock, so the pool is never empty for a real save and a
+brand new player is told about the park they are standing in.
+
+### Where the area prose lives
+
+`data/areas.ts`. `AREA_BLURB` is twenty four descriptions, one per area across
+the three parks, and it is the only prose an `Area` has anywhere: the type in
+`world/park.ts` carries an id, a label and a centre point and nothing else. It
+sat unexported inside `journal.tsx` until the answerer wanted to say what Fern
+Hollow is.
+
 ## Species you can only meet in company
 
 Twelve of them, four per park, marked `partyOnly: true` on the record. The data

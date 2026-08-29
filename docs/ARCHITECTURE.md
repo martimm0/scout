@@ -762,6 +762,133 @@ silently, because the picker swallows a dead party server rather than putting a
 red box on a page whose other job is to show you three parks. Node-side tests
 passed the whole time; only driving a real browser found it.
 
+## Pocket and the camera
+
+`/pocket` is the surface that does not need the park: a fact of the day, a box
+you can type questions into, and an AR viewfinder that stands your pollinator in
+the room you are in.
+
+### The gate that is not a gate
+
+It is the only page that reads the session itself instead of calling
+`requireSignIn()`, because that helper is all or nothing and this page has a real
+signed-out mode. `src/app/pocket/page.tsx` does `await auth()` and hands
+`signedIn` down as a prop, alongside `authConfigured` from env, the same way
+`/profile` does. Signed out you get the camera, the default bee and the badge,
+and no dead sign-in button in local mode. It is deliberately absent from the
+gated-route loop in `pages.spec.ts`, and there is a test that says so out loud so
+the absence reads as a decision rather than an oversight.
+
+### Camera passthrough, not WebXR
+
+WebXR AR does not exist in iOS Safari, and an AR feature that does not work on an
+iPhone is not an AR feature. So: `getUserMedia({ video: { facingMode: { ideal:
+"environment" } } })` into a plain `<video>`, a transparent WebGL canvas over it,
+and the two flattened into one JPEG on the shutter.
+
+`ideal` rather than `exact`, so a laptop with no environment-facing camera falls
+back to the one it has instead of throwing.
+
+**The video is an HTML element, not a `THREE.VideoTexture`.** The browser
+composites video natively for free, so a mid-range phone spends its GPU on the
+bee rather than uploading thirty texture frames a second; the capture wants the
+raw frame anyway and `drawImage` takes it at full intrinsic resolution rather
+than at whatever the GL viewport happens to be. The cost is that the two layers
+can be a frame apart in the photo, which does not matter for something hovering
+in place.
+
+### The second GL root
+
+`ar-camera.tsx` repeats the root lifecycle from `pollinator-preview.tsx` rather
+than sharing it. Read that file first: `extend(THREE)` at module scope, create
+the root ONCE with an empty dependency array, push prop changes in with a second
+`root.render`, defer the teardown past React's development double invoke, and
+never touch `canvas.width` / `canvas.height`. All four are load-bearing and all
+four are repeated here.
+
+What differs is that this one passes `gl: { alpha: true }` and draws **no**
+`<color attach="background">`, so the camera shows through. Extracting a shared
+`useR3FRoot` would save forty lines and put the working Customize page at risk to
+do it. Worth doing if a third surface appears, not for the second.
+
+The canvas is `position: absolute; inset: 0` for the same reason as the preview,
+and the stage supplies the height. That height is `aspect-ratio: 3 / 4` rather
+than a `vh` figure: a viewport-relative height is zero in any context where the
+viewport has not been laid out, and a zero-height box means three configures a
+zero drawing buffer and the viewfinder is an invisible nothing with no error
+attached. A ratio cannot be zero while the box has a width.
+
+### The badge is in the scene, not on the photo
+
+Signed out, the game's name and tagline hang under the character as a plane with
+a `CanvasTexture` on it, parented into the same group, so it moves and scales
+with the bee and appears in the photo because the scene appears in the photo.
+Drawing it on at capture time would mean it followed nothing, and the player
+would not see it until after the shutter. `meshBasicMaterial`, not lambert: a
+label that dims with the scene lighting is a label somebody cannot read.
+
+Both lines are copy that already ships. There is no text mesh library here and
+drei's `Html` renders DOM outside the canvas, so it would be absent from exactly
+the thing it needs to be in.
+
+`roundRect` is feature-detected and falls back to a square corner. It is Safari
+16.4 and up, and the texture is built inside a `useMemo` during render, so on an
+older iPhone a throw there did not cost a rounded corner, it took down the whole
+camera view on the one device passthrough exists to support. There is a test
+that deletes the method and checks the badge still reaches the photograph.
+
+### The composite
+
+The video is `object-fit: cover`, so what is on screen is a **crop** of the
+intrinsic frame, and reproducing that crop is the whole job. A camera that does
+not give you the picture you framed is not a camera. The source rectangle is
+computed from the video's intrinsic aspect against the box aspect, then the video
+is drawn, then the GL canvas over it, then `toDataURL("image/jpeg", 0.85)` at
+1080 wide.
+
+1080 at 0.85, not the album's 720 at 0.72. Those numbers exist because
+`/api/photos` posts to Postgres under a 400kB ceiling. **The AR photo never
+touches the server**, for anybody, so that ceiling does not apply and somebody is
+going to look at this one full screen. It leaves through the share sheet first
+(the only reliable route to an iPhone camera roll) and a blob-URL download
+second, with the image on screen either way so no path is a dead end.
+
+Press and hold is a touch gesture, so the hint under the photo is gated on
+`useCoarsePointer()`. A laptop is told where the file went instead. Copy that is
+true on one device and false on another is still false copy, which this project
+has been bitten by before.
+
+### Giving the camera back
+
+Tracks are stopped on unmount and on `visibilitychange` to hidden. iOS can kill a
+backgrounded track outright while the video element keeps showing its last frame,
+which looks exactly like a working camera pointed at a photograph, so
+`track.onended` drops the state back to a button rather than leaving that in
+place.
+
+### Testing a camera on a machine that has none
+
+Chromium already carried `--use-fake-device-for-media-stream` and
+`--use-fake-ui-for-media-stream` for the party microphone, and the same pair
+gives a fake camera. They were added to the `phone` and `tablet` projects, whose
+`testMatch` was widened to take the AR spec. Firefox gets the equivalent through
+`firefoxUserPrefs`. **WebKit headless has neither and is skipped by name**, with
+the reason in the skip message, because a silently empty test is worse than an
+absent one.
+
+The refusal paths cannot be reached while the fake-UI flag grants everything, so
+they are driven by stubbing `getUserMedia` to reject with a real `NotAllowedError`
+through `addInitScript`.
+
+What is asserted is the photograph, not that a button was clickable. The
+signed-out shot proves the WebGL layer reaches the file, because the badge is in
+that layer and nothing else in a fake camera feed is dark. The signed-in shot
+proves the camera reaches the file, because with the badge gone the GL layer is
+transparent across that band and only the video underneath can make it bright.
+Measured at 0.29 and 0.00 against thresholds of 0.08 and 0.03. And the output is
+1080 by 1440 against a 3:4 stage, which is the tripwire for getting the crop
+wrong.
+
 ## Deployment
 
 Vercel for the game, and one Cloudflare Worker for the room server:

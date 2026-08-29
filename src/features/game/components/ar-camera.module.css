@@ -1,0 +1,113 @@
+/**
+ * The canvas is out of the flow, and that is load-bearing.
+ *
+ * Same rule as pollinator-preview.module.css, and the same bug if it is broken:
+ * three writes an inline height onto the canvas on every setSize, a canvas in
+ * normal flow hands that height back to the box the ResizeObserver is watching,
+ * and the two grow past each other a few pixels a frame while every resize
+ * reallocates and clears the drawing buffer. Nothing it draws ever reaches the
+ * screen and nothing throws.
+ *
+ * The stage supplies the real height instead.
+ */
+.stage {
+  position: relative;
+  width: 100%;
+  /**
+   * The height comes from the width, not from the viewport.
+   *
+   * This was `min(76vh, 720px)`, which is zero in any context where the
+   * viewport has not been laid out yet, and a zero-height box means three
+   * configures a zero drawing buffer and the camera view is an invisible
+   * nothing with no error attached. A ratio cannot be zero while the box has a
+   * width. It also happens to be the right shape: a viewfinder held upright.
+   */
+  aspect-ratio: 3 / 4;
+  max-width: 520px;
+  margin: 0 auto;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #10140d;
+  touch-action: none;
+}
+
+.video,
+.layer,
+.canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.video {
+  object-fit: cover;
+}
+
+/**
+ * Down at the bottom, not across the middle.
+ *
+ * Centred, the prompt and its button sat squarely on top of the bee, so the one
+ * thing the page is about was behind the words describing it. The scrim is
+ * gone with it: there is nothing under here worth hiding.
+ */
+.says {
+  position: absolute;
+  inset: auto 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 24px 24px;
+  text-align: center;
+  background: linear-gradient(rgba(16, 20, 13, 0), rgba(16, 20, 13, 0.9) 38%);
+}
+
+.says p {
+  max-width: 30ch;
+  color: #eef4e6;
+  font-size: 1.05rem;
+}
+
+.controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.review {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 18px;
+  background: rgba(16, 20, 13, 0.92);
+}
+
+.review img {
+  max-width: 100%;
+  max-height: 62%;
+  border-radius: 10px;
+}
+
+.hint {
+  margin: 0;
+  max-width: 34ch;
+  text-align: center;
+  color: #cdd8c4;
+  font-size: 0.92rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+}

@@ -52,6 +52,7 @@ const navItems = [
  * bar.
  */
 const moreItems: NavItem[] = [
+  { kind: "link", href: "/pocket", label: "Pocket" },
   { kind: "link", href: "/journal", label: "Journal" },
   { kind: "link", href: "/customize", label: "Customize" },
   { kind: "link", href: "/offline", label: "Offline run" },

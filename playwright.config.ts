@@ -121,7 +121,23 @@ export default defineConfig({
     {
       name: "firefox",
       testIgnore: /mobile\.spec\.ts/,
-      use: { ...devices["Desktop Firefox"] },
+      use: {
+        ...devices["Desktop Firefox"],
+        /**
+         * A camera that is always there and always shows the same thing.
+         *
+         * Firefox's equivalent of Chromium's fake device flags, and the AR
+         * viewfinder needs one: there is no camera on a CI machine, and the
+         * alternative is a spec that only ever exercises the refusal path.
+         * `permission.disabled` grants it without a prompt nobody can click.
+         */
+        launchOptions: {
+          firefoxUserPrefs: {
+            "media.navigator.streams.fake": true,
+            "media.navigator.permission.disabled": true,
+          },
+        },
+      },
     },
     {
       // Safari's engine. Worth running even though the game is desktop-first:
@@ -143,7 +159,7 @@ export default defineConfig({
      */
     {
       name: "phone",
-      testMatch: /mobile\.spec\.ts/,
+      testMatch: /(mobile|pocket-ar)\.spec\.ts/,
       use: {
         ...devices["Pixel 5 landscape"],
         launchOptions: {
@@ -151,13 +167,17 @@ export default defineConfig({
             "--use-gl=angle",
             "--use-angle=metal",
             "--enable-unsafe-swiftshader",
+            // The AR viewfinder runs here too, and it needs a camera that
+            // exists. Same pair the desktop chromium project already carries.
+            "--use-fake-device-for-media-stream",
+            "--use-fake-ui-for-media-stream",
           ],
         },
       },
     },
     {
       name: "tablet",
-      testMatch: /mobile\.spec\.ts/,
+      testMatch: /(mobile|pocket-ar)\.spec\.ts/,
       use: {
         ...devices["Galaxy Tab S4 landscape"],
         launchOptions: {
@@ -165,6 +185,10 @@ export default defineConfig({
             "--use-gl=angle",
             "--use-angle=metal",
             "--enable-unsafe-swiftshader",
+            // The AR viewfinder runs here too, and it needs a camera that
+            // exists. Same pair the desktop chromium project already carries.
+            "--use-fake-device-for-media-stream",
+            "--use-fake-ui-for-media-stream",
           ],
         },
       },

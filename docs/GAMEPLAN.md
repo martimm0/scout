@@ -359,6 +359,33 @@ badge is awarded for winning, nothing is ranked across players, and the twelve
 party species count towards their own badges rather than being folded into the
 ones you have been working on alone.
 
+## Pocket
+
+Scout is a game you have to commit to: twenty minutes, a loading screen, and
+everything it knows about the flowers you found is behind them. Pocket is the
+part that fits in a pocket.
+
+Your pollinator is on the page. It tells you one true thing a day about
+something you have actually found, it answers questions about the plants, fungi
+and parks you have unlocked, and it will stand in your kitchen through the phone
+camera so you can photograph it.
+
+It answers out of the game's own data and nothing else, which is rule 1 taken to
+its conclusion: a companion that could invent a plausible milkweed fact would be
+the prettiest lie in the game. When it cannot place a question, or the question
+is about a species you have not met, it says it does not understand and stops
+there. The page prints what it does know underneath the box, so the edge of its
+knowledge is visible rather than mysterious.
+
+Signed out, Pocket is the camera and nothing else: the default bee, with the
+game's name and tagline riding under it as part of the picture. That is not a
+crippled teaser. The precedent is the ten-minute run, which is the whole game
+and only shorter, and which asks nothing of you because it saves nothing.
+
+**Nothing here decays.** No hunger, no neglect, nothing to come back to and find
+worse than you left it. See rule 3: a companion that gets sad while you are at
+work is a punishment for having a job, and this game does not punish.
+
 ## Deliberately not doing
 
 - **Competition.** No leaderboard, no timer on anything that matters, no scoring
@@ -368,7 +395,11 @@ ones you have been working on alone.
   against anybody else and nothing you find is taken from somebody who did not.
 - **Punishing failure.** See rule 3.
 - **A prettier lie.** An invented fact, an unlicensed photograph, or a species in
-  a park it does not grow in is worse than a gap.
+  a park it does not grow in is worse than a gap. This is why the Pocket
+  companion answers out of the data rather than out of a model, and why it says
+  it does not understand instead of guessing well.
+- **A pet that suffers when you leave.** Pocket has no hunger bar and nothing
+  that decays. See rule 3.
 
 ---
 

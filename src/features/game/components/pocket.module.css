@@ -1,0 +1,124 @@
+.pocket {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.pocket h2 {
+  margin: 0 0 10px;
+}
+
+.bee {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+/**
+ * A REAL height, not a min-height.
+ *
+ * The canvas measures this box to size its drawing buffer, and a box that gets
+ * its height from the canvas inside it resolves to nothing. Same note as
+ * customize.module.css, same reason.
+ */
+.preview {
+  position: relative;
+  width: min(100%, 320px);
+  height: 220px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff6dc;
+}
+
+.name {
+  margin: 0;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.change {
+  font-size: 0.95rem;
+}
+
+.fact {
+  padding: 20px 22px;
+  border: 1px solid var(--accent-border);
+  border-radius: 14px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.fact p {
+  margin: 0 0 10px;
+  color: inherit;
+  font-size: 1.05rem;
+  line-height: 1.55;
+}
+
+.form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.input {
+  flex: 1 1 260px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--foreground);
+  font: inherit;
+}
+
+.knows {
+  margin: 10px 0 0;
+  font-size: 0.92rem;
+}
+
+.log {
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.log li {
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.question {
+  margin: 0 0 6px;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.answer {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.lead {
+  margin: 0 0 14px;
+}
+
+.note {
+  max-width: 52ch;
+}
