@@ -92,16 +92,29 @@ export function Pocket({
     [today, found, quizPassed, unlockedParks, unlockedMapAreas],
   );
 
-  if (!signedIn) {
+  /**
+   * Whose bee this is, which is not the same question as who is signed in.
+   *
+   * The camera-only page exists for somebody who COULD sign in and has not:
+   * they get the default bee and the badge, because there is no save of theirs
+   * to talk about. In local mode there is no sign-in to be had at all, the
+   * player's save is real and sitting in this browser, and every other page
+   * (`/journal`, `/play`, `/customize`, `/profile`) works fully. Keying this on
+   * `signedIn` alone left local mode looking at a locked feature with no key
+   * anywhere on the site, which is the one thing local mode is not allowed to
+   * do: nothing on screen may promise something the build cannot deliver.
+   */
+  const yours = signedIn || !authConfigured;
+
+  if (!yours) {
     return (
       <div className={styles.pocket}>
         <ArCamera badge pollinator={DEFAULT_POLLINATOR} />
         <p className={styles.note}>
-          {authConfigured
-            ? "This is the bee the game comes with. Sign in and it will be yours, and it will answer questions about everything you have found."
-            : "This build keeps everything on this device, so the bee in the frame is the one the game comes with."}
+          This is the bee the game comes with. Sign in and it will be yours, and
+          it will answer questions about everything you have found.
         </p>
-        {authConfigured ? <SignInButton /> : null}
+        <SignInButton />
       </div>
     );
   }

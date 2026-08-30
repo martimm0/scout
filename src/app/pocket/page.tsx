@@ -21,13 +21,15 @@ export const metadata: Metadata = {
 export default async function PocketPage() {
   const session = await auth();
   const signedIn = Boolean(session?.user?.id);
+  // Local mode has no sign-in, so the save in the browser is simply yours.
+  const yours = signedIn || !authConfigured;
 
   return (
     <main className="page-container">
       <p className="eyebrow">Your pollinator</p>
       <h1>Pocket</h1>
       <p className="lead">
-        {signedIn
+        {yours
           ? "It remembers what you have found, and it will talk about it."
           : "Point your camera at something and put a bee in the picture."}
       </p>

@@ -779,6 +779,27 @@ and no dead sign-in button in local mode. It is deliberately absent from the
 gated-route loop in `pages.spec.ts`, and there is a test that says so out loud so
 the absence reads as a decision rather than an oversight.
 
+### Whose bee it is, which is not who is signed in
+
+The camera-only page is for somebody who **could** sign in and has not: they get
+the default bee and the badge, because there is no save of theirs to talk about.
+Local mode is a different thing entirely. There is no sign-in to be had, the
+player's save is real and sitting in that browser, and every other page works
+fully. Keying the page on `signedIn` alone left local mode staring at a locked
+feature with no key anywhere on the site, which is the one thing local mode may
+not do: nothing on screen may promise something the build cannot deliver.
+
+So the condition is `signedIn || !authConfigured`, and the signed-out branch no
+longer has to carry a second sentence for a case it can no longer reach.
+
+This was found by running the app with the auth and database variables cleared,
+which nothing in the suite does. **Local mode has no e2e coverage at all**:
+grepping `e2e/` for `authConfigured`, "local mode" or "not configured" returns
+nothing, so every `authConfigured === false` branch in `sign-in.tsx`,
+`sign-in-required.tsx`, `profile.tsx` and `pocket.tsx` is untested. The obstacle
+is that Playwright's `webServer` is global rather than per-project, so covering
+it needs a second config file with its own environment.
+
 ### Camera passthrough, not WebXR
 
 WebXR AR does not exist in iOS Safari, and an AR feature that does not work on an
