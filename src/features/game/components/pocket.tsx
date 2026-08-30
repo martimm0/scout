@@ -6,6 +6,7 @@ import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { SignInButton } from "@/features/auth/components/sign-in-button";
 
+import { useCoarsePointer } from "../hooks/use-media-query";
 import { DEFAULT_POLLINATOR, useGameStore } from "../state/game-store";
 import { answerFor, factOfTheDay, vocabulary, type Answer } from "../world/answers";
 import { pittsburghDate, pittsburghHour } from "../world/daylight";
@@ -43,6 +44,9 @@ export function Pocket({
   authConfigured: boolean;
   signedIn: boolean;
 }) {
+  // Pinch needs two fingers, so promising it to a laptop is a false line in
+  // player copy. Same reason the save hint under a photo is gated.
+  const touch = useCoarsePointer();
   const pollinator = useGameStore((state) => state.pollinator);
   const discoveredPlants = useGameStore((state) => state.discoveredPlants);
   const discoveredFungi = useGameStore((state) => state.discoveredFungi);
@@ -168,7 +172,17 @@ export function Pocket({
             className={styles.input}
             id="pocket-question"
             onChange={(event) => setQuestion(event.target.value)}
-            placeholder="When does milkweed bloom?"
+            /**
+             * A question it can always answer.
+             *
+             * This was "When does milkweed bloom?", which is a refusal for
+             * anybody who has not met a milkweed and a request to disambiguate
+             * for anybody who has met both. A placeholder that models a
+             * question the box usually cannot answer teaches the wrong thing on
+             * a first visit. Concepts are never gated, so this one works from
+             * the first second of a new save.
+             */
+            placeholder="What is mutualism?"
             value={question}
           />
           <Button type="submit">Ask</Button>
@@ -209,8 +223,8 @@ export function Pocket({
         <h2>Take it outside</h2>
         <p className={styles.lead}>
           Point the camera at something and your pollinator will stand in the
-          frame. Drag to turn it, pinch to change its size. The photo stays on
-          this device.
+          frame. Drag to turn it{touch ? ", pinch to change its size" : ""}. The
+          photo stays on this device.
         </p>
         <ArCamera badge={false} pollinator={pollinator} />
       </section>

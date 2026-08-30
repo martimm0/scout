@@ -12,6 +12,10 @@ import {
   signIn,
 } from "./helpers";
 import { PLANTS } from "../src/features/game/data/plants";
+import {
+  repairSave,
+  useGameStore,
+} from "../src/features/game/state/game-store";
 import { FUNGI } from "../src/features/game/data/fungi";
 import {
   areaAt,
@@ -1594,6 +1598,105 @@ test.describe("customization", () => {
     expect(merged.stats.pollinationAttempts).toBe(4);
     expect(merged.tutorialSeen).toBe(true);
   });
+});
+
+test.describe("a save with a hole in it", () => {
+  /**
+   * A stored save is not a trusted object.
+   *
+   * It comes back from localStorage, through a cross-device merge, and out of a
+   * server payload the client does not control, and any of those can carry a
+   * null where an object is declared or a bee missing most of its fields.
+   * zustand's default merge is one level deep, so `pollinator: { name: "Half" }`
+   * REPLACED the whole default bee rather than being filled in by it, and the
+   * renderer was handed a species with no colours.
+   *
+   * This was already known and worked around rather than fixed: `resetProgress`
+   * in the helpers carries a comment saying an empty pollinator "used to strip
+   * the bee of its colours and crash the renderer", and its answer was to post
+   * a complete one from the test. It still crashed in the real app, differently
+   * on each page, and both crashes white-paged the route.
+   */
+  test("a save that omits a record keeps the one the game starts with", () => {
+    /**
+     * Calls the REAL merge, the same way the cloud-sync test above calls the
+     * real one rather than driving a page that happens to agree with it.
+     *
+     * `unlockedMapAreas` does not start empty: it holds the lawn outside the
+     * Environmental Center, where the game begins. The repair merge originally
+     * defaulted a missing record to `{}`, so a save that simply had not written
+     * that key came back with the starting area forgotten, and the journal
+     * called it "Somewhere you haven't been" to somebody standing on it.
+     *
+     * No existing test caught it, because every seeded save in the suite
+     * happens to write the field. This one deliberately does not.
+     */
+    const current = useGameStore.getState();
+    const repaired = repairSave(
+      { discoveredPlants: { "common-milkweed": true } },
+      current,
+    );
+
+    expect(
+      repaired.unlockedMapAreas["environmental-center"],
+      "the starting area was forgotten",
+    ).toBe(true);
+    expect(repaired.unlockedParks.frick, "Frick stopped being recorded").toBe(true);
+
+    // The save's own data still wins where it said something.
+    expect(repaired.discoveredPlants["common-milkweed"]).toBe(true);
+
+    // And the ten records that DO start empty are unaffected either way.
+    expect(repaired.quizPassed).toEqual({});
+  });
+
+  test("a null where a record belongs does not survive the merge", () => {
+    const repaired = repairSave(
+      { discoveredFungi: null, marks: null, pollinator: { name: "Half" } },
+      useGameStore.getState(),
+    );
+
+    expect(repaired.discoveredFungi).toEqual({});
+    expect(Array.isArray(repaired.marks)).toBe(true);
+    // The bee is filled in field by field rather than replaced wholesale.
+    expect(repaired.pollinator.name).toBe("Half");
+    expect(repaired.pollinator.type).toBe("bee");
+    expect(repaired.pollinator.bodyColor).toBeTruthy();
+  });
+
+  for (const route of ["/customize", "/pocket", "/journal"]) {
+    test(`${route} survives a half-written save`, async ({ page }) => {
+      const errors: string[] = [];
+      page.on("pageerror", (error) => errors.push(error.message));
+
+      await signIn(page.context());
+      await page.addInitScript(() => {
+        window.localStorage.setItem(
+          "scout-game-state",
+          JSON.stringify({
+            version: 0,
+            state: {
+              // A bee with a name and nothing else: no species, no colours.
+              pollinator: { name: "Half" },
+              // A null where a record belongs.
+              discoveredFungi: null,
+              marks: null,
+              // And ids for things that are no longer in the game, which the
+              // save is separately expected to survive.
+              discoveredPlants: { "a-plant-that-was-removed": true },
+              unlockedParks: { "a-park-that-was-removed": true },
+            },
+          }),
+        );
+      });
+
+      await page.goto(route);
+      await page.waitForTimeout(2500);
+
+      expect(errors.join("\n"), `${route} threw`).toBe("");
+      await expect(page.locator("h1")).toBeVisible();
+    });
+  }
 });
 
 test.describe("a popover owns the keyboard", () => {

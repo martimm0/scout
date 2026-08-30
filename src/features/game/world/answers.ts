@@ -90,6 +90,40 @@ export type AskInput = {
    */
 };
 
+/**
+ * A save can arrive with a hole in it, and this module must not be the thing
+ * that breaks.
+ *
+ * The records here come out of localStorage, through a cross-device merge, and
+ * out of a server payload the client does not control. Any one of those can
+ * hand over a null where an object is declared, and `found.fungi[id]` on a null
+ * throws during render, which white-pages the whole route: the same "world
+ * fine, page white" failure the removed-park bug caused. Normalised once at
+ * each entry point rather than guarded at forty read sites, so nothing
+ * downstream has to remember, `connectionOpen` in the data layer included.
+ */
+function safe(record: BooleanRecord | null | undefined): BooleanRecord {
+  return record ?? {};
+}
+
+function safeInput<T extends {
+  found: Found;
+  quizPassed?: BooleanRecord;
+  unlockedParks: BooleanRecord;
+  unlockedMapAreas: BooleanRecord;
+}>(input: T): T {
+  return {
+    ...input,
+    found: {
+      plants: safe(input.found?.plants),
+      fungi: safe(input.found?.fungi),
+    },
+    quizPassed: safe(input.quizPassed),
+    unlockedParks: safe(input.unlockedParks),
+    unlockedMapAreas: safe(input.unlockedMapAreas),
+  };
+}
+
 /** The one thing it says when it cannot answer. Nothing is appended to it. */
 export const REFUSAL = "I don't understand.";
 
@@ -762,7 +796,9 @@ function connectionAnswer(input: AskInput, matches: Match[]): Answer | null {
 // The question
 // ---------------------------------------------------------------------------
 
-export function answerFor(input: AskInput): Answer {
+export function answerFor(raw: AskInput): Answer {
+  const input = safeInput(raw);
+
   if (normalise(input.question).length === 0) {
     return refuse();
   }
@@ -864,10 +900,15 @@ export function answerFor(input: AskInput): Answer {
 // What it knows
 // ---------------------------------------------------------------------------
 
-export function vocabulary(input: {
+export function vocabulary(raw: {
   found: Found;
   unlockedParks: BooleanRecord;
 }): { plants: number; fungi: number; parks: number } {
+  const input = safeInput({
+    ...raw,
+    unlockedMapAreas: {},
+  });
+
   // Everything found, party species included: this counts what it can actually
   // talk about, and it can talk about anything you have met. Saying "3 flowers"
   // while answering questions about a fourth is a false line in player copy.
@@ -905,7 +946,8 @@ export type FactInput = {
  * have already passed. Otherwise the fact of the day would quietly hand you the
  * answer to a question you have not been asked yet.
  */
-export function factOfTheDay(input: FactInput): Answer {
+export function factOfTheDay(raw: FactInput): Answer {
+  const input = safeInput(raw);
   const pool: Answer[] = [];
 
   for (const plant of PLANTS) {

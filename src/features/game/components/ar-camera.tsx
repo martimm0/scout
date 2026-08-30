@@ -193,7 +193,7 @@ type CameraState =
 const SAYS: Record<Exclude<CameraState, "live" | "asking">, string> = {
   idle: "Point it at something. Your pollinator will stand in the frame.",
   denied:
-    "The camera is off for this page. Your phone's settings can turn it back on.",
+    "The camera is off for this page. Your browser's settings can turn it back on.",
   missing: "There is no camera on this device.",
   unsupported: "This browser will not hand over a camera.",
   insecure:
@@ -221,6 +221,18 @@ export function ArCamera({
   const [state, setState] = useState<CameraState>("idle");
   const [shot, setShot] = useState<string | null>(null);
   const [saying, setSaying] = useState<string | null>(null);
+
+  /**
+   * Whether this component is still on screen.
+   *
+   * `getUserMedia` is a promise, and the thing it is waiting on is a permission
+   * prompt, which is seconds rather than milliseconds on a first visit. Leave
+   * the page inside that window and the teardown ran already, found
+   * `stream.current` still null, and stopped nothing; then the promise resolved
+   * into a component that no longer exists and handed it a live camera nobody
+   * holds a reference to. The indicator light stays on until the tab closes.
+   */
+  const alive = useRef(true);
 
   const stop = useCallback(() => {
     for (const track of stream.current?.getTracks() ?? []) {
@@ -254,6 +266,16 @@ export function ArCamera({
           height: { ideal: 720 },
         },
       });
+
+      // Gone while the prompt was open. Give the camera straight back: there is
+      // nothing left to show it on, and nothing else will ever stop it.
+      if (!alive.current) {
+        for (const track of opened.getTracks()) {
+          track.stop();
+        }
+
+        return;
+      }
 
       stream.current = opened;
 
@@ -367,6 +389,10 @@ export function ArCamera({
   // Give the camera back when the page goes away or is hidden. A live track on
   // a backgrounded tab is a light left on in a room nobody is in.
   useEffect(() => {
+    // Set here rather than only at declaration, because React's development
+    // double invoke mounts, tears down and mounts again on the same instance.
+    alive.current = true;
+
     const onHide = () => {
       if (document.visibilityState === "hidden") {
         stop();
@@ -377,6 +403,7 @@ export function ArCamera({
     document.addEventListener("visibilitychange", onHide);
 
     return () => {
+      alive.current = false;
       document.removeEventListener("visibilitychange", onHide);
       stop();
     };

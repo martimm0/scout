@@ -167,6 +167,40 @@ test.describe("the pollinator answers questions", () => {
     await expect(answer).toContainText(PLANTS_BY_ID.get("swamp-milkweed")!.commonName);
   });
 
+  test("the placeholder models a question it can actually answer", async ({
+    page,
+  }) => {
+    /**
+     * It used to read "When does milkweed bloom?", which is a refusal for
+     * anybody who has not met a milkweed and a request to disambiguate for
+     * anybody who has met both. A placeholder is the first thing a new player
+     * reads, and one that models a question the box usually cannot answer
+     * teaches exactly the wrong thing.
+     */
+    await openPocket(page);
+
+    const placeholder = await page
+      .getByLabel("Your question")
+      .getAttribute("placeholder");
+
+    expect(placeholder).toBeTruthy();
+
+    // Asked with NOTHING found, which is the state a new player is in.
+    const answer = answerFor({
+      question: placeholder!,
+      found: { plants: {}, fungi: {} },
+      quizPassed: {},
+      unlockedParks: {},
+      unlockedMapAreas: {},
+      pollinator: { type: "bee", name: "Scout" },
+      month: 7,
+      hour: 12,
+    });
+
+    expect(answer.text, `the placeholder asks "${placeholder}"`).not.toBe(REFUSAL);
+    expect(answer.id).not.toBe("ambiguous");
+  });
+
   test("it says out loud how much it can talk about", async ({ page }) => {
     await openPocket(page);
 
@@ -484,6 +518,84 @@ test.describe("the answerer refuses honestly", () => {
 
     expect(answer.id).toBe("park:schenley");
     expect(answer.text).toContain("You have 0");
+  });
+});
+
+test.describe("two WebGL roots on one page", () => {
+  test("the canvases survive going away and coming back", async ({ page }) => {
+    /**
+     * Pocket mounts a second GL root beside the preview's, and this repository
+     * has a history with those: a synchronous unmount disposes the context an
+     * immediate remount reuses, and the result is a transparent rectangle with
+     * a broken image icon and no error anywhere. Client-side navigation is
+     * exactly where it bites, so that is what this drives.
+     */
+    await page.addInitScript(() => {
+      const seen = { created: 0, lost: 0 };
+      (window as unknown as { __gl: typeof seen }).__gl = seen;
+      const original = HTMLCanvasElement.prototype.getContext;
+
+      HTMLCanvasElement.prototype.getContext = function (
+        this: HTMLCanvasElement,
+        ...args: Parameters<typeof original>
+      ) {
+        if (typeof args[0] === "string" && args[0].includes("webgl")) {
+          seen.created += 1;
+          this.addEventListener("webglcontextlost", () => {
+            seen.lost += 1;
+          });
+        }
+
+        return original.apply(this, args);
+      } as typeof original;
+    });
+
+    await signIn(page.context());
+    await page.goto("/pocket");
+    await page.waitForTimeout(2500);
+
+    const measure = () =>
+      page.evaluate(() => ({
+        count: document.querySelectorAll("canvas").length,
+        bytes: [...document.querySelectorAll("canvas")].map(
+          (canvas) => canvas.toDataURL("image/png").length,
+        ),
+        gl: (window as unknown as { __gl: { created: number; lost: number } }).__gl,
+      }));
+
+    const first = await measure();
+
+    for (let trip = 0; trip < 4; trip += 1) {
+      await page.getByRole("button", { name: "More" }).click();
+      await page.getByRole("link", { name: "About" }).click();
+      await page.waitForTimeout(400);
+      await page.getByRole("button", { name: "More" }).click();
+      await page.getByRole("link", { name: "Pocket" }).click();
+      await page.waitForTimeout(1800);
+    }
+
+    const after = await measure();
+
+    expect(after.count, "a canvas went missing").toBe(first.count);
+
+    /**
+     * Contexts must not ACCUMULATE, which is not the same as never being lost.
+     * R3F's unmount calls `forceContextLoss`, so one lost per teardown is the
+     * cleanup working. A leak looks like `created` climbing while `lost` stays
+     * put, until the browser silently drops the oldest at about sixteen.
+     */
+    expect(
+      after.gl.created - after.gl.lost,
+      `${after.gl.created} created, ${after.gl.lost} released, ${after.count} on screen`,
+    ).toBe(after.count);
+
+    // And they are still DRAWING, which is the failure the old bug produced:
+    // a canvas that is present, sized, and empty.
+    for (let i = 0; i < first.bytes.length; i += 1) {
+      expect(after.bytes[i], `canvas ${i} stopped drawing`).toBeGreaterThan(
+        first.bytes[i] * 0.5,
+      );
+    }
   });
 });
 

@@ -521,6 +521,87 @@ const initialProgress = {
   pendingBadges: [] as string[],
 };
 
+/**
+ * Fill the holes a stored save can arrive with.
+ *
+ * zustand's default merge is one level deep, so a persisted
+ * `pollinator: { name: "Half" }` REPLACES the whole default bee rather
+ * than being filled in by it, and the renderer is then handed a species
+ * with no colours. That is not hypothetical: `resetProgress` in the e2e
+ * helpers carries a comment saying an empty pollinator "used to strip the
+ * bee of its colours and crash the renderer", and the workaround was to
+ * post a complete one from the test rather than to fix this. It still
+ * crashes, differently on each page: "Voxel palette is missing an entry"
+ * on anything drawing the model, and a `toLowerCase` of undefined on
+ * Customize. Both white-page the route.
+ *
+ * A save does not have to be hand-edited to get into that state. It
+ * arrives from localStorage, from a cross-device merge, and from a server
+ * payload the client does not control, and any of those can carry a null
+ * where an object is declared or a field that has since been added.
+ *
+ * So the shapes are repaired here, once, rather than defended against at
+ * every read site. Unknown ids inside the records are fine and stay: the
+ * game already survives a save naming a species or a park that is gone.
+ */
+export function repairSave<T extends GameState>(
+  persisted: unknown,
+  current: T,
+): T {
+  const saved = (persisted ?? {}) as Partial<GameState>;
+
+  /**
+   * Falls back to the INITIAL value, not to an empty object.
+   *
+   * Two of these records start with something in them, and one of them
+   * matters. `unlockedMapAreas` holds the lawn outside the Environmental
+   * Center, where the game begins, and defaulting a missing one to `{}`
+   * made the journal call the starting area "Somewhere you haven't been"
+   * for a player standing on it. (`unlockedParks` holds `{ frick: true }`
+   * and losing it turns out to be harmless, because Frick has no
+   * `requires` and `parkUnlocked` short-circuits on that. It falls back
+   * anyway rather than relying on a coincidence in another file.)
+   *
+   * Falling back to `current` is identical for the ten records that do
+   * start empty, so this costs nothing to be right about.
+   */
+  const record = (
+    value: unknown,
+    fallback: BooleanRecord,
+  ): BooleanRecord =>
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as BooleanRecord)
+      : fallback;
+
+  return {
+    ...current,
+    ...saved,
+    // Field by field, so a save missing a colour keeps the default one
+    // rather than losing every colour it did not mention.
+    pollinator: { ...DEFAULT_POLLINATOR, ...(saved.pollinator ?? {}) },
+    discoveredPlants: record(saved.discoveredPlants, current.discoveredPlants),
+    discoveredFungi: record(saved.discoveredFungi, current.discoveredFungi),
+    quizPassed: record(saved.quizPassed, current.quizPassed),
+    seenPhases: record(saved.seenPhases, current.seenPhases),
+    seenSeasons: record(saved.seenSeasons, current.seenSeasons),
+    seenWeather: record(saved.seenWeather, current.seenWeather),
+    winterKnown: record(saved.winterKnown, current.winterKnown),
+    pollinatedPlants: record(saved.pollinatedPlants, current.pollinatedPlants),
+    unlockedMapAreas: record(saved.unlockedMapAreas, current.unlockedMapAreas),
+    unlockedParks: record(saved.unlockedParks, current.unlockedParks),
+    unlockedBadges: record(saved.unlockedBadges, current.unlockedBadges),
+    unlockedJournalEntries: record(saved.unlockedJournalEntries, current.unlockedJournalEntries),
+    seedlings:
+      saved.seedlings && typeof saved.seedlings === "object" && !Array.isArray(saved.seedlings)
+        ? saved.seedlings
+        : current.seedlings,
+    // An array, and the renderer walks it. A null here is a crash.
+    marks: Array.isArray(saved.marks) ? saved.marks : current.marks,
+    stats: { ...current.stats, ...(saved.stats ?? {}) },
+    settings: { ...current.settings, ...(saved.settings ?? {}) },
+  };
+}
+
 export const useGameStore = create<GameStore>()(
   persist(
     (set) => ({
@@ -1032,9 +1113,9 @@ export const useGameStore = create<GameStore>()(
     }),
     {
       name: "scout-game-state",
-      // Progress persists locally. Server autosave is Milestone 14 and out of
-      // scope, but a journal and a badge shelf that empty themselves on every
-      // reload aren't worth building, so they live in localStorage for now.
+      // Progress lives in localStorage first and is pushed to the server by
+      // `cloud-sync.ts` when there is an account to push it to. Local is the
+      // copy that always exists, which is why it is the one the game reads.
       partialize: (state) => ({
         pollinator: state.pollinator,
         discoveredPlants: state.discoveredPlants,
@@ -1058,6 +1139,8 @@ export const useGameStore = create<GameStore>()(
         tutorialSeen: state.tutorialSeen,
       }),
       storage: createJSONStorage(() => localStorage),
+
+      merge: (persisted, current) => repairSave(persisted, current),
     },
   ),
 );

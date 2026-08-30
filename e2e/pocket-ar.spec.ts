@@ -152,6 +152,111 @@ test.describe("the camera makes a real photograph", () => {
   });
 });
 
+test.describe("the copy promises only what the device can do", () => {
+  test("pinch is offered to fingers and not to a mouse", async ({ page }) => {
+    /**
+     * The pinch handler wants two touches, so a laptop cannot do it however
+     * hard it tries. This project has shipped that mistake once already, in
+     * "press and hold the photo to keep it", and the answer is the same:
+     * gate the sentence on the pointer rather than write it for a phone and
+     * hope. One test, both ways, so neither branch can rot unseen.
+     */
+    await signIn(page.context());
+    await page.goto("/pocket");
+    await page.waitForTimeout(1200);
+
+    const lead = page.getByText("Point the camera at something");
+    await expect(lead).toBeVisible();
+
+    const coarse = await page.evaluate(
+      () => window.matchMedia("(pointer: coarse)").matches,
+    );
+
+    if (coarse) {
+      await expect(lead).toContainText("pinch");
+    } else {
+      await expect(lead).not.toContainText("pinch");
+    }
+  });
+
+  test("a refused camera does not blame a phone somebody may not have", async ({
+    page,
+  }) => {
+    // The refusal shows on a laptop too, where "your phone's settings" is
+    // advice about a device that is not in the room.
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator.mediaDevices, "getUserMedia", {
+        configurable: true,
+        value: () =>
+          Promise.reject(
+            Object.assign(new Error("denied"), { name: "NotAllowedError" }),
+          ),
+      });
+    });
+
+    await page.goto("/pocket");
+    await page.getByRole("button", { name: "Turn the camera on" }).click();
+
+    const said = page.getByRole("main");
+    await expect(said).toContainText("The camera is off for this page.");
+    await expect(said).not.toContainText("phone's settings");
+  });
+});
+
+test.describe("the camera is given back", () => {
+  test("leaving while the prompt is still open does not keep it on", async ({
+    page,
+  }) => {
+    /**
+     * `getUserMedia` is a promise and the thing it waits on is a permission
+     * prompt, which is seconds rather than milliseconds the first time. Leave
+     * the page inside that window and the teardown has already run and found
+     * nothing to stop, and then the promise resolves into a component that no
+     * longer exists, holding a live camera nobody has a reference to. The
+     * indicator light stays on until the tab is closed.
+     *
+     * The delay below is standing in for the prompt. The navigation is
+     * client side on purpose: `window` survives it, so the tracks handed out
+     * before the move can still be inspected after it.
+     */
+    await page.addInitScript(() => {
+      const held: MediaStreamTrack[] = [];
+      (window as unknown as { __tracks: MediaStreamTrack[] }).__tracks = held;
+
+      const real = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+
+      navigator.mediaDevices.getUserMedia = async (constraints) => {
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        const stream = await real(constraints);
+        held.push(...stream.getTracks());
+        return stream;
+      };
+    });
+
+    await signIn(page.context());
+    await page.goto("/pocket");
+    await page.waitForTimeout(2000);
+
+    await page.getByRole("button", { name: "Turn the camera on" }).click();
+    // Away well before the fake prompt resolves.
+    await page.waitForTimeout(200);
+    await page.getByRole("button", { name: "More" }).click();
+    await page.getByRole("link", { name: "About" }).click();
+
+    // Long enough for the stream to arrive somewhere it should not be kept.
+    await page.waitForTimeout(2500);
+
+    const states = await page.evaluate(() =>
+      (window as unknown as { __tracks: MediaStreamTrack[] }).__tracks.map(
+        (track) => track.readyState,
+      ),
+    );
+
+    expect(states.length, "the camera was never opened, so this proves nothing").toBeGreaterThan(0);
+    expect(states.every((state) => state === "ended"), `tracks left: ${states.join(", ")}`).toBe(true);
+  });
+});
+
 test.describe("when there is no camera to be had", () => {
   test("a refusal is explained, not swallowed", async ({ page }) => {
     /**

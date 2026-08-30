@@ -853,10 +853,22 @@ going to look at this one full screen. It leaves through the share sheet first
 (the only reliable route to an iPhone camera roll) and a blob-URL download
 second, with the image on screen either way so no path is a dead end.
 
-Press and hold is a touch gesture, so the hint under the photo is gated on
-`useCoarsePointer()`. A laptop is told where the file went instead. Copy that is
-true on one device and false on another is still false copy, which this project
-has been bitten by before.
+**Copy that is true on one device and false on another is still false copy**,
+and this surface has produced three of them, so it is worth stating as a rule
+rather than as three fixes.
+
+- Press and hold is a touch gesture, so the hint under a photo is gated on
+  `useCoarsePointer()`. A laptop is told where the file went instead.
+- Pinch needs two touches, so "drag to turn it, pinch to change its size" is
+  gated the same way. A mouse cannot pinch however hard it tries.
+- The refused-camera line said "your phone's settings", which is advice about a
+  device that is not in the room when the refusal happens on a laptop. It says
+  "your browser's settings" now, which is true everywhere.
+
+The gesture hint is tested in both directions in one test, branching on
+`matchMedia("(pointer: coarse)")`, so neither half can rot unseen: the desktop
+projects assert the sentence does NOT offer pinch and the touch projects assert
+it does.
 
 ### Giving the camera back
 
@@ -865,6 +877,40 @@ backgrounded track outright while the video element keeps showing its last frame
 which looks exactly like a working camera pointed at a photograph, so
 `track.onended` drops the state back to a button rather than leaving that in
 place.
+
+**Stopping on unmount is not enough on its own**, and this is the subtle one.
+`getUserMedia` is a promise, and the thing it waits on is a permission prompt,
+which is seconds rather than milliseconds the first time somebody visits. Leave
+the page inside that window and the ordering is: teardown runs, finds
+`stream.current` still null, stops nothing; then the promise resolves into a
+component that no longer exists and hands it a live camera nothing holds a
+reference to. The indicator light stays on until the tab is closed. So there is
+an `alive` ref, set false by the teardown and checked after the await, and a
+stream that arrives late is stopped immediately instead of stored. The ref is set
+true in the effect body rather than only at declaration, because React's
+development double invoke mounts, tears down and mounts again on one instance.
+
+`pocket-ar.spec.ts` drives it by wrapping `getUserMedia` in a delay that stands
+in for the prompt, clicking the button, navigating away client side before it
+resolves, and then reading `readyState` off the tracks that were handed out.
+Client-side navigation on purpose: `window` survives it, so the tracks are still
+inspectable afterwards. Without the guard they read `live`.
+
+### Two GL roots on one page
+
+Signed in, Pocket mounts the preview's root and the camera's root at once. That
+is fine (browsers allow around sixteen contexts) but it doubles the exposure to
+the teardown bug this repository already has a history with, so there is a test
+that drives client-side navigation away from Pocket and back four times and then
+checks three things: the canvases are still there, they are still **drawing**,
+and contexts are not accumulating.
+
+The last one is worth stating precisely, because the obvious assertion is wrong.
+Contexts being lost is not a leak: R3F's unmount calls `forceContextLoss`, so one
+lost per teardown is the cleanup working, and asserting `lost === 0` fails on
+healthy code. A leak looks like `created` climbing while `lost` stays put, until
+the browser silently drops the oldest one. So the assertion is
+`created - lost === the number of canvases on screen`.
 
 ### Testing a camera on a machine that has none
 

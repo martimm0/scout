@@ -441,6 +441,64 @@ Not normalised into tables on purpose. A schema of `players`,
 nothing: we never query across players, and we always read and write the whole
 document at once.
 
+### A stored save is not a trusted object
+
+It comes back from localStorage, through the cross-device merge, and out of a
+`/api/progress` payload the client does not control. Any of those can hand over a
+null where an object is declared, or a bee missing most of its fields.
+
+zustand's default merge is **one level deep**, so a persisted
+`pollinator: { name: "Half" }` replaced the whole default bee rather than being
+filled in by it, and the renderer got a species with no colours. That was already
+known and worked around rather than fixed: `resetProgress` in the e2e helpers
+carries a comment saying an empty pollinator "used to strip the bee of its
+colours and crash the renderer", and its answer was to post a complete one from
+the test. The real app still crashed, differently on each page ("Voxel palette is
+missing an entry" on anything drawing the model, a `toLowerCase` of undefined on
+Customize), and both crashes white-paged the route: the same "world fine, page
+white" shape as the removed-park bug.
+
+The store now supplies a `merge` that repairs shapes once, on the way in, rather
+than being defended against at every read site. The bee is filled field by field
+from `DEFAULT_POLLINATOR`, and a record or array of the wrong shape falls back to
+**the value the game starts with**. Unknown IDs **inside** those records are left
+alone, because a save naming a species or a park that is gone is a separate thing
+the game already survives.
+
+That fallback is "the initial value", not "empty", and the difference is a bug
+this made and then had to fix. Two of the records do not start empty:
+`unlockedMapAreas` holds the lawn outside the Environmental Center, where the
+game begins, and `unlockedParks` holds `{ frick: true }`. Defaulting a missing
+one to `{}` meant a save that had simply never written that key came back with
+the starting area forgotten, and the journal called it "Somewhere you haven't
+been" to somebody standing on it. (Losing `unlockedParks` turned out to be
+harmless, because Frick has no `requires` and `parkUnlocked` short-circuits on
+that, but it falls back anyway rather than resting on a coincidence in another
+file.)
+
+This is the mirror of a fix the cloud path already had. `mergeInto` in
+`cloud-sync.ts` spreads the remote bee over the local one rather than replacing
+it, and its comment names the same crash: "an empty object is truthy, so a
+partial or empty row on the server replaced the whole bee, the palette lost its
+colours, and the voxel builder threw". The server route was hardened; the
+localStorage route was not, so the same malformed save crashed depending only on
+which way it arrived. Both doors are shut now.
+
+The repair is exported as `repairSave(persisted, current)` rather than living
+inline in the persist config, so a test can call the real thing. That matters
+here: the first attempt to test it drove a page and asserted on localStorage,
+which is not rewritten unless something changes state, so it passed against the
+bug. Every seeded save in the suite happens to write both records, which is why
+nothing caught this in the first place; the test deliberately omits one.
+
+`world/answers.ts` normalises the same records again at its own entry points. That
+is not belt and braces: it is a pure module that takes plain values, and a caller
+is free to hand it something the store never saw.
+
+`pages.spec.ts` drives Customize, Pocket and the Journal with a save carrying a
+half-written bee, a null record, a null array and two ids for things that no
+longer exist, and asserts nothing throws and the page still has its heading.
+
 ### Merging
 
 Progress is **monotonic**: you never un-discover a plant, so the merge is a union.
@@ -708,6 +766,15 @@ so "what visits turkey tail" was answered with a paragraph about lignin, which
 is answering a different question well. Fungi do get visitors and the data does
 not record which, so that is a gap and it says so. Asked about generally, `fact`
 still carries the roleNote.
+
+The ask box's placeholder is held to the same standard as an answer. It read
+"When does milkweed bloom?", which is a refusal for anybody who has not met a
+milkweed and a request to disambiguate for anybody who has met both: a
+placeholder is the first thing a new player reads, and one modelling a question
+the box usually cannot answer teaches the wrong thing. It asks about a concept
+now, because concepts are never gated and so it works from the first second of a
+new save. There is a test that feeds the real placeholder to the real answerer
+with an empty save and fails if it comes back refused or ambiguous.
 
 Every refusal is the same line, `REFUSAL`, and nothing is appended to it. That
 only works as a design if the boundary is visible, so the page prints what it

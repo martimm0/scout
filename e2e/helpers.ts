@@ -231,7 +231,9 @@ export async function resetProgress(page: Page) {
   await page.request.post("/api/progress", {
     data: {
       // NOT an empty object. The pollinator is merged, and an empty one used to
-      // strip the bee of its colours and crash the renderer.
+      // strip the bee of its colours and crash the renderer. The store repairs
+      // that shape on the way in now, so this is belt and braces rather than
+      // the only thing standing between a test and a white page.
       pollinator: {
         name: "Scout",
         type: "bee",
