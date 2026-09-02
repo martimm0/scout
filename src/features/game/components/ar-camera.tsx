@@ -7,7 +7,7 @@ import type { Group, Mesh } from "three";
 
 import { Button } from "@/components/ui/button";
 
-import { useCoarsePointer } from "../hooks/use-media-query";
+import { useCoarsePointer, useReducedMotion } from "../hooks/use-media-query";
 import type { Pollinator } from "../state/game-store";
 import { PollinatorModel } from "./pollinator-model";
 import styles from "./ar-camera.module.css";
@@ -133,10 +133,12 @@ function ArScene({
   badge,
   gesture,
   pollinator,
+  still,
 }: {
   badge: boolean;
   gesture: { current: Gesture };
   pollinator: Pollinator;
+  still: boolean;
 }) {
   const anchor = useRef<Group>(null);
   const spin = useRef<Group>(null);
@@ -151,7 +153,9 @@ function ArScene({
     }
 
     if (anchor.current) {
-      anchor.current.position.y = Math.sin(elapsed * 1.8) * 0.05;
+      // Asked for less movement: it holds still and keeps the calmer wingbeat
+      // below, rather than bobbing on the spot forever.
+      anchor.current.position.y = still ? 0 : Math.sin(elapsed * 1.8) * 0.05;
       // Times the base, not instead of it. Setting the scalar outright quietly
       // threw away the `scale` on the group below and the bee came out at two
       // thirds the size it was authored at, next to a badge sized for the
@@ -171,7 +175,11 @@ function ArScene({
       <hemisphereLight args={["#ffffff", "#8fa07d", 1.1]} />
       <group ref={anchor}>
         <group ref={spin}>
-          <PollinatorModel animationState="hovering" pollinator={pollinator} />
+          <PollinatorModel
+            animationState="hovering"
+            pollinator={pollinator}
+            still={still}
+          />
         </group>
         {badge ? <Badge /> : null}
       </group>
@@ -218,6 +226,7 @@ export function ArCamera({
   // a small false claim in player-facing copy, which is a thing this project has
   // been bitten by before.
   const touch = useCoarsePointer();
+  const still = useReducedMotion();
   const [state, setState] = useState<CameraState>("idle");
   const [shot, setShot] = useState<string | null>(null);
   const [saying, setSaying] = useState<string | null>(null);
@@ -310,7 +319,7 @@ export function ArCamera({
   // The GL root. Created once, torn down late. See the note at the top.
   const rootRef = useRef<ReturnType<typeof createRoot> | null>(null);
   const disposeTimer = useRef<number | null>(null);
-  const props = useRef({ badge, pollinator });
+  const props = useRef({ badge, pollinator, still });
 
   useLayoutEffect(() => {
     const element = canvas.current;
@@ -352,6 +361,7 @@ export function ArCamera({
             badge={props.current.badge}
             gesture={gesture}
             pollinator={props.current.pollinator}
+            still={props.current.still}
           />,
         );
       }
@@ -380,11 +390,11 @@ export function ArCamera({
   // Something changed. Re-render it into the root that already exists, and keep
   // the ref fresh so a resize re-configure does not reach for a stale bee.
   useEffect(() => {
-    props.current = { badge, pollinator };
+    props.current = { badge, pollinator, still };
     rootRef.current?.render(
-      <ArScene badge={badge} gesture={gesture} pollinator={pollinator} />,
+      <ArScene badge={badge} gesture={gesture} pollinator={pollinator} still={still} />,
     );
-  }, [badge, pollinator]);
+  }, [badge, pollinator, still]);
 
   // Give the camera back when the page goes away or is hidden. A live track on
   // a backgrounded tab is a light left on in a room nobody is in.

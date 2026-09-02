@@ -5,6 +5,7 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
 import type { Group } from "three";
 
+import { useReducedMotion } from "../hooks/use-media-query";
 import { DEFAULT_POLLINATOR, type Pollinator } from "../state/game-store";
 import { PollinatorModel } from "./pollinator-model";
 import { PollinatorTrail } from "./pollinator-trail";
@@ -34,7 +35,13 @@ import styles from "./pollinator-preview.module.css";
  */
 extend(THREE as unknown as Parameters<typeof extend>[0]);
 
-function PreviewScene({ pollinator }: { pollinator: Pollinator }) {
+function PreviewScene({
+  pollinator,
+  still,
+}: {
+  pollinator: Pollinator;
+  still: boolean;
+}) {
   const pollinatorRef = useRef<Group>(null);
 
   useFrame(({ camera, clock }) => {
@@ -47,8 +54,12 @@ function PreviewScene({ pollinator }: { pollinator: Pollinator }) {
     const elapsed = clock.getElapsedTime();
     // The models face -Z (the flight loop's forward vector) and the preview
     // camera sits on +Z, so turn it around to show its face rather than its back.
-    pollinatorGroup.rotation.y = Math.PI - 0.34 + Math.sin(elapsed * 0.55) * 0.12;
-    pollinatorGroup.position.y = Math.sin(elapsed * 1.8) * 0.045;
+    // Asked for less movement: it holds that angle instead of turning and
+    // bobbing forever. The trail keeps running, because a trail is the thing
+    // this box exists to show you.
+    pollinatorGroup.rotation.y =
+      Math.PI - 0.34 + (still ? 0 : Math.sin(elapsed * 0.55) * 0.12);
+    pollinatorGroup.position.y = still ? 0 : Math.sin(elapsed * 1.8) * 0.045;
     camera.position.set(0.7, 0.36, 3.55);
     camera.lookAt(0, 0.04, 0);
   });
@@ -60,7 +71,11 @@ function PreviewScene({ pollinator }: { pollinator: Pollinator }) {
       <directionalLight intensity={2.5} position={[-2, 3, -4]} />
       <hemisphereLight args={["#f2fbff", "#f1d68e", 1.2]} />
       <group ref={pollinatorRef} scale={1.45}>
-        <PollinatorModel animationState="hovering" pollinator={pollinator} />
+        <PollinatorModel
+          animationState="hovering"
+          pollinator={pollinator}
+          still={still}
+        />
       </group>
       {/* Everything you change shows up here, the trail included. The motes are
           scaled to the blown-up preview model. */}
@@ -75,11 +90,13 @@ function PreviewScene({ pollinator }: { pollinator: Pollinator }) {
 }
 
 export function PollinatorPreview({ pollinator }: { pollinator: Pollinator }) {
+  const still = useReducedMotion();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rootRef = useRef<ReturnType<typeof createRoot> | null>(null);
   // Read by `configure`, which is async: by the time it renders, the pollinator
   // may already have changed.
   const pollinatorRef = useRef(pollinator);
+  const stillRef = useRef(still);
 
   /**
    * Create the GL root ONCE, and push changes into it.
@@ -148,7 +165,9 @@ export function PollinatorPreview({ pollinator }: { pollinator: Pollinator }) {
       });
 
       if (mounted) {
-        root.render(<PreviewScene pollinator={pollinatorRef.current} />);
+        root.render(
+          <PreviewScene pollinator={pollinatorRef.current} still={stillRef.current} />,
+        );
       }
     };
 
@@ -178,8 +197,11 @@ export function PollinatorPreview({ pollinator }: { pollinator: Pollinator }) {
   // reconciles, and the context is never touched.
   useEffect(() => {
     pollinatorRef.current = pollinator;
-    rootRef.current?.render(<PreviewScene pollinator={pollinator} />);
-  }, [pollinator]);
+    stillRef.current = still;
+    rootRef.current?.render(
+      <PreviewScene pollinator={pollinator} still={still} />,
+    );
+  }, [pollinator, still]);
 
   return <canvas className={styles.canvas} ref={canvasRef} />;
 }

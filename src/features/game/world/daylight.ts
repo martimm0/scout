@@ -247,12 +247,40 @@ export function describeWindow(window: TimeWindow) {
   return window.note;
 }
 
+/**
+ * The month names, fixed, because the browser's were not.
+ *
+ * This used to ask `Intl` for `month: "short"` in en-GB, and every engine
+ * agreed on eleven of the twelve. Node and Chromium spell September "Sept";
+ * WebKit spells it "Sep". The stats panel renders this string on the server
+ * and again on the client, so in September on Safari the two never matched,
+ * React threw a hydration error, and the dev overlay covered the park. It is
+ * also the seed for the fact of the day, which meant the same player got a
+ * different fact on a phone and a laptop for one month of the year.
+ *
+ * The table is Node's en-GB output, letter for letter, so nothing that already
+ * rendered correctly changes. `Intl` still does the part it is good at: which
+ * day it is in Pittsburgh.
+ */
+const MONTH_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sept", "Oct", "Nov", "Dec",
+];
+
+const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
 /** "Mon 14 Jul". The date in Pittsburgh, which is not always the player's date. */
 export function pittsburghDate(now = new Date()): string {
-  return new Intl.DateTimeFormat("en-GB", {
+  const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York",
     weekday: "short",
     day: "numeric",
-    month: "short",
-  }).format(now);
+    month: "numeric",
+  }).formatToParts(now);
+
+  const read = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  const weekday = WEEKDAY_SHORT.indexOf(read("weekday"));
+  const month = Number(read("month")) - 1;
+
+  return `${WEEKDAY_SHORT[weekday] ?? read("weekday")} ${read("day")} ${MONTH_SHORT[month] ?? ""}`.trim();
 }

@@ -780,6 +780,22 @@ Every refusal is the same line, `REFUSAL`, and nothing is appended to it. That
 only works as a design if the boundary is visible, so the page prints what it
 knows underneath the box: "It knows 14 flowers, 3 fungi and 2 parks so far."
 
+### The date is spelled by hand
+
+`pittsburghDate()` used to ask `Intl` for `month: "short"` in en-GB, and every
+engine agreed on eleven of the twelve months. Node and Chromium spell September
+"Sept"; WebKit spells it "Sep". The stats panel renders that string on the
+server and again on the client, so in September on Safari the two never
+matched, React threw a hydration error, and the dev overlay covered the park.
+The suite found it on 1 September and not a day before: it was a deterministic
+failure that only exists for one month a year on one engine.
+
+The same string seeds the fact of the day, which meant the same player got a
+different fact on a phone and a laptop for that month. The month and weekday
+names are a fixed table now, letter for letter what Node produced, so nothing
+that already rendered correctly changed. `Intl` still does the part it is
+reliable at, which is working out what day it is in Pittsburgh.
+
 ### The fact of the day
 
 `factOfTheDay` indexes a sorted pool of everything unlocked, seeded with

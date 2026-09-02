@@ -521,6 +521,55 @@ test.describe("the answerer refuses honestly", () => {
   });
 });
 
+test.describe("a reader who asked for less movement gets less", () => {
+  test("the bee holds still instead of hovering forever", async ({ page }) => {
+    /**
+     * The site honours this in CSS in five places and in JavaScript once, where
+     * the home gallery stops advancing itself. A pollinator bobbing and turning
+     * in a box is the same kind of thing: continuous, unprompted, and nothing
+     * anybody asked to start.
+     *
+     * Asserted on the PIXELS rather than on a class or a prop, because the
+     * question is whether the picture actually stopped moving. Two frames a
+     * second apart should be identical when the motion is off, and are not when
+     * it is on.
+     */
+    const frames = async () => {
+      await page.waitForTimeout(2000);
+
+      return page.evaluate(async () => {
+        const canvas = document.querySelector("canvas")!;
+        const shot = () => canvas.toDataURL("image/png");
+        const first = shot();
+        await new Promise((resolve) => setTimeout(resolve, 900));
+        return { first, second: shot() };
+      });
+    };
+
+    await signIn(page.context());
+
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/pocket");
+    const still = await frames();
+
+    expect(
+      still.first === still.second,
+      "the bee kept moving after a reduced-motion request",
+    ).toBe(true);
+
+    // And the same page, asked for normally, does move. Without this the test
+    // would pass just as well against a canvas that had stopped drawing.
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.goto("/pocket");
+    const moving = await frames();
+
+    expect(
+      moving.first === moving.second,
+      "nothing moved even without a reduced-motion request, so this proves nothing",
+    ).toBe(false);
+  });
+});
+
 test.describe("two WebGL roots on one page", () => {
   test("the canvases survive going away and coming back", async ({ page }) => {
     /**

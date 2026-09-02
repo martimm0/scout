@@ -59,6 +59,18 @@ export function coarsePointerNow(): boolean {
  * A phone held upright: coarse, portrait, and small. The size test keeps tablets
  * out of it, since a portrait tablet is a perfectly good way to play.
  */
+/**
+ * Whether the reader has asked for less movement.
+ *
+ * The site already honours this in CSS in five places and in JavaScript once,
+ * where the home gallery stops advancing itself. A pollinator hovering in a box
+ * is the same kind of thing: continuous, unprompted, and nothing anybody asked
+ * to start.
+ */
+export function useReducedMotion(): boolean {
+  return useMediaQuery("(prefers-reduced-motion: reduce)");
+}
+
 export function usePortraitPhone(): boolean {
   return useMediaQuery(
     "(pointer: coarse) and (orientation: portrait) and (max-width: 560px)",

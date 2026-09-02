@@ -6,7 +6,9 @@ parks of Pittsburgh.
 **Play it: [scout-game.3sb.io](https://scout-game.3sb.io)**
 
 Players choose and customize one pollinator, fly through the map, discover native
-plants, pollinate them, learn ecology facts, fill a journal, and earn badges.
+plants, pollinate them, learn ecology facts, fill a journal, and earn badges. Out
+of the park, the same pollinator answers questions about what you have found and
+will stand in your kitchen through the phone camera.
 
 It plays by keyboard and mouse on a desktop, and by two thumbs on a phone or a
 tablet: same park, same save, same rules, a different pair of hands.
@@ -27,6 +29,9 @@ tablet: same park, same save, same rules, a different pair of hands.
   co-op pollination and four games to play with the people you are with
 - Autosave progress
 - Journal, badges, and a sourced layer of connections between the species
+- Pocket: a fact a day about something you actually found, a companion that
+  answers questions out of the game's own data rather than a model, and an AR
+  camera that puts your pollinator in the room you are in
 - 10-minute offline mode with no saved progress
 
 ## Long-Term Vision

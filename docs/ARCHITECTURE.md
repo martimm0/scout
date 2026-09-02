@@ -800,6 +800,39 @@ nothing, so every `authConfigured === false` branch in `sign-in.tsx`,
 is that Playwright's `webServer` is global rather than per-project, so covering
 it needs a second config file with its own environment.
 
+### Holding still
+
+`globals.css` says it plainly: "Respect the system setting everywhere, not only
+where a component happens to remember to. Vestibular disorders are not an edge
+case." A pollinator bobbing, turning and beating its wings in a box is exactly
+that kind of movement, and both surfaces on this page were doing it regardless.
+
+`PollinatorModel` takes a `still` prop now, defaulting false. It is deliberately
+**not** a new `PollinatorAnimationState`: the flight loop must never reach it,
+because your own bee freezing its wings mid-air while you steer it would be a
+bug rather than an accessibility win. Only the preview and the viewfinder set
+it, where the model is a picture of a bee rather than one you are flying. The
+wings keep their amplitude and lose their speed, so they sit open where they
+were instead of snapping shut into something that reads as dead.
+
+Two findings from making it true rather than approximately true, both worth
+keeping:
+
+- **The antennae were the thing that kept moving.** They wave off the clock
+  (`Math.sin(elapsed * 5.5)`) rather than off the wing phase, so they carried on
+  after the wings, the bob and the turn had all been stopped. Reverting just
+  that line fails the test; reverting the tuning snap below does not.
+- **`approach` is exponential, so a speed heading for zero never arrives.** The
+  wing phase went on creeping and the pose went on drifting by a hair a frame.
+  The tuning is snapped to the held pose rather than eased toward it, which
+  makes "still" exact. That one is correctness rather than the thing the test
+  catches, and the comment says so.
+
+The test asserts the **pixels**: two frames a second apart, identical with the
+preference set. It then reloads without the preference and asserts they differ,
+because otherwise it would pass just as happily against a canvas that had
+stopped drawing entirely.
+
 ### Camera passthrough, not WebXR
 
 WebXR AR does not exist in iOS Safari, and an AR feature that does not work on an

@@ -35,6 +35,26 @@ type Tuning = {
   legTuck: number;
 };
 
+/**
+ * Held still, for a reader who asked for less movement.
+ *
+ * Not an animation state, because the flight loop must never reach it: your own
+ * bee freezing its wings mid-air while you fly it would be a bug, not an
+ * accessibility win. It is a prop the preview and the viewfinder set, where the
+ * model is a picture of a bee rather than one you are steering.
+ *
+ * The wings keep an amplitude and lose their speed, so they sit open where they
+ * would be rather than snapping shut into something that reads as dead.
+ */
+const HELD_STILL: Tuning = {
+  wingSpeed: 0,
+  wingAmplitude: 0.3,
+  pitch: 0,
+  bobSpeed: 0,
+  bobAmount: 0,
+  legTuck: 0,
+};
+
 const TUNING: Record<PollinatorAnimationState, Tuning> = {
   idle: {
     wingSpeed: 9,
@@ -135,6 +155,7 @@ export type Gesture = "none" | "greet" | "dance" | "celebrate";
  */
 export function PollinatorModel({
   animationState = "hovering",
+  still = false,
   chill = 0,
   gestureRef,
   hasPollen = false,
@@ -142,6 +163,8 @@ export function PollinatorModel({
   showRaincoat = false,
 }: {
   animationState?: PollinatorAnimationState;
+  /** Hold the pose: no wingbeat, no bob. See `HELD_STILL`. */
+  still?: boolean;
   /**
    * How cold it is, 0 warm to 1 freezing. A bee cannot fly its muscles warm, so
    * in the cold it shivers to warm them (which real bees genuinely do) and its
@@ -237,7 +260,7 @@ export function PollinatorModel({
 
   useFrame(({ clock }, delta) => {
     const elapsed = clock.getElapsedTime();
-    const target = TUNING[animationState];
+    const target = still ? HELD_STILL : TUNING[animationState];
     const current = tuning.current;
 
     const gesture = gestureRef?.current;
@@ -273,9 +296,23 @@ export function PollinatorModel({
     );
     current.legTuck = approach(current.legTuck, target.legTuck, step, 7);
 
+    /**
+     * Snapped, not approached, and the difference is the whole point.
+     *
+     * `approach` is exponential, so a speed heading for zero never gets there:
+     * the wing phase went on creeping and the pose went on drifting by a hair a
+     * frame, which is still movement to somebody who asked for none. Held still
+     * has to mean stopped.
+     */
+    if (still) {
+      Object.assign(current, HELD_STILL);
+    }
+
     // Integrate the phase rather than sampling the clock, so a change in wing
     // speed doesn't teleport the wings to a new position mid-beat.
-    wingPhase.current += current.wingSpeed * step;
+    if (!still) {
+      wingPhase.current += current.wingSpeed * step;
+    }
 
     const beat = Math.sin(wingPhase.current);
     const bob = Math.sin(elapsed * current.bobSpeed) * current.bobAmount;
@@ -366,7 +403,10 @@ export function PollinatorModel({
 
     if (antennaeRef.current) {
       // Swept forward off the brow. Vertical antennae read as ears.
-      antennaeRef.current.rotation.x = -0.55 + Math.sin(elapsed * 5.5) * 0.12;
+      // The antennae wave off the clock rather than off the wing phase, so they
+      // are the one thing that kept moving after everything else had stopped.
+      antennaeRef.current.rotation.x =
+        -0.55 + (still ? 0 : Math.sin(elapsed * 5.5) * 0.12);
     }
 
     if (legsRef.current) {

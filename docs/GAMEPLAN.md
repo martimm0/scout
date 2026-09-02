@@ -323,6 +323,8 @@ Everything above is built and playable. As of the last update:
 - 44 badges, 10 accessories, 6 of them earned
 - 4 bodies to fly: bee, hoverfly, butterfly, moth
 - Played by keyboard and mouse, or by two thumbs on a phone or a tablet
+- Pocket: one true thing a day, a companion answering out of that same data and
+  nothing else, and a camera that stands your pollinator in the room you are in
 - Tests across Chromium, Firefox, WebKit, and a phone and a tablet
 
 ## Garden parties
