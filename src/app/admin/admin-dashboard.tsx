@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { pittsburghCalendarDate } from "@/features/game/world/daylight";
+
 import type { Account, Analytics, WaitlistEntry } from "@/lib/accounts";
 import type { Insights } from "@/lib/insights";
 
@@ -32,12 +34,17 @@ type Body =
   | { action: "resetProgress"; userId: string }
   | { action: "removeWaitlist"; email: string };
 
+/**
+ * Spelled by hand, not by the browser.
+ *
+ * This was `toLocaleDateString("en-GB", { month: "short" })`, and every engine
+ * agrees on eleven of the twelve months: Node and Chromium write "Sept", WebKit
+ * writes "Sep". These rows arrive server rendered and hydrate on the client, so
+ * on Safari in September the two never matched and React threw. The park's
+ * stats panel had the identical bug the same week; this is the second door.
+ */
 function when(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return pittsburghCalendarDate(iso);
 }
 
 export function AdminDashboard({

@@ -262,12 +262,35 @@ export function describeWindow(window: TimeWindow) {
  * rendered correctly changes. `Intl` still does the part it is good at: which
  * day it is in Pittsburgh.
  */
-const MONTH_SHORT = [
+export const MONTH_SHORT = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sept", "Oct", "Nov", "Dec",
 ];
 
 const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/**
+ * "14 Jul 2026". A calendar date in Pittsburgh, spelled by hand.
+ *
+ * For the admin table, whose rows arrive server rendered and hydrate on the
+ * client, which is exactly where the browser's own spelling of September broke
+ * the park's stats panel. Same table, same reason, and pinned to the same zone
+ * so the day cannot disagree either: `toLocaleDateString` with no zone uses
+ * whatever the machine is set to, and the server's machine is not in
+ * Pittsburgh.
+ */
+export function pittsburghCalendarDate(iso: string | Date): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    day: "numeric",
+    month: "numeric",
+    year: "numeric",
+  }).formatToParts(new Date(iso));
+
+  const read = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+
+  return `${read("day")} ${MONTH_SHORT[Number(read("month")) - 1] ?? ""} ${read("year")}`.trim();
+}
 
 /** "Mon 14 Jul". The date in Pittsburgh, which is not always the player's date. */
 export function pittsburghDate(now = new Date()): string {

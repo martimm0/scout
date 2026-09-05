@@ -796,6 +796,24 @@ names are a fixed table now, letter for letter what Node produced, so nothing
 that already rendered correctly changed. `Intl` still does the part it is
 reliable at, which is working out what day it is in Pittsburgh.
 
+**It was two doors, not one.** The admin table's created and last seen columns
+used `toLocaleDateString("en-GB", { month: "short" })`, and its rows arrive
+server rendered and hydrate on the client, so it had the identical failure on
+`/admin`. Nothing in the suite asserted console errors on that page, so it was
+found by sweeping the codebase for every place a date is spelled rather than by
+a test. It goes through `pittsburghCalendarDate` now, which uses the same table
+and additionally pins the zone: `toLocaleDateString` with no zone uses whatever
+the machine is set to, and the server's machine is not in Pittsburgh, so the
+day itself could have disagreed across midnight as well as the month name.
+
+The first attempt at reproducing it passed against the bug, and the reason is
+recorded in the test: with an empty accounts table no date is formatted, so the
+page hydrates cleanly whatever the engine does. The test registers a row first.
+
+The rule that falls out: **never let the browser spell a date in anything that
+renders on the server.** `season.ts` is the only other `Intl` caller and it asks
+only for numbers, which every engine agrees on.
+
 ### The fact of the day
 
 `factOfTheDay` indexes a sorted pool of everything unlocked, seeded with

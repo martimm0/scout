@@ -330,6 +330,45 @@ test.describe("the numbers the admin reads", () => {
   });
 });
 
+test.describe("the admin table hydrates on every engine", () => {
+  test("a dated row renders the same on the server and in the browser", async ({
+    page,
+  }) => {
+    /**
+     * The rows arrive server rendered and hydrate on the client, and the
+     * created and last seen columns used to be spelled by the browser. Every
+     * engine agrees on eleven of the twelve months: Node and Chromium write
+     * "Sept", WebKit writes "Sep", so on Safari in September the server's
+     * HTML never matched the client's and React threw a hydration error. The
+     * park's stats panel had the identical bug the same week.
+     *
+     * It needs a ROW to show: with an empty table no date is formatted and
+     * the page hydrates cleanly whatever the engine does, which is how a first
+     * attempt at this test passed against the bug.
+     */
+    const registered = await registerAccount("hydration-row", "hydration-row@example.com");
+    test.skip(!registered, "no database, so no row and no date to render");
+
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("console", (message) => {
+      if (message.type() === "error") errors.push(message.text());
+    });
+
+    await signIn(page.context(), "the-admin", ADMIN);
+    await page.goto("/admin");
+    await page.waitForTimeout(2000);
+
+    expect(
+      await page.locator("tbody tr").count(),
+      "no row rendered, so no date was formatted and this proves nothing",
+    ).toBeGreaterThan(0);
+
+    const hydration = errors.filter((text) => /hydrat/i.test(text));
+    expect(hydration, hydration.join("\n").slice(0, 300)).toEqual([]);
+  });
+});
+
 test.describe("the admin table tells the truth about itself", () => {
   test("a refused username snaps back to what is actually stored", async ({
     browser,
