@@ -73,7 +73,7 @@ export function mergeInto(
    * `{ ...a, ...b }` is the obvious way to write this and it is not a union, it is
    * "b wins". Every key in these records is only ever set to true by the game, so
    * the two behave identically in practice, which is what makes the difference easy
-   * to miss. But `/api/progress` stores whatever JSON it is handed, so a row
+   * to miss. But `/api/progress` stores any object it is handed under its size ceiling, so a row
    * carrying `{ trillium: false }` would have overwritten a trillium this player
    * had genuinely found, and the whole point of the merge is that progress only
    * ever goes up. ORing makes the property the comment below claims actually true

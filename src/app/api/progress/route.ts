@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
 import { cloudSaveConfigured } from "@/lib/env";
-import { loadProgress, saveProgress, type SavedProgress } from "@/lib/progress";
+import {
+  MAX_PROGRESS_BYTES,
+  loadProgress,
+  saveProgress,
+  type SavedProgress,
+} from "@/lib/progress";
 
 /**
  * Save and load.
@@ -45,13 +50,45 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "not-signed-in" }, { status: 401 });
   }
 
-  let body: SavedProgress;
+  /**
+   * Measured before it is parsed, and refused if it is not an object.
+   *
+   * Read as text first so the size is the size of what arrived, then parsed.
+   * The shape check is not the save's validation, which the client's repair
+   * merge already does on the way back in; it is the floor under it. An array,
+   * a string or a bare null spread into the row as `{ ...body }` produced a
+   * save of index keys or of nothing, and stored it as if it were progress.
+   */
+  let text: string;
 
   try {
-    body = (await request.json()) as SavedProgress;
+    text = await request.text();
   } catch {
     return NextResponse.json({ error: "bad-json" }, { status: 400 });
   }
+
+  const size = new TextEncoder().encode(text).length;
+
+  if (size === 0 || size > MAX_PROGRESS_BYTES) {
+    return NextResponse.json(
+      { error: "bad-size", limit: MAX_PROGRESS_BYTES },
+      { status: 413 },
+    );
+  }
+
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return NextResponse.json({ error: "bad-json" }, { status: 400 });
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return NextResponse.json({ error: "bad-shape" }, { status: 400 });
+  }
+
+  const body = parsed as SavedProgress;
 
   // Never trust the client's idea of who it is. The user id comes from the
   // session, not the payload, otherwise anyone could overwrite anyone's save by

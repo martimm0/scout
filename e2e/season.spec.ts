@@ -50,13 +50,38 @@ test.describe("the calendar is read from the sourced strings", () => {
   });
 
   test("every fungus season parses without falling through", () => {
+    /**
+     * This used to be unable to fail.
+     *
+     * Its condition was "has a 'to' in it AND did not fall back to all-year",
+     * so a season the parser could not read, which is the one case it exists
+     * to catch, skipped the block entirely and asserted nothing. For every
+     * season it did read, the bounds it checked were true by construction. A
+     * typo like "Jnue to Octber" would have shipped as a fungus that fruits in
+     * every month of the year, with this test green.
+     *
+     * Fungi ARE allowed to be all-year, several genuinely fruit every month,
+     * but only when the string says so in words the parser recognises.
+     * Anything else that comes back all-year fell through.
+     */
     for (const fungus of FUNGI) {
       const window = seasonWindow(fungus.season);
+      const saysAllYear = /all year|year[- ]round|every month/i.test(fungus.season);
 
-      // Fungi are allowed to be all-year (several genuinely fruit every month),
-      // but anything with a "to" in it must resolve to a real window.
-      if (/\bto\b/.test(fungus.season.toLowerCase()) && !window.allYear) {
+      if (saysAllYear) {
+        expect(window.allYear, `${fungus.commonName} says all year`).toBe(true);
+        continue;
+      }
+
+      expect(
+        window.allYear,
+        `${fungus.commonName} season "${fungus.season}" fell back to all-year`,
+      ).toBeFalsy();
+
+      if (!window.allYear) {
         expect(window.from).toBeGreaterThanOrEqual(1);
+        expect(window.from).toBeLessThanOrEqual(12);
+        expect(window.to).toBeGreaterThanOrEqual(1);
         expect(window.to).toBeLessThanOrEqual(12);
       }
     }

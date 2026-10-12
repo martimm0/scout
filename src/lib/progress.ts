@@ -16,6 +16,23 @@ import { databaseConfigured } from "./env";
  * players, and we always read and write the whole document at once.
  */
 
+/**
+ * The largest save worth accepting, in bytes of request body.
+ *
+ * Measured, not guessed: a save with every field at its limit (every species
+ * found and quizzed, every badge, area and journal entry, all 120 seedling
+ * slots and all 12 marks, the longest real ids, worst-case float text) comes
+ * to about 31.5 KB, two thirds of it seedlings. This is eight times that. The
+ * seedling cap does not grow with the species list, so new parks add a few
+ * hundred bytes of booleans each and nowhere near the ceiling.
+ *
+ * It exists because this route used to store whatever JSON it was handed. The
+ * photos route has always capped its payload and answered 413; this one did
+ * not, so any signed-in account could put a few megabytes into its row, and
+ * with an account ceiling of a hundred that is most of a free-tier database.
+ */
+export const MAX_PROGRESS_BYTES = 256_000;
+
 export type SavedProgress = {
   pollinator: Record<string, unknown>;
   discoveredPlants: Record<string, boolean>;

@@ -8,6 +8,7 @@ import {
   flyToPlant,
   hold,
   readout,
+  registerAccount,
   resetProgress,
   signIn,
 } from "./helpers";
@@ -17,6 +18,7 @@ import {
   useGameStore,
 } from "../src/features/game/state/game-store";
 import { FUNGI } from "../src/features/game/data/fungi";
+import { MAX_PROGRESS_BYTES } from "../src/lib/progress";
 import {
   areaAt,
   PARKS,
@@ -1597,6 +1599,116 @@ test.describe("customization", () => {
     // Counters take the larger, and a seen tutorial is not un-seen.
     expect(merged.stats.pollinationAttempts).toBe(4);
     expect(merged.tutorialSeen).toBe(true);
+  });
+});
+
+test.describe("the save route refuses what is not a save", () => {
+  /**
+   * `/api/progress` used to store whatever JSON it was handed. The photos
+   * route has always capped its payload and answered 413; this one did not,
+   * so any signed-in account could put a few megabytes into its row, and with
+   * an account ceiling of a hundred that is most of a free-tier database.
+   *
+   * Accounts are REGISTERED here, not just signed in: the teardown finds rows
+   * to delete through the accounts table, so a session with no account row
+   * would leave its save behind after the run.
+   */
+  test("a body over the ceiling is refused, and the stored save is untouched", async ({
+    page,
+  }) => {
+    const registered = await registerAccount("oversize-player", "oversize@example.com");
+    test.skip(!registered, "no database configured, so there is no row to protect");
+
+    await signIn(page.context(), "oversize-player", "oversize@example.com");
+
+    const first = await page.request.post("/api/progress", {
+      data: { discoveredPlants: { [PLANTS[0].id]: true } },
+    });
+    expect(first.status()).toBe(200);
+
+    // Twenty thousand padding keys is about 400 KB: well past the ceiling.
+    const huge = {
+      discoveredPlants: Object.fromEntries(
+        Array.from({ length: 20_000 }, (_, i) => [`padding-${i}`, true]),
+      ),
+    };
+    const refused = await page.request.post("/api/progress", { data: huge });
+
+    expect(refused.status()).toBe(413);
+
+    const stored = (await (await page.request.get("/api/progress")).json()) as {
+      progress: { discoveredPlants: Record<string, boolean> };
+    };
+
+    expect(stored.progress.discoveredPlants[PLANTS[0].id]).toBe(true);
+    expect(stored.progress.discoveredPlants["padding-0"]).toBeUndefined();
+  });
+
+  test("a body that is not an object is refused", async ({ page }) => {
+    const registered = await registerAccount("shape-player", "shape@example.com");
+    test.skip(!registered, "no database configured");
+
+    await signIn(page.context(), "shape-player", "shape@example.com");
+
+    // Each of these used to be spread into the row as `{ ...body }` and stored
+    // as if it were progress: index keys for the array, nothing for the rest.
+    for (const raw of ["[1, 2, 3]", "null", '"just a string"', "42"]) {
+      const response = await page.request.post("/api/progress", {
+        data: raw,
+        headers: { "content-type": "application/json" },
+      });
+
+      expect(response.status(), `${raw} was accepted`).toBe(400);
+    }
+  });
+
+  test("the largest save the game can make still fits", async ({ page }) => {
+    /**
+     * The other direction, and the one that matters more: a ceiling that
+     * refused a real player's save would lose their afternoon to stop an
+     * abuse that has never happened. This builds the biggest save the game
+     * can legitimately write, every species found and quizzed and all 120
+     * seedling slots full with the longest real ids, checks it really is big,
+     * and posts it.
+     */
+    const registered = await registerAccount("maxsave-player", "maxsave@example.com");
+    test.skip(!registered, "no database configured");
+
+    await signIn(page.context(), "maxsave-player", "maxsave@example.com");
+
+    const species = [...PLANTS, ...FUNGI];
+    const longest = species.reduce((a, s) => (s.id.length > a.length ? s.id : a), "");
+    const all = (ids: string[]) => Object.fromEntries(ids.map((id) => [id, true]));
+
+    const save = {
+      discoveredPlants: all(PLANTS.map((p) => p.id)),
+      discoveredFungi: all(FUNGI.map((f) => f.id)),
+      quizPassed: all(species.map((s) => s.id)),
+      pollinatedPlants: all(PLANTS.map((p) => p.id)),
+      winterKnown: all(PLANTS.map((p) => p.id)),
+      unlockedJournalEntries: all(species.map((s) => `plant:${s.id}`)),
+      seedlings: Object.fromEntries(
+        Array.from({ length: 120 }, (_, i) => [
+          `seed-${longest}-${"9".repeat(13)}-${i}`,
+          {
+            plant: longest,
+            park: "highland",
+            x: -1234.567890123456,
+            z: -1234.567890123456,
+            at: 1799999999999,
+          },
+        ]),
+      ),
+    };
+
+    const bytes = new TextEncoder().encode(JSON.stringify(save)).length;
+
+    expect(bytes, "this is not actually a large save").toBeGreaterThan(25_000);
+    expect(bytes).toBeLessThan(MAX_PROGRESS_BYTES);
+
+    const response = await page.request.post("/api/progress", { data: save });
+
+    expect(response.status(), `a ${bytes}-byte real save was refused`).toBe(200);
   });
 });
 

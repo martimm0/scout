@@ -326,6 +326,17 @@ season words ("late summer", "early autumn"), and "all year". A string it cannot
 read falls back to all-year, and `season.spec.ts` asserts every real string parses
 so a new one that does not is caught rather than silently shown every month.
 
+For a long time that sentence was only half true. The plant test asserted it; the
+fungus test could not fail. Its condition was "has a 'to' in it AND did not fall
+back to all-year", so a season the parser could not read, the one case it existed
+to catch, skipped the block and asserted nothing, and the bounds it checked for
+every other season were true by construction. A typo like "Jnue to Octber" would
+have shipped as a fungus that fruits in every month, with the test green and this
+paragraph promising otherwise. It now treats all-year as allowed only when the
+string says so in words the parser recognises; anything else that comes back
+all-year has fallen through. Every current string parses, so nothing changed in
+the park. The guard just works now.
+
 `species-scatter.ts` asks **two** questions, and keeping them apart is load-bearing:
 
 - `isOut(instance, hour, month)` is whether it can be **worked**: open at this hour
@@ -498,6 +509,38 @@ is free to hand it something the store never saw.
 `pages.spec.ts` drives Customize, Pocket and the Journal with a save carrying a
 half-written bee, a null record, a null array and two ids for things that no
 longer exist, and asserts nothing throws and the page still has its heading.
+
+### What the server will store
+
+`/api/progress` used to store whatever JSON it was handed. The photos route has
+always capped its payload at 400 kB and answered 413; the save route did not, so
+any signed-in account could put a few megabytes into its row, and with an account
+ceiling of a hundred that is most of a free-tier database.
+
+It refuses two things now, before anything reaches the row:
+
+| Refused | Status | Why |
+| --- | --- | --- |
+| A body over `MAX_PROGRESS_BYTES` (256 kB) | 413 `bad-size` | Cost: the row is the bill. |
+| A body that is not an object | 400 `bad-shape` | An array, a string or a bare null spread into the row as `{ ...body }` and was stored as if it were progress. |
+
+The ceiling is **measured, not guessed**. A save with every field at its limit,
+every species found and quizzed, every badge, area and journal entry, all 120
+seedling slots and all 12 marks, the longest real ids and worst-case float text,
+comes to about 31.5 kB, two thirds of it seedlings. 256 kB is eight times that.
+The seedling cap does not grow with the species list, so a new park adds a few
+hundred bytes of booleans and nowhere near the ceiling.
+
+The direction that matters more is tested too: a ceiling that refused a real
+player's save would lose their afternoon to stop an abuse that has never happened.
+`pages.spec.ts` builds the largest legitimate save, checks it really is large,
+and asserts it is accepted, alongside the tests that an oversized body is refused
+without touching the stored save and that a non-object is refused.
+
+This is the floor under the client's `repairSave`, not a replacement for it. The
+route checks size and that the body is an object; what is inside the object is
+still the merge's business, which is why a row carrying `{ trillium: false }` is
+still accepted and still harmless.
 
 ### Merging
 
