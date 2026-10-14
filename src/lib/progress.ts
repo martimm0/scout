@@ -57,6 +57,12 @@ export type SavedProgress = {
     questionsCorrect: number;
   };
   tutorialSeen: boolean;
+  /**
+   * The account the save belongs to. Stamped by the route from the session,
+   * never taken from the payload; optional because every row written before
+   * owners existed has none.
+   */
+  owner?: string;
   /** Wall-clock of the last write. Used to settle conflicts, not to display. */
   savedAt: number;
 };

@@ -46,6 +46,8 @@ function toSaved(state: GameState) {
     unlockedJournalEntries: state.unlockedJournalEntries,
     stats: state.stats,
     tutorialSeen: state.tutorialSeen,
+    // Declared, so the route can refuse a save that is not the session's own.
+    owner: state.owner,
     savedAt: Date.now(),
   };
 }
@@ -176,20 +178,47 @@ export function mergeInto(
  * its job and nothing is lost.
  */
 export function useCloudSync(
-  signedIn: boolean,
+  userId: string | null,
   onStatus?: (status: CloudStatus) => void,
 ) {
   const loaded = useRef(false);
   const timer = useRef<number | null>(null);
+  /**
+   * Whether this session's copy has been reconciled with the server's.
+   *
+   * Nothing is pushed until it has. Autosave used to start the moment the page
+   * mounted, before the sign-in pull had merged anything, so the first change
+   * could send a save the server had never been asked about: a stale device
+   * pushing over progress another device had made, or, once a foreign save had
+   * been cleared below, an empty one over the account's real save.
+   */
+  const reconciled = useRef(false);
 
   // Resume.
   useEffect(() => {
-    if (!signedIn || loaded.current) {
+    if (!userId || loaded.current) {
       return;
     }
 
     loaded.current = true;
     onStatus?.("loading");
+
+    /**
+     * Somebody else's save is not ours to merge.
+     *
+     * The union below exists so a player keeps progress they made on this device
+     * that never reached the server. It cannot tell that apart from progress a
+     * previous player left on a shared computer, so it used to pour one account
+     * into the next. A save another account has claimed is forgotten before the
+     * pull; one nobody has claimed (every save written before owners existed) is
+     * adopted, which is the right call for the overwhelming majority, whose
+     * device is their own.
+     */
+    const local = useGameStore.getState();
+
+    if (local.owner && local.owner !== userId) {
+      local.forgetLocalSave();
+    }
 
     // What the bee looked like when the request went out.
     const before = useGameStore.getState().pollinator;
@@ -234,20 +263,40 @@ export function useCloudSync(
           });
         }
 
+        // Only now, with the server's copy merged in, is this save the account's.
+        useGameStore.getState().claimLocalSave(userId);
+        reconciled.current = true;
+
         onStatus?.("synced");
       } catch {
         onStatus?.("error");
       }
     })();
-  }, [signedIn, onStatus]);
+  }, [userId, onStatus]);
 
   // Autosave.
   useEffect(() => {
-    if (!signedIn) {
+    if (!userId) {
       return;
     }
 
+    /**
+     * Pushed only once reconciled, and only if the save is this account's.
+     *
+     * The second half is what stops a tab left open on a shared computer: its
+     * memory still holds the last player's save, and if somebody else has
+     * signed in since, the cookie it would send is theirs. The route refuses a
+     * declared owner that disagrees with the session as well, so this is the
+     * client being polite and the server being sure.
+     */
+    const mine = () =>
+      reconciled.current && useGameStore.getState().owner === userId;
+
     const flush = () => {
+      if (!mine()) {
+        return;
+      }
+
       onStatus?.("saving");
 
       void fetch("/api/progress", {
@@ -271,7 +320,7 @@ export function useCloudSync(
     // unreliable on mobile and increasingly ignored, and this fires when the tab
     // is backgrounded too, which is when most people actually leave.
     const onHide = () => {
-      if (document.visibilityState === "hidden") {
+      if (document.visibilityState === "hidden" && mine()) {
         navigator.sendBeacon?.(
           "/api/progress",
           new Blob([JSON.stringify(toSaved(useGameStore.getState()))], {
@@ -291,5 +340,5 @@ export function useCloudSync(
         window.clearTimeout(timer.current);
       }
     };
-  }, [signedIn, onStatus]);
+  }, [userId, onStatus]);
 }

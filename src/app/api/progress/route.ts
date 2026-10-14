@@ -88,13 +88,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "bad-shape" }, { status: 400 });
   }
 
-  const body = parsed as SavedProgress;
+  const body = parsed as Omit<SavedProgress, "owner"> & { owner?: unknown };
+
+  /**
+   * A save that says it belongs to somebody else is refused.
+   *
+   * The client declares whose save it is sending, and the session says who is
+   * asking. They disagree in exactly one situation: a tab left open on a shared
+   * computer, still holding the last player's save in memory, sending it with
+   * the cookie of whoever has signed in since. It used to land, and since a save
+   * replaces the whole row, the new account's own progress was overwritten with
+   * the previous player's. The client checks this too; this is the check that
+   * does not depend on the client being right. No owner at all is accepted, as
+   * it always was, so an older tab still saves its own account's progress.
+   */
+  if (typeof body.owner === "string" && body.owner !== session.user.id) {
+    return NextResponse.json({ error: "not-your-save" }, { status: 409 });
+  }
 
   // Never trust the client's idea of who it is. The user id comes from the
   // session, not the payload, otherwise anyone could overwrite anyone's save by
   // posting a different id.
   await saveProgress(session.user.id, {
     ...body,
+    // Stamped from the session, never trusted from the payload.
+    owner: session.user.id,
     savedAt: Date.now(),
   });
 

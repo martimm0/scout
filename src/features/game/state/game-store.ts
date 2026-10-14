@@ -235,6 +235,19 @@ export type GameState = {
   tutorialSeen: boolean;
   /** Badges earned but not yet announced on screen. */
   pendingBadges: string[];
+  /**
+   * Whose save this is: the account id it belongs to, or null if no account has
+   * claimed it yet.
+   *
+   * The local save is one localStorage key shared by everybody who uses this
+   * browser, and signing out only drops the session cookie, so it outlives the
+   * person who made it. Without this, cloud sync could not tell "progress I made
+   * on this device that never reached the server" from "progress somebody else
+   * left here", and on a shared computer the next account to sign in absorbed
+   * the last one's. See `useCloudSync`, which is the only thing that sets it,
+   * and only after the server copy has been merged in.
+   */
+  owner: string | null;
 };
 
 /** Only the on/off flags in the UI state, not the plant ids alongside them. */
@@ -305,6 +318,13 @@ export type GameActions = {
   /** Leave the run and put the real save back. See `offlineSession`. */
   endOfflineRun: () => Promise<void>;
   resetSessionProgress: () => void;
+  /**
+   * Forget a save that belongs to somebody else. Everything a player made is
+   * reset, the bee included; only this device's own settings stay.
+   */
+  forgetLocalSave: () => void;
+  /** Mark the local save as `owner`'s. Cloud sync calls it after the merge. */
+  claimLocalSave: (owner: string) => void;
 };
 
 export type GameStore = GameState & GameActions;
@@ -601,6 +621,7 @@ export function repairSave<T extends GameState>(
     marks: Array.isArray(saved.marks) ? saved.marks : current.marks,
     stats: { ...current.stats, ...(saved.stats ?? {}) },
     settings: { ...current.settings, ...(saved.settings ?? {}) },
+    owner: typeof saved.owner === "string" && saved.owner ? saved.owner : null,
   };
 }
 
@@ -636,6 +657,7 @@ export const useGameStore = create<GameStore>()(
   ui: initialUi,
   settings: initialSettings,
   tutorialSeen: false,
+  owner: null,
   ...initialProgress,
 
   setPlayerFlightState: (player) =>
@@ -1156,6 +1178,19 @@ export const useGameStore = create<GameStore>()(
     offlineSession = false;
   },
 
+  forgetLocalSave: () =>
+    set({
+      player: initialPlayer,
+      pollinator: DEFAULT_POLLINATOR,
+      ...initialProgress,
+      stats: initialStats,
+      pendingBadges: [],
+      tutorialSeen: false,
+      owner: null,
+    }),
+
+  claimLocalSave: (owner) => set({ owner }),
+
   resetSessionProgress: () =>
     set({
       player: initialPlayer,
@@ -1190,6 +1225,7 @@ export const useGameStore = create<GameStore>()(
         settings: state.settings,
         stats: state.stats,
         tutorialSeen: state.tutorialSeen,
+        owner: state.owner,
       }),
       storage: createJSONStorage(() => {
         const real = localStorage;

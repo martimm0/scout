@@ -25,7 +25,7 @@ const LABEL: Record<CloudStatus, string> = {
  * is: localStorage has already taken it.
  */
 export function CloudSyncBadge() {
-  const { status: sessionStatus } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const [status, setStatus] = useState<CloudStatus>("local");
 
   const onStatus = useCallback((next: CloudStatus) => setStatus(next), []);
@@ -42,7 +42,11 @@ export function CloudSyncBadge() {
    */
   const inOfflineSession = useGameStore((state) => state.offlineRun.startedAt !== null);
 
-  useCloudSync(sessionStatus === "authenticated" && !inOfflineSession, onStatus);
+  // The account id, not merely "signed in": sync has to know WHOSE save it is.
+  const userId =
+    sessionStatus === "authenticated" && session?.user?.id ? session.user.id : null;
+
+  useCloudSync(inOfflineSession ? null : userId, onStatus);
 
   if (inOfflineSession) {
     // "Saved on this device" would be a lie for these ten minutes.

@@ -633,7 +633,46 @@ with an account, which is the step the note beside it names.
 ### Merging
 
 Progress is **monotonic**: you never un-discover a plant, so the merge is a union.
-A player who played signed out and then signs in keeps both halves.
+A player whose last save never reached the server, a closed lid or a dropped
+connection, gets it back the next time they sign in on that device.
+
+**This section used to say "a player who played signed out and then signs in
+keeps both halves", and that sentence is how one account poured into another.**
+Since `/play` went behind sign-in and the ten-minute run stopped saving, nobody
+can build progress signed out on the real site, so on a shared device the only
+thing a union could merge from a signed-out browser was the previous player's
+save. The local save is one localStorage key for everybody who uses the browser,
+signing out only drops the cookie, and nothing recorded whose the save was. On a
+school lab computer, the next account to sign in absorbed every plant, quiz and
+badge the last one had found, permanently, on the server.
+
+It was worse than a leak. A tab left open from the previous player still held
+their save in memory, and when it was hidden its autosave beacon sent that save
+with the NEW player's cookie. A save replaces the whole row, so the new account's
+own progress was overwritten, and then its sign-in pull unioned the previous
+player's on top. Reproduced end to end before the fix: an account holding one
+plant of its own came back holding three of somebody else's and not its own.
+
+Three things hold it shut, each with a test in `shared-device.spec.ts` that fails
+when it is removed:
+
+| Guarantee | Mechanism |
+| --- | --- |
+| A save another account has claimed is not merged | The save carries `owner`. On sign-in, a local save owned by somebody else is forgotten, the bee included, before the pull. |
+| A save is never pushed into the wrong account | The client pushes only if the save's owner is the session's. The route refuses a declared owner that disagrees with the session (409 `not-your-save`) and stamps the owner from the session on everything it stores, so this does not depend on the client being right. |
+| Nothing is pushed before it has been reconciled | Autosave used to start the moment the page mounted, before the pull had merged anything. A change made while the pull was in flight pushed a stale save, which on one player's two devices threw away a find made on the other. Pushes now wait for the merge, and the owner is stamped only after it. |
+
+The stale-device test needs a slow pull to show the race, so it holds the GET for
+four seconds, well past the 1.5 second autosave debounce. Without the wait-for-merge
+gate it fails; with it the find from the other device survives.
+
+**One case cannot be decided, and is decided in favour of the player.** Every save
+written before owners existed has none. On first sign-in after this shipped, an
+unclaimed save is adopted by whoever signs in, which is right for the overwhelming
+majority, whose device is their own, and wrong only for a shared device that went
+unvisited between the release and someone else signing in. Forgetting unclaimed
+saves instead would have cost every existing player whatever had not yet synced.
+After that first claim, the question never comes up again.
 
 The union is an **OR, not a spread**, and the distinction is worth keeping. It was
 written `{ ...local, ...remote }`, which reads as a union and is not one: it is
