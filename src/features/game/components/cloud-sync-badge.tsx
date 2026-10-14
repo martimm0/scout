@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useCallback, useState } from "react";
 
 import { useCloudSync, type CloudStatus } from "../state/cloud-sync";
+import { useGameStore } from "../state/game-store";
 import styles from "./cloud-sync-badge.module.css";
 
 const LABEL: Record<CloudStatus, string> = {
@@ -29,7 +30,28 @@ export function CloudSyncBadge() {
 
   const onStatus = useCallback((next: CloudStatus) => setStatus(next), []);
 
-  useCloudSync(sessionStatus === "authenticated", onStatus);
+  /**
+   * Off for the whole of an offline run, summary screen included.
+   *
+   * The run plays on this same store, and this badge is mounted inside the park.
+   * With sync on, a signed-in player's server copy was pulled and unioned into
+   * the run, so the "fresh ten minutes" ran on their full save, and then the
+   * run was pushed back over it. If that pull failed, what got pushed was the
+   * wiped slate. `startedAt` spans the session where `active` does not: it
+   * stays set on the summary screen, after the clock has stopped.
+   */
+  const inOfflineSession = useGameStore((state) => state.offlineRun.startedAt !== null);
+
+  useCloudSync(sessionStatus === "authenticated" && !inOfflineSession, onStatus);
+
+  if (inOfflineSession) {
+    // "Saved on this device" would be a lie for these ten minutes.
+    return (
+      <p className={styles.badge} data-status="offline" role="status">
+        Not saved. This is the ten-minute run.
+      </p>
+    );
+  }
 
   return (
     <p className={styles.badge} data-status={status} role="status">

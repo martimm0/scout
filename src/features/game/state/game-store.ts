@@ -299,9 +299,11 @@ export type GameActions = {
   dismissBadge: (badgeId: string) => void;
   openModal: (modal: ToggleableModal) => void;
   closeModal: (modal: ToggleableModal) => void;
-  startOfflineRun: () => void;
+  /** Start a ten-minute run on a clean slate, without touching the real save. */
+  beginOfflineRun: () => void;
   tickOfflineRun: (elapsedSeconds: number) => void;
-  resetOfflineRun: () => void;
+  /** Leave the run and put the real save back. See `offlineSession`. */
+  endOfflineRun: () => Promise<void>;
   resetSessionProgress: () => void;
 };
 
@@ -601,6 +603,29 @@ export function repairSave<T extends GameState>(
     settings: { ...current.settings, ...(saved.settings ?? {}) },
   };
 }
+
+/**
+ * Whether an offline run is in progress, and so whether the real save may be
+ * written. It may not.
+ *
+ * The offline run promises "ten minutes, no account, nothing saved", and it
+ * plays on this same store, because the park reads this store everywhere. It
+ * used to begin by spreading `initialProgress` over the state to give the run a
+ * clean slate, and `persist` wrote that straight to localStorage: pressing
+ * Begin erased a returning player's real save. Every plant, quiz, badge,
+ * seedling and park unlock, gone, for the price of trying the ten-minute mode.
+ * In local mode that save is the only copy there is.
+ *
+ * So writes are refused for the whole session, from Begin until the player
+ * leaves the page, and the run lives in memory only. The real save sits
+ * untouched on disk and is read back on the way out.
+ *
+ * A module flag rather than store state, because it has to be true BEFORE the
+ * wipe is set: a flag carried in the same `set` would arrive with the write it
+ * is meant to stop. Cloud sync reads `offlineRun.startedAt` instead, which is
+ * reactive and spans the same session, summary screen included.
+ */
+let offlineSession = false;
 
 export const useGameStore = create<GameStore>()(
   persist(
@@ -1075,7 +1100,10 @@ export const useGameStore = create<GameStore>()(
       },
     })),
 
-  startOfflineRun: () =>
+  beginOfflineRun: () => {
+    // First, so the clean slate below never reaches the real save.
+    offlineSession = true;
+
     set({
       offlineRun: {
         active: true,
@@ -1083,7 +1111,12 @@ export const useGameStore = create<GameStore>()(
         elapsedSeconds: 0,
         startedAt: Date.now(),
       },
-    }),
+      player: initialPlayer,
+      ...initialProgress,
+      stats: initialStats,
+      pendingBadges: [],
+    });
+  },
 
   tickOfflineRun: (elapsedSeconds) =>
     set((state) => ({
@@ -1094,14 +1127,34 @@ export const useGameStore = create<GameStore>()(
       },
     })),
 
-  resetOfflineRun: () =>
+  endOfflineRun: async () => {
+    if (!offlineSession) {
+      return;
+    }
+
+    /**
+     * The order is the whole of this function, and getting it wrong is the
+     * original bug in reverse.
+     *
+     * Writes are still refused here. Clear the run to a clean slate, read the
+     * real save back over it, and only THEN allow writes again. Allowing them
+     * first would let the next write store the run's progress over the real
+     * save. The clean slate matters too: a first-time visitor has no stored
+     * save to read back, and without it the run's finds would quietly become
+     * their save, which is the "nothing saved" promise broken the other way.
+     */
     set({
       offlineRun: initialOfflineRun,
       player: initialPlayer,
       ...initialProgress,
       stats: initialStats,
       pendingBadges: [],
-    }),
+    });
+
+    await useGameStore.persist.rehydrate();
+
+    offlineSession = false;
+  },
 
   resetSessionProgress: () =>
     set({
@@ -1138,7 +1191,19 @@ export const useGameStore = create<GameStore>()(
         stats: state.stats,
         tutorialSeen: state.tutorialSeen,
       }),
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => {
+        const real = localStorage;
+
+        return {
+          getItem: (name) => real.getItem(name),
+          setItem: (name, value) => {
+            if (!offlineSession) {
+              real.setItem(name, value);
+            }
+          },
+          removeItem: (name) => real.removeItem(name),
+        };
+      }),
 
       merge: (persisted, current) => repairSave(persisted, current),
     },

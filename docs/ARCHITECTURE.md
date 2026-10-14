@@ -397,6 +397,12 @@ per game: Frick's shrubs and trees play `seeds` and flower in spring, while its
 spikes and umbels play `memory` and flower in summer, so no single month has all
 three games available.
 
+`offline.spec.ts` covers the other thing the run must do, which is leave the real
+save alone; DATA.md has the account of how it did not, and why the order on the
+way out matters. Its seed is written only when nothing is on disk: an init script
+runs on every document, so a plain `setItem` would put the save back after
+anything erased it and the test would pass against the bug.
+
 One more thing the suite cannot pin: `/offline` takes no query params at all, so it
 draws whatever Pittsburgh is really doing. Any assertion about its pixels has to
 clear a flat fill rather than a sunny afternoon, or it passes all day and fails at

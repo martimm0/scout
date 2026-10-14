@@ -579,6 +579,57 @@ route checks size and that the body is an object; what is inside the object is
 still the merge's business, which is why a row carrying `{ trillium: false }` is
 still accepted and still harmless.
 
+### The ten-minute run does not touch the save
+
+`/offline` promises "ten minutes, no account, nothing saved". It plays on this
+same store, because the park reads this store everywhere, and **for a long time it
+erased the save it promised to leave alone.** It gave itself a clean slate by
+spreading the initial progress over the state, and `persist` wrote that straight
+to localStorage: pressing Begin wiped a returning player's real save, every plant,
+quiz, badge, seedling and park unlock. In local mode that save is the only copy.
+
+A signed-in player lost it differently. The park mounts cloud sync, and the
+controls panel holding the badge starts open outside a party, which the run never
+is. So sync pulled the server copy and unioned it into the run, which meant the
+"fresh" ten minutes ran on the player's full save, and then the run was pushed
+back over it. If that pull failed, what got pushed was the wiped slate, and the
+server copy went too.
+
+Three things hold it shut now, and each has a test that fails without it:
+
+| Guarantee | Mechanism | Test |
+| --- | --- | --- |
+| Begin and the run never write the real save | The persist storage refuses `setItem` while `offlineSession` is set | `offline.spec.ts`: after Begin and a running park, the seeded save is intact on disk |
+| Leaving restores the real save, not the run | `endOfflineRun` clears to a clean slate, rehydrates from the untouched disk, and only then allows writes | Leave client side mid-run, make an ordinary change elsewhere: the real save is what lands |
+| The server copy is never pulled or pushed | Cloud sync is gated on `offlineRun.startedAt`, which spans the session, summary screen included | Signed in, zero `/api/progress` requests for the whole session |
+
+**The order on the way out is the original bug in reverse.** If writes were
+allowed again before the real save was read back, the very next write would store
+the run over it. The clean slate before the read matters too: a first-time visitor
+has no stored save to read back, and without it the run's finds would quietly
+become their save, the promise broken the other way.
+
+**The guard is a module flag, not store state**, because it has to be true before
+the clean slate is set; a flag carried in the same `set` would arrive with the
+very write it is meant to stop. Cloud sync reads store state instead, because it
+needs to react. The storage wrapper still touches `localStorage` inside its
+factory, as the plain version did, so on the server it still throws there and
+persist still gets no storage, rather than a wrapper that would throw on first
+read.
+
+The old actions, `resetOfflineRun` and `startOfflineRun`, are gone rather than
+kept beside the safe pair, because the first of them is the one that erased saves.
+
+Two pieces of copy were false while this was broken and are true now: the summary
+screen's "Nothing here was saved", and the badge, which said "Saved on this
+device" during the run and now says "Not saved. This is the ten-minute run." A
+third could not be made true and was changed. "See what you learned" went to the
+journal, which is behind sign-in, so the run's own audience, people without an
+account, got a sign-in wall; and it is a full page load that drops the run, so a
+signed-in player saw their real journal rather than anything from those ten
+minutes. What they learned is the summary already on screen. It now offers to fly
+with an account, which is the step the note beside it names.
+
 ### Merging
 
 Progress is **monotonic**: you never un-discover a plant, so the merge is a union.

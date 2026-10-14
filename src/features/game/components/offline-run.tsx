@@ -26,9 +26,9 @@ function formatClock(seconds: number) {
  */
 export function OfflineRun() {
   const offlineRun = useGameStore((state) => state.offlineRun);
-  const startOfflineRun = useGameStore((state) => state.startOfflineRun);
+  const beginOfflineRun = useGameStore((state) => state.beginOfflineRun);
   const tickOfflineRun = useGameStore((state) => state.tickOfflineRun);
-  const resetOfflineRun = useGameStore((state) => state.resetOfflineRun);
+  const endOfflineRun = useGameStore((state) => state.endOfflineRun);
 
   const discovered = useGameStore((state) => countUnlocked(state.discoveredPlants));
   const pollinated = useGameStore((state) => countUnlocked(state.pollinatedPlants));
@@ -53,6 +53,20 @@ export function OfflineRun() {
       });
     }
   }, [finished, pollinated, discovered]);
+
+  /**
+   * Leaving the page ends the session and puts the real save back.
+   *
+   * The run plays on the same store as the real game with writes refused, so
+   * until this runs the player's actual progress exists only on disk. It is a
+   * no-op unless a run was begun, which also makes React's development double
+   * invoke harmless.
+   */
+  useEffect(() => {
+    return () => {
+      void endOfflineRun();
+    };
+  }, [endOfflineRun]);
 
   // The clock. Driven off the wall clock rather than a frame counter, so a
   // stutter or a background tab can't buy you extra time.
@@ -84,8 +98,7 @@ export function OfflineRun() {
         </p>
         <Button
           onClick={() => {
-            resetOfflineRun();
-            startOfflineRun();
+            beginOfflineRun();
             setStarted(true);
           }}
           type="button"
@@ -138,15 +151,23 @@ export function OfflineRun() {
         <div className={styles.actions}>
           <Button
             onClick={() => {
-              resetOfflineRun();
-              startOfflineRun();
+              beginOfflineRun();
             }}
             type="button"
           >
             Fly again
           </Button>
-          <Button href="/journal" variant="secondary">
-            See what you learned
+          {/*
+            This was "See what you learned", to the journal, and it could not
+            keep that promise. The journal is behind sign-in, so the audience
+            this run exists for, people without an account, got a sign-in wall;
+            and it is a full page load that drops the run, so a signed-in
+            player would have seen their real journal rather than anything from
+            these ten minutes. What they learned is the summary above. The
+            honest next step is the one the note beside it names.
+          */}
+          <Button href="/play" variant="secondary">
+            Fly with an account
           </Button>
         </div>
       </section>
