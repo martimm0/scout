@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { fromWmoCode, FAIR_WEATHER, type Weather } from "@/features/game/world/weather";
-import { PARK_COORDS } from "@/lib/forecast";
+import { PARK_COORDS, UPSTREAM_TIMEOUT_MS } from "@/lib/forecast";
 
 /**
  * The real weather over Frick Park.
@@ -66,6 +66,8 @@ export async function GET() {
     const response = await fetch(ENDPOINT, {
       // Ten minutes. The observation itself only moves every fifteen.
       next: { revalidate: 600 },
+      // Slow is a failure too. See UPSTREAM_TIMEOUT_MS.
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
 
     if (!response.ok) {

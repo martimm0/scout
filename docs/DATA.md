@@ -149,6 +149,34 @@ species you can only work after dark, one per park, and they are the reason the
 moths exist. A park with a night flora is a different park after dark rather
 than the same park with the lights off.
 
+### Where the sky comes from
+
+Open-Meteo, fetched on the server and cached for ten minutes by Next's data
+cache, so one upstream request serves every player. Two callers: `/api/weather`
+for the park, and `fetchParkForecasts` for the home page's banner, which is
+rendered at build time and refreshed in the background.
+
+**Down and slow are both failures**, and both end in `FAIR_WEATHER`. For a long
+time only "down" did: an error or a bad status fell back to a fair day, but with
+no timeout a hung connection simply waited on the platform's own limits. The
+park never showed anything wrong, because the client keeps its default sky on
+any non-OK answer. The banner was the real exposure: it renders during the
+build, and Next fails a deploy when a page takes more than sixty seconds, so a
+third party's bad afternoon could have stopped a release.
+
+Both fetches carry `AbortSignal.timeout(UPSTREAM_TIMEOUT_MS)` (five seconds;
+it usually answers in well under one). That was checked against Next's own
+patched fetch before it went in, because the obvious worry is that a signal
+opts a request out of the cache and sends every player upstream. It does not:
+the opt-out only looks at `no-cache` and `no-store`, and the signal is not part
+of the cache key. Next deliberately drops the signal during a stale background
+refresh, which outlives the request, so the timeout covers the cold and
+build-time fetch, which is the only one that blocks anything.
+
+The tests replace the global fetch with one that never answers unless it is
+aborted and call the real functions. Without the timeout they hang until the
+test gives up.
+
 ### The flush: last week's weather, not today's
 
 `Weather.recentRain` is the only part of the sky that is not "right now": ten days
@@ -523,6 +551,15 @@ It refuses two things now, before anything reaches the row:
 | --- | --- | --- |
 | A body over `MAX_PROGRESS_BYTES` (256 kB) | 413 `bad-size` | Cost: the row is the bill. |
 | A body that is not an object | 400 `bad-shape` | An array, a string or a bare null spread into the row as `{ ...body }` and was stored as if it were progress. |
+
+The same 400 `bad-shape` now guards the photos and admin routes, which had a
+quieter version of the same mistake: the body was parsed inside a `try` and then
+read outside it, as `body.src` and `body.action`. A string, number or boolean
+survives a property lookup and was already refused; a bare `null` threw past the
+handler and answered **500**, which tells monitoring the server broke when all
+that happened was a malformed request. Every route that reads a body now refuses
+a non-object with the same code, and tests post `null`, an array, a string and a
+number to each.
 
 The ceiling is **measured, not guessed**. A save with every field at its limit,
 every species found and quizzed, every badge, area and journal entry, all 120

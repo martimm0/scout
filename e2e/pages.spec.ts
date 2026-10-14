@@ -19,6 +19,8 @@ import {
 } from "../src/features/game/state/game-store";
 import { FUNGI } from "../src/features/game/data/fungi";
 import { MAX_PROGRESS_BYTES } from "../src/lib/progress";
+import { UPSTREAM_TIMEOUT_MS, fetchParkForecasts } from "../src/lib/forecast";
+import { GET as weatherRoute } from "../src/app/api/weather/route";
 import {
   areaAt,
   PARKS,
@@ -445,6 +447,31 @@ test("a photograph taken in the park lands in the journal, and is of the park", 
   expect((await page.request.get(src!)).status()).toBe(404);
 });
 
+test("a photo post that is not an object is refused, not crashed on", async ({
+  page,
+}) => {
+  /**
+   * The body is parsed inside a try, and was then read OUTSIDE it, as
+   * `body.src`. A string, a number or a boolean all survive a property lookup
+   * and were already answered 400; a bare `null` does not, so it threw past the
+   * handler and answered 500. A 500 says the server broke. Nothing broke: the
+   * request was malformed, and the convention everywhere else in the API is to
+   * say so with a 400.
+   */
+  await registerAccount("photo-shape-player", "photo-shape@example.com");
+  await signIn(page.context(), "photo-shape-player", "photo-shape@example.com");
+
+  for (const raw of ["null", "[1, 2, 3]", '"just a string"', "42"]) {
+    const response = await page.request.post("/api/photos", {
+      data: raw,
+      headers: { "content-type": "application/json" },
+    });
+
+    test.skip(response.status() === 501, "no database configured");
+    expect(response.status(), `${raw} answered ${response.status()}`).toBe(400);
+  }
+});
+
 test("one player cannot read another player's photographs", async ({ page }) => {
   test.setTimeout(120_000);
 
@@ -719,6 +746,66 @@ test.describe("the about page and the site chrome", () => {
     expect(
       await page.evaluate(() => document.documentElement.dataset.theme),
     ).toBe("dark");
+  });
+});
+
+test.describe("a slow weather service is a failure, not a wait", () => {
+  /**
+   * Both weather fetches fell back to a fair day when Open-Meteo was DOWN.
+   * Nothing covered it being SLOW: with no timeout, a hung connection waited on
+   * the platform's limits, and the home page renders this at build time, where
+   * Next fails the deploy after sixty seconds. A third party's bad afternoon
+   * could have stopped a release.
+   *
+   * These replace the global fetch with one that never answers unless it is
+   * aborted, and call the real functions. Without the timeout they hang until
+   * the test itself gives up, which is the failure. The real fetch is put back
+   * in a finally, because the database client in this same worker may use it.
+   */
+  const hanging = ((_input: unknown, init?: RequestInit) =>
+    new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(init.signal!.reason));
+    })) as typeof fetch;
+
+  test("the park banner settles for a fair day instead of hanging", async () => {
+    test.setTimeout(20_000);
+
+    const real = globalThis.fetch;
+    globalThis.fetch = hanging;
+
+    try {
+      const started = Date.now();
+      const forecasts = await fetchParkForecasts();
+
+      expect(Date.now() - started, "it waited far past the timeout").toBeLessThan(
+        UPSTREAM_TIMEOUT_MS + 3000,
+      );
+      expect(forecasts.length).toBeGreaterThan(0);
+      expect(forecasts.every((one) => !one.live), "a hung service reported live").toBe(true);
+    } finally {
+      globalThis.fetch = real;
+    }
+  });
+
+  test("the park's own sky settles for a fair day instead of hanging", async () => {
+    test.setTimeout(20_000);
+
+    const real = globalThis.fetch;
+    globalThis.fetch = hanging;
+
+    try {
+      const started = Date.now();
+      const response = await weatherRoute();
+      const body = (await response.json()) as { live: boolean; weather: unknown };
+
+      expect(Date.now() - started, "it waited far past the timeout").toBeLessThan(
+        UPSTREAM_TIMEOUT_MS + 3000,
+      );
+      expect(body.live).toBe(false);
+      expect(body.weather).toBeTruthy();
+    } finally {
+      globalThis.fetch = real;
+    }
   });
 });
 

@@ -330,6 +330,28 @@ test.describe("the numbers the admin reads", () => {
   });
 });
 
+test.describe("the admin route answers a malformed request honestly", () => {
+  test("a body that is not an object is a 400, not a 500", async ({ page }) => {
+    /**
+     * Same shape as the photos route had: the body was parsed inside a try and
+     * then read outside it, as `body.action`. A bare `null` threw past the
+     * handler and answered 500, which says the server broke when all that
+     * happened was a malformed request.
+     */
+    await signIn(page.context(), "the-admin", ADMIN);
+
+    for (const raw of ["null", "[1, 2, 3]", '"just a string"', "42"]) {
+      const response = await page.request.post("/api/admin", {
+        data: raw,
+        headers: { "content-type": "application/json" },
+      });
+
+      test.skip(response.status() === 404, "this build has no admin");
+      expect(response.status(), `${raw} answered ${response.status()}`).toBe(400);
+    }
+  });
+});
+
 test.describe("the admin table hydrates on every engine", () => {
   test("a dated row renders the same on the server and in the browser", async ({
     page,

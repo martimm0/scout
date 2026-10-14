@@ -92,6 +92,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "bad-json" }, { status: 400 });
   }
 
+  /**
+   * Refused unless it is an object, before anything reads a field off it.
+   *
+   * The parse above is in a try; the reads below were not. A string, a number
+   * or a boolean survive a property lookup and were already answered 400, but
+   * a bare `null` threw past the handler and answered 500, which says the
+   * server broke when all that happened was a malformed request. The save
+   * route refuses the same shapes with the same code.
+   */
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json({ error: "bad-shape" }, { status: 400 });
+  }
+
   // The admin cannot suspend or delete themselves out of the tool. A locked-out
   // owner has no way back in, so this refuses rather than lets them.
   if (body.action === "suspend" || body.action === "delete") {

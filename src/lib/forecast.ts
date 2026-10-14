@@ -98,6 +98,24 @@ function weatherFrom(current: UpstreamCurrent | undefined): Weather | null {
 const fallback = (): ParkForecast[] =>
   PARK_ORDER.map((park) => ({ park, weather: FAIR_WEATHER, live: false }));
 
+/**
+ * How long to wait for Open-Meteo before settling for a fair day.
+ *
+ * Both callers already fell back to `FAIR_WEATHER` when the service was DOWN.
+ * Nothing covered it being SLOW: with no timeout, a hung connection waited on
+ * the platform's own limits, and the home page renders this at build time,
+ * where Next gives a page sixty seconds before failing the deploy. A third
+ * party's bad afternoon could have stopped a release. It usually answers in
+ * well under a second, so five is generous.
+ *
+ * Safe for the cache, checked against Next's own patched fetch rather than
+ * assumed: a signal does not opt a request out of the data cache and is not
+ * part of the cache key. Next deliberately drops it during a stale background
+ * refresh, which outlives the request, so the timeout covers the cold and
+ * build-time fetch, which is the one that blocks anything.
+ */
+export const UPSTREAM_TIMEOUT_MS = 5000;
+
 export async function fetchParkForecasts(): Promise<ParkForecast[]> {
   const lats = PARK_ORDER.map((p) => PARK_COORDS[p].lat).join(",");
   const lons = PARK_ORDER.map((p) => PARK_COORDS[p].lon).join(",");
@@ -109,7 +127,10 @@ export async function fetchParkForecasts(): Promise<ParkForecast[]> {
     `&timezone=America%2FNew_York`;
 
   try {
-    const response = await fetch(endpoint, { next: { revalidate: 600 } });
+    const response = await fetch(endpoint, {
+      next: { revalidate: 600 },
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+    });
 
     if (!response.ok) {
       return fallback();
