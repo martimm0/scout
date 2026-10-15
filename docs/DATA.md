@@ -736,6 +736,27 @@ on every autosave: an album in there would ship a megabyte both ways every time
 somebody found a flower. Ownership is enforced in the SQL, not filtered after,
 because an unguessable UUID is not an access control policy.
 
+The album keeps photos on the device (`scout-photos` in localStorage) **only when
+the server answers 501**, which means there is no account system at all: a fresh
+clone with an empty `.env`. Every other failure happens to a player who has an
+account album, and on a deployment with accounts the journal only ever reads that
+one. The client used to fall back to the device on any failure, so a 500, a
+lapsed session or a dropped connection got the flash and the click, and the photo
+went somewhere nothing would ever show it again.
+
+| What the server said | Capture | Journal |
+|---|---|---|
+| 200 | kept in the account, flash | the account album |
+| 409 | album full, says so | (n/a) |
+| 501 | kept on the device, flash | the device album, labelled as such |
+| 401 | not kept, says to sign in, no flash | could not be fetched |
+| anything else, or no answer | not kept, says to try again, no flash | could not be fetched |
+
+A failed fetch is not "kept on this device only": it says the photos could not be
+fetched and are still in the account. A failed delete leaves the photo in the
+album, because it is still on the server. `e2e/photo-failure.spec.ts` covers each
+row that can go wrong, and the 501 row so the local album is not taken away.
+
 ## Badges, accessories, trivia
 
 **Badges** (32) are pure predicates over game state. A `ProgressionWatcher`

@@ -1843,6 +1843,19 @@ export function GameScene({
         return;
       }
 
+      // Nothing was stored anywhere, so no flash: the flash is the promise.
+      if (result === "signed-out" || result === "not-kept") {
+        playSound("pollinateFail");
+        setNotice(
+          result === "signed-out"
+            ? "That photograph was not kept. Photographs live in your account, and you are not signed in."
+            : "That photograph was not kept. The album could not be reached, so try again in a moment.",
+        );
+        window.setTimeout(() => setNotice(null), 5200);
+
+        return;
+      }
+
       playSound("ui");
       setFlashing(true);
       window.setTimeout(() => setFlashing(false), 240);

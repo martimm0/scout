@@ -32,8 +32,26 @@ export type Photo = {
 
 export { MAX_PHOTOS };
 
-/** Which way this browser is storing photographs, once we have asked the server. */
-export type Mode = "unknown" | "cloud" | "local";
+/**
+ * Which way this browser is storing photographs, once we have asked the server.
+ *
+ * `unreachable` is the account album that could not be fetched just now. It is
+ * not `local`: the photographs are still in the account, and saying they live on
+ * this device would be wrong twice over.
+ */
+export type Mode = "unknown" | "cloud" | "local" | "unreachable";
+
+/**
+ * The one answer that means "keep it on this device".
+ *
+ * A 501 is the server saying there is no account system to keep anything in,
+ * which is the fresh clone the local album exists for. Every other failure (a
+ * 500, a lapsed session, a dropped connection) happens to a player who HAS an
+ * account album, and the journal on a deployment with accounts only ever reads
+ * that. A photograph filed on the device instead was told it was kept and then
+ * never shown again.
+ */
+const NO_ACCOUNTS = 501;
 
 const LOCAL_KEY = "scout-photos";
 
@@ -60,8 +78,14 @@ function writeLocal(photos: Photo[]) {
   }
 }
 
-/** What happened when the shutter fired. The HUD says so either way. */
-export type CaptureResult = "saved" | "album-full";
+/**
+ * What happened when the shutter fired. The HUD says so either way.
+ *
+ * `signed-out` and `not-kept` both mean nothing was stored anywhere; they are
+ * split only so the HUD can say which, since one is fixed by signing in and the
+ * other by trying again.
+ */
+export type CaptureResult = "saved" | "album-full" | "signed-out" | "not-kept";
 
 type PhotoState = {
   photos: Photo[];
@@ -78,16 +102,22 @@ export const usePhotoStore = create<PhotoState>()((set, get) => ({
   loaded: false,
 
   /**
-   * Ask the server for the album. A 501 means no database is configured and a
-   * 401 means nobody is signed in; either way there is no account to hold
-   * photographs, so this browser keeps its own.
+   * Ask the server for the album. A 501 means there is no account system, so
+   * this browser keeps its own. Anything else that fails leaves the album where
+   * it is, in the account, and says it could not be fetched.
    */
   load: async () => {
     try {
       const response = await fetch("/api/photos");
 
-      if (!response.ok) {
+      if (response.status === NO_ACCOUNTS) {
         set({ photos: readLocal(), mode: "local", loaded: true });
+
+        return;
+      }
+
+      if (!response.ok) {
+        set({ photos: [], mode: "unreachable", loaded: true });
 
         return;
       }
@@ -105,7 +135,7 @@ export const usePhotoStore = create<PhotoState>()((set, get) => ({
         loaded: true,
       });
     } catch {
-      set({ photos: readLocal(), mode: "local", loaded: true });
+      set({ photos: [], mode: "unreachable", loaded: true });
     }
   },
 
@@ -143,12 +173,21 @@ export const usePhotoStore = create<PhotoState>()((set, get) => ({
 
         return "saved";
       }
+
+      if (response.status === 401) {
+        return "signed-out";
+      }
+
+      if (response.status !== NO_ACCOUNTS) {
+        return "not-kept";
+      }
     } catch {
-      // Offline, or no server at all. Fall through and keep it here.
+      // Offline. The account album is still the album; nothing was kept.
+      return "not-kept";
     }
 
-    // Local mode: no account, so no album to fill. The same cap applies, and it
-    // refuses in the same way rather than quietly binning the oldest.
+    // Local mode: no account system, so no album to fill. The same cap applies,
+    // and it refuses in the same way rather than quietly binning the oldest.
     const existing = readLocal();
 
     if (existing.length >= MAX_PHOTOS) {
@@ -172,9 +211,16 @@ export const usePhotoStore = create<PhotoState>()((set, get) => ({
 
   remove: async (id) => {
     if (get().mode === "cloud" && !id.startsWith("local-")) {
-      await fetch(`/api/photos/${id}`, { method: "DELETE" }).catch(() => {
-        // It stays on the server. Better than telling the player it is gone.
-      });
+      const response = await fetch(`/api/photos/${id}`, {
+        method: "DELETE",
+      }).catch(() => null);
+
+      // It stays on the server, so it stays in the album. Taking it off the page
+      // anyway told the player it was gone, and the next visit put it back. A
+      // 404 is already gone, which is what was asked for.
+      if (!response || (!response.ok && response.status !== 404)) {
+        return;
+      }
     } else {
       writeLocal(readLocal().filter((photo) => photo.id !== id));
     }

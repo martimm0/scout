@@ -399,6 +399,11 @@ export function Journal() {
       {tab === "photos" ? (
         !photosLoaded ? (
           <p className={styles.empty}>Fetching your photographs…</p>
+        ) : photoMode === "unreachable" ? (
+          <p className={styles.empty}>
+            Your photographs could not be fetched just now. They are still in
+            your account; come back in a moment.
+          </p>
         ) : photos.length === 0 ? (
           <p className={styles.empty}>
             No photographs yet. Press <kbd>P</kbd> while you are flying, or use
