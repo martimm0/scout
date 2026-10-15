@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { progressResetAt } from "@/lib/accounts";
 import { auth } from "@/lib/auth";
 import { cloudSaveConfigured } from "@/lib/env";
 import {
@@ -31,9 +32,14 @@ export async function GET() {
     return NextResponse.json({ error: "not-signed-in" }, { status: 401 });
   }
 
-  const progress = await loadProgress(session.user.id);
+  const [progress, resetAt] = await Promise.all([
+    loadProgress(session.user.id),
+    progressResetAt(session.user.id),
+  ]);
 
-  return NextResponse.json({ progress });
+  // The reset travels with the save, so a device holding a copy from before it
+  // knows to forget that copy rather than merge it back in.
+  return NextResponse.json({ progress, resetAt });
 }
 
 export async function POST(request: Request) {
@@ -88,7 +94,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "bad-shape" }, { status: 400 });
   }
 
-  const body = parsed as Omit<SavedProgress, "owner"> & { owner?: unknown };
+  const body = parsed as Omit<SavedProgress, "owner" | "resetAt"> & {
+    owner?: unknown;
+    resetAt?: unknown;
+  };
 
   /**
    * A save that says it belongs to somebody else is refused.
@@ -97,8 +106,8 @@ export async function POST(request: Request) {
    * asking. They disagree in exactly one situation: a tab left open on a shared
    * computer, still holding the last player's save in memory, sending it with
    * the cookie of whoever has signed in since. It used to land, and since a save
-   * replaces the whole row, the new account's own progress was overwritten with
-   * the previous player's. The client checks this too; this is the check that
+   * replaced the whole row at the time, the new account's own progress was
+   * overwritten with the previous player's; now it would be merged into it. The client checks this too; this is the check that
    * does not depend on the client being right. No owner at all is accepted, as
    * it always was, so an older tab still saves its own account's progress.
    */
@@ -109,12 +118,35 @@ export async function POST(request: Request) {
   // Never trust the client's idea of who it is. The user id comes from the
   // session, not the payload, otherwise anyone could overwrite anyone's save by
   // posting a different id.
-  await saveProgress(session.user.id, {
-    ...body,
-    // Stamped from the session, never trusted from the payload.
+  /**
+   * A save from before the account was reset is refused.
+   *
+   * The device that sent it has not heard about the reset yet, and since saves
+   * now merge into the row, letting it in would put back everything the reset
+   * took out. A 409 sends the client back to pull, which is where it learns.
+   * No marker at all reads as 0, so a tab from before markers existed is
+   * refused only on an account that has actually been reset.
+   */
+  const declared = Number(body.resetAt ?? 0);
+  const resetAt = await progressResetAt(session.user.id);
+
+  if (!(Number.isFinite(declared) && declared >= resetAt)) {
+    return NextResponse.json({ error: "reset-since", resetAt }, { status: 409 });
+  }
+
+  // The owner is stamped from the session, never trusted from the payload.
+  const saved = await saveProgress(session.user.id, body, {
     owner: session.user.id,
     savedAt: Date.now(),
   });
+
+  // The merged row, not the request, went over: the same answer, the same cap.
+  if (saved === "too-big") {
+    return NextResponse.json(
+      { error: "bad-size", limit: MAX_PROGRESS_BYTES },
+      { status: 413 },
+    );
+  }
 
   return NextResponse.json({ ok: true });
 }

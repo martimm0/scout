@@ -64,7 +64,8 @@ src/
       data/                 plants, fungi, trivia, badges, photos, accessories
       hooks/                use-media-query (is this touch), use-fullscreen
       models/               voxel builders: bee, flora, fungi, landmarks
-      state/                game-store, cloud-sync, photo-store, progression,
+      state/                game-store, cloud-sync, merge (shared with the save
+                            route), photo-store, progression,
                             virtual-input (the touch bridge)
       world/                terrain, scatter, collision, daylight, season, weather
         parks/              one file per park, plus props and obstacles
@@ -530,9 +531,9 @@ and the trim, so there is one set of rules rather than two that can disagree.
 ### A save is allowed to be older than the code
 
 Species, parks and badges are data, so any of them can be removed, and a save
-written before that removal still names the thing. `/api/progress` also stores
-whatever JSON it is handed, so a bad value is not only a hand-edited
-localStorage away.
+written before that removal still names the thing. `/api/progress` puts every
+field in the right shape, but the ids inside are still whatever was sent, so a
+bad value is not only a hand-edited localStorage away.
 
 Every read of saved data against a registry therefore has to survive a miss, and
 three of them did not:

@@ -1314,7 +1314,7 @@ test.describe("customization", () => {
     page,
   }) => {
     await signIn(page.context(), "e2e-newcomer");
-    await resetProgress(page);
+    await resetProgress("e2e-newcomer");
     await page.goto("/customize");
 
     // Free from the start: you have to be able to make the bee yours before you
@@ -1579,7 +1579,7 @@ test.describe("customization", () => {
     test.setTimeout(120_000);
 
     await signIn(page.context(), "e2e-customizer");
-    await resetProgress(page);
+    await resetProgress("e2e-customizer");
 
     await page.goto("/customize");
     await page.waitForTimeout(2000);
@@ -1622,8 +1622,8 @@ test.describe("customization", () => {
    * written `{ ...local, ...remote }`, which is not a union: it is "the server
    * wins". Every key is only ever set to true by the game, so the two are the same
    * function in practice, which is exactly why the difference went unnoticed.
-   * `/api/progress` stores whatever JSON it is handed, though, so a row carrying a
-   * false could un-discover a plant the player had genuinely found.
+   * `/api/progress` accepts a false inside a record, though, so a row carrying
+   * one could un-discover a plant the player had genuinely found.
    *
    * This calls the real merge. The first version of this test drove the UI and
    * passed against the bug, because no page it could reach mounts the cloud sync:

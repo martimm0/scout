@@ -24,7 +24,7 @@ import {
 
 async function enterTouchGame(page: Page) {
   await signIn(page.context());
-  await resetProgress(page);
+  await resetProgress();
   await page.addInitScript(() => window.localStorage.clear());
   await page.goto(`/play?debug=1&hour=13&month=${TEST_MONTH}&weather=clear`);
   await page.waitForTimeout(3000);

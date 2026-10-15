@@ -67,7 +67,7 @@ async function playerPage(browser: Browser, who: string): Promise<Page> {
   const page = await context.newPage();
 
   await page.goto("/");
-  await resetProgress(page);
+  await resetProgress(`party-${who}`);
 
   return page;
 }

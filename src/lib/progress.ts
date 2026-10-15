@@ -1,5 +1,7 @@
 import { sql } from "@vercel/postgres";
 
+import { completeSave, mergeInto } from "@/features/game/state/merge";
+
 import { databaseConfigured } from "./env";
 
 /**
@@ -63,7 +65,12 @@ export type SavedProgress = {
    * owners existed has none.
    */
   owner?: string;
-  /** Wall-clock of the last write. Used to settle conflicts, not to display. */
+  /**
+   * The account's last admin reset that this save knows about. Sent by the
+   * client, compared by the route, never stored: the account holds the truth.
+   */
+  resetAt?: number;
+  /** Wall-clock of the last write. Not used to settle anything any more. */
   savedAt: number;
 };
 
@@ -108,23 +115,81 @@ export async function loadProgress(
   return rows[0]?.progress ?? null;
 }
 
-export async function saveProgress(userId: string, progress: SavedProgress) {
+/**
+ * Fold a save into the row, never over it.
+ *
+ * This used to replace the row with whatever arrived, last write wins. With one
+ * device that is the same thing as a merge. With two it is not: a phone that had
+ * been open since before the laptop found something would, on its next save (a
+ * change, or simply being put in a pocket, which fires the hide beacon), write
+ * its older copy over the account, and the laptop's find was gone from every
+ * device that had not seen it yet. Progress only goes up, so the server keeps
+ * the union, through the same `mergeInto` the client uses on sign-in.
+ *
+ * The bee is the one value that is replaced rather than unioned, and the
+ * incoming save is the newer choice, so it wins; the streak is the sending
+ * device's current run.
+ *
+ * Read, merge, then write only if nobody wrote in between (`updated_at` is the
+ * version), and go round again if somebody did. Two saves landing together
+ * would otherwise each merge against the same old row and the second would
+ * drop the first's find, which is the bug again with a smaller window.
+ *
+ * The ceiling applies to what is STORED. The route checks each request, which
+ * was enough while a save replaced the row; a merged row is the union of every
+ * request, so two saves under the ceiling with different junk in them made a
+ * row twice its size. A real save is an eighth of the ceiling, so a merge of
+ * two real ones never comes near it.
+ */
+export async function saveProgress(
+  userId: string,
+  incoming: unknown,
+  stamp: { owner: string; savedAt: number },
+): Promise<"ok" | "too-big"> {
   if (!databaseConfigured) {
-    return;
+    return "ok";
   }
 
   await ensureSchema();
 
-  // Last write wins, but only if it is actually newer. Two tabs open on the same
-  // account would otherwise take turns clobbering each other, and the player
-  // would watch their journal flicker between two versions of the truth.
-  await sql`
-    INSERT INTO player_progress (user_id, progress, updated_at)
-    VALUES (${userId}, ${JSON.stringify(progress)}::jsonb, now())
-    ON CONFLICT (user_id) DO UPDATE
-      SET progress = EXCLUDED.progress,
-          updated_at = now()
-      WHERE (player_progress.progress ->> 'savedAt')::bigint
-            <= ${progress.savedAt}
-  `;
+  const next = completeSave(incoming);
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const { rows } = await sql<{ progress: unknown; version: string }>`
+      SELECT progress, updated_at::text AS version
+      FROM player_progress WHERE user_id = ${userId}
+    `;
+    const current = rows[0];
+
+    const merged = current
+      ? mergeInto(completeSave(current.progress), next)
+      : next;
+    const document = JSON.stringify({
+      ...merged,
+      stats: { ...merged.stats, streak: next.stats.streak },
+      ...stamp,
+    });
+
+    if (new TextEncoder().encode(document).length > MAX_PROGRESS_BYTES) {
+      return "too-big";
+    }
+
+    const { rowCount } = current
+      ? await sql`
+          UPDATE player_progress
+          SET progress = ${document}::jsonb, updated_at = clock_timestamp()
+          WHERE user_id = ${userId} AND updated_at::text = ${current.version}
+        `
+      : await sql`
+          INSERT INTO player_progress (user_id, progress, updated_at)
+          VALUES (${userId}, ${document}::jsonb, clock_timestamp())
+          ON CONFLICT (user_id) DO NOTHING
+        `;
+
+    if (rowCount) {
+      return "ok";
+    }
+  }
+
+  throw new Error("save-contended");
 }

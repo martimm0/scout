@@ -248,6 +248,17 @@ export type GameState = {
    * and only after the server copy has been merged in.
    */
   owner: string | null;
+  /**
+   * When the account's progress was last reset by the admin, as the server
+   * reported it: 0 if never.
+   *
+   * A reset deletes the server copy, and the player's own device still holds
+   * the whole save. Without this the device found an empty account on its next
+   * sign-in, adopted its local copy, and pushed every plant straight back. A
+   * device whose marker is older than the account's forgets its save, and the
+   * route refuses a push that declares an older one.
+   */
+  resetAt: number;
 };
 
 /** Only the on/off flags in the UI state, not the plant ids alongside them. */
@@ -319,8 +330,9 @@ export type GameActions = {
   endOfflineRun: () => Promise<void>;
   resetSessionProgress: () => void;
   /**
-   * Forget a save that belongs to somebody else. Everything a player made is
-   * reset, the bee included; only this device's own settings stay.
+   * Forget a save that belongs to somebody else, or one the admin has reset
+   * since. Everything a player made is reset, the bee included; only this
+   * device's own settings stay.
    */
   forgetLocalSave: () => void;
   /** Mark the local save as `owner`'s. Cloud sync calls it after the merge. */
@@ -622,6 +634,10 @@ export function repairSave<T extends GameState>(
     stats: { ...current.stats, ...(saved.stats ?? {}) },
     settings: { ...current.settings, ...(saved.settings ?? {}) },
     owner: typeof saved.owner === "string" && saved.owner ? saved.owner : null,
+    resetAt:
+      typeof saved.resetAt === "number" && Number.isFinite(saved.resetAt)
+        ? saved.resetAt
+        : 0,
   };
 }
 
@@ -658,6 +674,7 @@ export const useGameStore = create<GameStore>()(
   settings: initialSettings,
   tutorialSeen: false,
   owner: null,
+  resetAt: 0,
   ...initialProgress,
 
   setPlayerFlightState: (player) =>
@@ -1187,6 +1204,8 @@ export const useGameStore = create<GameStore>()(
       pendingBadges: [],
       tutorialSeen: false,
       owner: null,
+      // Somebody else's reset is not this account's.
+      resetAt: 0,
     }),
 
   claimLocalSave: (owner) => set({ owner }),
@@ -1226,6 +1245,7 @@ export const useGameStore = create<GameStore>()(
         stats: state.stats,
         tutorialSeen: state.tutorialSeen,
         owner: state.owner,
+        resetAt: state.resetAt,
       }),
       storage: createJSONStorage(() => {
         const real = localStorage;

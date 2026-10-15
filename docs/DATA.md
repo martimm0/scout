@@ -471,9 +471,14 @@ type SavedProgress = {
   unlockedBadges, unlockedJournalEntries, seenPhases: Record<string, boolean>;
   stats: {...};
   tutorialSeen: boolean;
+  owner?: string;                 // stamped by the route from the session
   savedAt: number;
 };
 ```
+
+A push also declares `resetAt`, the last admin reset the device knows about. The
+route compares it with the account's and does not store it; see
+[Every device adds to the save](#every-device-adds-to-the-save).
 
 Not normalised into tables on purpose. A schema of `players`,
 `discovered_plants`, `unlocked_badges` would be the textbook answer and would buy
@@ -515,8 +520,8 @@ harmless, because Frick has no `requires` and `parkUnlocked` short-circuits on
 that, but it falls back anyway rather than resting on a coincidence in another
 file.)
 
-This is the mirror of a fix the cloud path already had. `mergeInto` in
-`cloud-sync.ts` spreads the remote bee over the local one rather than replacing
+This is the mirror of a fix the cloud path already had. `mergeInto` (now in
+`state/merge.ts`, so the route can use it too) spreads the remote bee over the local one rather than replacing
 it, and its comment names the same crash: "an empty object is truthy, so a
 partial or empty row on the server replaced the whole bee, the palette lost its
 colours, and the voxel builder threw". The server route was hardened; the
@@ -551,6 +556,7 @@ It refuses two things now, before anything reaches the row:
 | --- | --- | --- |
 | A body over `MAX_PROGRESS_BYTES` (256 kB) | 413 `bad-size` | Cost: the row is the bill. |
 | A body that is not an object | 400 `bad-shape` | An array, a string or a bare null spread into the row as `{ ...body }` and was stored as if it were progress. |
+| A save that would make the **merged** row over 256 kB | 413 `bad-size` | Saves merge into the row now, so the row is the union of every request. Checking only the request let two saves under the ceiling, with different junk in them, make a row twice its size. |
 
 The same 400 `bad-shape` now guards the photos and admin routes, which had a
 quieter version of the same mistake: the body was parsed inside a `try` and then
@@ -575,9 +581,11 @@ and asserts it is accepted, alongside the tests that an oversized body is refuse
 without touching the stored save and that a non-object is refused.
 
 This is the floor under the client's `repairSave`, not a replacement for it. The
-route checks size and that the body is an object; what is inside the object is
-still the merge's business, which is why a row carrying `{ trillium: false }` is
-still accepted and still harmless.
+route checks size and that the body is an object, then runs the body through
+`completeSave`, which puts every field in the right shape (a `marks` of `"x"`
+would otherwise throw out of the merge as a 500) and drops fields that are not
+part of a save. A row carrying `{ trillium: false }` is still accepted and still
+harmless, because the merge is an OR.
 
 ### The ten-minute run does not touch the save
 
@@ -688,6 +696,41 @@ remote wins the merge, so a player who lands on the customize page and picks a
 butterfly before the resume request comes back would watch the server's older bee
 silently overwrite them. The merge compares the bee against what it was when the
 request went out: a click is newer than a request already in flight.
+
+### Every device adds to the save
+
+**A save used to replace the row**, last write wins. With one device that is the
+same as a merge. With two it is not: a phone open since before the laptop found
+something would, on its next save (any change, or simply going into a pocket,
+which fires the hide beacon), write its older copy over the account, and the
+laptop's find was gone from every device that had not seen it yet.
+
+The route now folds each save into the row with the same `mergeInto` the client
+uses on sign-in, so the server copy is the union of every device. The incoming
+bee wins, since it is the newer choice, and the streak is the sending device's
+current run. It reads the row, merges, and writes only if nobody wrote in
+between (`updated_at` is the version), going round again if somebody did; two
+saves landing together would otherwise each merge against the same old row and
+the second would drop the first's find.
+
+Three things changed because of that, each with a test in
+`save-integrity.spec.ts` that fails when it is removed:
+
+| What | Why it had to change |
+| --- | --- |
+| **A failed sign-in pull is retried** (2 s, 5 s, 15 s, 30 s, then every minute) | Pushes wait for the pull to merge, so one failed pull (a cold database, a dropped connection) left the page saving nothing to the account for the rest of the session. |
+| **An admin reset is stamped on the account** (`accounts.progress_reset_at`) | Deleting the row was all a reset did, and the player's own device still held the whole save: its next sign-in found an empty account, adopted the local copy and pushed every plant back. Now a pull that reports a newer reset than the device knows makes it forget its save, and the route refuses a push declaring an older one (409 `reset-since`), which sends the client back to pull. The stamp is on the account rather than a placeholder row, which would count as a save in every number the admin reads. |
+| **The ceiling is on the stored row** | See [What the server will store](#what-the-server-will-store). |
+
+A push refused with a 409 of either kind (`not-your-save`, `reset-since`) makes
+the client pull again rather than retry the push, because the refusal means this
+copy is not the account's any more.
+
+The e2e helper `resetProgress` used to wipe a player by posting an empty save,
+which a merge ignores, so it deletes the row instead. It deliberately does not
+use the admin's reset: a dozen tests fly as `e2e-player` at once, and a stamp
+from one would send every other one's next save back to a pull that wiped the
+progress it was in the middle of making.
 
 ## Accounts, the ceiling, and the waitlist
 

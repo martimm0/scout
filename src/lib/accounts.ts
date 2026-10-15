@@ -82,6 +82,15 @@ async function ensureSchema() {
   await sql`ALTER TABLE accounts ADD COLUMN IF NOT EXISTS username TEXT`;
 
   /**
+   * When the admin last reset this account's progress, in milliseconds.
+   *
+   * On the account rather than as a placeholder save row, because a row
+   * would count as a save in every number the admin reads. See
+   * `resetProgressFor` for why the reset needs remembering at all.
+   */
+  await sql`ALTER TABLE accounts ADD COLUMN IF NOT EXISTS progress_reset_at BIGINT`;
+
+  /**
    * Unique, case-insensitively, and only over the rows that have one.
    *
    * A plain UNIQUE would let one account hold the name in lower case and
@@ -460,9 +469,15 @@ export async function adminSetUsername(
  * Wipe somebody's save without deleting their account.
  *
  * A separate thing from deleting them: this is for a player who asks to start
- * again, and it leaves the account, the seat and the username alone. Deleting
- * the row rather than writing an empty one, so the next load is a genuine fresh
- * start rather than an empty object that the merge would union with.
+ * again, and it leaves the account, the seat and the username alone.
+ *
+ * Deleting the row is not enough on its own, and used to be all this did. The
+ * player's device still holds the whole save, so its next sign-in found an
+ * empty account, adopted the local copy and pushed every plant straight back.
+ * So the reset is also stamped on the account, first: a device holding a save
+ * from before it forgets that save, and the route refuses a push from one that
+ * has not caught up. Stamped before the delete, so a push that lands between
+ * the two is already refused.
  */
 export async function resetProgressFor(userId: string): Promise<boolean> {
   if (!databaseConfigured) {
@@ -472,6 +487,10 @@ export async function resetProgressFor(userId: string): Promise<boolean> {
   await ensureSchema();
 
   try {
+    await sql`
+      UPDATE accounts SET progress_reset_at = ${Date.now()}
+      WHERE user_id = ${userId}
+    `;
     await sql`DELETE FROM player_progress WHERE user_id = ${userId}`;
 
     return true;
@@ -542,6 +561,24 @@ export async function setAccountStatus(
   await ensureSchema();
 
   await sql`UPDATE accounts SET status = ${status} WHERE user_id = ${userId}`;
+}
+
+/**
+ * When this account's progress was last reset, or 0 if it never has been.
+ * Read on every save in both directions; see `resetProgressFor`.
+ */
+export async function progressResetAt(userId: string): Promise<number> {
+  if (!databaseConfigured) {
+    return 0;
+  }
+
+  await ensureSchema();
+
+  const { rows } = await sql<{ at: string | null }>`
+    SELECT progress_reset_at::text AS at FROM accounts WHERE user_id = ${userId}
+  `;
+
+  return Number(rows[0]?.at ?? 0) || 0;
 }
 
 /**

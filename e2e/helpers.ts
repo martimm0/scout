@@ -137,6 +137,14 @@ export async function nameThePlayer(
   await setUsername(userId, username);
 }
 
+/** The suite's database, from `.env.local`, if there is one. */
+function postgresUrl() {
+  return /^POSTGRES_URL=(.*)$/m
+    .exec(readFileSync(".env.local", "utf8"))?.[1]
+    ?.trim()
+    .replace(/^["']|["']$/g, "");
+}
+
 /**
  * Just the account, with no name attached.
  *
@@ -158,10 +166,7 @@ export async function registerAccount(
   email: string,
   name = email,
 ): Promise<boolean> {
-  const url = /^POSTGRES_URL=(.*)$/m
-    .exec(readFileSync(".env.local", "utf8"))?.[1]
-    ?.trim()
-    .replace(/^["']|["']$/g, "");
+  const url = postgresUrl();
 
   if (!url) {
     return false;
@@ -219,55 +224,43 @@ export async function signIn(
 }
 
 /**
- * Wipe the signed-in player's save, on the SERVER as well as in the browser.
+ * Wipe a player's save, on the SERVER as well as in the browser.
  *
  * Clearing localStorage is not enough and never was. The account is signed in, so
  * cloud sync pulls the server's copy back down and unions it with whatever is
  * local: a suite that has been flying all afternoon leaves areas and plants
  * behind in Postgres, and the next run starts in a park it has already explored.
  * That is how "you begin in one area" started seeing two.
+ *
+ * It used to do this by posting an empty save over the row. The route merges
+ * now, so an empty save changes nothing, and this would have quietly stopped
+ * resetting anything. It deletes the row instead.
+ *
+ * Deliberately NOT the admin's reset, which also stamps the account so a
+ * device holding the old save forgets it. Every test starts in a fresh browser
+ * with nothing to forget, and a dozen of them fly as `e2e-player` at once: a
+ * stamp from one would send every other one's next save back to pull, and
+ * that pull would wipe the progress the test was in the middle of making.
+ *
+ * Takes the player's id because the row is keyed by account, not by cookie.
  */
-export async function resetProgress(page: Page) {
-  await page.request.post("/api/progress", {
-    data: {
-      // NOT an empty object. The pollinator is merged, and an empty one used to
-      // strip the bee of its colours and crash the renderer. The store repairs
-      // that shape on the way in now, so this is belt and braces rather than
-      // the only thing standing between a test and a white page.
-      pollinator: {
-        name: "Scout",
-        type: "bee",
-        bodyColor: "#f2bb42",
-        wingColor: "#dcefff",
-        wingStyle: "round",
-        accessory: "none",
-        accentColor: "#c0413b",
-      },
-      discoveredPlants: {},
-      discoveredFungi: {},
-      quizPassed: {},
-      seenPhases: {},
-      seenSeasons: {},
-      seenWeather: {},
-      winterKnown: {},
-      pollinatedPlants: {},
-      unlockedMapAreas: {},
-      unlockedParks: {},
-      unlockedBadges: {},
-      unlockedJournalEntries: {},
-      stats: {
-        pollinationAttempts: 0,
-        pollinationSuccesses: 0,
-        streak: 0,
-        bestStreak: 0,
-        quizzesTaken: 0,
-        quizzesPassed: 0,
-        questionsCorrect: 0,
-      },
-      tutorialSeen: false,
-      savedAt: Date.now(),
-    },
-  });
+export async function resetProgress(userId = "e2e-player") {
+  const url = postgresUrl();
+
+  if (!url) {
+    // No database, so nothing on the server to wipe.
+    return;
+  }
+
+  process.env.POSTGRES_URL = url;
+
+  const { sql } = await import("@vercel/postgres");
+
+  try {
+    await sql`DELETE FROM player_progress WHERE user_id = ${userId}`;
+  } catch {
+    // No table yet, so no row: already reset.
+  }
 }
 
 /**
@@ -321,7 +314,7 @@ export async function enterGame(
   park?: string,
 ) {
   await signIn(page.context());
-  await resetProgress(page);
+  await resetProgress();
   await page.addInitScript(() => window.localStorage.clear());
   await page.goto(
     `/play?debug=1&hour=${hour}&month=${month}` +

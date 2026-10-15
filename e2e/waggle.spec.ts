@@ -338,7 +338,7 @@ test.describe("dancing in the park", () => {
      * had no such fallback, so the loading title threw and took `/play` with
      * it. The world was fine and the page was white.
      *
-     * `/api/progress` stores whatever JSON it is handed, which is why this is
+     * `/api/progress` stores whatever ids it is handed, which is why this is
      * not only a hand-edited localStorage away.
      */
     await signIn(page.context());

@@ -95,7 +95,7 @@ test.describe("claiming a name", () => {
      */
     await signIn(page.context(), "username-player", "u@example.com");
     await page.goto("/");
-    await resetProgress(page);
+    await resetProgress("username-player");
 
     const post = (username: unknown) =>
       page.request.post("/api/username", { data: { username } });
