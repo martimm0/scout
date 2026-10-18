@@ -1065,6 +1065,13 @@ would quietly hand you the answer to a question you have not been asked.
 Frick needs nothing to unlock, so the pool is never empty for a real save and a
 brand new player is told about the park they are standing in.
 
+The page **re-reads the date** once a minute and whenever it comes back to the
+screen. It used to read it once, with a subscription that never fired, on the
+reasoning that the date does not change under a page. It does: Pocket is an
+installed app, and one resumed in the morning from the night before kept
+yesterday's fact for as long as it stayed in memory. `pocket.spec.ts` fakes the
+page's clock, opens it two minutes before midnight and runs it past.
+
 ### Where the area prose lives
 
 `data/areas.ts`. `AREA_BLURB` is twenty four descriptions, one per area across
@@ -1267,6 +1274,17 @@ thing being modelled. A real dance is over in under a minute and its information
 is stale by the afternoon, because the flower it points at will have been
 stripped. A record that never expired would silt up into a hundred pins over a
 park you had finished.
+
+Two copies merge through `mergeMarks`: every live mark from both, **sorted by
+when it was danced**, one per spot, then the cap. The merge used to fold one copy
+into the other through `addMark`, which puts each mark it adds at the top
+whatever its age, so a newest-first list came out oldest-first. The cap drops
+from the bottom on the assumption that the bottom is the oldest, so after a sync
+the next mark danced on a full record threw away the most recent one and kept a
+pin from days ago; and the copy folded in last won a shared spot, so a phone in
+a pocket all day could replace a fresh mark with a stale one. Since saves merge
+on the server, that was every save. Both are tested in `waggle.spec.ts` against
+the real `mergeInto`.
 
 Marks arriving from a garden party go straight into the save and the name of
 whoever danced is thrown away. A mark is a note about a place, not a record of

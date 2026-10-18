@@ -46,6 +46,12 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** How many marks one player can hold at once, oldest dropped first. */
 export const MAX_MARKS = 12;
 
+/** Closer than this, in the same park, two marks are one patch danced twice. */
+const SAME_SPOT = 25;
+
+const sameSpot = (a: Mark, b: Mark) =>
+  a.park === b.park && Math.hypot(a.x - b.x, a.z - b.z) <= SAME_SPOT;
+
 export function markExpired(mark: Mark, now: number): boolean {
   return now - mark.at > MARK_DAYS * DAY_MS;
 }
@@ -68,13 +74,40 @@ export function addMark(marks: Mark[], mark: Mark, now: number): Mark[] {
    * fills your whole record with four pins on top of each other, and the cap
    * then throws away the marks you actually wanted.
    */
-  const elsewhere = live.filter(
-    (existing) =>
-      existing.park !== mark.park ||
-      Math.hypot(existing.x - mark.x, existing.z - mark.z) > 25,
-  );
+  const elsewhere = live.filter((existing) => !sameSpot(existing, mark));
 
   return [mark, ...elsewhere].slice(0, MAX_MARKS);
+}
+
+/**
+ * Two copies of the record, as one: newest first, one mark per spot, capped.
+ *
+ * Not `addMark` folded over the other copy, which is what the merge used to do.
+ * Adding puts a mark at the top whatever its age, so folding a newest-first list
+ * in turned it oldest-first, and the cap, which drops from the bottom on the
+ * assumption that the bottom is the oldest, then threw away the most recent
+ * marks. It also meant the copy folded in last won a shared spot, so a device
+ * that had been in a pocket all day replaced a fresh mark with a stale one.
+ * Sorting by when each was danced makes the order, the spot and the cap all
+ * agree, whichever copy is passed first.
+ */
+export function mergeMarks(a: Mark[], b: Mark[], now: number): Mark[] {
+  const newestFirst = [...a, ...b]
+    .filter((mark) => !markExpired(mark, now))
+    .sort((x, y) => y.at - x.at);
+  const kept: Mark[] = [];
+
+  for (const mark of newestFirst) {
+    if (kept.length === MAX_MARKS) {
+      break;
+    }
+
+    if (!kept.some((other) => sameSpot(other, mark))) {
+      kept.push(mark);
+    }
+  }
+
+  return kept;
 }
 
 /** The live marks for a park, newest first. */

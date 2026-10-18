@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 
 import { useGameStore, type GameState } from "./game-store";
-import { mergeInto } from "./merge";
+import { completeSave, mergeInto } from "./merge";
 
 // Where the suite has always imported it from.
 export { mergeInto };
@@ -180,7 +180,9 @@ export function useCloudSync(
 
         if (progress) {
           useGameStore.setState((state) => {
-            const merged = mergeInto(state, progress);
+            // Made whole first: a row written before the route did that can
+            // still hold a field of the wrong shape.
+            const merged = mergeInto(state, completeSave(progress));
 
             /**
              * Do not overwrite a bee the player has changed while we were asking.

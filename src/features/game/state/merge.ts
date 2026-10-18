@@ -1,5 +1,5 @@
 import type { GameState } from "./game-store";
-import { addMark, type Mark } from "../world/marks";
+import { mergeMarks, type Mark } from "../world/marks";
 import { mergeSeedlings } from "../world/seedlings";
 
 /**
@@ -187,13 +187,14 @@ export function mergeInto(local: SaveFields, remote: Partial<SaveFields>): SaveF
      * Not monotonic like everything else here, and deliberately: a mark is
      * about where the forage is NOW, so it expires, and a union that never
      * dropped anything would hand a player back every pin they had ever
-     * dropped on two devices. `addMark` already owns the dedupe, the cap and
-     * the expiry, so folding the remote ones through it one at a time keeps
-     * one set of rules rather than two that can disagree.
+     * dropped on two devices. `mergeMarks` sorts by when each was danced
+     * before it dedupes and caps; see it for why folding through `addMark`,
+     * which this used to do, turned the record upside down.
      */
-    marks: (remote.marks ?? []).reduce(
-      (all, mark) => addMark(all, mark, Date.now()),
+    marks: mergeMarks(
       local.marks,
+      Array.isArray(remote.marks) ? remote.marks : [],
+      Date.now(),
     ),
     unlockedMapAreas: union(local.unlockedMapAreas, remote.unlockedMapAreas),
     unlockedBadges: union(local.unlockedBadges, remote.unlockedBadges),

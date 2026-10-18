@@ -15,7 +15,8 @@ import {
 } from "../src/features/game/world/answers";
 import { PARKS } from "../src/features/game/world/terrain";
 import { isInSeason, seasonWindow } from "../src/features/game/world/season";
-import { signIn } from "./helpers";
+import { pittsburghDate } from "../src/features/game/world/daylight";
+import { registerAccount, resetProgress, signIn } from "./helpers";
 
 /**
  * Pocket: the bee you can ask things.
@@ -665,5 +666,70 @@ test.describe("signed out, Pocket is the camera and nothing else", () => {
 
     // The camera is there for anybody.
     await expect(page.getByRole("button", { name: "Turn the camera on" })).toBeVisible();
+  });
+});
+
+test.describe("one thing a day, and the day changes", () => {
+  test("a pocket left open past midnight moves on to the new day's fact", async ({
+    page,
+  }) => {
+    /**
+     * The date was read once, with a subscription that never fired, on the
+     * reasoning that "the date does not change under us". It does: Pocket is
+     * an installed app, and one resumed in the morning from the night before
+     * kept showing yesterday's fact for as long as it stayed in memory, while
+     * the card promised one thing a day.
+     *
+     * The clock is the page's, faked, so midnight comes when the test says.
+     * A dedicated account with its server copy cleared, so what the page has
+     * found is exactly the seed and the expected facts can be worked out here.
+     */
+    const ok = await registerAccount("pocket-midnight-player", "pocket-midnight@example.com");
+    test.skip(!ok, "no database configured");
+    await resetProgress("pocket-midnight-player");
+
+    const save = {
+      found: { plants: SEED.discoveredPlants, fungi: SEED.discoveredFungi },
+      quizPassed: {},
+      unlockedParks: {},
+      unlockedMapAreas: {},
+    };
+
+    // Two minutes to midnight in Pittsburgh, on a night whose two facts differ.
+    const night = [13, 14, 15, 16, 17, 18, 19, 20]
+      .map((day) => new Date(Date.UTC(2026, 6, day + 1, 3, 58)))
+      .find(
+        (at) =>
+          factOfTheDay({ date: pittsburghDate(at), ...save }).id !==
+          factOfTheDay({ date: pittsburghDate(new Date(at.getTime() + 5 * 60_000)), ...save }).id,
+      );
+    expect(night, "every candidate night had the same fact either side").toBeDefined();
+
+    const before = factOfTheDay({ date: pittsburghDate(night!), ...save }).id;
+    const after = factOfTheDay({
+      date: pittsburghDate(new Date(night!.getTime() + 5 * 60_000)),
+      ...save,
+    }).id;
+
+    await page.clock.install({ time: night! });
+    await signIn(page.context(), "pocket-midnight-player", "pocket-midnight@example.com");
+    await page.addInitScript((seed) => {
+      window.localStorage.setItem(
+        "scout-game-state",
+        JSON.stringify({ version: 0, state: seed }),
+      );
+    }, SEED);
+    await page.goto("/pocket");
+
+    const card = page.locator("[data-fact]");
+
+    await expect(card).toHaveAttribute("data-fact", before);
+
+    await page.clock.runFor(5 * 60_000);
+
+    await expect(card, "yesterday's fact outlived midnight").toHaveAttribute(
+      "data-fact",
+      after,
+    );
   });
 });

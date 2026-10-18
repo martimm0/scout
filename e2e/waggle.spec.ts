@@ -18,6 +18,7 @@ import {
   TEST_MONTH,
 } from "./helpers";
 import { setActivePark } from "../src/features/game/world/terrain";
+import { completeSave, mergeInto } from "../src/features/game/state/merge";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -99,6 +100,52 @@ test.describe("what a dance leaves behind", () => {
 
     // Newest first, so the one just danced is at the top.
     expect(marks[0].x).toBe((MAX_MARKS + 7) * 200);
+  });
+
+  test("a merge keeps the marks newest first, so the cap still drops the oldest", () => {
+    /**
+     * The merge folded the other copy's marks in one at a time, and adding a
+     * mark puts it at the top, so a newest-first list came out oldest-first.
+     * The cap drops from the bottom on the assumption that the bottom is the
+     * oldest. After a sync it was the newest, so the next mark danced on a full
+     * record threw away the most recent one and kept a pin from days ago. The
+     * server runs this merge on every save, so it was every device, every time.
+     */
+    const now = Date.now();
+    const remote = Array.from({ length: MAX_MARKS }, (_, i) =>
+      mark({ x: i * 200, z: i * 200, at: now - (i + 1) * 60_000 }),
+    );
+
+    const merged = mergeInto(completeSave({}), { marks: remote }).marks;
+
+    expect(
+      merged.map((m) => m.at),
+      "the merge turned the record upside down",
+    ).toEqual(remote.map((m) => m.at));
+
+    const oldest = remote[MAX_MARKS - 1];
+    const newestOld = remote[0];
+    const after = addMark(merged, mark({ x: 5000, z: 5000, at: now }), now);
+
+    expect(after.some((m) => m.at === oldest.at), "the oldest survived the cap").toBe(false);
+    expect(after.some((m) => m.at === newestOld.at), "the newest was dropped instead").toBe(true);
+  });
+
+  test("two copies of one patch keep the newer mark, whichever device is behind", () => {
+    /**
+     * The same spot danced on two devices is one patch, and the newer dance is
+     * the one that says where the forage is now. Folding in order meant the
+     * copy merged last won, so a phone that had been in a pocket since morning
+     * replaced the laptop's fresh mark with its stale one.
+     */
+    const now = Date.now();
+    const fresh = mark({ species: "new-england-aster", at: now - 1000 });
+    const stale = mark({ species: "canada-goldenrod", at: now - 6 * 60 * 60 * 1000 });
+
+    const local = { ...completeSave({}), marks: [fresh] };
+    const merged = mergeInto(local, { marks: [stale] }).marks;
+
+    expect(merged.map((m) => m.species)).toEqual(["new-england-aster"]);
   });
 
   test("an expired mark is dropped when a new one arrives", () => {

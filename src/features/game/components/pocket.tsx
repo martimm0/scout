@@ -37,6 +37,18 @@ import styles from "./pocket.module.css";
 
 type Said = { id: number; question: string; answer: Answer };
 
+/** Asks again once a minute, and whenever the page comes back to the screen. */
+function subscribeToDay(onChange: () => void) {
+  const timer = window.setInterval(onChange, 60_000);
+
+  document.addEventListener("visibilitychange", onChange);
+
+  return () => {
+    window.clearInterval(timer);
+    document.removeEventListener("visibilitychange", onChange);
+  };
+}
+
 export function Pocket({
   authConfigured,
   signedIn,
@@ -63,12 +75,17 @@ export function Pocket({
    * side of midnight, so rendering the fact on the server would hand React two
    * different paragraphs to reconcile over a bug nobody could reproduce on
    * purpose. `getServerSnapshot` returns null, the card is absent from the HTML,
-   * and it appears on hydration. Nothing subscribes because the date does not
-   * change under us: `pittsburghDate` returns a plain string, so React's
-   * identity check settles on the first read.
+   * and it appears on hydration.
+   *
+   * It subscribes, because the date DOES change under us. This used to pass a
+   * subscription that never fired, and Pocket is an installed app: one resumed
+   * in the morning from the night before kept yesterday's fact for as long as
+   * it stayed in memory. It checks once a minute and whenever it comes back to
+   * the screen. `pittsburghDate` returns a plain string, so React's identity
+   * check makes every check that finds the same day a no-op.
    */
   const today = useSyncExternalStore(
-    () => () => {},
+    subscribeToDay,
     () => pittsburghDate(),
     () => null,
   );
