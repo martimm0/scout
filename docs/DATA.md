@@ -1198,6 +1198,12 @@ Two rules the tool keeps deliberately:
 back in. Wiping your own save IS allowed, because it cannot lock anybody out of
 anything and is a thing you might genuinely want.
 
+**A suspension bites on a session already open.** Pages redirect to
+`/suspended`, and the routes behind the two things a suspension is most likely
+for, the party ticket and the username, answer 403 `suspended` too. They used to
+check only that somebody was signed in, so a party page left open kept fetching
+tickets into rooms with other players. `suspended.spec.ts`.
+
 **Nothing here ranks players against each other.** The game has no leaderboard
 and a "top players" table would be that leaderboard entered through the back
 door. The per-player view answers "is this person stuck"; the aggregate answers

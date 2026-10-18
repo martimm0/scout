@@ -1,6 +1,6 @@
 import { encode } from "next-auth/jwt";
 
-import { getUsername } from "@/lib/accounts";
+import { getUsername, isSuspended } from "@/lib/accounts";
 import { auth } from "@/lib/auth";
 import { env } from "@/lib/env";
 
@@ -37,6 +37,12 @@ export async function GET() {
    * player who has not chosen yet is "A bee" until they do, which is a fair
    * thing to be called and gives away nothing.
    */
+  // Pages redirect a suspended account; the routes behind them have to say no
+  // too, or a page already open keeps working.
+  if (await isSuspended(session.user.id)) {
+    return Response.json({ error: "suspended" }, { status: 403 });
+  }
+
   const username = await getUsername(session.user.id);
 
   const ticket = await encode({

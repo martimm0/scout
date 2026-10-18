@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
-import { getUsername, setUsername } from "@/lib/accounts";
+import { getUsername, isSuspended, setUsername } from "@/lib/accounts";
 import { usernameProblem, usernameProblemSays } from "@/lib/username";
 
 /**
@@ -31,6 +31,12 @@ export async function POST(request: Request) {
 
   if (!session?.user?.id) {
     return NextResponse.json({ error: "not-signed-in" }, { status: 401 });
+  }
+
+  // Pages redirect a suspended account; the routes behind them have to say no
+  // too, or a page already open keeps working.
+  if (await isSuspended(session.user.id)) {
+    return NextResponse.json({ error: "suspended" }, { status: 403 });
   }
 
   let wanted = "";
