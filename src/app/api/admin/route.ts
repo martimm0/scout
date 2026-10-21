@@ -79,6 +79,14 @@ type Action =
   | { action: "resetProgress"; userId: string }
   | { action: "removeWaitlist"; email: string };
 
+const PLAYER_ACTIONS = new Set<string>([
+  "suspend",
+  "unsuspend",
+  "delete",
+  "setUsername",
+  "resetProgress",
+]);
+
 export async function POST(request: Request) {
   if (!(await requireAdmin())) {
     return notFound();
@@ -103,6 +111,21 @@ export async function POST(request: Request) {
    */
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return NextResponse.json({ error: "bad-shape" }, { status: 400 });
+  }
+
+  /**
+   * Every player action names a real account, as a string.
+   *
+   * Nothing checked. A bad id threw out of some actions as a 500, and a reset
+   * swallowed its own failure, so the admin was told a player had been wiped
+   * when nothing had happened.
+   */
+  if (PLAYER_ACTIONS.has(body.action)) {
+    const { userId } = body as { userId?: unknown };
+
+    if (typeof userId !== "string" || !userId) {
+      return NextResponse.json({ error: "bad-user" }, { status: 400 });
+    }
   }
 
   // The admin cannot suspend or delete themselves out of the tool. A locked-out
@@ -165,7 +188,10 @@ export async function POST(request: Request) {
        * wiping your own progress is a thing you might genuinely want, and it
        * cannot lock you out of the tool the way suspending yourself would.
        */
-      await resetProgressFor(body.userId);
+      if (!(await resetProgressFor(body.userId))) {
+        return NextResponse.json({ error: "reset-failed" }, { status: 500 });
+      }
+
       break;
     case "removeWaitlist":
       await removeFromWaitlist(body.email);

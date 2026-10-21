@@ -1204,6 +1204,13 @@ for, the party ticket and the username, answer 403 `suspended` too. They used to
 check only that somebody was signed in, so a party page left open kept fetching
 tickets into rooms with other players. `suspended.spec.ts`.
 
+**A player action names a real account.** Suspend, unsuspend, delete, rename
+and reset refuse a `userId` that is missing or not a non-empty string (400
+`bad-user`), and a reset that fails says so (500 `reset-failed`). Nothing checked
+before: a bad id threw out of some actions as a 500, and the reset swallowed its
+own failure, so the admin was told a player had been wiped when nothing had
+happened.
+
 **Nothing here ranks players against each other.** The game has no leaderboard
 and a "top players" table would be that leaderboard entered through the back
 door. The per-player view answers "is this person stuck"; the aggregate answers

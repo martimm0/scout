@@ -350,6 +350,32 @@ test.describe("the admin route answers a malformed request honestly", () => {
       expect(response.status(), `${raw} answered ${response.status()}`).toBe(400);
     }
   });
+
+  test("an action without a real account id is a 400, never a success", async ({
+    page,
+  }) => {
+    /**
+     * Nothing checked `userId` was a string. Depending on the action a bad one
+     * threw out as a 500, or, for a reset, came back 200: the reset swallowed
+     * its own failure and returned false, and the route never looked, so the
+     * admin was told a player had been wiped when nothing had happened.
+     */
+    await signIn(page.context(), "the-admin", ADMIN);
+
+    for (const action of ["resetProgress", "suspend", "unsuspend", "delete", "setUsername"]) {
+      for (const userId of [undefined, 42, { id: "x" }, ""]) {
+        const response = await page.request.post("/api/admin", {
+          data: { action, userId, username: "" },
+        });
+
+        test.skip(response.status() === 404, "this build has no admin");
+        expect(
+          response.status(),
+          `${action} with userId ${JSON.stringify(userId)} answered ${response.status()}`,
+        ).toBe(400);
+      }
+    }
+  });
 });
 
 test.describe("the admin table hydrates on every engine", () => {
