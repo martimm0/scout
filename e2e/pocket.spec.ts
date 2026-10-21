@@ -725,7 +725,9 @@ test.describe("one thing a day, and the day changes", () => {
 
     await expect(card).toHaveAttribute("data-fact", before);
 
-    await page.clock.runFor(5 * 60_000);
+    // Jumped, not run: `runFor` would draw every frame of those five minutes
+    // in the preview's WebGL canvas, and WebKit's page dies of it.
+    await page.clock.fastForward(5 * 60_000);
 
     await expect(card, "yesterday's fact outlived midnight").toHaveAttribute(
       "data-fact",

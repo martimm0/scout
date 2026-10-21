@@ -49,7 +49,14 @@ async function freshTicket(): Promise<{ ticket: string }> {
   let response: Response;
 
   try {
-    response = await fetch("/api/party/ticket");
+    // The species rides on the ticket, because the ticket is all the room
+    // learns about you. Asked for on every ticket, so a reconnect after a
+    // trip to Customize carries the new one.
+    const type = useGameStore.getState().pollinator.type;
+
+    response = await fetch(
+      `/api/party/ticket?pollinator=${encodeURIComponent(type)}`,
+    );
   } catch {
     /**
      * The network, not the answer. Worth retrying, so this deliberately does

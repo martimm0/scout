@@ -589,6 +589,12 @@ side. `/parties` also refuses to render without a session, but **that page is
 the courtesy, not the enforcement.** The socket is the enforcement, and
 `party.spec.ts` proves it by opening one with no ticket at all.
 
+The ticket also carries **the species you fly as** (`?pollinator=`, checked
+against the starter types, anything else a bee), because the room learns about
+you from the ticket and nothing else. It never did, so the room defaulted every
+guest to a bee and everybody else in the park saw a bee whatever they had
+picked. `party.spec.ts` joins as a butterfly and reads the room's welcome.
+
 The five minutes is why the client hands partysocket a **function** rather than a
 ticket. It calls that function on every connection attempt, so a fixed value meant
 every reconnect after the first five minutes presented an expired pass and was

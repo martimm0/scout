@@ -1,5 +1,6 @@
 import { encode } from "next-auth/jwt";
 
+import { STARTER_POLLINATORS } from "@/features/game/data/starter-pollinators";
 import { getUsername, isSuspended } from "@/lib/accounts";
 import { auth } from "@/lib/auth";
 import { env } from "@/lib/env";
@@ -18,7 +19,21 @@ import { env } from "@/lib/env";
  * nothing else. Reconnections fetch a fresh one, so a leaked ticket goes stale
  * before it is interesting.
  */
-export async function GET() {
+/**
+ * What the room will draw you as. The room reads it off the ticket and nowhere
+ * else, and this route never put it there, so every guest arrived as a bee and
+ * everybody else in the park saw a bee whatever they had picked. Only a type
+ * the game has; anything else is a bee, which is what it always was.
+ */
+function pollinatorFrom(request: Request) {
+  const asked = new URL(request.url).searchParams.get("pollinator");
+
+  return STARTER_POLLINATORS.some((starter) => starter.type === asked)
+    ? (asked as string)
+    : "bee";
+}
+
+export async function GET(request: Request) {
   const session = await auth();
 
   if (!session?.user?.id) {
@@ -49,6 +64,7 @@ export async function GET() {
     token: {
       sub: session.user.id,
       name: username ?? "A bee",
+      pollinator: pollinatorFrom(request),
     },
     secret: env.authSecret || "scout-local-mode-no-signin-possible",
     salt: "scout-party-ticket",

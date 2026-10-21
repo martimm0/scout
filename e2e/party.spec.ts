@@ -1105,7 +1105,7 @@ test.describe("garden parties", () => {
 
     let tickets = 0;
 
-    await page.route("**/api/party/ticket", async (route) => {
+    await page.route("**/api/party/ticket**", async (route) => {
       tickets += 1;
       await route.continue();
     });
@@ -1165,7 +1165,7 @@ test.describe("garden parties", () => {
     let tickets = 0;
     let refuse = false;
 
-    await page.route("**/api/party/ticket", async (route) => {
+    await page.route("**/api/party/ticket**", async (route) => {
       tickets += 1;
 
       if (refuse) {
@@ -1364,5 +1364,59 @@ test.describe("garden parties", () => {
     second.close();
 
     await expect.poll(() => roomCount(room), { timeout: 15_000 }).toBe(0);
+  });
+});
+
+test.describe("the room knows what you fly as", () => {
+  test("a butterfly joins the party as a butterfly, not as a bee", async ({
+    browser,
+  }) => {
+    /**
+     * Other players are drawn as "their chosen species", and the room learns
+     * the species from the ticket. The ticket route never put it there, so the
+     * room defaulted every guest to a bee: whatever you had picked, everybody
+     * else in the park saw a bee. Asserted on what the room says back, in its
+     * welcome, which is what every other player is told too.
+     */
+    test.setTimeout(120_000);
+
+    const page = await playerPage(browser, "flutter");
+
+    await page.evaluate(() =>
+      window.localStorage.setItem(
+        "scout-game-state",
+        JSON.stringify({
+          version: 0,
+          state: { owner: "party-flutter", pollinator: { type: "butterfly" } },
+        }),
+      ),
+    );
+
+    const welcomed = new Promise<string | null>((resolve) => {
+      page.on("websocket", (socket) => {
+        socket.on("framereceived", ({ payload }) => {
+          try {
+            const message = JSON.parse(String(payload)) as {
+              t?: string;
+              you?: { pollinator?: string };
+            };
+
+            if (message.t === "welcome") {
+              resolve(message.you?.pollinator ?? null);
+            }
+          } catch {
+            // Not JSON, not ours.
+          }
+        });
+      });
+    });
+
+    await page.goto("/parties");
+    await page.getByRole("button", { name: /Join the Schenley/ }).click();
+    await page.waitForURL(/\/play/);
+
+    expect(await welcomed, "the room was told this player is a bee").toBe("butterfly");
+
+    await closePlayer(page);
   });
 });

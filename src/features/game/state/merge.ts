@@ -191,8 +191,10 @@ export function mergeInto(local: SaveFields, remote: Partial<SaveFields>): SaveF
      * before it dedupes and caps; see it for why folding through `addMark`,
      * which this used to do, turned the record upside down.
      */
+    // Both sides guarded: the suite hands this a half-built save on purpose,
+    // and a spread of anything that is not an array throws.
     marks: mergeMarks(
-      local.marks,
+      Array.isArray(local.marks) ? local.marks : [],
       Array.isArray(remote.marks) ? remote.marks : [],
       Date.now(),
     ),
