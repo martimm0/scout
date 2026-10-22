@@ -1420,3 +1420,95 @@ test.describe("the room knows what you fly as", () => {
     await closePlayer(page);
   });
 });
+
+test.describe("a malformed message is dropped, not thrown", () => {
+  test("null, a number or a pose of nonsense leaves the room standing", async () => {
+    /**
+     * The room parsed every message inside a try, and then read `message.t`
+     * outside it. A bare `null` parses fine and has no `t`, so it threw out of
+     * the handler: anything with a valid ticket could hand the room an
+     * exception per message.
+     *
+     * And a pose was checked with `typeof === "number"`, which Infinity passes:
+     * `1e999` parses as Infinity, the room relayed it, and JSON carried it to
+     * every other player as `null`, so their copy of that bee sat at NaN.
+     * Asserted as the other players see it: no pose that is not a real place,
+     * and chat still crossing afterwards.
+     */
+    test.setTimeout(60_000);
+
+    const room = "garden-schenley";
+    const open = async (who: string) => {
+      const socket = new WebSocket(
+        `ws://${PARTY_HOST}/parties/garden/${room}?ticket=${encodeURIComponent(
+          await partyTicket(who),
+        )}`,
+      );
+
+      await new Promise<void>((resolve) =>
+        socket.addEventListener("open", () => resolve()),
+      );
+
+      return socket;
+    };
+
+    const rude = await open("malformed-sender");
+    const polite = await open("malformed-listener");
+
+    const relayed: unknown[] = [];
+
+    polite.addEventListener("message", (event) => {
+      const message = JSON.parse(String(event.data)) as { t: string; pose?: unknown };
+
+      if (message.t === "pos") {
+        relayed.push(message.pose);
+      }
+    });
+
+    for (const raw of [
+      "null",
+      "42",
+      '"just a string"',
+      "[1, 2]",
+      '{"t":"pos","pose":null}',
+      '{"t":"pos","pose":{"x":1e999,"z":0,"altitude":1,"heading":0}}',
+      '{"t":"mark","mark":null}',
+      '{"t":"move","move":null}',
+      '{"t":"workOn","plant":null}',
+      '{"t":"rtc","to":null,"signal":null}',
+    ]) {
+      rude.send(raw);
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    const heard = new Promise<boolean>((resolve) => {
+      polite.addEventListener("message", (event) => {
+        const message = JSON.parse(String(event.data)) as { t: string; text?: string };
+
+        if (message.t === "chat" && message.text === "still here") {
+          resolve(true);
+        }
+      });
+      setTimeout(() => resolve(false), 8000);
+    });
+
+    rude.send(JSON.stringify({ t: "chat", text: "still here" }));
+
+    expect(await heard, "the room stopped passing chat after the garbage").toBe(true);
+    expect(
+      relayed.filter(
+        (pose) =>
+          !pose ||
+          !["x", "z", "altitude", "heading"].every((key) =>
+            Number.isFinite((pose as Record<string, unknown>)[key]),
+          ),
+      ),
+      "a pose that is not a place reached another player",
+    ).toEqual([]);
+    expect(rude.readyState, "the sender's socket was dropped").toBe(WebSocket.OPEN);
+
+    rude.close();
+    polite.close();
+  });
+});

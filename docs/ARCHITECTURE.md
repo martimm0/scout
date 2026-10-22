@@ -595,6 +595,15 @@ you from the ticket and nothing else. It never did, so the room defaulted every
 guest to a bee and everybody else in the park saw a bee whatever they had
 picked. `party.spec.ts` joins as a butterfly and reads the room's welcome.
 
+**A message the room cannot use is dropped, never thrown.** Anything that is not
+an object (`null`, a number, an array all parse) is ignored before the room reads
+`message.t`, which used to throw out of the handler once per message for anybody
+holding a ticket. A pose must be four **finite** numbers: `1e999` parses as
+Infinity, which passes `typeof === "number"`, and JSON carried it to every other
+player as `null`, so their copy of that bee sat at NaN. `party.spec.ts` sends a
+handful of each and asserts that no pose reaching another player is anything but
+a place, and that chat still crosses afterwards.
+
 The five minutes is why the client hands partysocket a **function** rather than a
 ticket. It calls that function on every connection attempt, so a fixed value meant
 every reconnect after the first five minutes presented an expired pass and was

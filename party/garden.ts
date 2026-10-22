@@ -205,15 +205,23 @@ export class Garden extends Server<Env> {
       return;
     }
 
+    // `null`, a number or an array all parse, and `message.t` below then threw
+    // out of the handler, once per message, for anybody holding a ticket.
+    if (!message || typeof message !== "object" || Array.isArray(message)) {
+      return;
+    }
+
     switch (message.t) {
       case "pos": {
         const p = message.pose;
 
         if (
-          typeof p?.x !== "number" ||
-          typeof p.z !== "number" ||
-          typeof p.altitude !== "number" ||
-          typeof p.heading !== "number"
+          // Finite, not just numbers: `1e999` parses as Infinity, which is a
+          // number, and reached every other player as null, a bee at NaN.
+          !Number.isFinite(p?.x) ||
+          !Number.isFinite(p.z) ||
+          !Number.isFinite(p.altitude) ||
+          !Number.isFinite(p.heading)
         ) {
           return;
         }
