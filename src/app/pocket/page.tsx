@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   title: "Pocket · Scout",
   description:
     "Your pollinator, out of the park: a fact a day, questions it will answer, and a camera to stand it in your kitchen.",
+  // Its own, so adding Pocket to a home screen opens Pocket, not the park.
+  manifest: "/pocket/manifest.webmanifest",
 };
 
 /**

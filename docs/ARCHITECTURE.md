@@ -790,6 +790,12 @@ passed the whole time; only driving a real browser found it.
 you can type questions into, and an AR viewfinder that stands your pollinator in
 the room you are in.
 
+It has **its own manifest**, `/pocket/manifest.webmanifest`, which is the game's
+with Pocket's name and `start_url: "/pocket"`. Pocket is the part meant to live on
+a phone's home screen, and the site used to have one manifest starting at `/play`,
+so installing Pocket and opening it launched the whole 3D park on a phone.
+`pocket.spec.ts` reads the manifest each page actually links to.
+
 ### The gate that is not a gate
 
 It is the only page that reads the session itself instead of calling

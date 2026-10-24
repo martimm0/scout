@@ -735,3 +735,33 @@ test.describe("one thing a day, and the day changes", () => {
     );
   });
 });
+
+test.describe("installed from Pocket, it opens Pocket", () => {
+  test("the manifest Pocket links to starts at Pocket", async ({ page }) => {
+    /**
+     * Pocket is the part of Scout meant to live on a phone's home screen. The
+     * only manifest started at /play, so adding Pocket to the home screen and
+     * opening it launched the whole 3D park, on a phone, instead of the page
+     * that was installed. Asked of the link the page actually serves.
+     */
+    await page.goto("/pocket");
+
+    const href = await page.locator('link[rel="manifest"]').getAttribute("href");
+
+    expect(href, "Pocket links no manifest at all").toBeTruthy();
+
+    const manifest = (await (await page.request.get(href!)).json()) as {
+      start_url?: string;
+      name?: string;
+    };
+
+    expect(manifest.start_url, "installing Pocket opens the park").toBe("/pocket");
+
+    // And the game keeps its own: installing from anywhere else still opens /play.
+    await page.goto("/about");
+    const gameHref = await page.locator('link[rel="manifest"]').getAttribute("href");
+    const game = (await (await page.request.get(gameHref!)).json()) as { start_url?: string };
+
+    expect(game.start_url).toBe("/play");
+  });
+});
