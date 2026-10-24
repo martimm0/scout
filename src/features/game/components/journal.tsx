@@ -168,7 +168,8 @@ export function Journal() {
         </div>
         <div>
           <dt>Quizzes passed</dt>
-          <dd>{stats.quizzesPassed}</dd>
+          {/* Quizzes, not passes: retaking one is still one. */}
+          <dd>{countUnlocked(quizPassed)}</dd>
         </div>
         <div>
           <dt>Photographs</dt>

@@ -1,6 +1,10 @@
 import { expect, test } from "@playwright/test";
 
 import { shuffledTriviaFor, TRIVIA } from "../src/features/game/data/trivia";
+import { BADGES } from "../src/features/game/data/badges";
+import { PLANTS } from "../src/features/game/data/plants";
+import { useGameStore } from "../src/features/game/state/game-store";
+import { signIn } from "./helpers";
 
 /**
  * A quiz you could pass without reading anything.
@@ -58,3 +62,59 @@ test.describe("the quiz cannot be beaten by always picking the first option", ()
     }
   });
 });
+
+test.describe("a quiz counts once", () => {
+  /**
+   * Passing the milkweed quiz ten times is one quiz passed, not ten. The badge
+   * said "Ten quizzes passed. You have actually been reading", and was earned
+   * by reading one entry ten times; the journal's count said the same thing.
+   * Both count distinct species passed now.
+   */
+  const earned = (id: string, passed: string[], passes: number) =>
+    BADGES.find((badge) => badge.id === id)!.earned({
+      ...useGameStore.getState(),
+      quizPassed: Object.fromEntries(passed.map((plant) => [plant, true])),
+      stats: { ...useGameStore.getState().stats, quizzesTaken: passes, quizzesPassed: passes },
+    });
+
+  test("ten passes of one quiz are not Top of the Class, ten different ones are", () => {
+    // What ten retakes of one quiz leave behind: one species passed, ten passes.
+    const one = [PLANTS[0].id];
+    const ten = PLANTS.slice(0, 10).map((plant) => plant.id);
+
+    expect(earned("quick-study", one, 10)).toBe(true);
+    expect(earned("top-of-the-class", one, 10), "one quiz retaken ten times earned it").toBe(false);
+    expect(earned("top-of-the-class", ten, 10)).toBe(true);
+  });
+
+  test("the journal counts quizzes, not passes", async ({ page }) => {
+    await signIn(page.context());
+    await page.addInitScript((id) => {
+      window.localStorage.setItem(
+        "scout-game-state",
+        JSON.stringify({
+          version: 0,
+          state: {
+            quizPassed: { [id]: true },
+            stats: {
+              pollinationAttempts: 0,
+              pollinationSuccesses: 0,
+              streak: 0,
+              bestStreak: 0,
+              quizzesTaken: 10,
+              quizzesPassed: 10,
+              questionsCorrect: 30,
+            },
+          },
+        }),
+      );
+    }, PLANTS[0].id);
+
+    await page.goto("/journal");
+
+    const passed = page.locator('div:has(> dt:text-is("Quizzes passed")) > dd');
+
+    await expect(passed).toHaveText("1");
+  });
+});
+

@@ -265,14 +265,17 @@ export const BADGES: Badge[] = [
     name: "Quick Study",
     description: "You passed your first quiz.",
     hint: "Land on something and let it test you.",
-    earned: (state) => state.stats.quizzesPassed >= 1,
+    // Distinct species, not passes: a retake is the same quiz.
+    earned: (state) => count(state.quizPassed) >= 1,
   },
   {
     id: "top-of-the-class",
     name: "Top of the Class",
-    description: "Ten quizzes passed. You have actually been reading.",
+    description: "Ten different quizzes passed. You have actually been reading.",
     hint: "Keep landing, keep reading.",
-    earned: (state) => state.stats.quizzesPassed >= 10,
+    // Ten different species. Counting passes let one entry, read ten times,
+    // earn a badge about having read widely.
+    earned: (state) => count(state.quizPassed) >= 10,
   },
   {
     id: "second-park",

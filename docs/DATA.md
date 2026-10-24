@@ -820,6 +820,13 @@ row that can go wrong, and the 501 row so the local album is not taken away.
 re-evaluates on change, so adding one to the data file makes it work and no call
 site has to know it exists.
 
+**Quizzes count once per species.** Quick Study and Top of the Class read
+`quizPassed`, the set of species whose quiz you have passed, not
+`stats.quizzesPassed`, which counts every pass including retakes. Counting passes
+let one entry, read and passed ten times, earn a badge for having read widely, and
+the journal's "Quizzes passed" said ten as well. It shows the distinct count now.
+`quiz.spec.ts`.
+
 **Accessories** (10, six earned) hang off badges by id. Four are free, because a
 new player has to be able to make the bee theirs before they have done anything.
 Locked ones are shown, greyed, naming the badge: a reward you cannot see is not a
