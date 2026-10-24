@@ -23,11 +23,12 @@ export default function WaitlistPage() {
         <p className="lead">
           Scout is small on purpose, and it is at its limit of players. You have
           been added to the waitlist with the address you signed in with. When a
-          place opens up, it opens up in order.
+          place opens up, it goes to whoever has waited longest.
         </p>
         <p className="lead">
-          Nothing else is needed from you. In the meantime the ten-minute run
-          needs no account at all, and it is the whole game, only shorter.
+          Nobody will email you. Sign in again another day: if a place has come
+          free and it is your turn, you are in. In the meantime the ten-minute
+          run needs no account at all, and it is the whole game, only shorter.
         </p>
         <p style={{ marginTop: "1.5rem" }}>
           <Link href="/offline">Take the ten-minute run</Link> ·{" "}

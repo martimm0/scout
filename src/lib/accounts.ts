@@ -285,7 +285,24 @@ export async function registerSignIn(account: {
 
     const [ceiling, count] = await Promise.all([getCeiling(), accountCount()]);
 
-    if (count >= ceiling) {
+    /**
+     * The list is a queue, which is what its page promises: "when a place
+     * opens up, it opens up in order". Room alone used to be enough, so a seat
+     * the admin freed went to whoever signed in next, a stranger who had never
+     * waited, ahead of everybody on the list. Now a seat is only yours if
+     * fewer people are ahead of you than there are seats: everyone who joined
+     * the list before you, or the whole list if you are not on it.
+     */
+    const { rows: queue } = await sql<{ ahead: number }>`
+      SELECT count(*)::int AS ahead FROM waitlist
+      WHERE created_at < COALESCE(
+        (SELECT created_at FROM waitlist WHERE email = ${account.email}),
+        'infinity'::timestamptz
+      )
+    `;
+    const ahead = queue[0]?.ahead ?? 0;
+
+    if (count + ahead >= ceiling) {
       if (account.email) {
         await sql`
           INSERT INTO waitlist (email) VALUES (${account.email})
@@ -301,6 +318,11 @@ export async function registerSignIn(account: {
       VALUES (${account.userId}, ${account.email}, ${account.name})
       ON CONFLICT (user_id) DO NOTHING
     `;
+
+    // In, so no longer waiting, and no longer ahead of anybody.
+    if (account.email) {
+      await sql`DELETE FROM waitlist WHERE email = ${account.email}`;
+    }
 
     return "ok";
   } catch {

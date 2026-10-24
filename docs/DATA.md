@@ -751,6 +751,15 @@ the numbers back and can set the ceiling, suspend, delete, and clear the waitlis
 Deleting an account takes its save and its album with it, which is what frees a
 seat.
 
+**The waitlist is a queue.** A new account is admitted only if there are more free
+seats than people ahead of it: everyone who joined the list earlier, or the whole
+list for somebody not on it. Room alone used to be enough, so a seat the admin
+freed went to whoever signed in next, a stranger who had never waited, while the
+page promised places open up in order. Admission takes the person off the list.
+Nothing notifies anyone, and the page now says so: sign in again another day.
+`waitlist.spec.ts` frees one seat with somebody already waiting and checks a
+newcomer is turned away and the person waiting is let in.
+
 The ceiling is **validated where it is set, not where it is read**, and the reason
 is a nasty little failure mode. The read side falls back to a hundred when it
 cannot parse what it finds, which sounds safe and is not: a value that failed to
