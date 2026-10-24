@@ -757,8 +757,13 @@ list for somebody not on it. Room alone used to be enough, so a seat the admin
 freed went to whoever signed in next, a stranger who had never waited, while the
 page promised places open up in order. Admission takes the person off the list.
 Nothing notifies anyone, and the page now says so: sign in again another day.
-`waitlist.spec.ts` frees one seat with somebody already waiting and checks a
-newcomer is turned away and the person waiting is let in.
+Only people **still waiting** count: before the queue, being let in never took
+anybody off the list, so it still holds players who have had an account for
+weeks, and counted as waiting they stood ahead of every newcomer, enough of them
+and no free seat could be taken by anyone new. They still show in the admin's
+waitlist until removed there. `waitlist.spec.ts` frees one seat with somebody
+already waiting and checks a newcomer is turned away and the person waiting is
+let in, and that a stale entry for an existing account holds no place.
 
 The ceiling is **validated where it is set, not where it is read**, and the reason
 is a nasty little failure mode. The read side falls back to a hundred when it

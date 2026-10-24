@@ -292,13 +292,18 @@ export async function registerSignIn(account: {
      * waited, ahead of everybody on the list. Now a seat is only yours if
      * fewer people are ahead of you than there are seats: everyone who joined
      * the list before you, or the whole list if you are not on it.
+     *
+     * Only people still waiting. Before the queue, being let in never took you
+     * off the list, so it still holds players who have had an account for
+     * weeks, and counted as waiting they stood ahead of every newcomer.
      */
     const { rows: queue } = await sql<{ ahead: number }>`
-      SELECT count(*)::int AS ahead FROM waitlist
-      WHERE created_at < COALESCE(
-        (SELECT created_at FROM waitlist WHERE email = ${account.email}),
-        'infinity'::timestamptz
-      )
+      SELECT count(*)::int AS ahead FROM waitlist w
+      WHERE NOT EXISTS (SELECT 1 FROM accounts a WHERE a.email = w.email)
+        AND w.created_at < COALESCE(
+          (SELECT created_at FROM waitlist WHERE email = ${account.email}),
+          'infinity'::timestamptz
+        )
     `;
     const ahead = queue[0]?.ahead ?? 0;
 
