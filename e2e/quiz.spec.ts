@@ -112,7 +112,11 @@ test.describe("a quiz counts once", () => {
 
     await page.goto("/journal");
 
-    const passed = page.locator('div:has(> dt:text-is("Quizzes passed")) > dd');
+    // Visible only. Under load the page can briefly hold a second, hidden copy
+    // of an earlier render, which nobody sees and strict mode still counts.
+    const passed = page
+      .locator('div:has(> dt:text-is("Quizzes passed")) > dd')
+      .filter({ visible: true });
 
     await expect(passed).toHaveText("1");
   });

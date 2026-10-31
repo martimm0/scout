@@ -461,7 +461,15 @@ test.describe("the admin table tells the truth about itself", () => {
 
     await adminPage.goto("/admin");
 
-    const cell = adminPage.getByLabel("Username for account snapback-player");
+    /**
+     * Visible only. This failed only deep in full runs, as "resolved to 2
+     * elements" with both copies identical: under load the page can briefly
+     * hold a second, hidden copy of an earlier render. Nobody sees it, and a
+     * second VISIBLE copy would still fail here, which is the one that matters.
+     */
+    const cell = adminPage
+      .getByLabel("Username for account snapback-player")
+      .filter({ visible: true });
 
     await expect(cell).toHaveValue(wanted);
 
@@ -485,7 +493,9 @@ test.describe("the admin table tells the truth about itself", () => {
     ).toBeVisible();
 
     await expect(
-      adminPage.getByLabel("Username for account snapback-player"),
+      adminPage
+        .getByLabel("Username for account snapback-player")
+        .filter({ visible: true }),
       "the cell kept a name the database refused",
     ).toHaveValue(wanted);
 

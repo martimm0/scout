@@ -373,6 +373,14 @@ The rule that follows: **assert the thing, not the proxy for it.**
 - "The music has no drone" cannot be read off a source file. The test taps the
   master output and measures the spectrum.
 
+**Locators that read the page filter to what is visible.** Under load the page
+can briefly hold a second, hidden copy of an earlier render of the same route.
+Nobody sees it and the accessibility tree does not contain it, but Playwright's
+strict mode counts it, so a plain `getByLabel` resolved to two identical
+elements. That was the admin "snaps back" test failing deep in full runs for
+weeks, and the journal's quiz count once. `.filter({ visible: true })` keeps the
+check honest: a second copy a player could see would still fail.
+
 Test hooks are query params on `/play`, and they exist because the real world is
 not reproducible: `?hour=13` pins the clock (half the flowers are shut at night),
 `?month=7` pins the calendar (half the flora is out of season in any given month,
