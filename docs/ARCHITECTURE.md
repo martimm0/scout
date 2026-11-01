@@ -389,6 +389,19 @@ was the Schenley flake in `waggle.spec.ts` and `seed-set.spec.ts`, WebKit only,
 deep in full runs: the trace showed the bee nine units sideways, not lost. It now
 steers the last few units on the way down.
 
+It also comes down in small steps once it is near, and waits for the bee to stop
+before looking for the tag. A long press is about twelve units, nearly the height
+of the reach, and the bee coasts on after the key is let go: under a spicebush,
+whose flowers are well above its base, the tag showed at the check and the bee had
+sunk out of reach by the time the test pressed Space. Because it now ends close
+over the flower, and the camera looks ahead rather than down, the touch test for
+tapping a tag drops toward the flower until the tag is on screen before it taps.
+And `nearestPlantToSpawn` skips demanding flowers as well as shut ones, and any
+flower with one of those within 20 units, because the bee lands on whatever is
+nearest it. Schenley's nearest was a milkweed, which has no Pollinate button
+before its quiz, and the Schenley seed test only passed while the bee happened to
+stop nearer a neighbour.
+
 **A test that pollinates pins the other insects off** (`?busy=off`). One flower
 in twelve is busy at any moment, by the wall clock, and a busy flower offers no
 Pollinate button, so the minigame tests failed one run in a few for no reason

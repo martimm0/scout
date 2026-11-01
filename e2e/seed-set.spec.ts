@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { createJSONStorage } from "zustand/middleware";
 
 import {
   enterGame,
@@ -307,7 +308,7 @@ test.describe("the park you are flying, not the one your save prefers", () => {
 
     setActivePark("schenley");
 
-    await flyToPlant(page, nearestPlantToSpawn());
+    expect(await flyToPlant(page, nearestPlantToSpawn()), "never got near a flower").toBe(true);
 
     expect(
       await workUntilItTakes(page),
@@ -616,19 +617,19 @@ test("the same flower in two parks keeps a seedling in each", async () => {
    * devices kept whichever was older and dropped the other.
    *
    * The real store action, so a key built anywhere else does not pass for it.
-   * Node's own localStorage is not a working one, so persistence gets a map.
+   * Node's own localStorage is not a working one, so persistence gets a map,
+   * handed to the store itself: another spec in this worker may have loaded
+   * the store already, and it keeps the storage it found then.
    */
   const memory = new Map<string, string>();
-  Object.defineProperty(globalThis, "localStorage", {
-    configurable: true,
-    value: {
-      getItem: (key: string) => memory.get(key) ?? null,
-      setItem: (key: string, value: string) => memory.set(key, value),
-      removeItem: (key: string) => memory.delete(key),
-    },
-  });
-
   const { useGameStore } = await import("../src/features/game/state/game-store");
+  useGameStore.persist.setOptions({
+    storage: createJSONStorage(() => ({
+      getItem: (key: string) => memory.get(key) ?? null,
+      setItem: (key: string, value: string) => void memory.set(key, value),
+      removeItem: (key: string) => void memory.delete(key),
+    })),
+  });
 
   setActivePark("frick");
   useGameStore.getState().setSeed("plant-canada-goldenrod-0", "canada-goldenrod", 0, 0);

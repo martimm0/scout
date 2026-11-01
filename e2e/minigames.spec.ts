@@ -60,7 +60,7 @@ async function land(page: import("@playwright/test").Page, kind: string) {
   // clock, and a busy flower has no Pollinate button: the bee arrived, landed,
   // and the test timed out waiting for a game it was never going to be offered.
   await enterGame(page, 12, monthForKind(kind), undefined, "off");
-  await flyToPlant(page, nearestFor(kind));
+  expect(await flyToPlant(page, nearestFor(kind)), "never got near the flower").toBe(true);
   await page.keyboard.press("Space");
   await page.getByRole("button", { name: /Pollinate/ }).click();
   await page.locator(`[data-minigame="${kind}"]`).waitFor();

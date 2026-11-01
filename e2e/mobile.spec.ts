@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import {
   dismissTutorial,
   flyToPlant,
+  hold,
   nearestPlantToSpawn,
   signIn,
   resetProgress,
@@ -154,18 +155,23 @@ test.describe("the touch pad flies the bee", () => {
     // there is any velocity left it slides across the screen, and a tap aimed at
     // where it was lands on the park instead. A player waits for it to settle
     // without thinking about it; the test has to be told.
-    await page.waitForFunction(
-      () => {
-        for (const row of document.querySelectorAll("aside dl > div")) {
-          if (row.querySelector("dt")?.textContent?.trim() === "Speed") {
-            return Number.parseFloat(row.querySelector("dd")?.textContent ?? "9") < 0.4;
+    const settle = () =>
+      page.waitForFunction(
+        () => {
+          for (const row of document.querySelectorAll("aside dl > div")) {
+            if (row.querySelector("dt")?.textContent?.trim() === "Speed") {
+              return (
+                Number.parseFloat(row.querySelector("dd")?.textContent ?? "9") <
+                0.4
+              );
+            }
           }
-        }
-        return false;
-      },
-      undefined,
-      { timeout: 15_000 },
-    );
+          return false;
+        },
+        undefined,
+        { timeout: 15_000 },
+      );
+    await settle();
 
     /**
      * Ask the browser what is actually on top at the button's own centre.
@@ -179,8 +185,32 @@ test.describe("the touch pad flies the bee", () => {
      * no flight-path luck involved.
      */
     const land = page.getByRole("button", { name: /^Land/ }).first();
-    const box = await land.boundingBox();
-    expect(box, "the Land button never appeared").not.toBeNull();
+    const screen = page.viewportSize()!;
+    const onScreen = async () => {
+      const box = await land.boundingBox({ timeout: 2_000 }).catch(() => null);
+      return box &&
+        box.x >= 0 &&
+        box.y >= 0 &&
+        box.x + box.width <= screen.width &&
+        box.y + box.height <= screen.height
+        ? box
+        : null;
+    };
+
+    /**
+     * The flight helper stops as soon as the flower is in reach, which can be
+     * high over it, and the camera looks ahead, not down: the tag is then under
+     * the bottom of the screen where no finger could reach it. Drop toward the
+     * flower, as a player would, which keeps it in reach and brings it up into
+     * view. Backing away instead lost it out of reach.
+     */
+    for (let tries = 0; tries < 8 && !(await onScreen()); tries++) {
+      await hold(page, "KeyQ", 250);
+      await settle();
+    }
+
+    const box = await onScreen();
+    expect(box, "the Land button never came on screen").not.toBeNull();
 
     const onTop = await page.evaluate(
       ([x, y]) => {

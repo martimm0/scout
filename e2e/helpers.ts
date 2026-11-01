@@ -342,12 +342,31 @@ export function nearestPlantToSpawn() {
 
   // A PLANT specifically, and one that is actually open at the hour the suite
   // flies at. Reaching a shut flower would find a card that says "come back at
-  // dawn" and no way in.
-  return scatterSpecies()
+  // dawn" and no way in. Not a demanding one either, which has no Pollinate
+  // button until its quiz is passed (`demandingPlantToSpawn` is the one for
+  // those), and not one standing beside either kind: the bee lands on whatever
+  // is nearest it, which is not always what it was sent to. Schenley's nearest
+  // is a milkweed, and a test there that pollinated passed only when the bee
+  // happened to stop nearer something else.
+  const workable = (instance: ReturnType<typeof scatterSpecies>[number]) =>
+    instance.species.kind === "plant" &&
+    !instance.species.plant.demanding &&
+    isOut(instance, TEST_HOUR, TEST_MONTH);
+  const all = scatterSpecies();
+
+  return all
     .filter(
       (instance) =>
-        instance.species.kind === "plant" &&
-        isOut(instance, TEST_HOUR, TEST_MONTH),
+        workable(instance) &&
+        all.every(
+          (other) =>
+            workable(other) ||
+            Math.hypot(
+              other.position[0] - instance.position[0],
+              other.position[1] - instance.position[1],
+              other.position[2] - instance.position[2],
+            ) > 20,
+        ),
     )
     .map((instance) => ({
       instance,
@@ -602,8 +621,17 @@ export async function flyToPlant(
       await hold(page, "ArrowUp", Math.max(120, ((off * 0.6) / 26) * 1000));
     }
 
-    await hold(page, altitude > target + 2 ? "KeyQ" : "KeyE", 700);
-    await page.waitForTimeout(200);
+    /**
+     * Small steps for the last stretch, and a pause to stop coasting before
+     * looking. Seven hundred milliseconds is twelve units, about the height of
+     * the whole reach, and the bee drifts on after the key is let go: it could
+     * show the tag at the check and sink out of reach before the caller pressed
+     * Space, under a shrub whose flowers are well above its base.
+     */
+    const close = Math.abs(altitude - target) < 25;
+
+    await hold(page, altitude > target + 2 ? "KeyQ" : "KeyE", close ? 300 : 700);
+    await page.waitForTimeout(close ? 500 : 200);
   }
 
   return (await tag.count()) > 0;
