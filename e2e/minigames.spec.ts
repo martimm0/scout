@@ -56,7 +56,10 @@ function nearestFor(kind: string) {
 }
 
 async function land(page: import("@playwright/test").Page, kind: string) {
-  await enterGame(page, 12, monthForKind(kind));
+  // No other insects. One flower in twelve is busy at any moment, by the wall
+  // clock, and a busy flower has no Pollinate button: the bee arrived, landed,
+  // and the test timed out waiting for a game it was never going to be offered.
+  await enterGame(page, 12, monthForKind(kind), undefined, "off");
   await flyToPlant(page, nearestFor(kind));
   await page.keyboard.press("Space");
   await page.getByRole("button", { name: /Pollinate/ }).click();

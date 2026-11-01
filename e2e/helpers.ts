@@ -576,6 +576,32 @@ export async function flyToPlant(
     const altitude = Number.parseFloat(state.Altitude ?? "0");
     const target = plant.position[1];
 
+    /**
+     * And close the last few units sideways on the way down.
+     *
+     * `flyTo` calls anything within 12 arrived, and the reach is 9, measured in
+     * three dimensions. A bee that stopped 9.1 units off could only go up and
+     * down from there, and never got close enough at any altitude. Chromium
+     * usually stops nearer than that; WebKit under a full run often did not.
+     */
+    const here = position(state);
+    const dx = plant.position[0] - here.x;
+    const dz = plant.position[2] - here.z;
+    const off = Math.hypot(dx, dz);
+
+    if (off > 4) {
+      let turn = Math.atan2(dx, -dz) - heading(state);
+
+      while (turn > Math.PI) turn -= Math.PI * 2;
+      while (turn <= -Math.PI) turn += Math.PI * 2;
+
+      if (Math.abs(turn) > 0.08) {
+        await hold(page, turn > 0 ? "ArrowRight" : "ArrowLeft", (Math.abs(turn) / 2) * 1000);
+      }
+
+      await hold(page, "ArrowUp", Math.max(120, ((off * 0.6) / 26) * 1000));
+    }
+
     await hold(page, altitude > target + 2 ? "KeyQ" : "KeyE", 700);
     await page.waitForTimeout(200);
   }

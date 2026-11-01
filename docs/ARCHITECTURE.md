@@ -381,6 +381,19 @@ elements. That was the admin "snaps back" test failing deep in full runs for
 weeks, and the journal's quiz count once. `.filter({ visible: true })` keeps the
 check honest: a second copy a player could see would still fail.
 
+**The flight helper closes the gap the game measures.** `flyTo` counts anything
+within 12 units as arrived, and a flower's reach is 9, in three dimensions.
+`flyToPlant` used to only climb or descend from there, so a bee that stopped 9.1
+units off hovered beside the flower at every altitude and never reached it. That
+was the Schenley flake in `waggle.spec.ts` and `seed-set.spec.ts`, WebKit only,
+deep in full runs: the trace showed the bee nine units sideways, not lost. It now
+steers the last few units on the way down.
+
+**A test that pollinates pins the other insects off** (`?busy=off`). One flower
+in twelve is busy at any moment, by the wall clock, and a busy flower offers no
+Pollinate button, so the minigame tests failed one run in a few for no reason
+but the time of day.
+
 Test hooks are query params on `/play`, and they exist because the real world is
 not reproducible: `?hour=13` pins the clock (half the flowers are shut at night),
 `?month=7` pins the calendar (half the flora is out of season in any given month,
