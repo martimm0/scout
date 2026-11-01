@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { isDeleted } from "@/lib/accounts";
 import { auth } from "@/lib/auth";
 import { cloudSaveConfigured } from "@/lib/env";
 import {
@@ -93,6 +94,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "not-a-jpeg" }, { status: 400 });
   }
 
+  // Deleting takes the album with it, and a session outlives the account.
+  if (await isDeleted(session.user.id)) {
+    return NextResponse.json({ error: "account-deleted" }, { status: 410 });
+  }
+
   const id = crypto.randomUUID();
 
   // The owner comes from the session, never from the payload. Otherwise anyone
@@ -108,6 +114,10 @@ export async function POST(request: Request) {
   // The album is full. This is a 409 rather than a 507 or a silent success:
   // there is a conflict with the state of the album, the player can resolve it,
   // and the only honest thing to do is tell them so.
+  if (!result.ok && result.reason === "gone") {
+    return NextResponse.json({ error: "account-deleted" }, { status: 410 });
+  }
+
   if (!result.ok) {
     return NextResponse.json(
       { error: result.reason, limit: MAX_PHOTOS },

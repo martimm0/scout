@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { progressResetAt } from "@/lib/accounts";
+import { isDeleted, progressResetAt } from "@/lib/accounts";
 import { auth } from "@/lib/auth";
 import { cloudSaveConfigured } from "@/lib/env";
 import {
@@ -130,6 +130,12 @@ export async function POST(request: Request) {
   const declared = Number(body.resetAt ?? 0);
   const resetAt = await progressResetAt(session.user.id);
 
+  // Deleting takes the save with it, and a session outlives the account, so
+  // an open tab would otherwise write its whole copy into a fresh row.
+  if (await isDeleted(session.user.id)) {
+    return NextResponse.json({ error: "account-deleted" }, { status: 410 });
+  }
+
   if (!(Number.isFinite(declared) && declared >= resetAt)) {
     return NextResponse.json({ error: "reset-since", resetAt }, { status: 409 });
   }
@@ -138,7 +144,15 @@ export async function POST(request: Request) {
   const saved = await saveProgress(session.user.id, body, {
     owner: session.user.id,
     savedAt: Date.now(),
-  });
+  }, declared);
+
+  if (saved === "gone") {
+    return NextResponse.json({ error: "account-deleted" }, { status: 410 });
+  }
+
+  if (saved === "reset-since") {
+    return NextResponse.json({ error: "reset-since", resetAt: await progressResetAt(session.user.id) }, { status: 409 });
+  }
 
   // The merged row, not the request, went over: the same answer, the same cap.
   if (saved === "too-big") {

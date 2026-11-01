@@ -103,7 +103,16 @@ export function Customize() {
   const updatePollinator = useGameStore((state) => state.updatePollinator);
   const unlockedBadges = useGameStore((state) => state.unlockedBadges);
 
-  const [name, setName] = useState(pollinator.name);
+  /**
+   * What the player has typed, or null for "show the saved name".
+   *
+   * Copied from the store once, at mount, this went stale whenever the save
+   * changed underneath it, which on a fresh device is always: the account's
+   * save comes down after the page has opened. The box said "Scout", and
+   * pressing Save wrote "Scout" over the name chosen on another device.
+   */
+  const [draft, setName] = useState<string | null>(null);
+  const name = draft ?? pollinator.name;
   const [saved, setSaved] = useState(false);
 
   const species = speciesFor(pollinator.type);
@@ -122,6 +131,7 @@ export function Customize() {
     }
 
     updatePollinator({ name: name.trim() });
+    setName(null);
     playSound("pollinateSuccess");
     trackEvent({ name: "pollinator_customized" });
     setSaved(true);

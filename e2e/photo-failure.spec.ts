@@ -139,6 +139,44 @@ test.describe("a photograph is only reported kept where it was kept", () => {
     await page.request.delete(`/api/photos/${id}`);
   });
 
+  test("with no account system, a photograph the browser had no room for is not called kept", async ({
+    page,
+  }) => {
+    /**
+     * The local album swallowed the quota error, which was right, and then
+     * reported the photograph saved, which was not: the flash, the click, a
+     * card in the album, and nothing there after a reload.
+     */
+    test.setTimeout(120_000);
+
+    await signIn(page.context());
+    await page.route("**/api/photos", (route) =>
+      route.fulfill({
+        status: 501,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "cloud-save-not-configured" }),
+      }),
+    );
+    await page.addInitScript((key) => {
+      const real = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (name: string, value: string) {
+        if (name === key) {
+          throw new DOMException("full", "QuotaExceededError");
+        }
+
+        return real.call(this, name, value);
+      };
+    }, LOCAL_KEY);
+
+    await fly(page);
+    await page.getByRole("button", { name: /Take a photo/ }).click();
+
+    await expect(
+      page.getByRole("status").filter({ hasText: /not kept/ }),
+      "a photograph the browser refused was reported kept",
+    ).toBeVisible();
+  });
+
   test("with no account system at all, the device keeps it", async ({ page }) => {
     /**
      * The case the local album exists for, which the fix must not take away: a

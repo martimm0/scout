@@ -4,6 +4,7 @@ import {
   enterGame,
   flyToPlant,
   nearestPlantToSpawn,
+  signIn,
   TEST_HOUR,
   TEST_MONTH,
 } from "./helpers";
@@ -16,6 +17,7 @@ import {
   MAX_SEEDLINGS,
   mergeSeedlings,
   seedlingInstances,
+  seedlingKey,
   seedSpot,
   SPROUT_SCALE,
   type Seedling,
@@ -449,9 +451,9 @@ test.describe("the record cannot grow forever", () => {
     });
 
     expect(Object.keys(seedlings)).toHaveLength(MAX_SEEDLINGS);
-    expect(seedlings["the-newest"], "the seed just sown was dropped").toBeTruthy();
-    expect(seedlings["flower-0"], "the oldest survived the cap").toBeFalsy();
-    expect(seedlings["flower-1"], "more than the oldest was dropped").toBeTruthy();
+    expect(seedlings[seedlingKey("frick", "the-newest")], "the seed just sown was dropped").toBeTruthy();
+    expect(seedlings[seedlingKey("frick", "flower-0")], "the oldest survived the cap").toBeFalsy();
+    expect(seedlings[seedlingKey("frick", "flower-1")], "more than the oldest was dropped").toBeTruthy();
   });
 
   test("working the same flower again replaces its seedling, not adds one", () => {
@@ -470,6 +472,26 @@ test.describe("the record cannot grow forever", () => {
     }
 
     expect(Object.keys(seedlings)).toHaveLength(1);
+  });
+
+  test("a seedling saved under a bare key is replaced, not doubled", () => {
+    // Keys did not name the park before. The same flower in the same park
+    // replaces the old record; the same key in another park leaves it alone.
+    const seedling = (park: "frick" | "highland", at: number): Seedling => ({
+      plant: "canada-goldenrod",
+      park,
+      x: 10,
+      z: 10,
+      at,
+    });
+    const before = { "plant-canada-goldenrod-0": seedling("frick", 1) };
+
+    expect(
+      Object.keys(addSeedling(before, "plant-canada-goldenrod-0", seedling("frick", 2))),
+    ).toEqual([seedlingKey("frick", "plant-canada-goldenrod-0")]);
+    expect(
+      Object.keys(addSeedling(before, "plant-canada-goldenrod-0", seedling("highland", 2))),
+    ).toHaveLength(2);
   });
 });
 
@@ -531,4 +553,92 @@ test.describe("two devices, one record", () => {
       "a",
     ]);
   });
+});
+
+test.describe("the park you chose stays chosen", () => {
+  test("flying into a new area does not send you back to Frick", async ({ page }) => {
+    /**
+     * Entering an area for the first time records it, and the same action also
+     * set the saved park to Frick and the unlocked parks to Frick alone: two
+     * lines pasted in from the initial state. The park the scene builds is that
+     * saved one, so a player who had earned Schenley and chosen it was put back
+     * in Frick by the first area they flew into, which is the one they spawn
+     * in, and Schenley was locked again.
+     */
+    test.setTimeout(90_000);
+
+    await signIn(page.context(), "park-stay-player", "park-stay@example.com");
+    await page.goto("/about");
+    await page.evaluate(() =>
+      window.localStorage.setItem(
+        "scout-game-state",
+        JSON.stringify({
+          version: 0,
+          state: {
+            owner: "park-stay-player",
+            tutorialSeen: true,
+            currentPark: "schenley",
+            unlockedParks: { frick: true, schenley: true },
+            unlockedMapAreas: {},
+          },
+        }),
+      ),
+    );
+
+    await page.goto(`/play?hour=${TEST_HOUR}&month=${TEST_MONTH}`);
+
+    const saved = () =>
+      page.evaluate(
+        () => JSON.parse(window.localStorage.getItem("scout-game-state") ?? "{}").state,
+      );
+
+    // The spawn area is recorded within a frame or two of the scene starting.
+    await expect
+      .poll(async () => Object.keys((await saved())?.unlockedMapAreas ?? {}).length, {
+        timeout: 30_000,
+      })
+      .toBeGreaterThan(0);
+
+    const state = await saved();
+    expect(state.currentPark, "the first area entered sent the player to Frick").toBe(
+      "schenley",
+    );
+    expect(state.unlockedParks.schenley, "entering an area locked Schenley again").toBe(true);
+  });
+});
+
+test("the same flower in two parks keeps a seedling in each", async () => {
+  /**
+   * A seedling was filed under the key of the flower that set it, and those
+   * keys are numbered within a park: Frick's first goldenrod and Highland's
+   * first goldenrod are both `plant-canada-goldenrod-0`. Setting seed on one
+   * replaced the other's seedling, in another park, and a merge across two
+   * devices kept whichever was older and dropped the other.
+   *
+   * The real store action, so a key built anywhere else does not pass for it.
+   * Node's own localStorage is not a working one, so persistence gets a map.
+   */
+  const memory = new Map<string, string>();
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: (key: string) => memory.get(key) ?? null,
+      setItem: (key: string, value: string) => memory.set(key, value),
+      removeItem: (key: string) => memory.delete(key),
+    },
+  });
+
+  const { useGameStore } = await import("../src/features/game/state/game-store");
+
+  setActivePark("frick");
+  useGameStore.getState().setSeed("plant-canada-goldenrod-0", "canada-goldenrod", 0, 0);
+  setActivePark("highland");
+  useGameStore.getState().setSeed("plant-canada-goldenrod-0", "canada-goldenrod", 0, 0);
+  setActivePark("frick");
+
+  const parks = Object.values(useGameStore.getState().seedlings)
+    .map((seedling) => seedling.park)
+    .sort();
+
+  expect(parks, "Highland's seed took Frick's seedling with it").toEqual(["frick", "highland"]);
 });

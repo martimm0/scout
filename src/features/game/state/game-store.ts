@@ -849,10 +849,7 @@ export const useGameStore = create<GameStore>()(
       }
 
       return {
-        currentPark: "frick" as ParkId,
-  // Frick is where you start. Schenley has to be earned.
-  unlockedParks: { frick: true } as BooleanRecord,
-  unlockedMapAreas: {
+        unlockedMapAreas: {
           ...state.unlockedMapAreas,
           [areaId]: true,
         },

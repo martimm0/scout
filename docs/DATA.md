@@ -456,6 +456,13 @@ The numbers are what the old fractions produced on the day they were pinned, so
 nobody's progress moved by a single flower. A fourth park is a data
 change.
 
+**The park you chose stays chosen.** Recording an area you fly into for the first
+time also set the saved park back to Frick and the unlocked parks to Frick alone,
+two lines of the initial state pasted into the action. The scene builds the saved
+park, so the first area entered in Schenley or Highland, which is the one you
+spawn in, put the player back in Frick and locked the park they had earned.
+`seed-set.spec.ts`.
+
 ## The save file
 
 One JSONB row per player in `player_progress`, deliberately tiny: everything is a
@@ -699,6 +706,12 @@ request went out: a click is newer than a request already in flight.
 
 ### Every device adds to the save
 
+**A page shows the save as it is now, not as it was when the page opened.** The
+Customize name box copied the bee's name once, at mount, which on a fresh device
+is before the account's save has come down: it said "Scout", and Save wrote that
+over the name chosen elsewhere. It shows the saved name until the player types.
+`save-integrity.spec.ts`.
+
 **A save used to replace the row**, last write wins. With one device that is the
 same as a merge. With two it is not: a phone open since before the laptop found
 something would, on its next save (any change, or simply going into a pocket,
@@ -721,6 +734,14 @@ Three things changed because of that, each with a test in
 | **A failed sign-in pull is retried** (2 s, 5 s, 15 s, 30 s, then every minute) | Pushes wait for the pull to merge, so one failed pull (a cold database, a dropped connection) left the page saving nothing to the account for the rest of the session. |
 | **An admin reset is stamped on the account** (`accounts.progress_reset_at`) | Deleting the row was all a reset did, and the player's own device still held the whole save: its next sign-in found an empty account, adopted the local copy and pushed every plant back. Now a pull that reports a newer reset than the device knows makes it forget its save, and the route refuses a push declaring an older one (409 `reset-since`), which sends the client back to pull. The stamp is on the account rather than a placeholder row, which would count as a save in every number the admin reads. |
 | **The ceiling is on the stored row** | See [What the server will store](#what-the-server-will-store). |
+| **A new row is written only for an account still there, and not reset since** | The route checks the reset stamp before saving, but a check and a write are two round trips: a reset (or a delete) landing between them removed the row, and the save's insert put the whole old copy back. The insert now carries both conditions in the same statement, and reports which one stopped it. |
+
+Stats are whole counts from 0 to a billion: anything else in a posted save is
+floored and clamped by `completeSave`. A save is whatever a player sent, and the
+dashboard sums them; one save holding 1.5 used to make that sum's `::int` cast
+throw, which took `/admin` down for every admin, permanently, since the merge
+keeps the larger number. The sum also reads only numbers now, as `numeric`, so a
+row from before the clamp cannot do it either. `account-integrity.spec.ts`.
 
 A push refused with a 409 of either kind (`not-your-save`, `reset-since`) makes
 the client pull again rather than retry the push, because the refusal means this
@@ -750,6 +771,16 @@ re-checks it. The admin tool (`/admin`, one email, everyone else gets a 404) rea
 the numbers back and can set the ceiling, suspend, delete, and clear the waitlist.
 Deleting an account takes its save and its album with it, which is what frees a
 seat.
+
+**A deleted account stays deleted on a tab still open.** A session outlives its
+account by up to a month, and the save and album routes only asked whether
+somebody was signed in, so the player's open tab wrote its whole local copy into
+a fresh row on its next autosave, and new photographs went in too. Deleting now
+leaves the id in `deleted_accounts` (the id and when, nothing else), and both
+routes answer 410 `account-deleted` for an id on it, checked again inside the
+insert itself. A missing account row is not enough to go on, because the door
+fails open: a player let in during a hiccup has no row either. Signing in again
+is a new account and takes the id off the list. `account-integrity.spec.ts`.
 
 **The waitlist is a queue.** A new account is admitted only if there are more free
 seats than people ahead of it: everyone who joined the list earlier, or the whole
@@ -805,9 +836,18 @@ went somewhere nothing would ever show it again.
 |---|---|---|
 | 200 | kept in the account, flash | the account album |
 | 409 | album full, says so | (n/a) |
+| 410 | not kept, the account was deleted | could not be fetched |
 | 501 | kept on the device, flash | the device album, labelled as such |
+| 501, and the browser has no room | not kept, says to make room, no flash | the device album |
 | 401 | not kept, says to sign in, no flash | could not be fetched |
 | anything else, or no answer | not kept, says to try again, no flash | could not be fetched |
+
+**The cap holds against uploads that arrive together.** It was a count inside the
+insert, and each insert counts only rows already committed, so two at once on 49
+both saw room and both went in. An insert that finds the album over fifty once it
+is in now takes itself back out; two landing together may both do that, which
+says "full" with one place left, the safe way to be wrong.
+`account-integrity.spec.ts` sends thirty at once.
 
 A failed fetch is not "kept on this device only": it says the photos could not be
 fetched and are still in the account. A failed delete leaves the photo in the
@@ -819,6 +859,11 @@ row that can go wrong, and the 501 row so the local album is not taken away.
 **Badges** (32) are pure predicates over game state. A `ProgressionWatcher`
 re-evaluates on change, so adding one to the data file makes it work and no call
 site has to know it exists.
+
+**Badges about a park count its solo species.** Reads the Winter asks for every
+plant in the park that stands through winter, and read the whole list, so witch
+hazel, which stands in Frick and grows only at a party, kept it out of reach for
+every solo player in every park. `winter.spec.ts`.
 
 **Quizzes count once per species.** Quick Study and Top of the Class read
 `quizPassed`, the set of species whose quiz you have passed, not
@@ -1287,8 +1332,13 @@ stale when the data changes.
 Two records in the save put things into the park rather than describing it.
 
 **`seedlings`** is a record per flower you successfully pollinated: species,
-park, position, and when. It is keyed by the INSTANCE, so working the same stalk
-every afternoon leaves one plant beside it rather than a thicket on one spot.
+park, position, and when. It is keyed by the PARK and the INSTANCE
+(`frick:plant-goldenrod-3`), so working the same stalk every afternoon leaves one
+plant beside it rather than a thicket on one spot. Instance keys are numbered
+within a park, so the instance alone was not enough: Frick's first goldenrod and
+Highland's are both `plant-canada-goldenrod-0`, and seeding one replaced the
+other's seedling. A record under a bare key, from before, is replaced by the same
+flower in the same park rather than doubled. `seed-set.spec.ts`.
 
 That keying is not a cap, which is easy to assume and wrong. A seedling is an
 ordinary instance, so it can be landed on and worked like anything else, and

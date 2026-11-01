@@ -111,6 +111,22 @@ async function ensureSchema() {
     )
   `;
 
+  /**
+   * Accounts the admin deleted, by id and nothing else.
+   *
+   * Deleting removes the account row, and a session outlives it by up to a
+   * month, so without a mark somewhere an open tab cannot be told apart from a
+   * player the door let in during a database hiccup (it fails open, so they
+   * have no row either). The save and the album refuse an id on this list.
+   * Signing in again is a new account and takes the id off it.
+   */
+  await sql`
+    CREATE TABLE IF NOT EXISTS deleted_accounts (
+      user_id    TEXT PRIMARY KEY,
+      deleted_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+
   await sql`
     CREATE TABLE IF NOT EXISTS admin_settings (
       key   TEXT PRIMARY KEY,
@@ -323,6 +339,8 @@ export async function registerSignIn(account: {
       VALUES (${account.userId}, ${account.email}, ${account.name})
       ON CONFLICT (user_id) DO NOTHING
     `;
+
+    await sql`DELETE FROM deleted_accounts WHERE user_id = ${account.userId}`;
 
     // In, so no longer waiting, and no longer ahead of anybody.
     if (account.email) {
@@ -619,9 +637,29 @@ export async function deleteAccount(userId: string) {
 
   await ensureSchema();
 
+  // Marked first, so a save that lands while the rest goes is already refused.
+  await sql`
+    INSERT INTO deleted_accounts (user_id) VALUES (${userId})
+    ON CONFLICT (user_id) DO UPDATE SET deleted_at = now()
+  `;
   await sql`DELETE FROM player_progress WHERE user_id = ${userId}`;
   await sql`DELETE FROM player_photos WHERE user_id = ${userId}`;
   await sql`DELETE FROM accounts WHERE user_id = ${userId}`;
+}
+
+/** Whether the admin deleted this account since it last signed in. */
+export async function isDeleted(userId: string): Promise<boolean> {
+  if (!databaseConfigured) {
+    return false;
+  }
+
+  await ensureSchema();
+
+  const { rows } = await sql`
+    SELECT 1 FROM deleted_accounts WHERE user_id = ${userId}
+  `;
+
+  return rows.length > 0;
 }
 
 export async function listWaitlist(): Promise<WaitlistEntry[]> {
@@ -685,13 +723,20 @@ export async function getAnalytics(): Promise<Analytics> {
 
   const progress = await sql<{
     with_save: number;
-    pollinations: number;
-    discoveries: number;
+    pollinations: string;
+    discoveries: string;
   }>`
     SELECT
       count(*)::int AS with_save,
-      COALESCE(sum((p.progress -> 'stats' ->> 'pollinationSuccesses')::int), 0)::int AS pollinations,
-      COALESCE(sum(dk.n), 0)::int AS discoveries
+      -- A save is whatever a player posted, so the sum reads only numbers,
+      -- and as numeric: an int cast threw on 1.5 or 3e9 and took the whole
+      -- dashboard down for every admin until that one row was gone.
+      COALESCE(sum(
+        CASE WHEN jsonb_typeof(p.progress -> 'stats' -> 'pollinationSuccesses') = 'number'
+          THEN floor((p.progress -> 'stats' ->> 'pollinationSuccesses')::numeric)
+        END
+      ), 0)::text AS pollinations,
+      COALESCE(sum(dk.n), 0)::text AS discoveries
     FROM player_progress p
     LEFT JOIN LATERAL (
       SELECT count(*)::int AS n FROM jsonb_object_keys(p.progress -> 'discoveredPlants')
@@ -709,7 +754,7 @@ export async function getAnalytics(): Promise<Analytics> {
     waitlist: waitlist.rows[0]?.n ?? 0,
     seatsLeft: Math.max(0, ceiling - accounts),
     withSave: progress.rows[0]?.with_save ?? 0,
-    totalPollinations: progress.rows[0]?.pollinations ?? 0,
-    totalDiscoveries: progress.rows[0]?.discoveries ?? 0,
+    totalPollinations: Number(progress.rows[0]?.pollinations ?? 0),
+    totalDiscoveries: Number(progress.rows[0]?.discoveries ?? 0),
   };
 }

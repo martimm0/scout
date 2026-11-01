@@ -45,6 +45,8 @@ const RECORDS = [
   "unlockedJournalEntries",
 ] as const;
 
+const MAX_STAT = 1_000_000_000;
+
 const STATS = [
   "pollinationAttempts",
   "pollinationSuccesses",
@@ -100,7 +102,12 @@ export function completeSave(raw: unknown): SaveFields {
       STATS.map((field) => {
         const value = Number(stats[field]);
 
-        return [field, Number.isFinite(value) ? value : 0];
+        // Counts: whole, not negative, and nowhere near the limits of the
+        // database columns and sums that read them.
+        return [
+          field,
+          Number.isFinite(value) ? Math.min(Math.max(Math.floor(value), 0), MAX_STAT) : 0,
+        ];
       }),
     ) as SaveFields["stats"],
     tutorialSeen: save.tutorialSeen === true,

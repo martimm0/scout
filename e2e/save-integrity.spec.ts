@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { env } from "../src/lib/env";
-import { registerAccount, signIn } from "./helpers";
+import { registerAccount, resetProgress, signIn } from "./helpers";
 
 /**
  * One account, its server copy, and every device that holds a copy of it.
@@ -153,6 +153,49 @@ test.describe("the server copy is the sum of every device", () => {
       await serverPlants(page),
       "the phone's older copy replaced the laptop's find",
     ).toEqual(["mayapple", "wild-geranium"]);
+  });
+
+  test("a name that arrives from the account after the page opened is the one shown", async ({
+    page,
+  }) => {
+    /**
+     * The name box was filled once, when the page mounted. On a device with
+     * nothing saved yet, that is before the account's save has come down, so
+     * it said "Scout", and pressing Save wrote "Scout" over the name the player
+     * had chosen on another device.
+     */
+    const ok = await registerAccount("sync-name-player", "sync-name@example.com");
+    test.skip(!ok, "no database configured");
+
+    await signIn(page.context(), "sync-name-player", "sync-name@example.com");
+    await resetProgress("sync-name-player");
+    expect(
+      (
+        await page.request.post("/api/progress", {
+          data: {
+            owner: "sync-name-player",
+            pollinator: { type: "bee", name: "Clover" },
+          },
+        })
+      ).status(),
+    ).toBe(200);
+
+    // A device with nothing on it, and a pull that takes a moment.
+    await leaveOnDevice(page, {});
+    await page.route("**/api/progress", async (route) => {
+      if (route.request().method() === "GET") {
+        await new Promise((done) => setTimeout(done, 2500));
+      }
+
+      await route.continue();
+    });
+
+    await page.goto("/customize");
+    await expect(page.locator("#pollinator-name"), "the box kept the name from before the pull").toHaveValue(
+      "Clover",
+      { timeout: 15_000 },
+    );
+    await page.unroute("**/api/progress");
   });
 
   test("merging cannot grow a row past the ceiling", async ({ page }) => {

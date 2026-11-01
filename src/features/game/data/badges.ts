@@ -239,8 +239,9 @@ export const BADGES: Badge[] = [
     description:
       "Every plant in this park that stands through the winter, named from its bare form.",
     hint: "There is a whole park still standing in January. Learn all of it.",
+    // Solo species only: witch hazel stands in Frick and grows only at a party.
     earned: (state) =>
-      winterStanding(state.currentPark).every(
+      winterStanding(state.currentPark).filter((plant) => !plant.partyOnly).every(
         (plant) => state.winterKnown[plant.id],
       ),
   },

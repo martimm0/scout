@@ -69,12 +69,16 @@ function readLocal(): Photo[] {
   }
 }
 
-function writeLocal(photos: Photo[]) {
+/** Whether it was kept. False is almost always the quota. */
+function writeLocal(photos: Photo[]): boolean {
   try {
     window.localStorage.setItem(LOCAL_KEY, JSON.stringify(photos));
+
+    return true;
   } catch {
-    // The quota. Nothing to do but keep flying: a photograph that cannot be kept
-    // is not a reason to take the game down.
+    // Nothing to do but keep flying: a photograph that cannot be kept is not a
+    // reason to take the game down. It is a reason not to say it was kept.
+    return false;
   }
 }
 
@@ -85,7 +89,12 @@ function writeLocal(photos: Photo[]) {
  * split only so the HUD can say which, since one is fixed by signing in and the
  * other by trying again.
  */
-export type CaptureResult = "saved" | "album-full" | "signed-out" | "not-kept";
+export type CaptureResult =
+  | "saved"
+  | "album-full"
+  | "signed-out"
+  | "not-kept"
+  | "no-room";
 
 type PhotoState = {
   photos: Photo[];
@@ -203,7 +212,11 @@ export const usePhotoStore = create<PhotoState>()((set, get) => ({
     };
 
     const photos = [local, ...existing];
-    writeLocal(photos);
+
+    if (!writeLocal(photos)) {
+      return "no-room";
+    }
+
     set({ photos, mode: "local" });
 
     return "saved";

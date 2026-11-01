@@ -145,7 +145,8 @@ export async function saveProgress(
   userId: string,
   incoming: unknown,
   stamp: { owner: string; savedAt: number },
-): Promise<"ok" | "too-big"> {
+  declaredResetAt = 0,
+): Promise<"ok" | "too-big" | "gone" | "reset-since"> {
   if (!databaseConfigured) {
     return "ok";
   }
@@ -180,14 +181,46 @@ export async function saveProgress(
           SET progress = ${document}::jsonb, updated_at = clock_timestamp()
           WHERE user_id = ${userId} AND updated_at::text = ${current.version}
         `
-      : await sql`
+      : /**
+         * A new row only for an account that is still there and has not been
+         * reset since this save was made, decided in the same statement.
+         *
+         * The route checks both first, for a clear answer, but a check and a
+         * write are two round trips: a reset or a delete landing between them
+         * removed the row, and this insert put the whole old save back.
+         */
+        await sql`
           INSERT INTO player_progress (user_id, progress, updated_at)
-          VALUES (${userId}, ${document}::jsonb, clock_timestamp())
+          SELECT ${userId}, ${document}::jsonb, clock_timestamp()
+          WHERE NOT EXISTS (SELECT 1 FROM deleted_accounts WHERE user_id = ${userId})
+            AND COALESCE(
+              (SELECT progress_reset_at FROM accounts WHERE user_id = ${userId}),
+              0
+            ) <= ${declaredResetAt}
           ON CONFLICT (user_id) DO NOTHING
         `;
 
     if (rowCount) {
       return "ok";
+    }
+
+    if (!current) {
+      const { rows: why } = await sql<{ gone: boolean; reset: boolean }>`
+        SELECT
+          EXISTS (SELECT 1 FROM deleted_accounts WHERE user_id = ${userId}) AS gone,
+          COALESCE(
+            (SELECT progress_reset_at FROM accounts WHERE user_id = ${userId}),
+            0
+          ) > ${declaredResetAt} AS reset
+      `;
+
+      if (why[0]?.gone) {
+        return "gone";
+      }
+
+      if (why[0]?.reset) {
+        return "reset-since";
+      }
     }
   }
 

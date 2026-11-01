@@ -119,18 +119,39 @@ export function seedSpot(
 /**
  * Record a seed, dropping the oldest once the cap is reached.
  *
- * Keyed by the flower that set it, so working the same stalk every afternoon
+ * Keyed by the park and the flower that set it, so working the same stalk every afternoon
  * replaces its seedling rather than stacking a thicket on one spot. Pure, so
  * the store action stays a one-liner and this can be tested without a browser.
  */
 export function addSeedling(
   seedlings: Record<string, Seedling>,
-  key: string,
+  parent: string,
   seedling: Seedling,
 ): Record<string, Seedling> {
+  const key = seedlingKey(seedling.park, parent);
+  const next = { ...seedlings, [key]: seedling };
+
+  // A save from before keys named the park filed this flower's seedling under
+  // its bare key. The same flower in the same park replaces it, as it always
+  // did, rather than growing a second one on the same spot.
+  if (next[parent]?.park === seedling.park) {
+    delete next[parent];
+  }
+
   // Oldest first, and never the one just sown: a seed you have this second
   // watched take must not be the one that falls off the end.
-  return capSeedlings({ ...seedlings, [key]: seedling }, key);
+  return capSeedlings(next, key);
+}
+
+/**
+ * Where a seedling is filed: the park, then the flower that set it.
+ *
+ * Instance keys are numbered within a park, so Frick's first goldenrod and
+ * Highland's first goldenrod are both `plant-canada-goldenrod-0`. Filed under
+ * that alone, seeding one replaced the other's seedling in another park.
+ */
+export function seedlingKey(park: ParkId, parent: string) {
+  return `${park}:${parent}`;
 }
 
 /**

@@ -1844,12 +1844,14 @@ export function GameScene({
       }
 
       // Nothing was stored anywhere, so no flash: the flash is the promise.
-      if (result === "signed-out" || result === "not-kept") {
+      if (result === "signed-out" || result === "not-kept" || result === "no-room") {
         playSound("pollinateFail");
         setNotice(
           result === "signed-out"
             ? "That photograph was not kept. Photographs live in your account, and you are not signed in."
-            : "That photograph was not kept. The album could not be reached, so try again in a moment.",
+            : result === "no-room"
+              ? "That photograph was not kept. This browser has no room left for it, so delete one in your journal to make some."
+              : "That photograph was not kept. The album could not be reached, so try again in a moment.",
         );
         window.setTimeout(() => setNotice(null), 5200);
 

@@ -135,7 +135,9 @@ export async function countPhotos(userId: string): Promise<number> {
   return Number(rows[0]?.count ?? 0);
 }
 
-export type SaveResult = { ok: true } | { ok: false; reason: "album-full" };
+export type SaveResult =
+  | { ok: true }
+  | { ok: false; reason: "album-full" | "gone" };
 
 export async function savePhoto(
   userId: string,
@@ -147,10 +149,16 @@ export async function savePhoto(
 
   await ensureSchema();
 
-  // The cap is enforced HERE, in the same statement that does the insert, rather
-  // than by reading the count and then writing. Two tabs, or two quick presses of
-  // P, would both read forty-nine and both insert. The `WHERE ... < MAX` on the
-  // INSERT means the database decides, once, and the loser inserts nothing.
+  /**
+   * The cap is checked in the insert, and again after it.
+   *
+   * In the insert, so the ordinary case is one statement. But each insert
+   * counts only rows already committed, so two tabs, or two quick presses of P,
+   * on forty-nine both saw room and both went in. So an insert that finds the
+   * album over the cap once it is in takes itself back out. Two that land
+   * together may both do that, which tells the player the album is full when
+   * it has one place left: the safe way to be wrong.
+   */
   const { rowCount } = await sql`
     INSERT INTO player_photos (id, user_id, area, clock, phase, image)
     SELECT
@@ -163,9 +171,28 @@ export async function savePhoto(
     WHERE (
       SELECT count(*) FROM player_photos WHERE user_id = ${userId}
     ) < ${MAX_PHOTOS}
+      AND NOT EXISTS (SELECT 1 FROM deleted_accounts WHERE user_id = ${userId})
   `;
 
-  return rowCount === 1 ? { ok: true } : { ok: false, reason: "album-full" };
+  if (rowCount === 1) {
+    const { rows: count } = await sql<{ n: number }>`
+      SELECT count(*)::int AS n FROM player_photos WHERE user_id = ${userId}
+    `;
+
+    if ((count[0]?.n ?? 0) <= MAX_PHOTOS) {
+      return { ok: true };
+    }
+
+    await sql`DELETE FROM player_photos WHERE id = ${photo.id}`;
+
+    return { ok: false, reason: "album-full" };
+  }
+
+  const { rows } = await sql`
+    SELECT 1 FROM deleted_accounts WHERE user_id = ${userId}
+  `;
+
+  return { ok: false, reason: rows.length ? "gone" : "album-full" };
 }
 
 /** The bytes, but only if they belong to the person asking. */

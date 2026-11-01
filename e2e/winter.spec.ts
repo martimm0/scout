@@ -1,7 +1,9 @@
 import { expect, test } from "@playwright/test";
 
 import { enterGame, flyToPlant, TEST_HOUR } from "./helpers";
+import { BADGES } from "../src/features/game/data/badges";
 import { PLANTS } from "../src/features/game/data/plants";
+import { useGameStore } from "../src/features/game/state/game-store";
 import {
   isFindable,
   scatterSpecies,
@@ -287,4 +289,31 @@ test.describe("naming a plant from its winter form", () => {
       )
       .toBe(true);
   });
+});
+
+test("Reads the Winter can be earned without a garden party", () => {
+  /**
+   * The badge asked for every plant in the park that stands through winter,
+   * read off the whole plant list, party species included. Witch hazel stands
+   * through the winter in Frick and only grows at a party, so a player who
+   * named every plant a solo winter ever shows them still did not have it, in
+   * any park, which is the thing the solo lists exist to prevent.
+   */
+  for (const park of ["frick", "schenley", "highland"] as const) {
+    const solo = PLANTS.filter(
+      (plant) =>
+        !plant.partyOnly &&
+        plant.homes.some((home) => home.park === park) &&
+        standsInWinter(plant),
+    );
+
+    expect(
+      BADGES.find((badge) => badge.id === "reads-the-winter")!.earned({
+        ...useGameStore.getState(),
+        currentPark: park,
+        winterKnown: Object.fromEntries(solo.map((plant) => [plant.id, true])),
+      }),
+      `every solo winter plant in ${park} named, and no badge`,
+    ).toBe(true);
+  }
 });
