@@ -77,7 +77,21 @@ function ensureEngine(): Engine | null {
 
   const ambienceGain = context.createGain();
   ambienceGain.gain.value = 0.1;
-  ambienceGain.connect(master);
+
+  // The same wall under the wind, higher. Its bandpass is wide and wanders down
+  // as it breathes, so without this the bottom half of the noise reached the
+  // output as a rumble the music floor never saw; at 300Hz the 140-260Hz band
+  // still came through. 450Hz sits under the lowest wind (Fern Hollow's 480).
+  const ambienceFloor = context.createBiquadFilter();
+  ambienceFloor.type = "highpass";
+  ambienceFloor.frequency.value = 450;
+  const ambienceFloor2 = context.createBiquadFilter();
+  ambienceFloor2.type = "highpass";
+  ambienceFloor2.frequency.value = 450;
+
+  ambienceGain.connect(ambienceFloor);
+  ambienceFloor.connect(ambienceFloor2);
+  ambienceFloor2.connect(master);
 
   engine = {
     context,
@@ -136,6 +150,14 @@ export function setSoundEnabled(on: boolean) {
 
   if (on) {
     startMusic();
+
+    // The area was recorded while sound was off, so the ambience for the spot
+    // the player is standing in was never started. Start it now.
+    if (currentArea !== null && active.ambience.length === 0) {
+      const area = currentArea;
+      currentArea = null;
+      setAreaAmbience(area);
+    }
   } else {
     stopMusic();
   }

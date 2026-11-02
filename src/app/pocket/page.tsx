@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { redirectIfSuspended } from "@/features/auth/components/sign-in-required";
 import { auth } from "@/lib/auth";
 import { Pocket } from "@/features/game/components/pocket";
 import { authConfigured } from "@/lib/env";
@@ -21,6 +22,8 @@ export const metadata: Metadata = {
  * page hands down `authConfigured`, because a client component cannot see env.
  */
 export default async function PocketPage() {
+  await redirectIfSuspended();
+
   const session = await auth();
   const signedIn = Boolean(session?.user?.id);
   // Local mode has no sign-in, so the save in the browser is simply yours.

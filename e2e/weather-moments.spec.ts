@@ -10,6 +10,8 @@ import {
   weatherPreset,
   type Weather,
 } from "../src/features/game/world/weather";
+import { daylightAt, phaseFor } from "../src/features/game/world/daylight";
+import { pittsburghMonth, seasonFor } from "../src/features/game/world/season";
 
 /**
  * Rare weather moments: the skies you were actually out in.
@@ -122,5 +124,34 @@ test.describe("a weather moment is evidence, not a reward", () => {
     for (const moment of WEATHER_MOMENTS) {
       await expect(page.getByText(moment.name, { exact: false })).toBeVisible();
     }
+  });
+});
+
+test.describe("a pinned clock or calendar earns nothing either", () => {
+  test("?hour= and ?month= record no phase or season the player did not see", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+
+    /**
+     * The sky was guarded and these were not: `?hour=2` earned Night Shift on
+     * a fresh save, and four visits with `?month=` earned the whole year.
+     * Pinned to a phase and a season that are not the real ones now, so
+     * anything recorded for them came from the URL.
+     */
+    const realPhase = phaseFor(daylightAt().hour);
+    const realSeason = seasonFor(pittsburghMonth());
+    const hour = [2, 9, 13, 16, 19].find((h) => phaseFor(h) !== realPhase)!;
+    const month = [1, 4, 7, 10].find((m) => seasonFor(m) !== realSeason)!;
+
+    await enterGame(page, hour, month);
+    await page.waitForTimeout(1500);
+
+    const state = await page.evaluate(
+      () => JSON.parse(localStorage.getItem("scout-game-state") ?? "{}")?.state ?? {},
+    );
+
+    expect(state.seenPhases?.[phaseFor(hour)], "a pinned hour was a phase seen").toBeFalsy();
+    expect(state.seenSeasons?.[seasonFor(month)], "a pinned month was a season seen").toBeFalsy();
   });
 });

@@ -346,6 +346,16 @@ export class Garden extends Server<Env> {
       }
 
       case "sit": {
+        // One table each, as with opening one. A second chair leaves a game
+        // waiting on somebody whose screen only shows the first.
+        if (
+          this.tables.some(
+            (table) => !table.finished && table.seats.includes(sub),
+          )
+        ) {
+          return;
+        }
+
         this.updateTable(message.table, (table) =>
           sitDown(table, sub, seat.player.name),
         );

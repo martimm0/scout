@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { FUNGI } from "../src/features/game/data/fungi";
+import { PLANTS } from "../src/features/game/data/plants";
 import { env } from "../src/lib/env";
 import { mondayOf } from "../src/lib/insights";
 
@@ -69,6 +71,26 @@ test.describe("the admin tool is the admin's alone", () => {
     expect(typeof body.analytics.ceiling).toBe("number");
     expect(Array.isArray(body.accounts)).toBe(true);
     expect(Array.isArray(body.waitlist)).toBe(true);
+  });
+
+  test("the rarest-species table counts a species nobody has found", async ({ page }) => {
+    /**
+     * The table was built from the ids the saves mention, so a species no
+     * save had ever found was not in it at all, and "rarest first" started at
+     * one. The species nobody finds is the reason the table exists.
+     */
+    await signIn(page.context(), "the-admin", env.adminEmail);
+    const body = (await (await page.request.get("/api/admin")).json()) as {
+      insights: { species: { id: string }[] } | null;
+    };
+    test.skip(!body.insights, "no database configured");
+
+    const listed = new Set(body.insights!.species.map((row) => row.id));
+    const missing = [...PLANTS, ...FUNGI]
+      .map((species) => species.id)
+      .filter((id) => !listed.has(id));
+
+    expect(missing, "species with no finds are left out of the table").toEqual([]);
   });
 
   test("the admin can set the account ceiling", async ({ page }) => {

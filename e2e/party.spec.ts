@@ -1739,3 +1739,240 @@ test.describe("a malformed message is dropped, not thrown", () => {
     polite.close();
   });
 });
+
+test.describe("tables, tickets and gestures", () => {
+  /** A raw player in a room, keeping the latest table list it was sent. */
+  async function rawPlayer(room: string, who: string) {
+    const socket = new WebSocket(
+      `ws://${PARTY_HOST}/parties/garden/${room}?ticket=${encodeURIComponent(
+        await partyTicket(who),
+      )}`,
+    );
+    const tables: TableView[] = [];
+
+    socket.addEventListener("message", (event) => {
+      const message = JSON.parse(String(event.data)) as { t: string; tables?: TableView[] };
+
+      if (message.t === "tables" && message.tables) {
+        tables.length = 0;
+        tables.push(...message.tables);
+      }
+    });
+
+    await new Promise<void>((resolve) => socket.addEventListener("open", () => resolve()));
+
+    return {
+      tables,
+      send: (message: Record<string, unknown>) => socket.send(JSON.stringify(message)),
+      close: () => socket.close(),
+      /** The open table this player opened, by kind. */
+      tableOf: (kind: string, opener: string) =>
+        tables.find((table) => table.kind === kind && table.seats[0] === opener && !table.finished),
+    };
+  }
+
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 700));
+
+  test("one account sits at one table, however it asks", async () => {
+    test.setTimeout(60_000);
+
+    /**
+     * Opening a second table was refused; sitting at a second one was not. A
+     * double click on two Sit down buttons seated one player in two games,
+     * and the screen only ever showed the first, so the other waited on a
+     * player who could not see it.
+     */
+    const room = "garden-schenley";
+    const ana = await rawPlayer(room, "two-tables-a");
+    const ben = await rawPlayer(room, "two-tables-b");
+    const cat = await rawPlayer(room, "two-tables-c");
+
+    try {
+      ana.send({ t: "open", kind: "tictactoe" });
+      ben.send({ t: "open", kind: "connect4" });
+      await settle();
+
+      const first = ana.tableOf("tictactoe", "two-tables-a")!;
+      const second = ana.tableOf("connect4", "two-tables-b")!;
+      expect(first && second, "the two tables were never opened").toBeTruthy();
+
+      cat.send({ t: "sit", table: first.id });
+      await settle();
+      cat.send({ t: "sit", table: second.id });
+      await settle();
+
+      const seatedAt = cat.tables.filter(
+        (table) => !table.finished && table.seats.includes("two-tables-c"),
+      );
+      expect(seatedAt.map((table) => table.id), "one player in two games").toEqual([first.id]);
+    } finally {
+      for (const player of [ana, ben, cat]) player.close();
+    }
+  });
+
+  test("a party that cannot be reached says so, and does not blame the account", async ({
+    browser,
+  }) => {
+    test.setTimeout(120_000);
+
+    /**
+     * A ticket fetch the network dropped left the button on "Going in" for
+     * good, and a server error said a party needs an account, to somebody
+     * signed in.
+     */
+    const page = await playerPage(browser, "unreached");
+
+    try {
+      await page.goto("/parties");
+
+      await page.route("**/api/party/ticket**", (route) => route.abort());
+      await page.getByRole("button", { name: /Join the Highland/ }).click();
+      await expect(
+        page.getByRole("alert").filter({ hasText: "could not be reached" }),
+        "a dropped ticket fetch was never reported",
+      ).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole("button", { name: /Join the Highland/ })).toBeEnabled();
+
+      await page.unroute("**/api/party/ticket**");
+      await page.route("**/api/party/ticket**", (route) =>
+        route.fulfill({ status: 500, body: "{}" }),
+      );
+      await page.getByRole("button", { name: /Join the Highland/ }).click();
+      await expect(page.getByRole("alert").filter({ hasText: "could not be reached" })).toBeVisible({
+        timeout: 15_000,
+      });
+      await expect(
+        page.getByText(/needs an account/),
+        "a server error was blamed on the account",
+      ).toHaveCount(0);
+    } finally {
+      await closePlayer(page);
+    }
+  });
+
+  test("a dealt round offers no chair, and one that ends early says it is over", async ({
+    browser,
+  }) => {
+    test.setTimeout(240_000);
+
+    /**
+     * The lobby offered "Sit down" on a Field Notes round already dealt, which
+     * the room refuses, so the button did nothing. And a round ended by a
+     * player leaving is below the minimum by then, so the status said it was
+     * waiting for players, over the final scores.
+     */
+    const room = "garden-schenley";
+    const dealt = await Promise.all(
+      ["fn-a", "fn-b", "fn-c"].map((who) => rawPlayer(room, who)),
+    );
+    const [eve, fay] = await Promise.all(["fn-e", "fn-f"].map((who) => rawPlayer(room, who)));
+    const page = await playerPage(browser, "fieldnoter");
+
+    try {
+      dealt[0].send({ t: "open", kind: "quips" });
+      eve.send({ t: "open", kind: "quips" });
+      await settle();
+
+      const full = dealt[0].tableOf("quips", "fn-a")!;
+      const short = eve.tableOf("quips", "fn-e")!;
+
+      for (const player of dealt.slice(1)) player.send({ t: "sit", table: full.id });
+      fay.send({ t: "sit", table: short.id });
+      await settle();
+      dealt[0].send({ t: "begin", table: full.id });
+      await settle();
+
+      await page.goto("/parties");
+      await page.getByRole("button", { name: /Join the Schenley/ }).click();
+      await page.waitForURL(/\/play/);
+      await page.waitForTimeout(2500);
+      await dismissTutorial(page);
+      await page.waitForTimeout(600);
+      await page.getByRole("button", { name: /^Games/ }).click();
+
+      const lobby = page.getByRole("region", { name: "Party games" });
+      const fullRow = lobby.locator("li").filter({ hasText: "fn-a" });
+      const shortRow = lobby.locator("li").filter({ hasText: "fn-e" });
+
+      await expect(fullRow).toBeVisible({ timeout: 20_000 });
+      await expect(
+        fullRow.getByRole("button", { name: "Sit down" }),
+        "a chair was offered at a round already dealt",
+      ).toHaveCount(0);
+
+      await shortRow.getByRole("button", { name: "Sit down" }).click();
+      const board = page.getByRole("region", { name: "Field Notes" });
+      await expect(board).toBeVisible({ timeout: 20_000 });
+
+      eve.send({ t: "begin", table: short.id });
+      await expect(board.getByText(/Writing/)).toBeVisible({ timeout: 20_000 });
+      fay.send({ t: "leaveTable", table: short.id });
+
+      await expect(board.getByText("Nobody came out in front.")).toBeVisible({
+        timeout: 20_000,
+      });
+      await expect(
+        board.getByText(/Waiting for players/),
+        "a finished round said it was waiting",
+      ).toHaveCount(0);
+    } finally {
+      for (const player of [...dealt, eve, fay]) player.close();
+      await closePlayer(page);
+    }
+  });
+
+  test("another player's dance is danced on your screen", async ({ browser }) => {
+    test.setTimeout(180_000);
+
+    /**
+     * Gestures went out with every pose, and the room relayed them, but the
+     * other bees were drawn with a gesture fixed at none. Measured on the
+     * bee's own rig in the live scene: a dance sways it side to side, which
+     * nothing else does.
+     */
+    setActivePark("frick");
+    const [x, , z] = startPosition();
+    const page = await playerPage(browser, "watcher");
+    const dancer = await rawPlayer("garden-frick", "dancer");
+    const pose = (gesture: string) => ({
+      t: "pos",
+      pose: { x: x + 6, z, altitude: 8, heading: 0, gesture },
+    });
+    const timer = setInterval(() => dancer.send(pose("dance")), 100);
+
+    try {
+      await page.goto("/parties");
+      await page.getByRole("button", { name: /Join the Frick/ }).click();
+      await page.waitForURL(/\/play/);
+
+      const sway = () =>
+        page.evaluate(() => {
+          type Node = {
+            userData?: Record<string, unknown>;
+            rotation?: { z: number };
+            children?: Node[];
+          };
+          const scene = (window as unknown as { __scoutScene?: Node }).__scoutScene;
+          let bee: Node | undefined;
+          const find = (node: Node) => {
+            if (node.userData?.remoteBee === "dancer") bee = node;
+            for (const child of node.children ?? []) find(child);
+          };
+
+          if (scene) find(scene);
+
+          // The model's root, which a dance rolls side to side. Not anything
+          // below it: the wings turn on that axis all the time.
+          return Math.abs(bee?.children?.[0]?.rotation?.z ?? 0);
+        });
+
+      await expect
+        .poll(sway, { message: "the dancer was drawn holding still", timeout: 30_000, intervals: [100] })
+        .toBeGreaterThan(0.15);
+    } finally {
+      clearInterval(timer);
+      dancer.close();
+      await closePlayer(page);
+    }
+  });
+});

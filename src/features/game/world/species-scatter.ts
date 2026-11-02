@@ -156,6 +156,49 @@ function place(
 }
 
 /**
+ * Which seed channel each species places from.
+ *
+ * `place` draws from the area, the count and the channel, and nothing about
+ * the species. So two species with the same home and the same count were
+ * dealt the same hand: they stood in exactly the same spots, and where their
+ * hours overlapped the first in the list was always the nearer one, by a tie.
+ * Dutchman's breeches stood under bloodroot at every spot it had, and was never
+ * found by anybody.
+ *
+ * The first species on a given hand keeps channel 0, so nothing that already
+ * had its own spots moves. Each later one on the same hand gets a channel of
+ * its own. Solo species are counted before party ones, so the park is the same
+ * with or without company.
+ */
+const CHANNEL_STRIDE = 1000;
+
+function channels<T extends { id: string; count: number; partyOnly?: boolean; homes: { park: string; area: string }[] }>(
+  list: T[],
+) {
+  const taken = new Map<string, number>();
+  const byId = new Map<string, number>();
+  const ordered = [
+    ...list.filter((entry) => !entry.partyOnly),
+    ...list.filter((entry) => entry.partyOnly),
+  ];
+
+  for (const entry of ordered) {
+    for (const home of entry.homes) {
+      const hand = `${home.park}:${home.area}:${entry.count}`;
+      const before = taken.get(hand) ?? 0;
+
+      taken.set(hand, before + 1);
+      byId.set(`${home.park}:${entry.id}`, before);
+    }
+  }
+
+  return (park: string, id: string) => byId.get(`${park}:${id}`) ?? 0;
+}
+
+const plantHand = channels(PLANTS);
+const fungusHand = channels(FUNGI);
+
+/**
  * Everything growing in the active park.
  *
  * `withParty` adds the twelve species that only come up when there are other
@@ -185,7 +228,12 @@ export function scatterSpecies(withParty = false): SpeciesInstance[] {
       continue;
     }
 
-    const spots = place(home.area, plant.count, 0, 0.75);
+    const spots = place(
+      home.area,
+      plant.count,
+      plantHand(park, plant.id) * CHANNEL_STRIDE,
+      0.75,
+    );
     const season = seasonWindow(plant.bloom);
 
     spots.forEach((spot, index) => {
@@ -220,7 +268,8 @@ export function scatterSpecies(withParty = false): SpeciesInstance[] {
 
     // Fungi live on rotting wood and shaded ground, so they tolerate steeper,
     // rougher places than a flower will.
-    const spots = place(home.area, fungus.count, 1, 0.95);
+    const hand = fungusHand(park, fungus.id) * CHANNEL_STRIDE;
+    const spots = place(home.area, fungus.count, 1 + hand, 0.95);
     const season = seasonWindow(fungus.season);
 
     spots.forEach((spot, index) => {
@@ -253,7 +302,7 @@ export function scatterSpecies(withParty = false): SpeciesInstance[] {
      * They come up in order as the flush strengthens, so a damp week puts up a
      * few and a proper soaking carpets the place.
      */
-    const flushSpots = place(home.area, fungus.count, 5, 0.95);
+    const flushSpots = place(home.area, fungus.count, 5 + hand, 0.95);
 
     flushSpots.forEach((spot, index) => {
       instances.push({

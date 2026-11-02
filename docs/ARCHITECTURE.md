@@ -32,7 +32,16 @@ game IS, see [GAMEPLAN.md](GAMEPLAN.md). For how the data is shaped, see
   because everything that matters was already in pure modules (the board
   rules, the quip state machine, the table transitions, the protocol) and only
   the shell of `party/garden.ts` had to change.
-- **Web Audio**, synthesized. No audio files.
+- **Web Audio**, synthesized. No audio files. The engine is module state, so the
+  scene applies the sound settings (not the toggle, which sits in a panel that
+  can be closed and starts closed at a party) and stops everything on unmount:
+  the site navigates client side, and the park's music used to play on over
+  Pocket. Turning sound on starts the ambience for the area you are standing
+  in, which used to wait until you crossed into another. `music.spec.ts`.
+  The ambience sits behind its own highpass wall (450Hz, under the lowest wind;
+  the music's is 300Hz), because the wind's bandpass wanders low and its bottom
+  half reached the output.
+  `audio-spectrum.spec.ts`.
 - **Playwright** across Chromium, Firefox and WebKit, plus `phone` and `tablet`
   projects with `hasTouch` for the touch controls. Those two are Chromium only,
   because the GL flags that make the canvas render headless are Chromium's: they
@@ -256,6 +265,16 @@ the free reroll the question was there to prevent. The game now stays mounted,
 hidden, under the question, and gets `paused`; the seeds game stops its loop on
 it. `minigames.spec.ts`.
 
+**Giving up comes to nothing.** It went through the resolver with the score so
+far, which never fails more than two visits in five, and the seeds game starts
+whole, so Escape and Give up at once pollinated the flower nineteen times in
+twenty. A forfeit is a failed visit now, as the question says.
+
+**The seeds game counts a hit once.** Hits were counted inside a `setDrops`
+updater, which React runs twice in development, so the count went up two at a
+time and finishing from in there updated the parent mid-render. The field is
+stepped in a ref and only drawn from state.
+
 ### 9. The world is deterministic
 
 No `Math.random` anywhere in world generation. Scatter, terrain and placement are
@@ -341,6 +360,9 @@ colour is the player's, kept apart from the accent. The **gestures** (`greet`,
 `dance`, `celebrate`) live in a ref the model reads, off the render path; a
 successful pollination bumps a session cue that fires `celebrate` once the panel
 that was covering the bee has closed, so the dance happens where it can be seen.
+At a party the gesture goes out with every pose, and the other bees play it from
+there (`other-bees.tsx`); they were drawn with it fixed at none, so nobody else
+ever saw you greet or dance.
 
 **Ambient life** (`ambient-life.tsx`) is a third system of the same shape, and it
 is a sibling of the bee, not a child: it reads nothing back from the player,
@@ -733,6 +755,12 @@ sent anybody already in a party straight back to it, so the only way out was a
 reload. It now redirects only after a join made on that page, and otherwise says
 which party you are at with Back to it and Leave.
 
+**A knock nobody answers says so.** A ticket fetch the network dropped left the
+button on "Going in" for good, and a server error said a party needs an account,
+to somebody signed in. Only a 401 or 403 is `unauthorized` now; anything else on
+a first join is `unreachable`, which says try again. A reconnect that gets no
+ticket stays `lost`, because its retry loop is already on it.
+
 **Only the last Join counts.** A join waits for a ticket before it opens its
 socket, so two buttons pressed together opened two, the first after the second
 had cleared the way: a frozen bee in the other room, writing into the same
@@ -799,7 +827,9 @@ connected, a Field Notes round would quietly vanish during its own writing phase
 
 Field Notes gets one alarm for the whole room, set to the earliest deadline any
 table has. One rather than one per table, because a Durable Object gets one and
-because a timer per table is a timer per table to leak. The board games have no
+because a timer per table is a timer per table to leak. When it fires, only a
+table whose own deadline has passed moves: it used to move every table, so a
+round dealt thirty seconds after another lost half its writing time. The board games have no
 clock at all: a turn timer on a friendly game of noughts and crosses would invent
 a pressure nobody asked for.
 
@@ -816,9 +846,21 @@ notes who has pressed Done in `done`; it goes once everybody has.
 `party-games.spec.ts`.
 
 **A dealt Field Notes round takes no more chairs**, because a late chair was not
-a player and got a blank panel. **A vote counts only while its voter is here**: a
-matchup closed when the votes reached the voters left, counting votes from
-players who had gone, so the last voter could be skipped.
+a player and got a blank panel. The lobby asks the room's own `tableIsOpen`
+before it offers one, so it no longer shows a Sit down that does nothing. **A
+vote counts only while its voter is here**: a matchup closed when the votes
+reached the voters left, counting votes from players who had gone, so the last
+voter could be skipped.
+
+**A round that ends early says it is over.** A round ended by somebody leaving
+is below the minimum by then, and the status checked the minimum first, so it
+said "Waiting for players" over the final scores. The one out in front is ranked
+among those still seated (`quipLeader`), with nobody named on no points and two
+on the same top score level.
+
+**One table each.** Opening a second table was refused and sitting at one was
+not, so a double click seated a player in two games, and their screen only ever
+showed the first.
 
 **Moves have their own rate limit.** They shared chat's four lines in ten
 seconds, so a quick game of noughts and crosses used it up and the "gg" after was
@@ -1011,7 +1053,10 @@ is drawn, then the GL canvas over it, then `toDataURL("image/jpeg", 0.85)` at
 touches the server**, for anybody, so that ceiling does not apply and somebody is
 going to look at this one full screen. It leaves through the share sheet first
 (the only reliable route to an iPhone camera roll) and a blob-URL download
-second, with the image on screen either way so no path is a dead end.
+second, with the image on screen either way so no path is a dead end. Closing
+the share sheet is an answer, not a failure: it used to fall through to the
+download, so the file arrived anyway and the hint said it was saved. The blob
+URL is revoked a minute later rather than in the same tick, which Safari drops.
 
 **Copy that is true on one device and false on another is still false copy**,
 and this surface has produced three of them, so it is worth stating as a rule

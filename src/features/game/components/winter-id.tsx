@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { playSound } from "../audio/sound";
 import { PLANTS_BY_ID } from "../data/plants";
 import { useGameStore } from "../state/game-store";
+import { activePark } from "../world/terrain";
 import { winterEvidence, winterOptions } from "../world/winter";
 import styles from "./quiz.module.css";
 
@@ -38,7 +39,10 @@ export function WinterId() {
 function WinterIdRun({ plantId }: { plantId: string }) {
   const endWinterId = useGameStore((state) => state.endWinterId);
   const recordWinterId = useGameStore((state) => state.recordWinterId);
-  const park = useGameStore((state) => state.currentPark);
+  // The park being flown, which a party or `?park=` can make a different one
+  // from the save's. Asking with the save's offered a Schenley plant among
+  // Frick ones, and dropped its "Standing in the" clue.
+  const park = activePark().id;
 
   const plant = PLANTS_BY_ID.get(plantId);
 

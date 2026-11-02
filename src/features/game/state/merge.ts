@@ -132,6 +132,18 @@ export function completeSave(raw: unknown): SaveFields {
  * page it could reach mounts the sync, so no merge ever ran and it was really only
  * asserting that localStorage still said what the test had written into it.
  */
+function newerBee(
+  local: GameState["pollinator"],
+  remote: Partial<GameState["pollinator"]> | undefined,
+): GameState["pollinator"] {
+  const localAt = Number(local?.chosenAt) || 0;
+  const remoteAt = Number(remote?.chosenAt) || 0;
+
+  return localAt > remoteAt
+    ? { ...remote, ...local }
+    : ({ ...local, ...remote } as GameState["pollinator"]);
+}
+
 export function mergeInto(local: SaveFields, remote: Partial<SaveFields>): SaveFields {
   /**
    * A genuinely monotonic union: OR, not spread.
@@ -165,10 +177,16 @@ export function mergeInto(local: SaveFields, remote: Partial<SaveFields>): SaveF
     // builder threw "missing an entry for B" and took the entire scene down with
     // it. Spreading local underneath means a bad row can no longer produce a bee
     // that cannot be drawn.
-    pollinator: {
-      ...local.pollinator,
-      ...(remote.pollinator as Partial<GameState["pollinator"]>),
-    } as GameState["pollinator"],
+    //
+    // And the newer CHOICE wins, not whichever copy came in second. Every save
+    // carries the whole bee, so a device open since before a rename on another
+    // one put the old name back on its next save, which can be no more than
+    // the tab being hidden. `chosenAt` says which is newer; with neither
+    // stamped, the incoming copy wins, as it always did.
+    pollinator: newerBee(
+      local.pollinator,
+      remote.pollinator as Partial<GameState["pollinator"]> | undefined,
+    ),
     discoveredPlants: union(local.discoveredPlants, remote.discoveredPlants),
     discoveredFungi: union(local.discoveredFungi, remote.discoveredFungi),
     // A park you have earned on any device is earned. Union, never intersect.

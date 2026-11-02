@@ -24,6 +24,23 @@ import styles from "./sign-in-required.module.css";
  * empty `.env` there is no sign-in to offer, so gating the game behind one would
  * simply make it unplayable: the whole point of local mode is that the game runs.
  */
+/**
+ * The suspension half of the gate, for pages that are open to everybody but
+ * still sync a signed-in player's save: Pocket and Customize. A suspended
+ * account went on saving to itself there, and the doc says pages redirect.
+ */
+export async function redirectIfSuspended() {
+  if (!authConfigured) {
+    return;
+  }
+
+  const session = await auth();
+
+  if (session?.user?.id && (await isSuspended(session.user.id))) {
+    redirect("/suspended");
+  }
+}
+
 export async function requireSignIn() {
   if (!authConfigured) {
     return null;

@@ -34,6 +34,14 @@ export type Pollinator = {
   /** The colour of the raincoat, worn only when it rains. Its own colour, like
    *  the trail: a yellow slicker and a pink trail are both yours to have. */
   raincoatColor: string;
+  /**
+   * When the player last changed any of this, epoch ms. The bee is replaced
+   * rather than unioned, so a merge needs to know which copy is the newer
+   * choice: without it, a device that had been open since before a rename
+   * pushed its old bee over the new one on its next save. Absent on a bee
+   * nobody has touched since this was added, which loses to one that has it.
+   */
+  chosenAt?: number;
 };
 
 export type PlayerMovementState =
@@ -691,7 +699,7 @@ export const useGameStore = create<GameStore>()(
 
   updatePollinator: (pollinator) =>
     set((state) => {
-      const next = { ...state.pollinator, ...pollinator };
+      const next = { ...state.pollinator, ...pollinator, chosenAt: Date.now() };
 
       /**
        * You cannot wear what you have not earned.

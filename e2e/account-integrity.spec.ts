@@ -103,16 +103,86 @@ test.describe("one account cannot reach past its own rows", () => {
     expect(after.progress).toBeNull();
     expect((await (await page.request.get("/api/photos")).json()).photos).toEqual([]);
 
-    // Signing in again is a new account, and saves as one.
+    // Signing in again is a new account, and saves as one, once it has heard
+    // when the old one went: a copy from before that is the deleted save.
     await registerAccount("deleted-player", "deleted@example.com");
+    const { resetAt } = (await (await page.request.get("/api/progress")).json()) as {
+      resetAt: number;
+    };
     expect(
       (
         await page.request.post("/api/progress", {
-          data: { owner: "deleted-player", discoveredPlants: { mayapple: true } },
+          data: { owner: "deleted-player", resetAt, discoveredPlants: { mayapple: true } },
         })
       ).status(),
     ).toBe(200);
     await resetProgress("deleted-player");
+  });
+
+  test("signing back in after a delete does not bring the save back from the browser", async ({
+    page,
+    browser,
+  }) => {
+    /**
+     * The delete took the row, but the player's own browser still held the
+     * save under the same id. Signing in again made a new account with no
+     * reset on it, so that copy was adopted as theirs and pushed into the new
+     * row: every plant came back.
+     */
+    const ok = await registerAccount("returning-player", "returning@example.com");
+    test.skip(!ok, "no database configured");
+
+    await signIn(page.context(), "returning-player", "returning@example.com");
+    await page.goto("/about");
+    await page.evaluate(() =>
+      window.localStorage.setItem(
+        "scout-game-state",
+        JSON.stringify({
+          version: 0,
+          state: {
+            owner: "returning-player",
+            discoveredPlants: { "wild-geranium": true, mayapple: true },
+          },
+        }),
+      ),
+    );
+
+    const admin = await browser.newContext();
+    await signIn(admin, "the-admin", env.adminEmail);
+    expect(
+      (
+        await admin.request.post("/api/admin", {
+          data: { action: "delete", userId: "returning-player" },
+        })
+      ).status(),
+    ).toBe(200);
+    await admin.close();
+
+    try {
+      await registerAccount("returning-player", "returning@example.com");
+      await page.goto("/journal");
+      await expect(page.getByRole("status").filter({ hasText: "Progress saved" })).toBeVisible({
+        timeout: 15_000,
+      });
+      await page.waitForTimeout(3000);
+
+      const body = (await (await page.request.get("/api/progress")).json()) as {
+        progress: { discoveredPlants?: Record<string, boolean> } | null;
+      };
+      expect(
+        Object.keys(body.progress?.discoveredPlants ?? {}),
+        "the deleted save came back from the browser",
+      ).toEqual([]);
+      await expect(
+        page
+          .getByLabel("Progress summary")
+          .locator("dt", { hasText: /^Plants found$/ })
+          .locator("xpath=following-sibling::dd[1]")
+          .first(),
+      ).toHaveText(/^\s*0\s*\//);
+    } finally {
+      await resetProgress("returning-player");
+    }
   });
 
   test("uploads that arrive together cannot overfill the album", async ({ page }) => {

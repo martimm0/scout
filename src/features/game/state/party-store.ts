@@ -49,6 +49,11 @@ export type PartyStatus =
    * secret and checked against another.
    */
   | "rejected"
+  /**
+   * The ticket could not be had: the network, or a bad moment on the server.
+   * Only a first knock lands here. A reconnect keeps retrying under `lost`.
+   */
+  | "unreachable"
   | "lost";
 
 type PartyState = {

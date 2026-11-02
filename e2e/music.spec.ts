@@ -163,3 +163,94 @@ test("the music is varied, and there is nothing droning under it", async ({ page
   // melody was doing. Nothing that reaches the speakers may run without end.
   expect(drones).toBe(0);
 });
+
+/**
+ * Every sound the engine makes, counted from before any app code runs, and
+ * which of the buffer sources loop: the ambience bed is the only one that does.
+ */
+async function countSounds(page: import("@playwright/test").Page) {
+  await page.addInitScript(() => {
+    const counts = { oscillators: 0, beds: 0 };
+    (window as unknown as { __sounds: typeof counts }).__sounds = counts;
+
+    const RealCtx = window.AudioContext;
+    const realOsc = RealCtx.prototype.createOscillator;
+    const realBuf = RealCtx.prototype.createBufferSource;
+
+    RealCtx.prototype.createOscillator = function (this: AudioContext) {
+      counts.oscillators += 1;
+      return realOsc.call(this);
+    };
+    RealCtx.prototype.createBufferSource = function (this: AudioContext) {
+      const source = realBuf.call(this);
+      const start = source.start.bind(source);
+
+      source.start = (...args: Parameters<typeof source.start>) => {
+        if (source.loop) counts.beds += 1;
+        start(...args);
+      };
+
+      return source;
+    };
+  });
+}
+
+const sounds = (page: import("@playwright/test").Page) =>
+  page.evaluate(
+    () => (window as unknown as { __sounds: { oscillators: number; beds: number } }).__sounds,
+  );
+
+test("the park goes quiet when you leave it", async ({ page }) => {
+  test.setTimeout(90_000);
+
+  /**
+   * The engine and its timers live at module level and nothing stopped them,
+   * and the site navigates client side, so the park's music went on playing
+   * over Pocket and the journal, where there is no button to turn it off.
+   */
+  await countSounds(page);
+  await signIn(page.context());
+  await page.addInitScript(() => window.localStorage.clear());
+  await page.goto("/play");
+  await page.waitForTimeout(2000);
+  await dismissTutorial(page);
+  await page.getByRole("button", { name: /Sound off/i }).click();
+  await page.waitForTimeout(2000);
+
+  await page
+    .getByRole("navigation", { name: "Primary navigation" })
+    .getByRole("link", { name: "Parties" })
+    .click();
+  await page.waitForURL(/\/parties/);
+  await page.waitForTimeout(1000);
+
+  const left = (await sounds(page)).oscillators;
+  await page.waitForTimeout(4000);
+
+  expect((await sounds(page)).oscillators - left, "the music played on after the park").toBe(0);
+});
+
+test("the wind comes up when the sound goes on, where you stand", async ({ page }) => {
+  test.setTimeout(90_000);
+
+  /**
+   * Sound starts off, and the area was recorded while it was. Turning it on
+   * started only the music, and the area's ambience waited for the player to
+   * cross into another area before there was any wind or birdsong at all.
+   */
+  await countSounds(page);
+  await signIn(page.context());
+  await page.addInitScript(() => window.localStorage.clear());
+  await page.goto("/play");
+  await page.waitForTimeout(2000);
+  await dismissTutorial(page);
+  await page.waitForTimeout(1500);
+
+  await page.getByRole("button", { name: /Sound off/i }).click();
+  await expect
+    .poll(async () => (await sounds(page)).beds, {
+      message: "no ambience where the player was standing",
+      timeout: 5_000,
+    })
+    .toBeGreaterThan(0);
+});

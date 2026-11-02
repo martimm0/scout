@@ -153,7 +153,7 @@ function MinigameRun({
   }, []);
 
   const finish = useCallback(
-    (score: number) => {
+    (score: number, gaveUp = false) => {
       if (resolvedRef.current) {
         return;
       }
@@ -171,7 +171,11 @@ function MinigameRun({
        * visit in five comes to nothing".
        */
       const roll = together ? together.roll : Math.random();
-      const success = resolvePollination(score, roll);
+      // Giving up is a visit that comes to nothing, as the question asking
+      // about it says. It went through the resolver with the score so far,
+      // which never fails more than two times in five, and the seeds game
+      // starts whole: Escape, Give up, and the flower was pollinated.
+      const success = !gaveUp && resolvePollination(score, roll);
 
       recordAttempt(success);
       recordScore(score);
@@ -389,7 +393,7 @@ function MinigameRun({
           <div className={styles.confirm}>
             <p className={styles.confirmTitle}>Give up on this flower?</p>
             <p className={styles.confirmNote}>
-              Leaving now counts as a visit, and most unfinished visits come to
+              Leaving now counts as a visit, and an unfinished visit comes to
               nothing. You can keep going instead.
             </p>
             <div className={styles.confirmButtons}>
@@ -402,7 +406,7 @@ function MinigameRun({
               </button>
               <button
                 className={styles.giveUp}
-                onClick={() => finish(scoreRef.current)}
+                onClick={() => finish(scoreRef.current, true)}
                 type="button"
               >
                 Give up

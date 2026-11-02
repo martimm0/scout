@@ -155,6 +155,74 @@ test.describe("the server copy is the sum of every device", () => {
     ).toEqual(["mayapple", "wild-geranium"]);
   });
 
+  test("a device behind on the bee does not put the old one back", async ({
+    page,
+    browser,
+  }) => {
+    /**
+     * The bee is replaced, not unioned, and every save carries all of it. The
+     * route let the incoming copy win, so a device open since before a rename
+     * on another one put the old name back with its next save, which needs no
+     * more than the tab being hidden.
+     */
+    const ok = await registerAccount("sync-bee-player", "sync-bee@example.com");
+    test.skip(!ok, "no database configured");
+
+    await signIn(page.context(), "sync-bee-player", "sync-bee@example.com");
+    await resetProgress("sync-bee-player");
+    expect(
+      (
+        await page.request.post("/api/progress", {
+          data: { owner: "sync-bee-player", pollinator: { type: "bee", name: "Thistle" } },
+        })
+      ).status(),
+    ).toBe(200);
+
+    try {
+      // The phone: open, reconciled, and from here on behind.
+      await leaveOnDevice(page, {});
+      await page.goto("/customize");
+      await expect(page.locator("#pollinator-name:visible")).toHaveValue("Thistle", {
+        timeout: 15_000,
+      });
+
+      // The laptop renames the bee.
+      const laptop = await browser.newContext();
+      await signIn(laptop, "sync-bee-player", "sync-bee@example.com");
+      const other = await laptop.newPage();
+      await other.goto("/customize");
+      await expect(other.locator("#pollinator-name:visible")).toHaveValue("Thistle", {
+        timeout: 15_000,
+      });
+      await other.locator("#pollinator-name:visible").fill("Bramble");
+      await other.getByRole("button", { name: "Save pollinator" }).click();
+      await expect
+        .poll(async () => {
+          const body = await (await other.request.get("/api/progress")).json();
+          return body.progress?.pollinator?.name;
+        })
+        .toBe("Bramble");
+      await laptop.close();
+
+      // The phone goes in a pocket, which saves everything it holds.
+      await page.evaluate(() => {
+        Object.defineProperty(document, "visibilityState", {
+          configurable: true,
+          get: () => "hidden",
+        });
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+      await page.waitForTimeout(3000);
+
+      const body = await (await page.request.get("/api/progress")).json();
+      expect(body.progress?.pollinator?.name, "the phone's old bee replaced the rename").toBe(
+        "Bramble",
+      );
+    } finally {
+      await resetProgress("sync-bee-player");
+    }
+  });
+
   test("a name that arrives from the account after the page opened is the one shown", async ({
     page,
   }) => {
@@ -190,8 +258,10 @@ test.describe("the server copy is the sum of every device", () => {
       await route.continue();
     });
 
+    // Visible: the page streams, and for a moment its content is also in the
+    // hidden copy React swaps in.
     await page.goto("/customize");
-    await expect(page.locator("#pollinator-name"), "the box kept the name from before the pull").toHaveValue(
+    await expect(page.locator("#pollinator-name:visible"), "the box kept the name from before the pull").toHaveValue(
       "Clover",
       { timeout: 15_000 },
     );

@@ -158,6 +158,43 @@ test("Escape then Keep going carries on with the same round", async ({ page }) =
   );
 });
 
+test("seeds: each hit is counted once", async ({ page }) => {
+  test.setTimeout(240_000);
+
+  /**
+   * Hits were counted inside a state updater, which React runs twice in
+   * development, so the count went up two at a time and six knocks ended the
+   * round at three. Every value the counter shows is collected, so a skipped
+   * one is caught however fast the drops come.
+   */
+  await land(page, "seeds");
+  const shown = await page.evaluate(
+    () =>
+      new Promise<number[]>((done) => {
+        const seen: number[] = [];
+        const read = () => {
+          const match = /^(\d+) knocks$/.exec(
+            document.querySelector('[data-minigame="seeds"] + p')?.textContent ?? "",
+          );
+
+          if (match && Number(match[1]) !== seen.at(-1)) {
+            seen.push(Number(match[1]));
+          }
+        };
+
+        new MutationObserver(read).observe(document.body, {
+          subtree: true,
+          childList: true,
+          characterData: true,
+        });
+        window.setTimeout(() => done(seen), 8000);
+      }),
+  );
+
+  expect(shown.length, "nothing hit a bee that never moved").toBeGreaterThan(0);
+  expect(shown, "a hit counted more than once").toEqual(shown.map((_, at) => at + 1));
+});
+
 test.describe("the minigames have a skill spread", () => {
   // Doing nothing scores about zero, in every game. Nobody is carried.
   for (const kind of ["memory", "seeds", "anagram"]) {
@@ -206,14 +243,34 @@ test.describe("the minigames have a skill spread", () => {
     await page.getByRole("button", { name: "Keep going" }).click();
     await expect(page.locator('[data-minigame="memory"]')).toBeVisible();
 
-    // Escape again, give up, and it resolves rather than vanishing. Doing nothing
-    // first means the forfeit score is low, so it is almost always a failure, and
-    // that still counts as the attempt it now is.
+    // Escape again, give up, and it resolves rather than vanishing: a failed
+    // visit, which still counts as the attempt it now is.
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Give up" }).click();
-    await expect(
-      page.getByRole("dialog").getByText(/Pollinated|Not this time/),
-    ).toBeVisible();
+    await expect(page.getByRole("dialog").getByText("Not this time")).toBeVisible();
+  });
+
+  test("giving up comes to nothing, even on a round that started whole", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+
+    /**
+     * Giving up went through the resolver with the score so far, which fails
+     * at most two visits in five. The seeds game starts at a full score and
+     * loses it to hits, so Escape and Give up at once pollinated the flower
+     * nineteen times in twenty, seedling and all.
+     */
+    await land(page, "seeds");
+    await page.keyboard.press("Escape");
+    // A roll every visit survives, so only giving up itself can fail it.
+    await page.evaluate(() => {
+      Math.random = () => 0.5;
+    });
+    await page.getByRole("button", { name: "Give up" }).click();
+
+    await expect(page.getByRole("dialog").getByText("Not this time")).toBeVisible();
+    expect((await readout(page)).Pollinated, "giving up pollinated the flower").toBe("0");
   });
 
   test("anagram: a made-up word is refused", async ({ page }) => {

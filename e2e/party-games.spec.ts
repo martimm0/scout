@@ -27,6 +27,7 @@ import {
   dealQuips,
   isWriter,
   matchup,
+  quipLeader,
   quipLeave,
   quipTimeout,
   submitQuip,
@@ -39,6 +40,7 @@ import {
   sitDown,
   standUp,
   tableIsOpen,
+  tableTimeout,
   tableView,
 } from "../party/games/tables";
 
@@ -459,6 +461,42 @@ test.describe("leaving a table", () => {
     expect(tableIsOpen(table), "a dealt round was listed as open").toBe(false);
     expect(sitDown(table, "d", "D").seats).toEqual(["a", "b", "c"]);
   });
+});
+
+test("one table's clock running out does not move another table on", () => {
+  /**
+   * The room has one alarm, set for the earliest deadline at any table, and
+   * it ran every table's timeout when it fired. A round dealt thirty seconds
+   * after another was cut to voting with half its writing time left.
+   */
+  let table = openTable("t3", "quips", "a", "A");
+  table = sitDown(table, "b", "B");
+  table = sitDown(table, "c", "C");
+  table = beginQuips(table, 1000, () => 0.5);
+
+  const early = tableTimeout(table, table.deadline - 30_000);
+  expect((early.state as { phase: string }).phase, "moved on before its own deadline").toBe(
+    "writing",
+  );
+
+  const due = tableTimeout(table, table.deadline);
+  expect((due.state as { phase: string }).phase).toBe("voting");
+});
+
+test("the one out in front is somebody still at the table, with points", () => {
+  /**
+   * The end of a round named its top scorer from the whole score, which kept
+   * players who had left: their name could not be found, so it read "Nobody
+   * came out in front" over a round somebody had won. And a round of timeouts,
+   * all on zero, named seat 0.
+   */
+  expect(
+    quipLeader(["b", "c"], ["B", "C"], { a: 900, b: 300, c: 100 }),
+    "the leader was somebody who had left",
+  ).toEqual({ sub: "b", name: "B" });
+  expect(quipLeader(["a", "b", "c"], ["A", "B", "C"], {}), "nobody scored").toBeNull();
+  expect(quipLeader(["a", "b", "c"], ["A", "B", "C"], { a: 0, b: 0, c: 0 })).toBeNull();
+  expect(quipLeader(["a", "b"], ["A", "B"], { a: 200, b: 200 })).toBe("level");
 });
 
 test("a vote left behind by somebody who has gone does not close the matchup", () => {

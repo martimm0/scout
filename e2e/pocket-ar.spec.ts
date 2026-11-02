@@ -103,6 +103,33 @@ test.describe("the camera makes a real photograph", () => {
     expect(shot.darkFraction).toBeGreaterThan(0.08);
   });
 
+  test("closing the share sheet keeps the photo off the phone", async ({ page }) => {
+    /**
+     * Cancelling the share sheet fell through to the download, so the file
+     * arrived anyway and the hint said it was saved. Closing the sheet is the
+     * player saying no.
+     */
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "canShare", { configurable: true, value: () => true });
+      Object.defineProperty(navigator, "share", {
+        configurable: true,
+        value: () => Promise.reject(new DOMException("closed", "AbortError")),
+      });
+    });
+    await page.goto("/pocket");
+    await shoot(page);
+
+    let downloaded = false;
+    page.on("download", () => {
+      downloaded = true;
+    });
+    await page.getByRole("button", { name: "Save it" }).click();
+    await page.waitForTimeout(1500);
+
+    expect(downloaded, "a cancelled share still downloaded the photo").toBe(false);
+    await expect(page.getByText(/in your downloads/)).toHaveCount(0);
+  });
+
   test("signed in, the photo is just your bee", async ({ page }) => {
     await signIn(page.context());
     await page.goto("/pocket");

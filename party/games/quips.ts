@@ -196,6 +196,36 @@ export function startVoting(state: QuipState, now: number): QuipState {
   };
 }
 
+/**
+ * Who came out in front, said of the people still at the table.
+ *
+ * Ranked among the seats, the same people the scoreboard lists: a top scorer
+ * who left had no name to give, and the line read "Nobody came out in front"
+ * over a round somebody had plainly won. Nobody is in front on no points
+ * (seat 0 used to be named for a round of timeouts), and two on the same top
+ * score are level.
+ */
+export function quipLeader(
+  seats: string[],
+  names: string[],
+  score: Record<string, number>,
+): { sub: string; name: string } | "level" | null {
+  const ranked = seats
+    .map((sub, at) => ({ sub, name: names[at] ?? "", points: score[sub] ?? 0 }))
+    .sort((a, b) => b.points - a.points);
+  const best = ranked[0];
+
+  if (!best || best.points === 0) {
+    return null;
+  }
+
+  if (ranked[1]?.points === best.points) {
+    return "level";
+  }
+
+  return { sub: best.sub, name: best.name };
+}
+
 /** The answers for one matchup, in a stable order. */
 export function matchup(state: QuipState, assignment: number): QuipAnswer[] {
   return state.answers.filter((answer) => answer.prompt === assignment);

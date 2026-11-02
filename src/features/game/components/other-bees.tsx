@@ -6,6 +6,7 @@ import * as THREE from "three";
 
 import { STARTER_POLLINATORS } from "../data/starter-pollinators";
 import { partyPoses, usePartyStore } from "../state/party-store";
+import type { Gesture } from "./game-scene";
 import { PollinatorModel } from "./pollinator-model";
 
 /**
@@ -29,6 +30,9 @@ import { PollinatorModel } from "./pollinator-model";
 
 const EASE = 6;
 
+/** What a pose may carry. Anything else on the wire is no gesture at all. */
+const GESTURES: Gesture[] = ["greet", "dance", "celebrate"];
+
 export function OtherBees() {
   const others = usePartyStore((state) => state.others);
 
@@ -43,7 +47,12 @@ export function OtherBees() {
 
 function RemoteBee({ sub, type }: { sub: string; type: string }) {
   const group = useRef<THREE.Group>(null);
-  const gestureRef = useRef({ kind: "none" as const, time: 0 });
+  // Their greet or dance, mirrored from the pose they send. Its clock runs
+  // here: the wire says which gesture, and the sender ends it by sending none.
+  const gestureRef = useRef<{ kind: Gesture; time: number }>({
+    kind: "none",
+    time: 0,
+  });
 
   /**
    * Whether this bee has ever had a position.
@@ -77,6 +86,16 @@ function RemoteBee({ sub, type }: { sub: string; type: string }) {
 
     if (!pose || !node) {
       return;
+    }
+
+    const kind = GESTURES.includes(pose.gesture as Gesture)
+      ? (pose.gesture as Gesture)
+      : "none";
+
+    if (kind !== gestureRef.current.kind) {
+      gestureRef.current = { kind, time: 0 };
+    } else if (kind !== "none") {
+      gestureRef.current.time += delta;
     }
 
     // The first pose is where they ARE, not somewhere to travel to.

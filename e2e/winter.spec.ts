@@ -291,6 +291,53 @@ test.describe("naming a plant from its winter form", () => {
   });
 });
 
+test("the winter question is about the park being flown, not the one in the save", async ({
+  page,
+}) => {
+  test.setTimeout(300_000);
+
+  /**
+   * It read the save's park. Flying Schenley with a save on Frick (a party,
+   * or `?park=`), a Schenley plant was offered alongside Frick plants, and
+   * its "Standing in the" clue was gone, because it has no Frick home.
+   */
+  setActivePark("schenley");
+
+  const [sx, , sz] = startPosition();
+  const target = scatterSpecies()
+    .filter(
+      (instance) =>
+        instance.species.kind === "plant" &&
+        standsInWinter(instance.species.plant) &&
+        !instance.species.plant.homes.some((home) => home.park === "frick") &&
+        isFindable(instance, TEST_HOUR, WINTER) &&
+        isFindable(instance, TEST_HOUR, 7),
+    )
+    .sort(
+      (a, b) =>
+        Math.hypot(a.position[0] - sx, a.position[2] - sz) -
+        Math.hypot(b.position[0] - sx, b.position[2] - sz),
+    )[0];
+  const plant = PLANTS.find((entry) => entry.id === target.id)!;
+  const area = plant.homes.find((home) => home.park === "schenley")!.area;
+  setActivePark("frick");
+
+  await enterGame(page, TEST_HOUR, 7, undefined, undefined, "schenley");
+  expect(await flyToPlant(page, target), `never reached ${target.id} in summer`).toBe(true);
+
+  await page.goto(`/play?debug=1&hour=${TEST_HOUR}&month=${WINTER}&park=schenley`);
+  await page.waitForTimeout(2500);
+  expect(await flyToPlant(page, target), `never reached ${target.id} in winter`).toBe(true);
+  await page.keyboard.press("Space");
+  await page.getByRole("button", { name: /Name it from its winter form/ }).click();
+
+  const dialog = page.getByRole("dialog", { name: /Name it from its winter form/ });
+  await expect(
+    dialog.getByText(`Standing in the ${area.replace(/-/g, " ")}`),
+    "the clue came from the save's park",
+  ).toBeVisible();
+});
+
 test("Reads the Winter can be earned without a garden party", () => {
   /**
    * The badge asked for every plant in the park that stands through winter,

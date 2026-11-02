@@ -1,8 +1,8 @@
 import { toFahrenheit, type Condition } from "@/features/game/world/weather";
-import { daylightAt } from "@/features/game/world/daylight";
-import { pittsburghMonth, seasonFor } from "@/features/game/world/season";
 import { fetchParkForecasts } from "@/lib/forecast";
 
+import { BannerClock } from "./banner-clock";
+import { bannerLineAt } from "./banner-line";
 import styles from "./weather-banner.module.css";
 
 /**
@@ -32,18 +32,12 @@ const GLYPH: Record<Condition, string> = {
   thunderstorm: "⛈︎",
 };
 
-function cap(text: string) {
-  return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
 export async function WeatherBanner() {
   const forecasts = await fetchParkForecasts();
-  const daylight = daylightAt();
-  const season = seasonFor(pittsburghMonth());
 
   const items = [
     <span className={styles.lead} key="now">
-      {cap(season)} {daylight.label.toLowerCase()} in Pittsburgh · {daylight.clock}
+      <BannerClock initial={bannerLineAt(new Date())} />
     </span>,
     ...forecasts.map(({ park, weather }) => (
       <span className={styles.item} key={park}>

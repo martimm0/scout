@@ -21,7 +21,13 @@ import {
   type PlayerMovementState,
 } from "@/features/game/state/game-store";
 import { trackEvent } from "@/lib/analytics";
-import { playSound, setAreaAmbience } from "../audio/sound";
+import {
+  playSound,
+  setAreaAmbience,
+  setSoundEnabled,
+  setVolume,
+  stopAllAudio,
+} from "../audio/sound";
 import { speciesFor } from "../models/pollinators";
 import { PollinatorModel } from "./pollinator-model";
 import { sendMark, sendPose } from "../state/party-client";
@@ -313,6 +319,8 @@ function R3FViewport({
   onDebugChange,
   weather,
   weatherIsReal,
+  clockIsReal,
+  calendarIsReal,
 }: {
   /** Pins who is on the flowers. Test hook, same as the pinned hour. */
   busy?: "on" | "off";
@@ -323,6 +331,10 @@ function R3FViewport({
   weather: Weather;
   /** False when `?weather=` pinned the sky. Only a real one earns a moment. */
   weatherIsReal: boolean;
+  /** False when `?hour=` pinned the clock. Only a real hour is a phase seen. */
+  clockIsReal: boolean;
+  /** False when `?month=` pinned the calendar. Same, for the seasons. */
+  calendarIsReal: boolean;
 }) {
   /**
    * The scene lives in an imperative R3F root, so it does not re-render when the
@@ -415,6 +427,8 @@ function R3FViewport({
             onDebugChange={onDebugChange}
             weather={weather}
             weatherIsReal={weatherIsReal}
+            clockIsReal={clockIsReal}
+            calendarIsReal={calendarIsReal}
           />,
         );
       }
@@ -457,9 +471,20 @@ function R3FViewport({
         onDebugChange={onDebugChange}
         weather={weather}
         weatherIsReal={weatherIsReal}
+        clockIsReal={clockIsReal}
+        calendarIsReal={calendarIsReal}
       />,
     );
-  }, [busy, daylight, month, onDebugChange, weather, weatherIsReal]);
+  }, [
+    busy,
+    calendarIsReal,
+    clockIsReal,
+    daylight,
+    month,
+    onDebugChange,
+    weather,
+    weatherIsReal,
+  ]);
 
   return <canvas className={styles.canvas} ref={canvasRef} />;
 }
@@ -471,6 +496,8 @@ function ScoutScene({
   onDebugChange,
   weather,
   weatherIsReal,
+  clockIsReal,
+  calendarIsReal,
 }: {
   /** Pins who is on the flowers. Test hook, same as the pinned hour. */
   busy?: "on" | "off";
@@ -487,6 +514,10 @@ function ScoutScene({
    * thunderstorm makes the whole record worthless.
    */
   weatherIsReal: boolean;
+  /** False when `?hour=` pinned the clock. See `weatherIsReal`. */
+  clockIsReal: boolean;
+  /** False when `?month=` pinned the calendar. See `weatherIsReal`. */
+  calendarIsReal: boolean;
 }) {
   /**
    * The sky, once the weather has had its say.
@@ -1321,9 +1352,16 @@ function ScoutScene({
 
       // Which times of day AND which seasons the player has actually seen. Badge
       // fodder, and the record behind the merit badges for keeping the whole
-      // clock and the whole calendar.
-      store.seePhase(daylight.phase);
-      store.seeSeason(seasonFor(month));
+      // clock and the whole calendar. Only the real ones, for the same reason
+      // as the weather below: `?hour=2` earned Night Shift, and four visits
+      // with `?month=` earned the whole year.
+      if (clockIsReal) {
+        store.seePhase(daylight.phase);
+      }
+
+      if (calendarIsReal) {
+        store.seeSeason(seasonFor(month));
+      }
 
       /**
        * And which rare skies you were actually out in.
@@ -1692,6 +1730,20 @@ export function GameScene({
   // canvas and assumes it is broken.
   const [ready, setReady] = useState(false);
 
+  // The sound settings apply here rather than in the toggle, which lives in a
+  // panel that can be closed (and starts closed at a party). The audio engine
+  // and its timers live at module level, so they also stop here: the site
+  // navigates client side, and nothing else would silence the park on /pocket.
+  const soundOn = useGameStore((state) => state.settings.soundOn);
+  const volume = useGameStore((state) => state.settings.volume);
+
+  useEffect(() => {
+    setVolume(volume);
+    setSoundEnabled(soundOn);
+  }, [soundOn, volume]);
+
+  useEffect(() => () => stopAllAudio(), []);
+
   useEffect(() => {
     const timer = window.setTimeout(() => setReady(true), 900);
 
@@ -1923,6 +1975,8 @@ export function GameScene({
           onDebugChange={setDebugState}
           weather={weather}
           weatherIsReal={forcedWeather === undefined}
+          clockIsReal={hour === undefined}
+          calendarIsReal={forcedMonth === undefined}
         />
         {/* The touch pad, on a touch device, once the park is up and while
             nothing is covering it. It sits inside the canvas wrapper so it is

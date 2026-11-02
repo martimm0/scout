@@ -14,8 +14,10 @@ import {
 import {
   QUIP_PROMPTS,
   matchup,
+  quipLeader,
   type QuipState,
 } from "@party/games/quips";
+import { tableIsOpen } from "@party/games/tables";
 import {
   GAME_NAMES,
   GAME_SEATS,
@@ -112,8 +114,9 @@ export function PartyGames() {
                     {table.names.join(", ")}
                     {table.finished ? " · finished" : ""}
                   </span>
-                  {!table.finished &&
-                  table.seats.length < GAME_SEATS[table.kind].max ? (
+                  {/* The room's own rule, so a chair it would refuse (a
+                      dealt Field Notes round) is not offered. */}
+                  {tableIsOpen(table) ? (
                     <button
                       className={styles.sit}
                       onClick={() => sitAtTable(table.id)}
@@ -195,6 +198,12 @@ function Status({
     // Not "you win". Winning because somebody's train went into a tunnel is not
     // winning, and there is no leaderboard for it to count towards anyway.
     return <>They stood up, so that is that.</>;
+  }
+
+  // A dealt round reads its own phase. One that ended because players left
+  // is below the minimum by definition, and is over, not waiting.
+  if (table.kind === "quips" && table.state) {
+    return <QuipStatus table={table} you={you} />;
   }
 
   if (table.seats.length < GAME_SEATS[table.kind].min) {
@@ -373,13 +382,20 @@ function QuipStatus({ table, you }: { table: TableView; you: string }) {
     return <>Vote for the one you like best.</>;
   }
 
-  const best = Object.entries(state.score).sort((a, b) => b[1] - a[1])[0];
-  const name = table.names[table.seats.indexOf(best?.[0] ?? "")] ?? "Nobody";
+  const best = quipLeader(table.seats, table.names, state.score);
 
-  return best?.[0] === you ? (
+  if (best === null) {
+    return <>Nobody came out in front.</>;
+  }
+
+  if (best === "level") {
+    return <>Level at the top. Well written, all of you.</>;
+  }
+
+  return best.sub === you ? (
     <>That is you out in front. Well written.</>
   ) : (
-    <>{name} came out in front.</>
+    <>{best.name} came out in front.</>
   );
 }
 

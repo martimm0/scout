@@ -333,3 +333,41 @@ test.describe("the twelve themselves", () => {
     }
   });
 });
+
+test.describe("every species stands somewhere of its own", () => {
+  test("no two species are planted in the same spot", () => {
+    /**
+     * Spots were drawn from the area and the count alone, so two species with
+     * the same home and count stood in exactly the same places. The nearer one
+     * is the one you find, and at a tie that is the first in the list:
+     * Dutchman's breeches stood under bloodroot at every one of its spots, and
+     * the two badges that need it could not be earned.
+     */
+    const shared: string[] = [];
+
+    for (const park of Object.keys(PARKS) as (keyof typeof PARKS)[]) {
+      setActivePark(park);
+
+      for (const withParty of [false, true]) {
+        const instances = scatterSpecies(withParty);
+
+        instances.forEach((one, at) => {
+          for (const other of instances.slice(0, at)) {
+            if (
+              other.id !== one.id &&
+              Math.hypot(
+                other.position[0] - one.position[0],
+                other.position[2] - one.position[2],
+              ) < 0.01
+            ) {
+              shared.push(`${park}: ${other.id} and ${one.id}`);
+            }
+          }
+        });
+      }
+    }
+
+    setActivePark("frick");
+    expect([...new Set(shared)], "species planted on top of each other").toEqual([]);
+  });
+});

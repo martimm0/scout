@@ -32,6 +32,13 @@ test("a suspended account gets no party ticket and cannot change its name", asyn
         })
       ).status(),
     ).toBe(403);
+
+    // The pages open to everybody still sync a signed-in save, so they turn a
+    // suspended account away too.
+    for (const path of ["/pocket", "/customize"]) {
+      await page.goto(path);
+      await expect(page, `${path} let a suspended account in`).toHaveURL(/\/suspended$/);
+    }
   } finally {
     await setAccountStatus("suspended-player", "active");
   }

@@ -339,9 +339,25 @@ export async function registerSignIn(account: {
       return "waitlisted";
     }
 
+    /**
+     * Somebody coming back after a delete starts with the reset stamp set to
+     * the moment of the delete. Their browser still holds the old save under
+     * the same id, and without the stamp it was adopted and pushed straight
+     * back into the new row: every plant returned, which is what the delete
+     * was for taking away. The stamp makes that copy one from before a reset.
+     */
     await sql`
-      INSERT INTO accounts (user_id, email, name)
-      VALUES (${account.userId}, ${account.email}, ${account.name})
+      INSERT INTO accounts (user_id, email, name, progress_reset_at)
+      VALUES (
+        ${account.userId},
+        ${account.email},
+        ${account.name},
+        (
+          SELECT (extract(epoch FROM deleted_at) * 1000)::bigint
+          FROM deleted_accounts
+          WHERE user_id = ${account.userId}
+        )
+      )
       ON CONFLICT (user_id) DO NOTHING
     `;
 

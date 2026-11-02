@@ -33,6 +33,7 @@ import {
 } from "../src/features/game/world/scatter";
 import { scatterSpecies } from "../src/features/game/world/species-scatter";
 import { isInSeason, seasonWindow } from "../src/features/game/world/season";
+import { daylightAt } from "../src/features/game/world/daylight";
 import { PARK_COORDS } from "../src/lib/forecast";
 import { canPollinate } from "../src/features/game/state/game-store";
 import { mergeInto } from "../src/features/game/state/cloud-sync";
@@ -706,6 +707,27 @@ test.describe("Schenley Park", () => {
     expect((await readout(page)).Area, "the world never came up").toBeTruthy();
     await expect(page.locator("canvas").first()).toBeVisible();
   });
+});
+
+test("the home banner tells the visitor's time, not the time the page was made", async ({
+  page,
+}) => {
+  /**
+   * The home page is rendered ahead of time and reused for ten minutes, and
+   * past a quiet night for as long as it takes somebody to come, so a clock
+   * printed on the server is the time somebody else loaded it. Pinned six
+   * hours away from now, so a server clock can never pass for it.
+   */
+  const at = new Date(Date.now() + 6 * 60 * 60 * 1000);
+  await page.clock.install({ time: at });
+  await page.goto("/");
+
+  await expect(
+    page.getByRole("marquee", { name: "Live weather over the parks" }).getByText(
+      `in Pittsburgh · ${daylightAt(at).clock}`,
+    ).first(),
+    "the banner kept the clock it was rendered with",
+  ).toBeVisible({ timeout: 15_000 });
 });
 
 test.describe("the about page and the site chrome", () => {

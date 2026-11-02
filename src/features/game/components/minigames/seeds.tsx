@@ -25,6 +25,8 @@ import type { MinigameProps } from "./types";
 const FALLERS = ["🌰", "🍂", "🌱", "🪵"] as const;
 const MAX_HITS = 6;
 
+type Drop = { id: number; x: number; y: number; glyph: string };
+
 export function SeedsGame({
   duration,
   finishEarly,
@@ -32,9 +34,14 @@ export function SeedsGame({
   reportScore,
 }: MinigameProps) {
   const [beeX, setBeeX] = useState(0.5);
-  const [drops, setDrops] = useState<
-    { id: number; x: number; y: number; glyph: string }[]
-  >([]);
+  const [drops, setDrops] = useState<Drop[]>([]);
+  /**
+   * The field itself, stepped here and only drawn from state. Hits used to be
+   * counted inside a `setDrops` updater, and React may run an updater twice
+   * (it does in development, every time), so a hit could count twice, and
+   * finishing the round from in there updated the parent mid-render.
+   */
+  const dropsRef = useRef<Drop[]>([]);
   const hits = useRef(0);
   const [knocks, setKnocks] = useState(0);
   const beeXRef = useRef(0.5);
@@ -89,45 +96,49 @@ export function SeedsGame({
         spawned.current += 1;
         const id = spawned.current;
         const r = hash(id, 7);
-        setDrops((was) => [
-          ...was,
+        dropsRef.current = [
+          ...dropsRef.current,
           {
             id,
             x: 0.08 + hash(id, 8) * 0.84,
             y: -0.05,
             glyph: FALLERS[Math.floor(r * FALLERS.length)],
           },
-        ]);
+        ];
       }
 
-      setDrops((was) => {
-        const next: typeof was = [];
+      const next: Drop[] = [];
+      let struck = 0;
 
-        for (const drop of was) {
-          const y = drop.y + fallSpeed * dt;
+      for (const drop of dropsRef.current) {
+        const y = drop.y + fallSpeed * dt;
 
-          // The bee sits near the bottom. A drop that reaches it within a bee's
-          // width is a hit.
-          if (y > 0.82 && y < 0.96 && Math.abs(drop.x - beeXRef.current) < 0.1) {
-            hits.current += 1;
-            setKnocks(hits.current);
-            playSound("pollinateFail");
-            reportScore(Math.max(0, 1 - hits.current / budget));
-
-            if (hits.current >= budget) {
-              finishEarly(0);
-            }
-
-            continue; // consumed
-          }
-
-          if (y < 1.05) {
-            next.push({ ...drop, y });
-          }
+        // The bee sits near the bottom. A drop that reaches it within a bee's
+        // width is a hit.
+        if (y > 0.82 && y < 0.96 && Math.abs(drop.x - beeXRef.current) < 0.1) {
+          struck += 1;
+          continue; // consumed
         }
 
-        return next;
-      });
+        if (y < 1.05) {
+          next.push({ ...drop, y });
+        }
+      }
+
+      dropsRef.current = next;
+      setDrops(next);
+
+      if (struck > 0) {
+        hits.current += struck;
+        setKnocks(hits.current);
+        playSound("pollinateFail");
+        reportScore(Math.max(0, 1 - hits.current / budget));
+
+        if (hits.current >= budget) {
+          finishEarly(0);
+          return;
+        }
+      }
 
       raf = requestAnimationFrame(step);
     };

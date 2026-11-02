@@ -156,6 +156,12 @@ cache, so one upstream request serves every player. Two callers: `/api/weather`
 for the park, and `fetchParkForecasts` for the home page's banner, which is
 rendered at build time and refreshed in the background.
 
+**The banner's clock is the visitor's.** A page refreshed in the background is
+served stale first, so a clock printed on the server was the time somebody else
+loaded it: after a quiet night, "Night in Pittsburgh · 2:10 am" at noon. The
+server's line stands until hydration, then `banner-clock.tsx` takes over and
+ticks. `pages.spec.ts`.
+
 **Down and slow are both failures**, and both end in `FAIR_WEATHER`. For a long
 time only "down" did: an error or a bad status fell back to a fair day, but with
 no timeout a hung connection simply waited on the platform's own limits. The
@@ -209,6 +215,17 @@ detail: `place` folds the count into its sampling, so asking it for twice as man
 spots deals a different hand entirely and moves every mushroom already in the wood.
 The base scatter is byte-identical with the flush in place.
 
+**Two species never share a spot.** `place` draws from the area, the count and
+the channel, and nothing about the species, so two species with the same home and
+the same count were dealt the same hand and stood in exactly the same places. The
+nearer one is the one you find, and at a tie that is the first in the list:
+Dutchman's breeches stood under bloodroot at every spot it had, and "Schenley
+Botanist" and "Three Parks, One City" could not be earned. Forty-eight pairs
+across the three parks stood like that. The first species on a hand keeps channel
+0, so nothing that had its own spots moved, and each later one on the same hand
+gets a channel of its own. Solo species are counted before party ones, so the
+park is the same with or without company. `party-species.spec.ts`.
+
 ### Rare weather moments
 
 `world/weather-moments.ts` is six skies the journal remembers you were out in:
@@ -227,6 +244,9 @@ Which is why **a pinned sky earns nothing**. `?weather=storm` is a test hook, th
 hooks are documented to grant no progress, and without that guard the entire set
 could be minted from the URL bar in a minute. `ScoutScene` takes a `weatherIsReal`
 flag for exactly this, and `weather-moments.spec.ts` fails if the guard is removed.
+The clock and the calendar have the same guard (`clockIsReal`, `calendarIsReal`):
+they did not, so `?hour=2` earned Night Shift on a fresh save, and four visits with
+`?month=` earned the whole year.
 
 **Nothing is gated behind one.** They earn two badges and fill a page. No species,
 park or plant is ever behind a moment, because a player cannot make it rain and the
@@ -237,7 +257,9 @@ game must never ask them to.
 In summer the card over a plant tells you what it is, and it should: you cannot
 look a flower up if you do not know it is called anything. In winter it stops. The
 card says "Winter form", withholds the name, and landing offers you the question
-instead.
+instead. The question is about the park being flown, which a party or `?park=` can
+make a different one from the save's: asking with the save's offered a Schenley
+plant among Frick ones and dropped its "Standing in the" clue. `winter.spec.ts`.
 
 **The evidence is structural, and that is a sourcing decision rather than a design
 one.** The obvious version of this identifies by twig and bud, and it cannot be
@@ -705,6 +727,14 @@ butterfly before the resume request comes back would watch the server's older be
 silently overwrite them. The merge compares the bee against what it was when the
 request went out: a click is newer than a request already in flight.
 
+**And the newer choice wins between devices.** Every save carries the whole bee,
+and the route let the incoming one win, so a device open since before a rename on
+another one put the old name back with its next save, which needs no more than
+the tab being hidden. Changing the bee stamps it with `chosenAt`, and the merge
+keeps whichever copy was chosen later; with neither stamped, the incoming copy
+wins as it always did. The bee is still one value: a hat changed on a stale
+device later still brings that device's name with it. `save-integrity.spec.ts`.
+
 ### Every device adds to the save
 
 **A page shows the save as it is now, not as it was when the page opened.** The
@@ -771,7 +801,10 @@ security boundary. A suspension bites even on a live session, because the play g
 re-checks it. The admin tool (`/admin`, one email, everyone else gets a 404) reads
 the numbers back and can set the ceiling, suspend, delete, and clear the waitlist.
 Deleting an account takes its save and its album with it, which is what frees a
-seat.
+seat. It also takes the copy in the player's own browser: signing in again makes
+a new account whose reset stamp is the moment of the delete, so the device's old
+save is one from before a reset and is forgotten, where it used to be adopted and
+pushed straight into the new row. `account-integrity.spec.ts`.
 
 **A deleted account stays deleted on a tab still open.** A session outlives its
 account by up to a month, and the save and album routes only asked whether
@@ -1275,6 +1308,11 @@ Every action is re-checked against the gate in the route, because hiding a
 control is not the same as refusing an action, and `admin.spec.ts` posts each
 one as a non-admin to prove it.
 
+**The rarest-species table lists every species**, found or not. It was built
+from the ids the saves mention, so one nobody had found was not in it at all,
+and "rarest first" started at one: the species nobody finds is the reason the
+table exists. `admin.spec.ts`.
+
 Two rules the tool keeps deliberately:
 
 **The admin cannot suspend or delete themselves.** A locked-out owner has no way
@@ -1282,7 +1320,8 @@ back in. Wiping your own save IS allowed, because it cannot lock anybody out of
 anything and is a thing you might genuinely want.
 
 **A suspension bites on a session already open.** Pages redirect to
-`/suspended`, and the routes behind the two things a suspension is most likely
+`/suspended`, Pocket and Customize included (they are open to everybody but sync
+a signed-in save, and a suspended account went on saving there), and the routes behind the two things a suspension is most likely
 for, the party ticket and the username, answer 403 `suspended` too. They used to
 check only that somebody was signed in, so a party page left open kept fetching
 tickets into rooms with other players. `suspended.spec.ts`.

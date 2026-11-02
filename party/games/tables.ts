@@ -91,7 +91,10 @@ function freshState(kind: GameKind): unknown {
   }
 }
 
-export function tableIsOpen(table: Table): boolean {
+/** Asked of a view too: the lobby offers a chair only where the room seats one. */
+export function tableIsOpen(
+  table: Pick<Table, "finished" | "seats" | "kind" | "state">,
+): boolean {
   return (
     !table.finished &&
     table.seats.length < GAME_SEATS[table.kind].max &&
@@ -298,6 +301,12 @@ function applyQuipMove(
  */
 export function tableTimeout(table: Table, now: number): Table {
   if (table.kind !== "quips" || !table.state || table.finished) {
+    return table;
+  }
+
+  // The room has one alarm, set for the earliest deadline at any table, and
+  // it visits them all. Only the table whose clock has run out moves.
+  if (now < table.deadline) {
     return table;
   }
 

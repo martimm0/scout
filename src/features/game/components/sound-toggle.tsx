@@ -1,21 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
-
-import { setSoundEnabled, setVolume } from "../audio/sound";
 import { useGameStore } from "../state/game-store";
 import styles from "./sound-toggle.module.css";
 
-/** Sound on/off and volume. Audio is off by default; browsers require a gesture. */
+/**
+ * Sound on/off and volume. Audio is off by default; browsers require a gesture.
+ * Only the settings change here: GameScene applies them, since this panel can
+ * be closed.
+ */
 export function SoundToggle() {
   const settings = useGameStore((state) => state.settings);
   const updateSettings = useGameStore((state) => state.updateSettings);
-
-  // Re-apply on mount so a persisted "sound on" survives a reload.
-  useEffect(() => {
-    setVolume(settings.volume);
-    setSoundEnabled(settings.soundOn);
-  }, [settings.soundOn, settings.volume]);
 
   return (
     <div className={styles.wrap}>

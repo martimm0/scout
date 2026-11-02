@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { redirectIfSuspended } from "@/features/auth/components/sign-in-required";
 import { Customize } from "@/features/game/components/customize";
 
 export const metadata: Metadata = {
@@ -7,7 +8,9 @@ export const metadata: Metadata = {
   description: "Name and dress your pollinator before you fly.",
 };
 
-export default function CustomizePage() {
+export default async function CustomizePage() {
+  await redirectIfSuspended();
+
   return (
     <main className="page-container">
       <p className="eyebrow">Your pollinator</p>

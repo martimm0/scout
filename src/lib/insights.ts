@@ -1,5 +1,8 @@
 import { sql } from "@vercel/postgres";
 
+import { FUNGI } from "@/features/game/data/fungi";
+import { PLANTS } from "@/features/game/data/plants";
+
 import { readPartyCounters } from "./accounts";
 import { databaseConfigured } from "./env";
 
@@ -168,7 +171,11 @@ export async function getInsights(): Promise<Insights> {
       badgeCounts.push(earned.length);
     }
 
+    // Every species in the game, not only those some save mentions: the one
+    // nobody has found has no key anywhere, and it is the row this table is for.
     const ids = new Set([
+      ...PLANTS.map((plant) => plant.id),
+      ...FUNGI.map((fungus) => fungus.id),
       ...found.keys(),
       ...pollinated.keys(),
       ...quizzed.keys(),

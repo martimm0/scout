@@ -493,8 +493,12 @@ export function ArCamera({
       try {
         await navigator.share({ files: [file], title: BADGE_LINES[0] });
         return;
-      } catch {
-        // Cancelled, or refused. Fall through to the download.
+      } catch (error) {
+        // Cancelled is an answer: the player said no, so no file arrives
+        // anyway. Anything else is a refusal, and the download is the fallback.
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
       }
     }
 
@@ -504,7 +508,8 @@ export function ArCamera({
     link.href = url;
     link.download = "scout.jpg";
     link.click();
-    URL.revokeObjectURL(url);
+    // Not straight away: Safari drops a blob download revoked in the same tick.
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
     setSaying(
       touch
         ? "Saved, or in your downloads. You can also press and hold the photo."

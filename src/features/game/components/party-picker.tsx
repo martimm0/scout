@@ -188,6 +188,13 @@ export function PartyPicker() {
         </p>
       ) : null}
 
+      {status === "unreachable" ? (
+        <p className={styles.trouble} role="alert">
+          The party could not be reached just now. Nothing is lost; try again in
+          a moment.
+        </p>
+      ) : null}
+
       {status === "full" ? (
         <p className={styles.trouble} role="alert">
           That one filled up between you looking and you knocking. The count

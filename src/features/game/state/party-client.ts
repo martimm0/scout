@@ -73,6 +73,7 @@ async function freshTicket(): Promise<{ ticket: string }> {
      * reconnect loop, which has nowhere to put an exception: letting this
      * reject takes the retry machinery down with it.
      */
+    unreachable();
     return { ticket: "" };
   }
 
@@ -89,9 +90,10 @@ async function freshTicket(): Promise<{ ticket: string }> {
      */
     if (response.status === 401 || response.status === 403) {
       ticketDenied = true;
+      usePartyStore.getState().setStatus("unauthorized");
+    } else {
+      unreachable();
     }
-
-    usePartyStore.getState().setStatus("unauthorized");
 
     return { ticket: "" };
   }
@@ -99,6 +101,19 @@ async function freshTicket(): Promise<{ ticket: string }> {
   ticketDenied = false;
 
   return (await response.json()) as { ticket: string };
+}
+
+/**
+ * A first knock that got no answer says so, rather than leaving the button on
+ * "Going in" forever or blaming the player's account. A reconnect that gets
+ * none stays where it is: its retry loop is already on it.
+ */
+function unreachable() {
+  const store = usePartyStore.getState();
+
+  if (store.status === "connecting") {
+    store.setStatus("unreachable");
+  }
 }
 
 export async function joinParty(party: GardenPartyId): Promise<void> {
