@@ -211,6 +211,34 @@ const ACTION_CODES = new Set([
  * entirely. Escape is handled before this gate, because it is how the popovers
  * are closed.
  */
+
+/**
+ * A dance beside a flower marks it, for you and for the room.
+ *
+ * One function for the key and the touch tray, so the two cannot drift apart
+ * again. Only beside a plant: a mushroom is not forage.
+ */
+function danceMarksPatch() {
+  const store = useGameStore.getState();
+  const near = store.ui.nearby;
+
+  if (near?.kind !== "plant" || near.x === undefined) {
+    return;
+  }
+
+  const patch = {
+    species: near.id,
+    commonName: PLANTS_BY_ID.get(near.id)?.commonName ?? near.id,
+    x: near.x,
+    z: near.z ?? 0,
+  };
+
+  store.markPatch(patch);
+  // Tell the room, so the dance reaches somebody. This is the whole point of a
+  // dance: it is addressed to other bees.
+  sendMark(patch);
+}
+
 export function inputSuspended(ui: {
   activeEntry: unknown;
   landedOn: unknown;
@@ -695,26 +723,7 @@ function ScoutScene({
          * because a mushroom is not forage and never was.
          */
         if (code === DANCE_KEY) {
-          const store = useGameStore.getState();
-          const near = store.ui.nearby;
-
-          if (near?.kind === "plant" && near.x !== undefined) {
-            store.markPatch({
-              species: near.id,
-              commonName: PLANTS_BY_ID.get(near.id)?.commonName ?? near.id,
-              x: near.x,
-              z: near.z ?? 0,
-            });
-
-            // Tell the room, so the dance reaches somebody. This is the whole
-            // point of a dance: it is addressed to other bees.
-            sendMark({
-              species: near.id,
-              commonName: PLANTS_BY_ID.get(near.id)?.commonName ?? near.id,
-              x: near.x,
-              z: near.z ?? 0,
-            });
-          }
+          danceMarksPatch();
         }
       }
 
@@ -1015,6 +1024,12 @@ function ScoutScene({
     // and put back, and it defers to a gesture already running exactly as the
     // keyboard's F and G do.
     if (virtualInput.pendingGesture && gestureRef.current.kind === "none") {
+      // The tray's Dance marks a patch exactly as G does. It played the
+      // animation and said nothing, so a phone could never tell anybody.
+      if (virtualInput.pendingGesture === "dance") {
+        danceMarksPatch();
+      }
+
       gestureRef.current = { kind: virtualInput.pendingGesture, time: 0 };
       virtualInput.pendingGesture = null;
     }
@@ -1564,9 +1579,15 @@ export function GameScene({
    * module state. It does NOT survive a hard refresh, and it should not: the
    * connection is gone, so there is no party to be in, and you land in your own
    * park playing on your own, which is the honest thing for the game to do.
+   *
+   * Still the party's park while a dropped connection is being retried. It
+   * fell back to the saved park, so a blip rebuilt the world somewhere else and
+   * then rebuilt it again when the room answered.
    */
   const partyPark = usePartyStore((state) =>
-    state.status === "in" && state.party ? parkOf(state.party) : null,
+    (state.status === "in" || state.status === "lost") && state.party
+      ? parkOf(state.party)
+      : null,
   );
 
   const currentPark = partyPark ?? forcedPark ?? storedPark;

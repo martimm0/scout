@@ -93,10 +93,15 @@ export function SpeciesTag({
     ? describeSeasonWindow(instance.season, month)
     : instance.window.note;
 
+  // Where it stands, as the Space path sends it: landing is what tells a
+  // successful visit where to set seed, and a card that left it out meant a
+  // tap on Land, the only way in on a phone, could never sow anything.
   const ref = {
     kind: instance.species.kind,
     id: instance.id,
     key: instance.key,
+    x: instance.position[0],
+    z: instance.position[2],
   };
 
   /**

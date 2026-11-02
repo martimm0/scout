@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { isDeleted, progressResetAt } from "@/lib/accounts";
+import { isDeleted, progressResetAt, touchLastSeen } from "@/lib/accounts";
 import { auth } from "@/lib/auth";
 import { cloudSaveConfigured } from "@/lib/env";
 import {
@@ -161,6 +161,8 @@ export async function POST(request: Request) {
       { status: 413 },
     );
   }
+
+  await touchLastSeen(session.user.id);
 
   return NextResponse.json({ ok: true });
 }

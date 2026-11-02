@@ -338,12 +338,13 @@ function MinigameRun({
       <Game
         duration={spec.duration}
         finishEarly={finishEarly}
+        paused={confirming}
         plant={plant}
         reportScore={reportScore}
         shared={shared}
       />
     ),
-    [Game, spec.duration, finishEarly, plant, reportScore, shared],
+    [Game, spec.duration, finishEarly, confirming, plant, reportScore, shared],
   );
 
   return (
@@ -382,7 +383,9 @@ function MinigameRun({
               {outcome.success ? "Carry on" : "Try another"}
             </button>
           </div>
-        ) : confirming ? (
+        ) : null}
+
+        {!outcome && confirming ? (
           <div className={styles.confirm}>
             <p className={styles.confirmTitle}>Give up on this flower?</p>
             <p className={styles.confirmNote}>
@@ -406,8 +409,12 @@ function MinigameRun({
               </button>
             </div>
           </div>
-        ) : (
-          <>
+        ) : null}
+
+        {/* Hidden, not removed, while the question is up: removing it threw
+            the round away and "Keep going" started a new one. */}
+        {!outcome ? (
+          <div style={{ display: confirming ? "none" : "contents" }}>
             <p className={styles.instruction}>{spec.instruction}</p>
 
             {body}
@@ -415,8 +422,8 @@ function MinigameRun({
             <div className={styles.timer}>
               <span style={{ width: `${(1 - progress) * 100}%` }} />
             </div>
-          </>
-        )}
+          </div>
+        ) : null}
       </section>
     </div>
   );

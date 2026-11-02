@@ -74,7 +74,11 @@ export function PartyGames() {
    * snapped back to the lobby, so the one thing you were waiting to see went by
    * in a single frame. You leave a table by standing up, not by winning.
    */
-  const mine = tables.find((table) => table.seats.includes(you));
+  // A finished game keeps its chairs so the result still reads for whoever has
+  // not left it yet; pressing Done is what takes it off your screen.
+  const mine = tables.find(
+    (table) => table.seats.includes(you) && !table.done?.includes(you),
+  );
 
   // At a table, the board IS the panel. Everything else is out of the way.
   if (mine) {

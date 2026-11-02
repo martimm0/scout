@@ -240,6 +240,33 @@ test.describe("the touch pad flies the bee", () => {
     ).toBeVisible();
   });
 
+  test("the tray's Dance marks the patch, as G does", async ({ page }) => {
+    test.setTimeout(180_000);
+
+    /**
+     * The tray played the dance and stopped there. Marking the patch, and
+     * telling the room, lived only behind the G key, so a phone could dance
+     * beside every flower in the park and never mark one.
+     */
+    await enterTouchGame(page);
+    expect(await flyToPlant(page, nearestPlantToSpawn()), "never got near a flower").toBe(true);
+
+    await page.getByRole("button", { name: "Show actions" }).click();
+    await page.getByRole("button", { name: "Dance" }).click();
+
+    await expect
+      .poll(
+        () =>
+          page.evaluate(
+            () =>
+              (JSON.parse(window.localStorage.getItem("scout-game-state") ?? "{}").state
+                ?.marks ?? []).length,
+          ),
+        { message: "dancing from the tray marked nothing", timeout: 10_000 },
+      )
+      .toBeGreaterThan(0);
+  });
+
   test("the pad gets out of the way when a popover is up", async ({ page }) => {
     await enterTouchGame(page);
 

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { registerAccount, signIn } from "./helpers";
+import { registerAccount, resetProgress, signIn } from "./helpers";
 
 /**
  * Two people, one browser.
@@ -95,6 +95,9 @@ test.describe("a shared device does not merge one account into another", () => {
      */
     const ok = await registerAccount("device-player-d", "device-d@example.com");
     test.skip(!ok, "no database configured");
+    // From nothing: the row merges, so a run before this one would still hold
+    // the second plant this test saves at the end.
+    await resetProgress("device-player-d");
 
     await signIn(page.context(), "device-player-d", "device-d@example.com");
     expect(
@@ -213,4 +216,59 @@ test.describe("a shared device does not merge one account into another", () => {
     expect(plants).toContain("wild-geranium");
     expect(plants, "the unsynced find was thrown away").toContain("common-milkweed");
   });
+});
+
+test("the journal and Pocket show the player signed in, not the last one", async ({
+  page,
+}) => {
+  /**
+   * The check that drops a save another account left behind runs where the
+   * save is synced, and the journal and Pocket never synced. Opened first by
+   * the next player on a shared browser, they showed the last player's plants,
+   * badges and bee, and Pocket talked about them, until the next visit to the
+   * park.
+   */
+  const ok =
+    (await registerAccount("journal-reader-a", "journal-reader-a@example.com")) &&
+    (await registerAccount("journal-reader-b", "journal-reader-b@example.com"));
+  test.skip(!ok, "no database configured");
+  // Its own two accounts: the test above runs alongside it in a full run.
+  await resetProgress("journal-reader-b");
+
+  await signIn(page.context(), "journal-reader-b", "journal-reader-b@example.com");
+  expect(
+    (
+      await page.request.post("/api/progress", {
+        data: { owner: "journal-reader-b", discoveredPlants: { "wild-geranium": true } },
+      })
+    ).status(),
+  ).toBe(200);
+
+  const theirs = {
+    owner: "journal-reader-a",
+    pollinator: { type: "bee", name: "Andromeda" },
+    discoveredPlants: {
+      "common-milkweed": true,
+      "wild-bergamot": true,
+      "canada-goldenrod": true,
+    },
+  };
+
+  await leaveOnDevice(page, theirs);
+  await page.goto("/journal");
+  await expect(
+    page
+      .getByLabel("Progress summary")
+      .locator("dt", { hasText: /^Plants found$/ })
+      .locator("xpath=following-sibling::dd[1]")
+      .first(),
+    "the journal showed the last player's plants",
+  ).toHaveText(/^\s*1\s*\//, { timeout: 15_000 });
+
+  await leaveOnDevice(page, theirs);
+  await page.goto("/pocket");
+  await expect(
+    page.getByText("Andromeda", { exact: true }),
+    "Pocket showed the last player's bee",
+  ).toHaveCount(0, { timeout: 15_000 });
 });

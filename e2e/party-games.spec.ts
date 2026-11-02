@@ -32,6 +32,15 @@ import {
   submitQuip,
   voteQuip,
 } from "../party/games/quips";
+import {
+  applyMove,
+  beginQuips,
+  openTable,
+  sitDown,
+  standUp,
+  tableIsOpen,
+  tableView,
+} from "../party/games/tables";
 
 /**
  * The party games, as arithmetic.
@@ -394,4 +403,91 @@ test.describe("field notes", () => {
 
     expect(state.phase).toBe("done");
   });
+});
+
+test.describe("leaving a table", () => {
+  /** Noughts and crosses, won by seat 0 along the top row. */
+  const wonGame = () => {
+    let table = sitDown(openTable("t1", "tictactoe", "ada", "Ada"), "bo", "Bo");
+
+    for (const [who, cell] of [
+      ["ada", 0],
+      ["bo", 3],
+      ["ada", 1],
+      ["bo", 4],
+      ["ada", 2],
+    ] as const) {
+      table = applyMove(table, who, cell, 1000);
+    }
+
+    return table;
+  };
+
+  test("pressing Done on a finished game leaves the result standing", () => {
+    /**
+     * Done took your chair, and a game short a player reads as abandoned: the
+     * winner's "You won that one" turned into "They stood up" the moment the
+     * loser pressed Done, or closed the tab.
+     */
+    const won = wonGame();
+    expect(won.finished, "the setup did not win the game").toBe(true);
+
+    const after = tableView(standUp(won, "bo", 2000));
+
+    expect(after.ended, "a finished game was recorded as abandoned").toBeUndefined();
+    expect(after.seats, "the chairs the result is read from were taken").toEqual([
+      "ada",
+      "bo",
+    ]);
+    expect(after.done, "Done was not noted").toEqual(["bo"]);
+
+    // And once both have pressed it, the table is nobody's.
+    expect(standUp(standUp(won, "bo", 2000), "ada", 2000).seats).toEqual([]);
+  });
+
+  test("a Field Notes round that has been dealt takes no more chairs", () => {
+    /**
+     * A late chair was let in and was not a player: a blank panel while the
+     * others wrote, and vote buttons that went nowhere.
+     */
+    let table = openTable("t2", "quips", "a", "A");
+    table = sitDown(table, "b", "B");
+    table = sitDown(table, "c", "C");
+    table = beginQuips(table, 1000, () => 0.5);
+
+    expect(table.state, "the round was not dealt").not.toBeNull();
+    expect(tableIsOpen(table), "a dealt round was listed as open").toBe(false);
+    expect(sitDown(table, "d", "D").seats).toEqual(["a", "b", "c"]);
+  });
+});
+
+test("a vote left behind by somebody who has gone does not close the matchup", () => {
+  /**
+   * The matchup closed when the count of votes reached the count of voters
+   * still here, and it counted the votes of players who had left. With five,
+   * one voting and then leaving and one more voting made two of two, and the
+   * last player never got to vote.
+   */
+  const five = ["a", "b", "c", "d", "e"];
+  let state = dealQuips(five, 1000, () => 0.5);
+
+  for (const [assignment, { writers }] of state.assignments.entries()) {
+    for (const writer of writers) {
+      state = submitQuip(state, assignment, writer, `${writer}-${assignment}`, 1000);
+    }
+  }
+
+  expect(state.phase).toBe("voting");
+
+  const [winner] = state.assignments[0].writers;
+  const [first, second, third] = five.filter((player) => !isWriter(state, 0, player));
+
+  state = voteQuip(state, 0, first, winner, 2000);
+  state = quipLeave(state, first, 2100);
+  state = voteQuip(state, 0, second, winner, 2200);
+
+  expect(state.voting, `the matchup closed before ${third} voted`).toBe(0);
+
+  state = voteQuip(state, 0, third, winner, 2300);
+  expect(state.voting, "it did not close once everybody here had voted").toBe(1);
 });

@@ -159,4 +159,85 @@ test.describe("one account cannot reach past its own rows", () => {
       await empty();
     }
   });
+
+  test("somebody who plays every day counts as active, signed in or not", async ({
+    page,
+  }) => {
+    /**
+     * Last seen was written at sign-in and nowhere else. A session lasts thirty
+     * days and renews itself while it is used, so a player on every day of the
+     * week dropped out of "active this week" and sank down the admin's list.
+     */
+    const ok = await registerAccount("daily-player", "daily@example.com");
+    test.skip(!ok, "no database configured");
+
+    const { sql } = await import("@vercel/postgres");
+    await sql`
+      UPDATE accounts SET last_seen = now() - interval '10 days'
+      WHERE user_id = 'daily-player'
+    `;
+
+    await signIn(page.context(), "daily-player", "daily@example.com");
+
+    try {
+      expect(
+        (
+          await page.request.post("/api/progress", {
+            data: { owner: "daily-player", discoveredPlants: { mayapple: true } },
+          })
+        ).status(),
+      ).toBe(200);
+
+      const { rows } = await sql<{ days: number }>`
+        SELECT EXTRACT(EPOCH FROM now() - last_seen) / 86400 AS days
+        FROM accounts WHERE user_id = 'daily-player'
+      `;
+
+      expect(Number(rows[0].days), "playing today did not count as seen today").toBeLessThan(1);
+    } finally {
+      await resetProgress("daily-player");
+    }
+  });
+
+  test("an admin input that cannot be honoured is refused, not reported done", async ({
+    browser,
+  }) => {
+    /**
+     * A ceiling of 1e21 is finite, so it passed, and was stored as "1e+21",
+     * which reads back as 1: the door shut on everybody and the admin was told
+     * it had worked. A waitlist removal with no address deleted nothing and
+     * said ok as well.
+     */
+    const ok = await registerAccount("admin-input-player", "admin-input@example.com");
+    test.skip(!ok, "no database configured");
+
+    const admin = await browser.newContext();
+    await signIn(admin, "the-admin", env.adminEmail);
+
+    const ceiling = async () =>
+      ((await (await admin.request.get("/api/admin")).json()) as {
+        analytics: { ceiling: number };
+      }).analytics.ceiling;
+    const before = await ceiling();
+
+    try {
+      const huge = await admin.request.post("/api/admin", {
+        data: { action: "setCeiling", ceiling: 1e21 },
+      });
+      const after = await ceiling();
+
+      expect(after, "the ceiling moved").toBe(before);
+      expect(huge.status(), "a ceiling that could not be kept was accepted").toBe(400);
+
+      const removal = await admin.request.post("/api/admin", {
+        data: { action: "removeWaitlist" },
+      });
+      expect(removal.status(), "a removal with no address was reported done").toBe(400);
+    } finally {
+      await admin.request.post("/api/admin", {
+        data: { action: "setCeiling", ceiling: before },
+      });
+      await admin.close();
+    }
+  });
 });

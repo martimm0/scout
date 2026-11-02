@@ -79,6 +79,8 @@ export type TableView = {
   finished: boolean;
   /** Why it ended, when it ended for a reason the rules do not cover. */
   ended?: "left";
+  /** Who has left a finished game. Still in `seats`, so the result reads. */
+  done?: string[];
 };
 
 /* ------------------------------------------------------------------ *

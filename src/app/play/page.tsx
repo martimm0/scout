@@ -62,7 +62,9 @@ export default async function PlayPage({
   // said `frick | schenley`, so the day Highland was added `?park=highland`
   // silently loaded Frick instead: no error, no warning, just the wrong park.
   const requested = String(params.park ?? "");
-  const park = requested in PARKS ? (requested as ParkId) : undefined;
+  // An own key: `in` also says yes to `toString`, which then reached the
+  // world as a park and threw.
+  const park = Object.hasOwn(PARKS, requested) ? (requested as ParkId) : undefined;
 
   // `?weather=rain` pins the sky. Same idea as `?hour=`: the real weather is the
   // real weather, so on a fine day there is otherwise no way to look at the rain,

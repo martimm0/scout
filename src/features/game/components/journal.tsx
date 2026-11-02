@@ -14,6 +14,7 @@ import { countUnlocked, useGameStore } from "../state/game-store";
 import { MAX_PHOTOS, usePhotoStore } from "../state/photo-store";
 import { WEATHER_MOMENTS } from "../world/weather-moments";
 import { standsInWinter } from "../world/winter";
+import { CloudSyncBadge } from "./cloud-sync-badge";
 import { ParkPicker } from "./park-picker";
 import { PARK_LIST, PARKS } from "../world/terrain";
 import { allAreas } from "../world/park";
@@ -141,6 +142,11 @@ export function Journal() {
 
   return (
     <div className={styles.wrap}>
+      {/* The sync, and with it the check that this browser's save is this
+          account's. Without it a shared computer showed the last player's
+          journal to whoever opened this page first. */}
+      <CloudSyncBadge />
+
       <section className={styles.summary} aria-label="Progress summary">
         <div>
           <dt>Plants found</dt>

@@ -126,6 +126,38 @@ test.describe("the pollination resolver", () => {
   });
 });
 
+test("Escape then Keep going carries on with the same round", async ({ page }) => {
+  test.setTimeout(240_000);
+
+  /**
+   * The question took the game out of the page while it was up, so answering
+   * "Keep going" put a new one in: the hits taken so far were gone and the
+   * score was whole again, a free reroll of a round going badly, which is the
+   * thing asking before leaving was there to stop.
+   */
+  await land(page, "seeds");
+
+  const knocks = page.getByText(/^\d+ knocks$/);
+  await expect(knocks, "nothing hit a bee that never moved").toBeVisible({
+    timeout: 20_000,
+  });
+  const before = Number.parseInt((await knocks.textContent()) ?? "0", 10);
+
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Keep going" }).click();
+
+  // Read at once. A new round is soon knocked about as well, so waiting for
+  // the count to show would pass on a round that had started over.
+  const after = Number.parseInt(
+    (await knocks.textContent({ timeout: 300 }).catch(() => null)) ?? "0",
+    10,
+  );
+
+  expect(after, "the hits taken before the question were forgotten").toBeGreaterThanOrEqual(
+    before,
+  );
+});
+
 test.describe("the minigames have a skill spread", () => {
   // Doing nothing scores about zero, in every game. Nobody is carried.
   for (const kind of ["memory", "seeds", "anagram"]) {

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { GARDEN_PARTIES, parkOf, PARTY_CAP } from "@party/protocol";
 import type { GardenPartyId } from "@party/protocol";
-import { joinParty } from "../state/party-client";
+import { joinParty, leaveParty } from "../state/party-client";
 import { usePartyStore } from "../state/party-store";
 import { PARKS } from "../world/terrain";
 import styles from "./party-picker.module.css";
@@ -35,6 +35,7 @@ export function PartyPicker() {
   const router = useRouter();
   const search = useSearchParams();
   const status = usePartyStore((state) => state.status);
+  const current = usePartyStore((state) => state.party);
   const [heads, setHeads] = useState<Record<string, Head>>({});
   const [tried, setTried] = useState<GardenPartyId | null>(null);
 
@@ -95,7 +96,10 @@ export function PartyPicker() {
    * otherwise makes a party the one place in the game they cannot be used.
    */
   useEffect(() => {
-    if (status !== "in") {
+    // Only a join made HERE. Somebody already in a party who opens the lobby
+    // came to choose; sending them straight back left no way out of a party
+    // short of reloading the page.
+    if (status !== "in" || !tried) {
       return;
     }
 
@@ -103,7 +107,7 @@ export function PartyPicker() {
 
     carried.set("party", "1");
     router.push(`/play?${carried.toString()}`);
-  }, [router, search, status]);
+  }, [router, search, status, tried]);
 
   const join = async (party: GardenPartyId) => {
     setTried(party);
@@ -121,6 +125,22 @@ export function PartyPicker() {
           them.
         </p>
       </header>
+
+      {(status === "in" || status === "lost") && current && !tried ? (
+        <p className={styles.lede} role="status">
+          You are at the {PARKS[parkOf(current)].label} party.{" "}
+          <button
+            className={styles.enter}
+            onClick={() => router.push("/play?party=1")}
+            type="button"
+          >
+            Back to it
+          </button>{" "}
+          <button className={styles.enter} onClick={() => leaveParty()} type="button">
+            Leave the party
+          </button>
+        </p>
+      ) : null}
 
       <ul className={styles.parties} aria-label="Garden parties">
         {GARDEN_PARTIES.map((party) => {

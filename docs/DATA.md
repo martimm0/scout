@@ -674,6 +674,7 @@ when it is removed:
 | Guarantee | Mechanism |
 | --- | --- |
 | A save another account has claimed is not merged | The save carries `owner`. On sign-in, a local save owned by somebody else is forgotten, the bee included, before the pull. |
+| Every page that shows the save runs that check | The check lives in the sync, which only the park, Customize and Profile mounted. Opened first on a shared browser, the journal and Pocket showed the last player's plants, badges and bee. Both mount it now (Pocket when signed in, since signed out it never reads the save). `shared-device.spec.ts`. |
 | A save is never pushed into the wrong account | The client pushes only if the save's owner is the session's. The route refuses a declared owner that disagrees with the session (409 `not-your-save`) and stamps the owner from the session on everything it stores, so this does not depend on the client being right. |
 | Nothing is pushed before it has been reconciled | Autosave used to start the moment the page mounted, before the pull had merged anything. A change made while the pull was in flight pushed a stale save, which on one player's two devices threw away a find made on the other. Pushes now wait for the merge, and the owner is stamped only after it. |
 
@@ -803,7 +804,17 @@ parse on the way in was stored as the string "NaN", and the door policy then
 silently reverted to the default, reopening seats an admin had deliberately closed.
 The API refuses a ceiling that is not a real number, and it refuses it with a 400
 rather than coercing, because `Number(null)` is a perfectly good zero and a
-ceiling of zero shuts the door on everybody.
+ceiling of zero shuts the door on everybody. It is **bounded** as well, at a
+billion: 1e21 is a real number, was stored as "1e+21", and read back through
+`parseInt` as 1. A waitlist removal with no address is a 400 too, rather than a
+delete that matched nothing and said ok. `account-integrity.spec.ts`.
+
+**Last seen is the last save, not the last sign-in.** A session lasts thirty days
+and renews itself while it is used, so a player on every day of the week might
+never sign in again, and with `last_seen` written only at the door they dropped
+out of the admin's "active this week" and sank down the list. A save moves it
+too, at most every five minutes so autosave is not a write to `accounts` each
+time.
 
 ## Photographs
 
@@ -864,6 +875,12 @@ site has to know it exists.
 plant in the park that stands through winter, and read the whole list, so witch
 hazel, which stands in Frick and grows only at a party, kept it out of reach for
 every solo player in every park. `winter.spec.ts`.
+
+**A badge that says "every" checks every.** Ecologist counted nine concepts,
+which was all of them when it was written; setting seed and the waggle dance
+came later, so it said "every ecology concept" with two still locked. It reads
+`CONCEPTS` now, and Native Plant Friend's hint no longer names a number.
+`badges.spec.ts`.
 
 **Quizzes count once per species.** Quick Study and Top of the Class read
 `quizPassed`, the set of species whose quiz you have passed, not
@@ -1340,6 +1357,11 @@ Highland's are both `plant-canada-goldenrod-0`, and seeding one replaced the
 other's seedling. A record under a bare key, from before, is replaced by the same
 flower in the same park rather than doubled. `seed-set.spec.ts`.
 
+Where a seedling goes comes from the landing, and **both ways of landing say
+where.** Space did; the card's Land button sent the species and the instance and
+not the spot, so a visit landed by the button took and sowed nothing, and on a
+phone the button is the only way to land.
+
 That keying is not a cap, which is easy to assume and wrong. A seedling is an
 ordinary instance, so it can be landed on and worked like anything else, and
 working it keys a new record off ITS key: `seed-plant-goldenrod-3` sets
@@ -1369,6 +1391,10 @@ pin from days ago; and the copy folded in last won a shared spot, so a phone in
 a pocket all day could replace a fresh mark with a stale one. Since saves merge
 on the server, that was every save. Both are tested in `waggle.spec.ts` against
 the real `mergeInto`.
+
+The touch tray's Dance marks the patch exactly as G does, through one function.
+It used to play the animation only, so a phone could never mark anything, or
+tell a party about it. `mobile.spec.ts`.
 
 Marks arriving from a garden party go straight into the save and the name of
 whoever danced is thrown away. A mark is a note about a place, not a record of

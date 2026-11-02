@@ -50,6 +50,8 @@ type Seat = {
   pose: Pose | null;
   /** Chat timestamps in the last few seconds, for the rate limit. */
   recentChat: number[];
+  /** Board moves and votes, on their own limit so a game cannot silence chat. */
+  recentMoves: number[];
 };
 
 /** What survives hibernation: the connection's attachment. Everything a seat
@@ -123,6 +125,7 @@ export class Garden extends Server<Env> {
           },
           pose: null,
           recentChat: [],
+          recentMoves: [],
         });
       }
     }
@@ -168,6 +171,7 @@ export class Garden extends Server<Env> {
       player,
       pose: this.seats.get(sub)?.pose ?? null,
       recentChat: [],
+      recentMoves: [],
     });
 
     this.send(conn, {
@@ -315,7 +319,7 @@ export class Garden extends Server<Env> {
       case "open": {
         const kind = message.kind;
 
-        if (!(kind in GAME_SEATS)) {
+        if (typeof kind !== "string" || !Object.hasOwn(GAME_SEATS, kind)) {
           return;
         }
 
@@ -366,15 +370,17 @@ export class Garden extends Server<Env> {
       case "move": {
         // Through the rate limit, like chat: a client stuck in a loop should
         // not be able to hammer the room, and a move is cheap to send.
+        // Its own budget. Moves shared chat's, so a quick game of noughts and
+        // crosses used up the four lines and "gg" went nowhere.
         const now = Date.now();
 
-        seat.recentChat = seat.recentChat.filter((at) => now - at < 10_000);
+        seat.recentMoves = seat.recentMoves.filter((at) => now - at < 10_000);
 
-        if (seat.recentChat.length >= 12) {
+        if (seat.recentMoves.length >= 12) {
           return;
         }
 
-        seat.recentChat.push(now);
+        seat.recentMoves.push(now);
         this.updateTable(message.table, (table) =>
           applyMove(table, sub, message.move, now),
         );

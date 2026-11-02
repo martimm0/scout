@@ -215,6 +215,9 @@ export async function getCeiling(): Promise<number> {
   return Number.isFinite(parsed) ? parsed : DEFAULT_CEILING;
 }
 
+/** Far past any real sign-up count, and still an integer `String` writes plainly. */
+const MAX_CEILING = 1_000_000_000;
+
 /**
  * Refuses a ceiling that is not a number, rather than storing one.
  *
@@ -225,7 +228,9 @@ export async function getCeiling(): Promise<number> {
  * an admin had deliberately closed. The caller gets `false` and can say so.
  */
 export async function setCeiling(ceiling: number): Promise<boolean> {
-  if (!Number.isFinite(ceiling)) {
+  // Bounded as well as finite. 1e21 is finite, is stored as "1e+21", and reads
+  // back through parseInt as 1, which shut the door while reporting success.
+  if (!Number.isFinite(ceiling) || ceiling > MAX_CEILING) {
     return false;
   }
 
@@ -674,6 +679,26 @@ export async function listWaitlist(): Promise<WaitlistEntry[]> {
   `;
 
   return rows.map((row) => ({ email: row.email, createdAt: row.created_at }));
+}
+
+/**
+ * The player was here just now, not only when they last signed in.
+ *
+ * A session lasts thirty days and renews itself while it is used, so somebody
+ * who plays every day may never sign in again, and `last_seen` written only at
+ * sign-in counted them as gone after a week. A save is the plainest sign that
+ * somebody is playing. Written at most every few minutes, so autosave does not
+ * turn into a write to the accounts table every time.
+ */
+export async function touchLastSeen(userId: string) {
+  if (!databaseConfigured) {
+    return;
+  }
+
+  await sql`
+    UPDATE accounts SET last_seen = now()
+    WHERE user_id = ${userId} AND last_seen < now() - interval '5 minutes'
+  `;
 }
 
 export async function removeFromWaitlist(email: string) {

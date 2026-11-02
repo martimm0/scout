@@ -194,6 +194,12 @@ export async function POST(request: Request) {
 
       break;
     case "removeWaitlist":
+      // Checked like the account id: with no address the delete matched
+      // nothing and the admin was told it had worked.
+      if (typeof body.email !== "string" || !body.email.trim()) {
+        return NextResponse.json({ error: "bad-email" }, { status: 400 });
+      }
+
       await removeFromWaitlist(body.email);
       break;
     default:

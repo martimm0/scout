@@ -51,6 +51,8 @@ export type Table = {
   state: unknown;
   finished: boolean;
   ended?: "left";
+  /** Who has pressed Done on a finished game. See `standUp`. */
+  done?: string[];
   /** When the current phase runs out, epoch ms. Quips only; 0 means no clock. */
   deadline: number;
 };
@@ -91,7 +93,11 @@ function freshState(kind: GameKind): unknown {
 
 export function tableIsOpen(table: Table): boolean {
   return (
-    !table.finished && table.seats.length < GAME_SEATS[table.kind].max
+    !table.finished &&
+    table.seats.length < GAME_SEATS[table.kind].max &&
+    // A dealt Field Notes round has its players. A late chair was let in and
+    // got a blank panel, and votes that went nowhere.
+    !(table.kind === "quips" && table.state !== null)
   );
 }
 
@@ -319,6 +325,21 @@ export function standUp(table: Table, who: string, now: number): Table {
     return table;
   }
 
+  /**
+   * A finished game keeps its result. Pressing Done took your chair, and the
+   * game then read as abandoned: the other player's "You won that one" turned
+   * into "They stood up". The chairs are what the result is read from, so
+   * they stay, and Done is noted beside them; the table goes once everybody
+   * has pressed it.
+   */
+  if (table.finished) {
+    const done = [...new Set([...(table.done ?? []), who])];
+
+    return table.seats.every((seat) => done.includes(seat))
+      ? { ...table, seats: [], names: [], done: [] }
+      : { ...table, done };
+  }
+
   const index = table.seats.indexOf(who);
   const seats = table.seats.filter((seat) => seat !== who);
   const names = table.names.filter((_, at) => at !== index);
@@ -364,6 +385,7 @@ export function tableView(table: Table): TableView {
     state: table.state,
     finished: table.finished,
     ended: table.ended,
+    done: table.done ?? [],
   };
 }
 

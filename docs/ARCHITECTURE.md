@@ -249,6 +249,13 @@ read during render); `reportScore` writes a ref, not state (or the shell
 re-renders the board at 60fps); and `finish` guards on a synchronous ref, because
 a game ending early can race the clock in one frame and double-count the attempt.
 
+**Escape pauses the game, it does not take it away.** The give-up question used
+to replace the board, so "Keep going" mounted a fresh one: the seeds game handed
+back every hit, the anagram forgot its words, and memory dealt again, which is
+the free reroll the question was there to prevent. The game now stays mounted,
+hidden, under the question, and gets `paused`; the seeds game stops its loop on
+it. `minigames.spec.ts`.
+
 ### 9. The world is deterministic
 
 No `Math.random` anywhere in world generation. Scatter, terrain and placement are
@@ -412,7 +419,9 @@ not reproducible: `?hour=13` pins the clock (half the flowers are shut at night)
 `?month=7` pins the calendar (half the flora is out of season in any given month,
 and nothing at all is in bloom in January), `?weather=rain` pins the sky (there is
 no rain in Pittsburgh today), `?park=schenley` pins the park, `?debug=1` shows the
-readout. None of them grant progress.
+readout. None of them grant progress. A park the game does not have is Frick, and
+"has" means an own key of `PARKS`: `in` also said yes to `toString`, which reached
+the world as a park and threw.
 
 Two of the weather presets pin something you cannot see by looking up. `?weather=
 flush` is a clear afternoon with a soaking five days behind it, and `?weather=dry`
@@ -717,6 +726,25 @@ The controls panel defaults to collapsed in a party. It is a tall column in the
 same corner the chat needs, and in company the conversation is the more useful
 thing to have there. A starting position, not a rule: open it and it stays open.
 
+### Joining, leaving, and dropping out
+
+**The lobby is where you leave.** Nothing called `leaveParty`, and the lobby
+sent anybody already in a party straight back to it, so the only way out was a
+reload. It now redirects only after a join made on that page, and otherwise says
+which party you are at with Back to it and Leave.
+
+**Only the last Join counts.** A join waits for a ticket before it opens its
+socket, so two buttons pressed together opened two, the first after the second
+had cleared the way: a frozen bee in the other room, writing into the same
+store. Each join is numbered, and one overtaken while it waited stops.
+
+**A drop keeps the party's park.** The scene took the park from the party only
+while the status was "in". A drop is "lost" while the socket retries, so the
+world was rebuilt in the saved park and then again when the room answered. Both
+statuses count now. `party.spec.ts` drops the socket by delivering the close
+event, because the local room never answers a close and the browser would sit
+in "closing".
+
 ### Proximity voice is a mesh, and nobody offers blind
 
 Voices go browser to browser over WebRTC. The party socket carries offers,
@@ -779,6 +807,22 @@ a pressure nobody asked for.
 out of "the table you are at" meant the board vanished the instant somebody won
 and the panel snapped back to the lobby, so the one thing you were waiting to see
 went by in a single frame.
+
+**And Done keeps the result.** Pressing Done took your chair, and a game short a
+player reads as abandoned, so the winner's "You won that one" turned into "They
+stood up" the moment the loser pressed Done or closed the tab. A finished table
+keeps its chairs, because the result and the seat numbers are read from them, and
+notes who has pressed Done in `done`; it goes once everybody has.
+`party-games.spec.ts`.
+
+**A dealt Field Notes round takes no more chairs**, because a late chair was not
+a player and got a blank panel. **A vote counts only while its voter is here**: a
+matchup closed when the votes reached the voters left, counting votes from
+players who had gone, so the last voter could be skipped.
+
+**Moves have their own rate limit.** They shared chat's four lines in ten
+seconds, so a quick game of noughts and crosses used it up and the "gg" after was
+dropped without a word. `party.spec.ts`.
 
 ### Working one flower together
 

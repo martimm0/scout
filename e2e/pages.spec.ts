@@ -683,6 +683,29 @@ test.describe("Schenley Park", () => {
     // mown and the wild part is a hundred feet underneath it.
     expect(Number.parseFloat(after.Altitude)).toBeLessThan(0);
   });
+
+  test("a park the game does not have is Frick, whatever it is called", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+
+    /**
+     * The park was checked with `in`, which also says yes to every name on
+     * Object.prototype. `?park=toString` handed the world a function for a park
+     * and the page threw, for anybody who opened a link like that.
+     */
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+
+    await signIn(page.context());
+    await page.goto("/play?debug=1&hour=13&park=toString");
+    await page.waitForTimeout(5000);
+    await dismissTutorial(page);
+
+    expect(errors, "the page threw").toEqual([]);
+    expect((await readout(page)).Area, "the world never came up").toBeTruthy();
+    await expect(page.locator("canvas").first()).toBeVisible();
+  });
 });
 
 test.describe("the about page and the site chrome", () => {

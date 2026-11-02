@@ -4,6 +4,7 @@ import { parkUnlocked } from "../state/game-store";
 import { PARKS } from "../world/terrain";
 import { allAreas } from "../world/park";
 import { PARTY_FUNGI, SOLO_FUNGI } from "./fungi";
+import { CONCEPTS } from "./journal";
 import { PARTY_PLANTS, SOLO_PLANTS } from "./plants";
 
 const FRICK_AREAS = allAreas(PARKS.frick).map((area) => area.id);
@@ -119,7 +120,7 @@ export const BADGES: Badge[] = [
     id: "native-plant-friend",
     name: "Native Plant Friend",
     description: "You have found every native plant in Frick Park.",
-    hint: "Find all sixteen in Frick.",
+    hint: "Find every one in Frick.",
     earned: (state) =>
       foundAll(state.discoveredPlants, speciesOf("frick").plants),
   },
@@ -371,10 +372,10 @@ export const BADGES: Badge[] = [
     name: "Ecologist",
     description: "You unlocked every ecology concept.",
     hint: "There is more to learn than the names of flowers.",
+    // Every concept there is, not a count of them: the count was written when
+    // there were nine, and two more arrived without it moving.
     earned: (state) =>
-      Object.keys(state.unlockedJournalEntries).filter(
-        (key) => key.startsWith("concept:") && state.unlockedJournalEntries[key],
-      ).length >= 9,
+      CONCEPTS.every((concept) => state.unlockedJournalEntries[`concept:${concept.id}`]),
   },
   /* ---------------------------------------------------------------- *
    * Garden parties.

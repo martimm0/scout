@@ -71,9 +71,12 @@ test.afterEach(() => setActivePark("frick"));
  * minutes staring at a locator and then reported a timeout, which says nothing
  * about whether the feature works.
  */
-async function workUntilItTakes(page: Page): Promise<boolean> {
+async function workUntilItTakes(
+  page: Page,
+  land: () => Promise<void> = () => page.keyboard.press("Space"),
+): Promise<boolean> {
   for (let attempt = 0; attempt < 6; attempt += 1) {
-    await page.keyboard.press("Space");
+    await land();
 
     const button = page.getByRole("button", { name: /Pollinate/ });
 
@@ -330,6 +333,32 @@ test.describe("the park you are flying, not the one your save prefers", () => {
 });
 
 test.describe("pollinating actually sows something", () => {
+  test("landing with the card's button sows as well as landing with Space", async ({
+    page,
+  }) => {
+    test.setTimeout(240_000);
+
+    /**
+     * The card's Land button left out where the flower stands, and setting
+     * seed needs to know. Only Space carried it, so a visit landed by the
+     * button took and sowed nothing, and on a phone the button is the only
+     * way to land at all.
+     */
+    await enterGame(page, TEST_HOUR, TEST_MONTH, undefined, "off");
+    expect(await flyToPlant(page, nearestPlantToSpawn()), "never got near a flower").toBe(true);
+
+    expect(
+      await workUntilItTakes(page, () =>
+        // Dispatched, as a tap would land it: the card bobs, so it is never
+        // "stable" enough for Playwright to click.
+        page.getByRole("button", { name: /^Land/ }).first().dispatchEvent("click"),
+      ),
+      "six visits and not one of them took",
+    ).toBe(true);
+
+    expect(await sownCount(page), "a visit landed by the button sowed nothing").toBe(1);
+  });
+
   test("a flower that takes leaves a seedling, and one that does not leaves none", async ({
     page,
   }) => {

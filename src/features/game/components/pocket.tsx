@@ -12,6 +12,7 @@ import { answerFor, factOfTheDay, vocabulary, type Answer } from "../world/answe
 import { pittsburghDate, pittsburghHour } from "../world/daylight";
 import { pittsburghMonth } from "../world/season";
 import { ArCamera } from "./ar-camera";
+import { CloudSyncBadge } from "./cloud-sync-badge";
 import { PollinatorPreview } from "./pollinator-preview";
 import styles from "./pocket.module.css";
 
@@ -177,6 +178,10 @@ export function Pocket({
         <Link className={styles.change} href="/customize">
           Change how it looks
         </Link>
+        {/* Signed in, the save on this browser has to be checked against the
+            account before it is talked about, as everywhere else that reads
+            it. Signed out with accounts on, this page never reads it. */}
+        {signedIn ? <CloudSyncBadge /> : null}
       </section>
 
       {fact ? (

@@ -232,7 +232,9 @@ export function voteQuip(
     (player) => !isWriter(state, assignment, player),
   );
 
-  return Object.keys(forThis).length >= voters.length
+  // Votes from players still here. One left behind by somebody who has gone
+  // counted toward the total and closed the matchup before the last voter.
+  return voters.filter((player) => player in forThis).length >= voters.length
     ? closeMatchup(next, now)
     : next;
 }

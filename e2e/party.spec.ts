@@ -918,6 +918,233 @@ test.describe("garden parties", () => {
     }
   });
 
+  /** Who the room says is in it, kept current by a socket of its own. */
+  async function watchRoom(room: string, as: string) {
+    const socket = new WebSocket(
+      `ws://${PARTY_HOST}/parties/garden/${room}?ticket=${encodeURIComponent(
+        await partyTicket(as),
+      )}`,
+    );
+    const present = new Set<string>();
+
+    socket.addEventListener("message", (event) => {
+      const message = JSON.parse(String(event.data)) as {
+        t: string;
+        players?: { sub: string }[];
+        player?: { sub: string };
+        sub?: string;
+      };
+
+      if (message.t === "welcome") {
+        for (const player of message.players ?? []) present.add(player.sub);
+      } else if (message.t === "join" && message.player) {
+        present.add(message.player.sub);
+      } else if (message.t === "leave" && message.sub) {
+        present.delete(message.sub);
+      }
+    });
+
+    await new Promise<void>((resolve) => socket.addEventListener("open", () => resolve()));
+
+    return { present, close: () => socket.close() };
+  }
+
+  test("the lobby lets you leave a party, rather than sending you back to it", async ({
+    browser,
+  }) => {
+    test.setTimeout(180_000);
+
+    /**
+     * Nothing called leave. Opening Parties while in one sent you straight back
+     * to the park, so there was no way out of a party, or into another one,
+     * short of reloading the page.
+     */
+    const page = await playerPage(browser, "leaver");
+    const room = await watchRoom("garden-frick", "leaver-watch");
+
+    try {
+      await page.goto("/parties");
+      await page.getByRole("button", { name: /Join the Frick/ }).click();
+      await page.waitForURL(/\/play/);
+      await expect.poll(() => room.present.has("party-leaver"), { timeout: 15_000 }).toBe(true);
+
+      // Through the header, as a player would: a reload would drop the party
+      // on its own and prove nothing.
+      await page.getByRole("link", { name: "Parties" }).click();
+      await page.waitForURL(/\/parties/);
+      await page.waitForTimeout(3000);
+      expect(page.url(), "the lobby sent the player back to the park").toMatch(/\/parties/);
+
+      await page.getByRole("button", { name: "Leave the party" }).click();
+      await expect
+        .poll(() => room.present.has("party-leaver"), {
+          message: "leaving left the player in the room",
+          timeout: 15_000,
+        })
+        .toBe(false);
+    } finally {
+      room.close();
+      await closePlayer(page);
+    }
+  });
+
+  test("a dropped connection keeps you in the party's park", async ({ browser }) => {
+    test.setTimeout(180_000);
+
+    /**
+     * The park came from the party only while the status said "in". A drop
+     * says "lost" while the socket retries, so the scene fell back to the
+     * saved park and rebuilt the world there, then rebuilt it again when the
+     * room answered: a player whose save was in Schenley was thrown out of the
+     * Frick party's park by every blip.
+     */
+    const page = await playerPage(browser, "dropper");
+
+    // Every socket the page opens, so the test can drop one. Taking the
+    // browser offline does not close a socket to localhost.
+    await page.addInitScript(() => {
+      const Native = window.WebSocket;
+      const opened: WebSocket[] = [];
+
+      (window as unknown as { openedSockets: WebSocket[] }).openedSockets = opened;
+      window.WebSocket = class extends Native {
+        constructor(...args: ConstructorParameters<typeof WebSocket>) {
+          super(...args);
+          opened.push(this);
+        }
+      } as typeof WebSocket;
+    });
+
+    try {
+      await page.evaluate(() =>
+        window.localStorage.setItem(
+          "scout-game-state",
+          JSON.stringify({
+            version: 0,
+            state: {
+              owner: "party-dropper",
+              tutorialSeen: true,
+              currentPark: "schenley",
+              unlockedParks: { frick: true, schenley: true },
+            },
+          }),
+        ),
+      );
+
+      await page.goto("/parties?debug=1&hour=13");
+      await page.getByRole("button", { name: /Join the Frick/ }).click();
+      await page.waitForURL(/\/play/);
+      await page.waitForTimeout(4000);
+      await dismissTutorial(page);
+
+      // The world as it stands, marked so a rebuild, which replaces it, shows.
+      await page.locator("canvas").first().waitFor();
+      await page.evaluate(() => {
+        document.querySelector("canvas")!.dataset.before = "yes";
+      });
+
+      // Drop the party's connection, and watch the world while it comes back.
+      await page.evaluate(() => {
+        for (const socket of (window as unknown as { openedSockets: WebSocket[] }).openedSockets) {
+          if (socket.url.includes("/parties/garden/")) {
+            // The local room never answers the close, so the browser would
+            // sit in "closing"; the event is what a real drop delivers.
+            socket.close();
+            socket.dispatchEvent(new CloseEvent("close", { code: 1006 }));
+          }
+        }
+      });
+
+      let rebuilt = false;
+
+      for (let i = 0; i < 16 && !rebuilt; i += 1) {
+        rebuilt = await page.evaluate(
+          () => !document.querySelector("canvas[data-before='yes']"),
+        );
+        await page.waitForTimeout(250);
+      }
+
+      expect(rebuilt, "the drop rebuilt the world in the saved park").toBe(false);
+    } finally {
+      await closePlayer(page);
+    }
+  });
+
+  test("two Join buttons pressed together leave you in one party", async ({ browser }) => {
+    test.setTimeout(180_000);
+
+    /**
+     * A join waits for a ticket before it opens its socket, so pressing two
+     * opened two, the first after the second had already cleared the way. The
+     * first room kept a frozen bee in its seat and wrote into the same store.
+     */
+    const page = await playerPage(browser, "twice");
+    const frick = await watchRoom("garden-frick", "twice-watch");
+
+    try {
+      await page.goto("/parties");
+      await page.getByRole("button", { name: /Join the Schenley/ }).waitFor();
+      await page.evaluate(() => {
+        const button = (name: RegExp) =>
+          [...document.querySelectorAll("button")].find((b) => name.test(b.textContent ?? ""))!;
+
+        button(/Join the Frick/).click();
+        button(/Join the Schenley/).click();
+      });
+
+      await page.waitForURL(/\/play/);
+      await page.waitForTimeout(4000);
+
+      expect(
+        frick.present.has("party-twice"),
+        "the first party kept a seat for the player",
+      ).toBe(false);
+    } finally {
+      frick.close();
+      await closePlayer(page);
+    }
+  });
+
+  test("playing a game does not use up what you can say", async () => {
+    test.setTimeout(60_000);
+
+    /**
+     * Moves went through chat's limit, four in ten seconds, so a quick game
+     * of noughts and crosses spent it and the "gg" after was dropped without
+     * a word. A dance's mark went the same way.
+     */
+    const url = async (who: string) =>
+      `ws://${PARTY_HOST}/parties/garden/garden-frick?ticket=${encodeURIComponent(
+        await partyTicket(who),
+      )}`;
+    const socket = new WebSocket(await url("budget-a"));
+    const heard: string[] = [];
+
+    socket.addEventListener("message", (event) => {
+      const message = JSON.parse(String(event.data)) as { t: string; text?: string };
+
+      if (message.t === "chat" && message.text) {
+        heard.push(message.text);
+      }
+    });
+
+    await new Promise<void>((resolve) => socket.addEventListener("open", () => resolve()));
+
+    try {
+      for (let move = 0; move < 5; move += 1) {
+        socket.send(JSON.stringify({ t: "move", table: "no-such-table", move }));
+      }
+
+      socket.send(JSON.stringify({ t: "chat", text: "gg" }));
+
+      await expect
+        .poll(() => heard, { message: "five moves silenced the chat", timeout: 5_000 })
+        .toContain("gg");
+    } finally {
+      socket.close();
+    }
+  });
+
   test("two bees on one flower share a board and one roll", async () => {
     test.setTimeout(120_000);
 

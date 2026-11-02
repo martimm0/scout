@@ -43,6 +43,13 @@ function partyHost() {
  * by the time the socket closes the reason it never opened is long gone.
  */
 let ticketDenied = false;
+/**
+ * Which join is the live one. A join waits on a ticket before it opens its
+ * socket, so two Join buttons pressed quickly both opened one, the first after
+ * the second had already cleared the way: two rooms writing into one store,
+ * and a socket nothing would ever close.
+ */
+let attempt = 0;
 
 /** A pass into a room. Five minutes long, so it is fetched per connection. */
 async function freshTicket(): Promise<{ ticket: string }> {
@@ -97,6 +104,8 @@ async function freshTicket(): Promise<{ ticket: string }> {
 export async function joinParty(party: GardenPartyId): Promise<void> {
   leaveParty();
 
+  const mine = (attempt += 1);
+
   const store = usePartyStore.getState();
   store.setStatus("connecting");
 
@@ -107,6 +116,11 @@ export async function joinParty(party: GardenPartyId): Promise<void> {
   // Fail before opening a socket if there is no account, so the lobby can say
   // so rather than showing a connection that will never work.
   const first = await freshTicket();
+
+  // Another join, or a leave, came while this one waited.
+  if (mine !== attempt) {
+    return;
+  }
 
   if (!first.ticket) {
     return;
@@ -296,6 +310,8 @@ export async function joinParty(party: GardenPartyId): Promise<void> {
 }
 
 export function leaveParty(resetStore = true) {
+  attempt += 1;
+
   if (expiryTimer) {
     clearInterval(expiryTimer);
     expiryTimer = null;

@@ -34,6 +34,13 @@ export type MinigameProps = {
    * effect, where reading the time is fine.
    */
   duration: number;
+  /**
+   * The give-up question is on screen. The game stays mounted under it, so
+   * "Keep going" carries on where it was; a game with its own clock or loop
+   * stops it while this is true. It used to be unmounted, and coming back
+   * dealt a fresh board, which was a free reroll of a round going badly.
+   */
+  paused?: boolean;
   /** The latest score, 0 to 1. Call whenever it changes. */
   reportScore: (score: number) => void;
   /**

@@ -25,7 +25,12 @@ import type { MinigameProps } from "./types";
 const FALLERS = ["🌰", "🍂", "🌱", "🪵"] as const;
 const MAX_HITS = 6;
 
-export function SeedsGame({ duration, finishEarly, reportScore }: MinigameProps) {
+export function SeedsGame({
+  duration,
+  finishEarly,
+  paused,
+  reportScore,
+}: MinigameProps) {
   const [beeX, setBeeX] = useState(0.5);
   const [drops, setDrops] = useState<
     { id: number; x: number; y: number; glyph: string }[]
@@ -35,14 +40,24 @@ export function SeedsGame({ duration, finishEarly, reportScore }: MinigameProps)
   const beeXRef = useRef(0.5);
   const held = useRef<Set<string>>(new Set());
   const stageRef = useRef<HTMLDivElement>(null);
+  /** Kept across a pause, so a resumed round does not reuse a drop's id. */
+  const spawned = useRef(0);
 
   const calm = useRef(
     typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches,
   );
 
+  // Untouched to begin with, once. Not in the loop's effect, which restarts
+  // after a pause and would hand back every hit taken so far.
   useEffect(() => {
     reportScore(1);
+  }, [reportScore]);
+
+  useEffect(() => {
+    if (paused) {
+      return;
+    }
 
     const spawnEvery = calm.current ? 900 : 480;
     const fallSpeed = calm.current ? 0.5 : 0.85; // fraction of the stage per second
@@ -50,8 +65,7 @@ export function SeedsGame({ duration, finishEarly, reportScore }: MinigameProps)
 
     let raf = 0;
     let last = performance.now();
-    let spawned = 0;
-    const started = last;
+    let spawnedAt = last;
 
     const step = (now: number) => {
       const dt = (now - last) / 1000;
@@ -70,14 +84,16 @@ export function SeedsGame({ duration, finishEarly, reportScore }: MinigameProps)
         setBeeX(beeXRef.current);
       }
 
-      if (now - started - spawned * spawnEvery > spawnEvery) {
-        spawned += 1;
-        const r = hash(spawned, 7);
+      if (now - spawnedAt > spawnEvery) {
+        spawnedAt = now;
+        spawned.current += 1;
+        const id = spawned.current;
+        const r = hash(id, 7);
         setDrops((was) => [
           ...was,
           {
-            id: spawned,
-            x: 0.08 + hash(spawned, 8) * 0.84,
+            id,
+            x: 0.08 + hash(id, 8) * 0.84,
             y: -0.05,
             glyph: FALLERS[Math.floor(r * FALLERS.length)],
           },
@@ -119,7 +135,7 @@ export function SeedsGame({ duration, finishEarly, reportScore }: MinigameProps)
     raf = requestAnimationFrame(step);
 
     return () => cancelAnimationFrame(raf);
-  }, [duration, finishEarly, reportScore]);
+  }, [duration, finishEarly, paused, reportScore]);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {

@@ -589,8 +589,9 @@ export async function flyToPlant(
 
   // Enough budget to come all the way down from cruising height. `flyTo` now
   // crosses the park above the canopy, so the descent is 150 units rather than
-  // the 40 it used to be, and altitude is 17 units a second.
-  for (let i = 0; i < 22 && !(await tag.count()); i += 1) {
+  // the 40 it used to be, and altitude is 17 units a second. The last stretch
+  // is taken in short steps (below), which spends more of it.
+  for (let i = 0; i < 32 && !(await tag.count()); i += 1) {
     const state = await readout(page);
     const altitude = Number.parseFloat(state.Altitude ?? "0");
     const target = plant.position[1];
