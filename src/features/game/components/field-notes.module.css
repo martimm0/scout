@@ -23,8 +23,22 @@
   backdrop-filter: blur(16px);
 }
 
+/* Folded, it shrinks to its title and pin instead of holding a full card's width. */
+.panel[data-open="false"] {
+  width: auto;
+  padding: 6px 8px 6px 16px;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .header {
   display: flex;
+  flex: 1;
+  min-height: 30px;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -87,5 +101,17 @@
   .panel {
     left: 16px;
     top: 16px;
+  }
+}
+
+/* Touch: clear of the notch, and a header a thumb can hit. */
+@media (pointer: coarse) {
+  .panel {
+    left: max(16px, env(safe-area-inset-left));
+    top: max(12px, env(safe-area-inset-top));
+  }
+
+  .header {
+    min-height: 44px;
   }
 }

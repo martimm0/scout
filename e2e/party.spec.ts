@@ -378,8 +378,8 @@ test.describe("garden parties", () => {
       await page.getByRole("button", { name: /Join the Schenley/ }).click();
       await page.waitForURL(/\/play/);
       await page.waitForTimeout(2500);
-      // The first-flight tutorial is up over a fresh save, and its scrim eats
-      // clicks aimed at the chat behind it.
+      // The first-flight card is up over a fresh save. It no longer covers the
+      // chat, but a player skips it before talking; so does this.
       await dismissTutorial(page);
       await page.waitForTimeout(800);
     }

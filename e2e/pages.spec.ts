@@ -1082,6 +1082,8 @@ test.describe("the weather is Pittsburgh's weather", () => {
     await signIn(page.context());
     await page.goto("/play?hour=13&weather=rain");
     await page.waitForTimeout(4000);
+    // The walkthrough keeps Scout Stats folded; past it, and pinned, it reads out.
+    await dismissTutorial(page);
 
     const stats = page.getByRole("complementary", { name: "Scout stats" });
 

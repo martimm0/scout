@@ -47,8 +47,10 @@ import { FieldNotes } from "./field-notes";
 import { FlowerVisitors } from "./flower-visitors";
 import { LandingMenu } from "./landing-menu";
 import { PatchMarks } from "./patch-marks";
+import { PanelPin } from "./panel-pin";
 import { RotateNotice } from "./rotate-notice";
 import { TouchControls } from "./touch-controls";
+import { useAutoFold } from "../hooks/use-auto-fold";
 import {
   coarsePointerNow,
   useCoarsePointer,
@@ -1721,10 +1723,17 @@ export function GameScene({
    * Read once, as the initial state, rather than tracked: this is a starting
    * position, not a rule. Somebody who opens the controls mid-party keeps them
    * open, which is the whole point of it being a toggle.
+   *
+   * Open or not, it folds itself away a few seconds later unless pinned, and so
+   * do the stats and the field notes (`useAutoFold`). All three start folded
+   * while the first flight is coaching, so its card is the only text on screen.
    */
-  const [controlsOpen, setControlsOpen] = useState(
-    () => usePartyStore.getState().status !== "in",
-  );
+  const [partyAtStart] = useState(() => usePartyStore.getState().status === "in");
+  const coaching = useGameStore((state) => !state.tutorialSeen || state.tutorialReplay);
+  const replayTutorial = useGameStore((state) => state.replayTutorial);
+  const controlsFold = useAutoFold("controls", !partyAtStart && !coaching);
+  const statsFold = useAutoFold("stats", !coaching);
+  const controlsOpen = controlsFold.open;
   // The scene generates terrain, scatters thousands of props and compiles all the
   // geometry before its first frame. Without this the player stares at a blank
   // canvas and assumes it is broken.
@@ -2060,22 +2069,34 @@ export function GameScene({
       </aside>
       ) : null}
 
-      <aside className={styles.controlsPanel} aria-label="Flight controls">
-        <button
-          aria-expanded={controlsOpen}
-          aria-label={controlsOpen ? "Hide the controls" : "Show the controls"}
-          className={styles.controlsToggle}
-          onClick={() => setControlsOpen((open) => !open)}
-          type="button"
-        >
-          <span className={styles.debugLabel}>Controls</span>
-          <span className={styles.controlsToggleCue} data-open={controlsOpen}>
-            <span>{controlsOpen ? "Hide" : "Show"}</span>
-            <span aria-hidden className={styles.controlsChevron}>
-              ▾
+      <aside
+        className={styles.controlsPanel}
+        aria-label="Flight controls"
+        data-open={controlsOpen}
+        {...controlsFold.holdProps}
+      >
+        <div className={styles.panelHeader}>
+          <button
+            aria-expanded={controlsOpen}
+            aria-label={controlsOpen ? "Hide the controls" : "Show the controls"}
+            className={styles.controlsToggle}
+            onClick={controlsFold.toggle}
+            type="button"
+          >
+            <span className={styles.debugLabel}>Controls</span>
+            <span className={styles.controlsToggleCue} data-open={controlsOpen}>
+              <span>{controlsOpen ? "Hide" : "Show"}</span>
+              <span aria-hidden className={styles.controlsChevron}>
+                ▾
+              </span>
             </span>
-          </span>
-        </button>
+          </button>
+          <PanelPin
+            label="Controls"
+            pinned={controlsFold.pinned}
+            onToggle={controlsFold.togglePin}
+          />
+        </div>
 
         {controlsOpen ? (
           <>
@@ -2133,14 +2154,52 @@ export function GameScene({
                 Fly to {other.label}
               </button>
             ))}
+            <button
+              className={styles.travel}
+              onClick={replayTutorial}
+              type="button"
+            >
+              Show me again
+            </button>
             <SoundToggle />
             <CloudSyncBadge />
           </>
         ) : null}
       </aside>
 
-      <aside className={styles.statePanel} aria-label="Scout stats">
-        <p className={styles.debugLabel}>Scout Stats</p>
+      <aside
+        className={styles.statePanel}
+        aria-label="Scout stats"
+        data-open={statsFold.open}
+        {...statsFold.holdProps}
+      >
+        <div className={styles.panelHeader}>
+          <button
+            aria-expanded={statsFold.open}
+            aria-label={statsFold.open ? "Hide the stats" : "Show the stats"}
+            className={styles.controlsToggle}
+            onClick={statsFold.toggle}
+            type="button"
+          >
+            <span className={styles.debugLabel}>Scout Stats</span>
+            <span className={styles.controlsToggleCue} data-open={statsFold.open}>
+              <span>
+                {statsFold.open
+                  ? "Hide"
+                  : `${discoveredPlantCount} / ${PLANTS.length} found`}
+              </span>
+              <span aria-hidden className={styles.controlsChevron}>
+                ▾
+              </span>
+            </span>
+          </button>
+          <PanelPin
+            label="Scout Stats"
+            pinned={statsFold.pinned}
+            onToggle={statsFold.togglePin}
+          />
+        </div>
+        {statsFold.open ? (
         <dl>
           <div>
             <dt>Areas</dt>
@@ -2183,6 +2242,7 @@ export function GameScene({
             </dd>
           </div>
         </dl>
+        ) : null}
       </aside>
 
       <FieldNotes
@@ -2192,6 +2252,7 @@ export function GameScene({
         weather={weather}
         discoveredPlants={discoveredPlants}
         unlockedBadges={unlockedBadges}
+        coaching={coaching}
       />
 
       {/* Sits above the controls panel, which is why the controls default to

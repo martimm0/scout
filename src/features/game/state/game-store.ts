@@ -130,11 +130,20 @@ export type UIModalState = {
   winterId: SpeciesRef | null;
 };
 
+/** The HUD panels that fold themselves away. */
+export type PanelId = "controls" | "fieldNotes" | "stats";
+
 export type Settings = {
   /** Audio starts off. Browsers block sound before a gesture anyway, and a game
    *  that shouts at you the moment it loads is a game people mute forever. */
   soundOn: boolean;
   volume: number;
+  /**
+   * Panels the player has pinned open. Everything else folds a few seconds
+   * after it opens (`useAutoFold`). A layout choice, so it stays with the
+   * device's settings rather than following the account.
+   */
+  pinnedPanels?: Partial<Record<PanelId, boolean>>;
 };
 
 /** Counters the badge rules need that aren't derivable from the boolean records. */
@@ -241,6 +250,12 @@ export type GameState = {
   pollinationCue: number;
   /** Has the player been shown the first-flight tutorial? */
   tutorialSeen: boolean;
+  /**
+   * The player asked to see the first flight again. Session-only: replaying
+   * cannot be done by clearing `tutorialSeen`, because the sync merge ORs it
+   * and the next pull would put it straight back.
+   */
+  tutorialReplay: boolean;
   /** Badges earned but not yet announced on screen. */
   pendingBadges: string[];
   /**
@@ -327,6 +342,7 @@ export type GameActions = {
   recordMinigameScore: (score: number) => void;
   updateSettings: (settings: Partial<Settings>) => void;
   completeTutorial: () => void;
+  replayTutorial: () => void;
   queueBadges: (badgeIds: string[]) => void;
   dismissBadge: (badgeId: string) => void;
   openModal: (modal: ToggleableModal) => void;
@@ -681,6 +697,7 @@ export const useGameStore = create<GameStore>()(
   ui: initialUi,
   settings: initialSettings,
   tutorialSeen: false,
+  tutorialReplay: false,
   owner: null,
   resetAt: 0,
   ...initialProgress,
@@ -1101,7 +1118,8 @@ export const useGameStore = create<GameStore>()(
   updateSettings: (settings) =>
     set((state) => ({ settings: { ...state.settings, ...settings } })),
 
-  completeTutorial: () => set({ tutorialSeen: true }),
+  completeTutorial: () => set({ tutorialSeen: true, tutorialReplay: false }),
+  replayTutorial: () => set({ tutorialReplay: true }),
 
   queueBadges: (badgeIds) =>
     set((state) => {

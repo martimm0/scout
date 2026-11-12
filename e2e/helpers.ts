@@ -281,6 +281,48 @@ export async function dismissTutorial(page: Page) {
     .catch(() => {
       // Already dismissed, or never shown. Either is fine.
     });
+
+  await pinPanels(page);
+}
+
+/**
+ * Pin every HUD panel on screen open.
+ *
+ * The panels fold themselves away a few seconds after they open, and most of the
+ * suite reads them (the sound toggle, the shutter, the stats) well after that.
+ * Pinning through the real button puts the screen back the way those tests were
+ * written against; `hud-fold.spec.ts` is the one that watches the folding.
+ */
+export async function pinPanels(page: Page) {
+  const pins = page.getByRole("button", { name: /^Keep .+ open$/ });
+
+  for (let i = (await pins.count()) - 1; i >= 0; i -= 1) {
+    const pin = pins.nth(i);
+
+    if (await pin.isVisible()) {
+      await pin.click({ timeout: 2_000 }).catch(() => {
+        // Gone between the count and the click: nothing to pin.
+      });
+    }
+  }
+}
+
+/**
+ * Into the park on a clean save, cleared once rather than on every load.
+ *
+ * `enterGame` clears storage in an init script, which runs again on a reload and
+ * so cannot test anything that is meant to survive one. Its own account, so a
+ * test elsewhere syncing `tutorialSeen` into the shared player cannot end the
+ * walkthrough out from under this one.
+ */
+export async function openPlay(page: Page, subject: string) {
+  await registerAccount(subject, `${subject}@example.com`);
+  await signIn(page.context(), subject, `${subject}@example.com`);
+  await resetProgress(subject);
+  await page.goto("/about");
+  await page.evaluate(() => window.localStorage.clear());
+  await page.goto(`/play?debug=1&hour=${TEST_HOUR}&month=${TEST_MONTH}`);
+  await page.waitForTimeout(2500);
 }
 
 export async function enterGame(

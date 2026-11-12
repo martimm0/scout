@@ -499,7 +499,7 @@ type SavedProgress = {
   pollinatedPlants, unlockedMapAreas, unlockedParks: Record<string, boolean>;
   unlockedBadges, unlockedJournalEntries, seenPhases: Record<string, boolean>;
   stats: {...};
-  tutorialSeen: boolean;
+  tutorialSeen: boolean;          // a replay is session-only, never this flipped back
   owner?: string;                 // stamped by the route from the session
   savedAt: number;
 };

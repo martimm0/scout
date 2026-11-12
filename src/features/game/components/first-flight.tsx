@@ -1,85 +1,140 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { trackEvent } from "@/lib/analytics";
 import { setSoundEnabled } from "../audio/sound";
 import { useCoarsePointer } from "../hooks/use-media-query";
-import { useGameStore } from "../state/game-store";
+import { useGameStore, type GameStore } from "../state/game-store";
 import styles from "./first-flight.module.css";
+import { inputSuspended } from "./game-scene";
 
-const STEPS = [
+/** Where the bee was when a step began. */
+type Mark = { x: number; z: number; altitude: number };
+
+type Step = {
+  title: string;
+  body: string;
+  /** The same instruction for two thumbs. Short: it shares a phone with the pad. */
+  touch: string;
+  keys?: string[];
+  /** Has the player done it? `turned` is the heading swept since the step began, in degrees. */
+  done?: (state: GameStore, from: Mark, turned: number) => boolean;
+};
+
+/** Enough to mean it, little enough that a second of input does it. */
+const TURN_DEGREES = 60;
+const FLY_DISTANCE = 30;
+const CLIMB_DISTANCE = 4;
+
+const STEPS: Step[] = [
   {
-    title: "You are a bee.",
-    body: "About a centimetre long, in a park that runs to six hundred acres. The grass comes up past your head and an oak is a mountain. This is the correct scale, and it is the whole point.",
-    keys: null,
+    title: "Look around.",
+    body: "Click the park, then move the mouse. The bee turns to follow your view, and that is also the way it flies.",
+    touch: "Push the FLY circle sideways. The bee turns, and where its nose points is where it goes.",
+    keys: ["Mouse", "← →"],
+    done: (_state, _from, turned) => turned >= TURN_DEGREES,
   },
   {
     title: "Fly.",
-    body: "Move the mouse to look. Your nose follows the view, and that is also the way you fly. Up and Down for forward and back. Left and Right to turn. E and Q for altitude. Shift to hurry. Trees and rocks are solid, so mind the oaks.",
-    keys: ["↑ ↓", "← →", "E / Q", "Shift"],
+    body: "Up or W flies forward, Down or S backs off, Shift hurries. Trees and rocks are solid, so mind the oaks.",
+    touch: "Push the FLY circle forward. FAST hurries you along. Mind the oaks.",
+    keys: ["↑ / W", "↓ / S", "Shift"],
+    done: (state, from) =>
+      Math.hypot(state.player.position.x - from.x, state.player.position.z - from.z) >=
+      FLY_DISTANCE,
   },
   {
-    title: "Find the flowers. And the fungi.",
-    body: "Pollen motes drift over everything you haven't met yet. The park runs on Pittsburgh time and Pittsburgh's calendar: most flowers shut at dusk and a few open then instead, some close by lunchtime, and what is actually in flower is what is in flower this week. A plant out of its bloom is still worth meeting and still has a quiz for you; it just has nothing to pollinate. Come back at a different hour, or a different month, and you will find different things.",
-    keys: null,
+    title: "Climb, then drop.",
+    body: "E takes you up; Q or the scroll wheel brings you down. You are about a centimetre long, so the grass is over your head.",
+    touch: "The arrows on the right take you up and down. You are about a centimetre long.",
+    keys: ["E", "Q", "Scroll"],
+    done: (state, from) => Math.abs(state.player.altitude - from.altitude) >= CLIMB_DISTANCE,
+  },
+  {
+    title: "Find a flower.",
+    body: "Follow the drifting pollen motes: they hang over everything you haven't met yet. What blooms is what is in bloom in Pittsburgh this week, at this hour.",
+    touch: "Follow the drifting pollen motes. They hang over everything you haven't met yet.",
+    done: (state) => state.ui.nearby !== null,
   },
   {
     title: "Land on it.",
-    body: "Space sets you down. From there you can pollinate the flower, or let it quiz you on what you just read. About one visit in five comes to nothing: wind, timing, or somebody got there first. That's not you failing. That's the job. Fly to the next one. Nothing pollinates a mushroom, but a mushroom will still test you.",
-    keys: ["Space to land", "R to read", "P for a photo"],
+    body: "Close enough and its name comes up. Press Space to set down.",
+    touch: "Close enough and a card comes up with its name. Tap Land on it.",
+    keys: ["Space"],
+    done: (state) => state.ui.landedOn !== null,
+  },
+  {
+    title: "That's the job.",
+    body: "On a flower you can pollinate it, or let it quiz you. About one visit in five comes to nothing: wind, timing, or somebody got there first. That's not you failing. Fly to the next one. R reads an entry, P takes a photo, and Controls has the rest.",
+    touch: "Pollinate it, or let it quiz you. About one visit in five comes to nothing, and that's the job, not you failing. ••• has the camera and the rest.",
   },
 ];
 
-/**
- * The same four steps, for two thumbs.
- *
- * Only the two that talk about the controls differ, because only those were ever
- * about the keyboard. Teaching a phone player to press E and Q would be teaching
- * them a key they do not have, which is worse than teaching them nothing.
- */
-const TOUCH_STEPS = STEPS.map((step, index) => {
-  if (index === 1) {
-    return {
-      ...step,
-      body: "Hold the FLY circle on the left and push: forward to fly, sideways to turn. Your nose follows, and that is also the way you go. The stick on the right tilts your view, and the arrows above it take you up and down. FAST hurries you along. Trees and rocks are solid, so mind the oaks.",
-      keys: null,
-    };
-  }
+const LAST = STEPS.length - 1;
 
-  if (index === 3) {
-    return {
-      ...step,
-      body: "Get close to a flower and it puts up a card with its name. Tap Land on that card, and from there you can pollinate it, or let it quiz you on what you just read. About one visit in five comes to nothing: wind, timing, or somebody got there first. That's not you failing. That's the job. Fly to the next one. Nothing pollinates a mushroom, but a mushroom will still test you.",
-      keys: null,
-    };
-  }
-
-  return step;
-});
+/** The shortest way round from one heading to the next, in degrees. */
+function swept(from: number, to: number) {
+  return Math.abs(((((to - from) % 360) + 540) % 360) - 180);
+}
 
 /**
  * First flight.
  *
- * Shown once, skippable, and it teaches the two things nobody guesses: that the
- * mouse steers rather than merely looks, and that failing to pollinate is normal
- * rather than a mistake. Everything else the player can find out by flying.
+ * Shown once, skippable, and taught by doing rather than reading: each step
+ * waits for the player to actually turn, fly, climb, find and land, then moves
+ * on. It sits over the live park rather than in front of it, so the bee flies
+ * while it coaches. It closes on the two things nobody guesses: that failing to
+ * pollinate is normal rather than a mistake, and whether to have sound.
  */
 export function FirstFlight() {
-  const tutorialSeen = useGameStore((state) => state.tutorialSeen);
+  const showing = useGameStore((state) => !state.tutorialSeen || state.tutorialReplay);
+
+  // Its own component, so a replay starts again from the first step.
+  return showing ? <Coach /> : null;
+}
+
+function Coach() {
   const completeTutorial = useGameStore((state) => state.completeTutorial);
   const updateSettings = useGameStore((state) => state.updateSettings);
+  // A landing menu, a minigame, a quiz: the card waits rather than sit on them.
+  const busy = useGameStore((state) => inputSuspended(state.ui));
+  // The offline clock has the top of a phone; the card moves down to clear it.
+  const offline = useGameStore((state) => state.offlineRun.active);
 
   const [step, setStep] = useState(0);
   const coarsePointer = useCoarsePointer();
+  const current = STEPS[step];
+  const last = step === LAST;
 
-  if (tutorialSeen) {
-    return null;
-  }
+  useEffect(() => {
+    const done = STEPS[step].done;
 
-  const steps = coarsePointer ? TOUCH_STEPS : STEPS;
-  const current = steps[step];
-  const last = step === steps.length - 1;
+    if (!done) {
+      return;
+    }
+
+    const start = useGameStore.getState();
+    const from: Mark = { ...start.player.position, altitude: start.player.altitude };
+    let heading = start.player.heading;
+    let turned = 0;
+
+    const check = (state: GameStore) => {
+      turned += swept(heading, state.player.heading);
+      heading = state.player.heading;
+
+      // Somebody who lands early has skipped ahead, not gone wrong.
+      if (state.ui.landedOn) {
+        setStep(LAST);
+      } else if (done(state, from, turned)) {
+        setStep((value) => (value === step ? value + 1 : value));
+      }
+    };
+
+    check(start);
+
+    return useGameStore.subscribe(check);
+  }, [step]);
 
   const finish = (withSound: boolean) => {
     if (withSound) {
@@ -93,24 +148,30 @@ export function FirstFlight() {
     completeTutorial();
   };
 
+  if (busy) {
+    return null;
+  }
+
   return (
-    <div className={styles.scrim}>
+    <div className={styles.coach} data-offline={offline}>
       <section
         aria-labelledby="first-flight-title"
-        aria-modal="true"
         className={styles.card}
-        role="dialog"
+        data-step={step + 1}
+        role="region"
       >
         <p className={styles.progress}>
-          {step + 1} of {steps.length}
+          First flight · {step + 1} of {STEPS.length}
         </p>
 
-        <h2 className={styles.title} id="first-flight-title">
-          {current.title}
-        </h2>
-        <p className={styles.body}>{current.body}</p>
+        <div aria-live="polite">
+          <h2 className={styles.title} id="first-flight-title">
+            {current.title}
+          </h2>
+          <p className={styles.body}>{coarsePointer ? current.touch : current.body}</p>
+        </div>
 
-        {current.keys ? (
+        {current.keys && !coarsePointer ? (
           <ul className={styles.keys}>
             {current.keys.map((key) => (
               <li key={key}>
@@ -139,22 +200,13 @@ export function FirstFlight() {
               </button>
             </>
           ) : (
-            <>
-              <button
-                className={styles.primary}
-                onClick={() => setStep((value) => value + 1)}
-                type="button"
-              >
-                Next
-              </button>
-              <button
-                className={styles.secondary}
-                onClick={() => finish(false)}
-                type="button"
-              >
-                Skip
-              </button>
-            </>
+            <button
+              className={styles.secondary}
+              onClick={() => finish(false)}
+              type="button"
+            >
+              Skip
+            </button>
           )}
         </div>
       </section>

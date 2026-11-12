@@ -427,6 +427,41 @@
   transform: rotate(-90deg);
 }
 
+/*
+ * Folding panels (Controls, Scout Stats; Field Notes has its own sheet).
+ *
+ * Each folds itself away a few seconds after it opens unless pinned, and when
+ * folded it shrinks to its header rather than holding a full card's width over
+ * the park. The pin sits beside the toggle, outside it, so pinning never also
+ * folds.
+ */
+.panelHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panelHeader .controlsToggle {
+  flex: 1;
+  min-width: 0;
+  margin: -4px 0;
+}
+
+.panelHeader .debugLabel {
+  margin-bottom: 0;
+}
+
+.controlsPanel[data-open="true"] .panelHeader,
+.statePanel[data-open="true"] .panelHeader {
+  margin-bottom: 12px;
+}
+
+.controlsPanel[data-open="false"],
+.statePanel[data-open="false"] {
+  width: auto;
+  padding: 8px 8px 8px 12px;
+}
+
 .controlsPanel kbd {
   padding: 1px 6px;
   border-radius: 4px;

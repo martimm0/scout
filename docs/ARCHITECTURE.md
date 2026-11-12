@@ -298,6 +298,43 @@ their own pale surfaces: light-on-light, unreadable, over a scene that was brigh
 regardless. A panel that sits over the game answers to the game, not to the
 chrome around it.
 
+### 10a. The first flight is taught by doing, and the HUD folds away
+
+The play screen used to keep three text panels open at once (Controls, Field
+Notes, Scout Stats) behind a four-card tutorial read in front of the park.
+Neither taught much: the cards were read once and forgotten, and the panels sat
+over the meadow for good.
+
+**The first flight** (`first-flight.tsx`) is a card over the live park, not a
+scrim in front of it: the wrapper lets clicks through, so the park still takes
+the pointer and the touch pad still takes thumbs. Each step waits for the player
+to do the thing, watched through `useGameStore.subscribe` against where the bee
+was when the step began: turn 60 degrees (summed, so it wraps), fly 30 units,
+climb or drop 4, come near something (`ui.nearby`), land (`ui.landedOn`). Landing
+early skips to the end. The last card, the one-in-five line and the sound choice,
+waits until nothing else has the screen (`inputSuspended`), so it never sits on
+the landing menu. Touch players get the pad's wording, chosen by
+`useCoarsePointer`. Skip is on every step, and "Show me again" (Controls on a
+desktop, the tray on touch) replays it through a session-only `tutorialReplay`,
+because clearing `tutorialSeen` would be undone by the next sync's OR.
+
+**The panels fold themselves away** (`useAutoFold`). Each folds to its header
+eight seconds after it opens, unless pinned. The count waits while a mouse is
+over the panel or keyboard focus is inside it, and restarts when the panel is
+opened again. A tap does not hold it: a tap leaves focus on the button it hit,
+and counting that held a phone's panels open for good. Pins are
+`settings.pinnedPanels`, which persist with the device's settings and do not
+follow the account. During the first flight all three start folded, so its card
+is the only text on screen, and they open when it ends and then fold again.
+Folded, a panel shrinks to its header rather than keeping a card's width.
+
+On a desktop the card sits top right, the one corner nothing else uses. On touch
+it sits in the column between the two sticks, its edges taken from the pad's own
+sizes, because a landscape Pixel 5 is 293px tall and a card above the FLY zone
+does not fit. `first-flight.spec.ts`, `hud-fold.spec.ts`,
+`onboarding.mobile.spec.ts`. The suite's `dismissTutorial` pins every panel it
+can see, which puts the screen back the way the older tests were written.
+
 ### 11. Touch is a second pair of hands on the same loop
 
 The game is played by keyboard and mouse on a desktop and by two thumbs on a
@@ -746,7 +783,8 @@ places and `|| chatFocused` at each of the five is exactly the drift that lost
 
 The controls panel defaults to collapsed in a party. It is a tall column in the
 same corner the chat needs, and in company the conversation is the more useful
-thing to have there. A starting position, not a rule: open it and it stays open.
+thing to have there. A starting position, not a rule: open it and it stays open
+for as long as any open panel does (see below).
 
 ### Joining, leaving, and dropping out
 

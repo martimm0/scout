@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useFullscreen } from "../hooks/use-fullscreen";
+import { useGameStore } from "../state/game-store";
 import {
   resetVirtualInput,
   stickAxis,
@@ -355,6 +356,18 @@ export function TouchControls({
                 {fullscreen.active ? "Exit full screen" : "Full screen"}
               </button>
             ) : null}
+
+            {/* The Controls panel, where desktop keeps this, is hidden on touch. */}
+            <button
+              className={styles.trayButton}
+              onClick={() => {
+                setTrayOpen(false);
+                useGameStore.getState().replayTutorial();
+              }}
+              type="button"
+            >
+              Show me again
+            </button>
 
             {/* The scene covers the site header on a touch device, so this is the
                 way back to the rest of Scout. */}

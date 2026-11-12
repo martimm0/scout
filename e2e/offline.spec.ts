@@ -84,8 +84,8 @@ async function begin(page: Page) {
   // Long enough for the park to mount and for anything that writes on mount to
   // have written.
   await page.waitForTimeout(3500);
-  // The first-flight tutorial opens on Begin, and its scrim covers the site
-  // header's dropdown. A player dismisses it before going anywhere; so does this.
+  // The first-flight walkthrough opens on Begin. A player who knows the game
+  // skips it before going anywhere; so does this.
   await dismissTutorial(page);
 }
 
