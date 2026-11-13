@@ -297,6 +297,32 @@ Phones play in landscape, because the park is wider than it is tall and both thu
 want a corner; a phone held upright gets a card asking to be turned. Tablets play
 either way.
 
+## How it looks
+
+Voxels, all of it, and nothing that is not: no imported models, no image
+textures, no post-processing. The bee is drawn as text art and everything else
+is stamped into a voxel grid, and the rules for the look follow from that.
+
+- **Chunky is the style, not a budget.** A flower is still made of blocks you
+  could count. Fidelity means finer blocks and better light on them, never a
+  smooth surface.
+- **Every species looks like itself.** The game is about telling plants apart,
+  so each of the forty-three plants and twenty-one fungi has a shape of its own,
+  built round the one feature you would point at in the field. They are
+  caricatures: the feature is pushed until it reads at flying distance.
+- **Colours are what the palette says.** A leaf written as `#5f8a4e` is that
+  green on screen. Soft and bright, not inky.
+- **Things move.** Rooted things lean with the wind, the creek glints, small
+  creatures beat their wings. All of it stops for anybody who has asked for less
+  motion.
+- **Two levels of detail, one look.** High is what the art is authored for. Low
+  is the same forms in larger blocks and is what a phone starts on. The Detail
+  switch is in Controls, and in the tray on touch.
+
+The bee lands on the flower. It used to hang in the air beside it while a card
+opened; now it flies down, sets its feet on the bloom and folds its wings, and
+lifts off when you are done.
+
 ## Where this is going
 
 The intent is for Scout to grow into an **MMORPG**: large, immersive maps to

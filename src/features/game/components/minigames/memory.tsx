@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { hash } from "../../world/park";
+import { buzz } from "../../audio/haptics";
 import { playSound } from "../../audio/sound";
 import styles from "./memory.module.css";
 import type { Plant } from "../../data/plants";
@@ -171,6 +172,10 @@ export function MemoryGame({
 
     if (a === b) {
       const won = pairs + 1;
+
+      // A pair. It used to sound exactly like any other tile turning over.
+      playSound("match");
+      buzz("match");
       setPairs(won);
       setMatched((was) => new Set(was).add(next[0]).add(next[1]));
       setFlipped([]);

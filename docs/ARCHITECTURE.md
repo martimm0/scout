@@ -448,6 +448,59 @@ does not fit. `first-flight.spec.ts`, `hud-fold.spec.ts`,
 `onboarding.mobile.spec.ts`. The suite's `dismissTutorial` pins every panel it
 can see, which puts the screen back the way the older tests were written.
 
+### 10b. Feel: the bee that is flown and the bee that is drawn
+
+The speeds are fixed: forward 26, turn 2 rad/s, climb 17. The suite steers by
+dead reckoning at those numbers (`flyTo`, `flyToPlant`) and so does a player's
+hand, so the feel pass changed how the bee gets to them and nothing about what
+they are.
+
+- **Climb and dive are eased** (`climbRef`), the same way the horizontal always
+  was. What is lost easing in is coasted back easing out, so a held key covers
+  the distance it always did. `flight-feel.spec.ts` pins that first, because
+  every other flight test depends on it.
+- **The body follows the motion.** Nose up into a climb and down into a dive;
+  bank from how fast the heading is actually changing, so the mouse leans the
+  bee as well as the keys do. The group is rotated in `YXZ` order so pitch is
+  about the bee's own side-to-side axis (the slide keeps `XYZ`, which it was
+  tuned in).
+- **The camera answers.** It hangs back a little at speed, looks slightly ahead,
+  widens from 52 to 58 degrees on a boost and comes in close on a landing. None
+  of it under reduced motion.
+- **A bump is one bump.** Flying into something at more than `BUMP_SPEED` plays
+  a bonk, flinches the bee and throws a puff, at most once per 0.4 s. Brushing
+  along a trunk does nothing.
+- **A height shadow** sits on the ground straight under the bee, growing and
+  fading with altitude, for judging a landing. It is hidden while perched, when
+  a flat disc under a bloom would show through the petals.
+
+**Landing is drawn, not simulated.** While a flower has the player (the landing
+card, its minigame, its quiz), the bee that is drawn eases onto that flower's
+perch (`world/perch.ts`, from the form's own perch point) and lifts off when it
+lets go. `targetPosition`, the bee that is flown, does not move. Everything that
+is LOGIC reads the flown position: the debug readout, the nearest-species
+search, the area. Everything that is LOOK reads the drawn one: the camera, the
+sun's shadow box, the pose sent to a party. Mixing them up is the bug to watch
+for: measured from the drawn bee, a landed player would creep from one flower to
+the next without touching a key. `landing.spec.ts` checks both halves.
+
+**The game notices.** `state/moments.ts` compares the store before and after a
+change and returns the moments in it: a first find, a park opening, a streak of
+3, 5 or 10, the last plant of a park. Each must tell playing from loading, since
+a save arriving from the cloud adds forty discoveries in one update: a find only
+counts if it is the single new one and the bee is beside it, a park only if it
+opened in the same update as a find, a streak only if it rose by exactly one.
+`rewards.spec.ts` runs that function in Node against both cases.
+
+**Sound and touch.** Ten new synthesized sounds mark what used to be silent
+(`land`, `takeoff`, `boost`, `bump`, `match`, `word`, `miss`, `tick`, `streak`,
+`parkUnlock`), plus a very quiet wing hum that rises with speed and stops with
+the bee's feet down. `audio/haptics.ts` answers the same moments in the hand on
+a touch device, with a switch in the tray. It is Android only in practice:
+Safari on an iPhone has no vibration API, and the switch is not shown where
+nothing can buzz. A spec that wants to know a moment was marked sets
+`window.__scoutSounds = []` and reads what was asked for.
+
 ### 11. Touch is a second pair of hands on the same loop
 
 The game is played by keyboard and mouse on a desktop and by two thumbs on a

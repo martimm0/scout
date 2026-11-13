@@ -610,3 +610,21 @@
 .travel:hover {
   background: rgba(31, 107, 59, 0.16);
 }
+
+/* The found count, bouncing once when it ticks up. */
+.countPulse {
+  display: inline-block;
+  animation: count-pulse 420ms cubic-bezier(0.2, 1.4, 0.3, 1) both;
+}
+
+@keyframes count-pulse {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .countPulse {
+    animation: none;
+  }
+}

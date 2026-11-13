@@ -371,6 +371,7 @@ export function TouchControls({
             </button>
 
             <DetailToggle className={styles.trayButton} />
+            <HapticsToggle />
 
             {/* The scene covers the site header on a touch device, so this is the
                 way back to the rest of Scout. */}
@@ -381,5 +382,30 @@ export function TouchControls({
         ) : null}
       </div>
     </div>
+  );
+}
+
+/**
+ * Buzz on or off. Only in the tray, because only a phone has anything to buzz,
+ * and only where the browser can actually do it: on an iPhone there is no
+ * vibration API, and a switch for a thing that cannot happen is a lie.
+ */
+function HapticsToggle() {
+  const on = useGameStore((state) => state.settings.hapticsOn !== false);
+  const updateSettings = useGameStore((state) => state.updateSettings);
+
+  if (typeof navigator === "undefined" || typeof navigator.vibrate !== "function") {
+    return null;
+  }
+
+  return (
+    <button
+      aria-pressed={on}
+      className={styles.trayButton}
+      onClick={() => updateSettings({ hapticsOn: !on })}
+      type="button"
+    >
+      Buzz: {on ? "On" : "Off"}
+    </button>
   );
 }

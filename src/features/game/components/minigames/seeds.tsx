@@ -131,7 +131,7 @@ export function SeedsGame({
       if (struck > 0) {
         hits.current += struck;
         setKnocks(hits.current);
-        playSound("pollinateFail");
+        playSound("miss");
         reportScore(Math.max(0, 1 - hits.current / budget));
 
         if (hits.current >= budget) {

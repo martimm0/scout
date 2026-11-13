@@ -72,8 +72,70 @@
 
 /* --- outcome --- */
 .outcome {
+  position: relative;
   display: grid;
   gap: 8px;
+  /* The result arrives; it used to simply be there. */
+  animation: outcome-in 340ms cubic-bezier(0.2, 1.2, 0.3, 1) both;
+}
+
+/*
+ * A scatter of pollen behind a result that took. Eight specks from two
+ * pseudo-elements, each a small square with seven shadows of itself, thrown
+ * outward once and gone. Squares, because it is that kind of park.
+ */
+.outcome[data-success="true"]::before,
+.outcome[data-success="true"]::after {
+  content: "";
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  background: #f2bb42;
+  pointer-events: none;
+  animation: pollen 900ms cubic-bezier(0.2, 0.8, 0.3, 1) 80ms both;
+}
+
+.outcome[data-success="true"]::before {
+  box-shadow:
+    -64px 10px 0 #f7d26a,
+    58px -6px 0 #f2bb42,
+    -30px -22px 0 #fbe6a2,
+    34px 24px 0 #f7d26a;
+}
+
+.outcome[data-success="true"]::after {
+  box-shadow:
+    -92px -12px 0 #fbe6a2,
+    88px 14px 0 #f7d26a,
+    12px -30px 0 #f2bb42,
+    -10px 30px 0 #fbe6a2;
+  animation-delay: 160ms;
+}
+
+@keyframes outcome-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes pollen {
+  0% { opacity: 0; transform: scale(0.2); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.5) translateY(-6px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .outcome,
+  .outcome[data-success="true"]::before,
+  .outcome[data-success="true"]::after {
+    animation: none;
+  }
+
+  .outcome[data-success="true"]::before,
+  .outcome[data-success="true"]::after {
+    display: none;
+  }
 }
 
 .outcomeTitle {

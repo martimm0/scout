@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { trackEvent } from "@/lib/analytics";
+import { buzz } from "../audio/haptics";
 import { playSound } from "../audio/sound";
 import {
   FAILURE_MESSAGES,
@@ -136,6 +137,8 @@ function MinigameRun({
    * the stats and double-counting the streak.
    */
   const resolvedRef = useRef(false);
+  /** The last whole second that was ticked aloud, so each sounds once. */
+  const lastTickRef = useRef(0);
   /** Seconds already elapsed. Carried across pauses so the confirm dialog does
    *  not hand the clock back to full every time it is opened and cancelled. */
   const elapsedRef = useRef(0);
@@ -203,6 +206,7 @@ function MinigameRun({
         }
 
         playSound("pollinateSuccess");
+        buzz("success");
 
         // Worked alongside somebody. Recorded here rather than on the server,
         // because it is a fact about YOUR afternoon and belongs in your save.
@@ -212,6 +216,7 @@ function MinigameRun({
         }
       } else {
         playSound("pollinateFail");
+        buzz("fail");
       }
 
       setOutcome({
@@ -278,6 +283,16 @@ function MinigameRun({
     const tick = (now: number) => {
       const elapsed = elapsedRef.current + (now - resumed) / 1000;
       setProgress(Math.min(1, elapsed / spec.duration));
+
+      // The last three seconds are counted out, one tick each, so the end of
+      // the clock is something you hear coming rather than something that
+      // happens to you.
+      const left = Math.ceil(spec.duration - elapsed);
+
+      if (left <= 3 && left >= 1 && left !== lastTickRef.current) {
+        lastTickRef.current = left;
+        playSound("tick");
+      }
 
       if (elapsed >= spec.duration) {
         /**

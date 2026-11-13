@@ -1,0 +1,77 @@
+/*
+ * A moment: one line at the top of the park, there and gone.
+ *
+ * Top centre on a desktop, under the offline clock when there is one. Badges
+ * have the bottom centre, so the two never land on each other even when one
+ * flower earns both.
+ */
+.moment {
+  position: absolute;
+  top: 78px;
+  left: 50%;
+  z-index: 17;
+  max-width: min(360px, calc(100% - 32px));
+  padding: 9px 20px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(122, 92, 38, 0.24);
+  background: linear-gradient(180deg, rgba(255, 253, 245, 0.96), rgba(255, 244, 221, 0.96));
+  box-shadow: 0 10px 28px rgba(40, 30, 12, 0.24);
+  text-align: center;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: moment 3200ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+.label {
+  margin: 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #b08428;
+}
+
+.title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #33291a;
+}
+
+.detail {
+  margin: 0;
+  font-size: 0.76rem;
+  color: #8a7a5e;
+}
+
+/* In, a small overshoot, hold, and out. The whole life in one animation. */
+@keyframes moment {
+  0% { opacity: 0; transform: translate(-50%, -12px) scale(0.92); }
+  9% { opacity: 1; transform: translate(-50%, 2px) scale(1.03); }
+  14% { transform: translate(-50%, 0) scale(1); }
+  88% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -8px) scale(0.98); }
+}
+
+/* A phone in landscape is short: sit tight under the top edge, between the sticks. */
+@media (pointer: coarse) {
+  .moment {
+    top: max(8px, env(safe-area-inset-top));
+    padding: 6px 16px 7px;
+  }
+
+  .title {
+    font-size: 0.9rem;
+  }
+
+  .detail {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .moment {
+    animation: none;
+  }
+}

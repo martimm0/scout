@@ -160,6 +160,7 @@ export function SceneHandle() {
   const scene = useThree((state) => state.scene);
   // The renderer too, for the specs that count what a frame costs.
   const gl = useThree((state) => state.gl);
+  const camera = useThree((state) => state.camera);
 
   useEffect(() => {
     if (process.env.NODE_ENV === "production") {
@@ -170,6 +171,7 @@ export function SceneHandle() {
       __scoutScene?: unknown;
       __scoutGl?: unknown;
       __scoutWind?: unknown;
+      __scoutCamera?: unknown;
     };
 
     holder.__scoutScene = scene;
@@ -177,13 +179,16 @@ export function SceneHandle() {
     // The wind's two numbers and the water's clock, which live in uniforms and
     // are otherwise only visible as leaves moving.
     holder.__scoutWind = wind;
+    // The lens, for the spec that checks it widens when the bee hurries.
+    holder.__scoutCamera = camera;
 
     return () => {
       delete holder.__scoutScene;
       delete holder.__scoutGl;
       delete holder.__scoutWind;
+      delete holder.__scoutCamera;
     };
-  }, [gl, scene]);
+  }, [camera, gl, scene]);
 
   return null;
 }

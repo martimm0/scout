@@ -11,7 +11,7 @@ import {
   useState,
 } from "react";
 import * as THREE from "three";
-import type { DirectionalLight, Group } from "three";
+import type { DirectionalLight, Group, Mesh, MeshBasicMaterial, PerspectiveCamera } from "three";
 import { Vector3 } from "three";
 import {
   countUnlocked,
@@ -23,6 +23,7 @@ import {
 import { trackEvent } from "@/lib/analytics";
 import {
   playSound,
+  setWingHum,
   setAreaAmbience,
   setSoundEnabled,
   setVolume,
@@ -62,11 +63,14 @@ import { SpeciesTag } from "./species-tag";
 import { FirstFlight } from "./first-flight";
 import { PlantEntry } from "./plant-entry";
 import { PollinationMinigame } from "./pollination-minigame";
+import { Moments } from "./moments";
 import { ProgressionWatcher } from "./progression-watcher";
 import { DetailToggle } from "./detail-toggle";
 import { SoundToggle } from "./sound-toggle";
 import { pinQuality, type Quality } from "../models/quality";
+import { perchPoint } from "../world/perch";
 import { wind, windStrength } from "../world/wind";
+import { buzz } from "../audio/haptics";
 import { CloudSyncBadge } from "./cloud-sync-badge";
 import { MAX_PHOTOS, usePhotoStore } from "../state/photo-store";
 import { PLANTS, PLANTS_BY_ID } from "../data/plants";
@@ -103,6 +107,7 @@ import {
   setActivePark,
   startPosition,
   terrainHeight,
+  waterLevel,
   world,
   GROUND_CLEARANCE,
   PARK_LIST,
@@ -158,6 +163,12 @@ const SLIDE_CATCH_XZ = 12;
 const SLIDE_CATCH_Y = 10;
 const SLIDE_SECONDS = 3.6;
 const SLIDE_PITCH = 0.34;
+
+/** How hard you have to fly into something for it to count as a bump. */
+const BUMP_SPEED = 12;
+/** The lens: as it was, and a little wider when the bee hurries. */
+const BASE_FOV = 52;
+const BOOST_FOV = 58;
 const SLIDE_COOLDOWN = 1.5;
 
 /**
@@ -606,6 +617,33 @@ function ScoutScene({
   const renderPositionRef = useRef(new Vector3());
   const rightRef = useRef(new Vector3());
   const targetPositionRef = useRef(new Vector3(...startPosition()));
+
+  /**
+   * Feel. None of this changes where the bee goes or how fast it gets there;
+   * it is how the going looks and sounds.
+   *
+   * Vertical speed is eased like the horizontal. Climb and dive used to be
+   * written straight into the position, so the bee went from still to seventeen
+   * units a second in one frame and stopped the same way.
+   */
+  const climbRef = useRef(0);
+  const bodyPitchRef = useRef(0);
+  const bankRef = useRef(0);
+  const lastYawRef = useRef(0);
+  const fovRef = useRef(52);
+  /** How fast the bee is going, 0 to 1, eased: the camera hangs back with it. */
+  const cameraPullRef = useRef(0);
+  const squashRef = useRef(0);
+  const lastBumpRef = useRef(-10);
+  const wasBoostingRef = useRef(false);
+  const shadowRef = useRef<Mesh>(null);
+  /** The flower being stood on, and how settled onto it the bee is, 0 to 1. */
+  const perchRef = useRef(new Vector3());
+  const perchKeyRef = useRef<string | null>(null);
+  const settleRef = useRef(0);
+  const [perched, setPerched] = useState(false);
+  /** Bumped for a puff of pollen: touching down, or flying into something. */
+  const [puffs, setPuffs] = useState(0);
   const velocityRef = useRef(new Vector3());
   /** Scratch vector for the collision slide. Reused so the loop allocates nothing. */
   const pushOutRef = useRef(new Vector3());
@@ -1106,6 +1144,7 @@ function ScoutScene({
 
       targetPosition.set(point.x, point.y + bounce, point.z);
       velocity.set(0, 0, 0);
+      climbRef.current = 0;
 
       if (slide.t >= 1) {
         // Off the run-out: a shove downhill, a little air, and a cheer.
@@ -1121,7 +1160,12 @@ function ScoutScene({
       // keeps drifting after you let go.
       velocity.lerp(direction, 1 - Math.exp(-delta * 8 * flight.responsiveness));
       targetPosition.addScaledVector(velocity, delta);
-      targetPosition.y += altitudeInput * ALTITUDE_SPEED * delta;
+      // Eased, not written in: the same top speed, reached over a tenth of a
+      // second and let go of over a tenth. What is lost easing in is coasted
+      // back easing out, so a held key still covers the distance it always did.
+      climbRef.current +=
+        (altitudeInput * ALTITUDE_SPEED - climbRef.current) * (1 - Math.exp(-delta * 10));
+      targetPosition.y += climbRef.current * delta;
 
       targetPosition.x = clamp(targetPosition.x, world().minX + 2, world().maxX - 2);
       targetPosition.z = clamp(targetPosition.z, world().minZ + 2, world().maxZ - 2);
@@ -1129,11 +1173,19 @@ function ScoutScene({
       // The floor follows the ground rather than sitting at a fixed altitude, so
       // the bee can drop all the way down into the ravine and skim the creek.
       const ground = terrainHeight(targetPosition.x, targetPosition.z);
+      const wanted = targetPosition.y;
+
       targetPosition.y = clamp(
         targetPosition.y,
         ground + GROUND_CLEARANCE,
         ceiling(),
       );
+
+      // Stopped by the ground or the ceiling: the speed that way is gone too,
+      // or the bee would keep pressing into the floor after the key came up.
+      if (targetPosition.y !== wanted) {
+        climbRef.current = 0;
+      }
 
       // The park is solid. Push out of anything the bee is inside, then re-clamp
       // to the ground: a push-out can shove you sideways into a hillside, and the
@@ -1170,14 +1222,80 @@ function ScoutScene({
         if (into < 0) {
           velocity.addScaledVector(pushOut, -into);
         }
+
+        // Flown INTO it, not brushed along it: a bonk, a flinch and a puff. Once
+        // per collision, not once per frame of leaning on the trunk.
+        if (into < -BUMP_SPEED && elapsed - lastBumpRef.current > 0.4) {
+          lastBumpRef.current = elapsed;
+          squashRef.current = 1;
+          playSound("bump");
+          buzz("bump");
+          setPuffs((count) => count + 1);
+        }
       }
     }
 
-    const bob = Math.sin(elapsed * (hasMovementInput ? 9 : 3.2)) * 0.08;
+    /**
+     * Landing is a thing the bee does, not a menu that opens.
+     *
+     * While a flower has the player (the landing card, its minigame, its quiz),
+     * the bee that is DRAWN flies down and settles on that flower's perch, and
+     * lifts off again when it lets go. The bee that is SIMULATED does not move:
+     * `targetPosition` stays where the player parked it, so what the debug
+     * readout reports, what the flight helpers steer by and where the player
+     * resumes from are all exactly what they were.
+     */
+    const ui = useGameStore.getState().ui;
+    const flower = ui.landedOn ?? ui.quiz ?? ui.winterId ?? null;
+    const heldKey = flower?.key ?? (ui.minigamePlantId ? perchKeyRef.current : null);
+
+    if (heldKey !== perchKeyRef.current) {
+      const landing = heldKey !== null;
+
+      if (landing) {
+        const instance = species.find((candidate) => candidate.key === heldKey);
+
+        if (instance) {
+          perchRef.current.set(...perchPoint(instance));
+          // Standing on it, not sunk into it.
+          perchRef.current.y += 0.26;
+          playSound("land");
+          buzz("land");
+          setPuffs((count) => count + 1);
+        }
+      } else {
+        playSound("takeoff");
+      }
+
+      perchKeyRef.current = heldKey;
+      setPerched(landing);
+    }
+
+    const settling = perchKeyRef.current !== null ? 1 : 0;
+
+    settleRef.current += (settling - settleRef.current) * (1 - Math.exp(-delta * 5.5));
+
+    const settle = settleRef.current;
+    // Smoothstep, so it eases off the flight path and eases onto the flower.
+    const onPerch = settle * settle * (3 - 2 * settle);
+    const bob =
+      Math.sin(elapsed * (hasMovementInput ? 9 : 3.2)) * 0.08 * (1 - onPerch);
+
     renderPosition.set(targetPosition.x, targetPosition.y + bob, targetPosition.z);
+    renderPosition.lerp(perchRef.current, onPerch);
+    // A little hop on the way down and on the way back up.
+    renderPosition.y += Math.sin(Math.PI * settle) * 0.7;
     pollinator.position.lerp(
       renderPosition,
       1 - Math.exp(-delta * 12),
+    );
+
+    // The flinch after a bump: squashed flat for an instant, then round again.
+    squashRef.current *= Math.exp(-delta * 9);
+    pollinator.scale.set(
+      1 + squashRef.current * 0.16,
+      1 - squashRef.current * 0.2,
+      1 + squashRef.current * 0.16,
     );
 
     // Run down any gesture in progress.
@@ -1214,15 +1332,46 @@ function ScoutScene({
 
     pollinator.rotation.y = pollinatorYawRef.current;
 
-    // Bank into the turn. Roll comes from how hard you're steering, not from
-    // sideways velocity: there is no sideways velocity any more.
-    pollinator.rotation.z =
-      clamp(-turnInput * 0.2 * (hasMovementInput ? 1 : 0.45), -0.24, 0.24) +
-      (hasMovementInput ? 0 : Math.sin(elapsed * 3) * 0.03);
+    // Bank into the turn. Roll comes from how fast the heading is actually
+    // changing, so the mouse leans the bee as well as the keys do, eased so it
+    // rolls into the lean rather than snapping to it.
+    const yawRate = delta > 0 ? (yaw - lastYawRef.current) / delta : 0;
 
-    // Nose down along the slope while riding, level otherwise. The model tips
-    // itself for flight; this is the whole body pitching to follow the slide.
-    pollinator.rotation.x = riding ? SLIDE_PITCH : 0;
+    lastYawRef.current = yaw;
+
+    const bankTarget = clamp(
+      -yawRate * 0.1 * (hasMovementInput ? 1 : 0.45) * (isBoosting ? 1.4 : 1),
+      -0.36,
+      0.36,
+    );
+
+    bankRef.current += (bankTarget - bankRef.current) * (1 - Math.exp(-delta * 7));
+    pollinator.rotation.z =
+      bankRef.current + (hasMovementInput ? 0 : Math.sin(elapsed * 3) * 0.03);
+
+    // Nose up into a climb, down into a dive, and a touch down when hurrying.
+    // Pitched about the bee's OWN side-to-side axis, which needs the yaw applied
+    // first; the slide keeps the old order, since it was tuned in it.
+    pollinator.rotation.order = riding ? "XYZ" : "YXZ";
+
+    const pitchTarget =
+      clamp(climbRef.current / ALTITUDE_SPEED, -1, 1) * 0.3 * (1 - onPerch) -
+      (isBoosting ? 0.1 : 0);
+
+    bodyPitchRef.current += (pitchTarget - bodyPitchRef.current) * (1 - Math.exp(-delta * 8));
+    pollinator.rotation.x = riding ? SLIDE_PITCH : bodyPitchRef.current;
+
+    if (isBoosting && !wasBoostingRef.current) {
+      playSound("boost");
+    }
+
+    wasBoostingRef.current = isBoosting;
+    // Wings: harder the faster it goes, and silent with its feet down.
+    setWingHum(
+      perchKeyRef.current !== null
+        ? -1
+        : clamp(velocity.length() / (BASE_SPEED * BOOST_MULTIPLIER) + Math.abs(climbRef.current) / 60, 0, 1),
+    );
 
     movementState.current = riding
       ? "Flying"
@@ -1241,12 +1390,60 @@ function ScoutScene({
     const pitch = pitchRef.current;
     const cosPitch = Math.cos(pitch);
 
+    // The camera answers the bee: it hangs back a little at speed, looks a
+    // little ahead of where the bee is going, widens when it boosts, and comes
+    // in close when it lands. None of it for anybody who asked for less motion.
+    const calm = stillAir.current;
+    const pace = clamp(velocity.length() / (BASE_SPEED * BOOST_MULTIPLIER), 0, 1);
+
+    cameraPullRef.current += (pace - cameraPullRef.current) * (1 - Math.exp(-delta * 3));
+
+    const cameraDistance =
+      CAMERA_DISTANCE * (1 + (calm ? 0 : cameraPullRef.current * 0.16) - onPerch * 0.2);
+
     cameraTarget.copy(pollinator.position);
+
+    if (!calm) {
+      cameraTarget.addScaledVector(velocity, 0.045 * (1 - onPerch));
+    }
+
     cameraPosition.set(
-      pollinator.position.x - Math.sin(yaw) * CAMERA_DISTANCE * cosPitch,
-      pollinator.position.y + CAMERA_HEIGHT + Math.sin(pitch) * CAMERA_DISTANCE,
-      pollinator.position.z + Math.cos(yaw) * CAMERA_DISTANCE * cosPitch,
+      pollinator.position.x - Math.sin(yaw) * cameraDistance * cosPitch,
+      pollinator.position.y + CAMERA_HEIGHT + Math.sin(pitch) * cameraDistance,
+      pollinator.position.z + Math.cos(yaw) * cameraDistance * cosPitch,
     );
+
+    const lens = camera as PerspectiveCamera;
+    const fovTarget = !calm && isBoosting ? BOOST_FOV : BASE_FOV;
+
+    fovRef.current += (fovTarget - fovRef.current) * (1 - Math.exp(-delta * 4.5));
+
+    if (Math.abs(lens.fov - fovRef.current) > 0.01) {
+      lens.fov = fovRef.current;
+      lens.updateProjectionMatrix();
+    }
+
+    // The bee's own shadow, straight down. Not the sun's: this one is for
+    // judging height, so it sits under the bee whatever the hour, grows as the
+    // bee climbs and fades as it goes.
+    const blob = shadowRef.current;
+
+    if (blob) {
+      const floor =
+        Math.max(
+          terrainHeight(pollinator.position.x, pollinator.position.z),
+          waterLevel(),
+        ) + 0.14;
+      const height = Math.max(0, pollinator.position.y - floor);
+
+      blob.position.set(pollinator.position.x, floor, pollinator.position.z);
+      blob.scale.setScalar(0.45 + Math.min(height, 70) * 0.03);
+      // Gone while standing on a flower: a flat disc on the ground under a bloom
+      // shows through the petals as a grey patch, and you are not judging
+      // height with your feet down anyway.
+      (blob.material as MeshBasicMaterial).opacity =
+        clamp(0.32 - height * 0.0042, 0.05, 0.32) * (1 - onPerch);
+    }
     // Delta-scaled, like every other smoothing term in this loop. A flat 0.08
     // ties camera follow speed to frame rate.
     camera.position.lerp(cameraPosition, 1 - Math.exp(-delta * 5));
@@ -1331,10 +1528,13 @@ function ScoutScene({
         const base = instance.position[1];
         const top = base + (landingHeight(instance) - base) * 0.88;
 
+        // From where the bee is FLYING, not where it is drawn: once it has
+        // settled on a flower the drawn bee is on the bloom, and measuring from
+        // there would let it creep from one flower to the next without moving.
         const distance = Math.hypot(
-          instance.position[0] - pollinator.position.x,
-          top - pollinator.position.y,
-          instance.position[2] - pollinator.position.z,
+          instance.position[0] - targetPosition.x,
+          top - targetPosition.y,
+          instance.position[2] - targetPosition.z,
         );
 
         if (distance < nearestDistance) {
@@ -1404,16 +1604,18 @@ function ScoutScene({
         store.seeWeather(momentsNow(weather));
       }
 
-      const area = areaAt(pollinator.position.x, pollinator.position.z);
+      // The flight position throughout: where the player has flown the bee to,
+      // not the flower the drawn bee is standing on.
+      const area = areaAt(targetPosition.x, targetPosition.z);
       const areaId = area.id;
       const nextPlayerState = {
         areaId,
-        altitude: Number(pollinator.position.y.toFixed(1)),
+        altitude: Number(targetPosition.y.toFixed(1)),
         heading: Number(((yawRef.current * 180) / Math.PI).toFixed(0)),
         movement: movementState.current,
         position: {
-          x: Number(pollinator.position.x.toFixed(1)),
-          z: Number(pollinator.position.z.toFixed(1)),
+          x: Number(targetPosition.x.toFixed(1)),
+          z: Number(targetPosition.z.toFixed(1)),
         },
         speed: Number(velocity.length().toFixed(1)),
       };
@@ -1562,6 +1764,12 @@ function ScoutScene({
       <OtherBees />
       <SceneHandle />
 
+      {/* How high up you are, drawn on the ground. Eight-sided, like everything. */}
+      <mesh ref={shadowRef} renderOrder={2} rotation={[-Math.PI / 2, 0, 0]} userData={{ heightShadow: true }}>
+        <circleGeometry args={[1, 8]} />
+        <meshBasicMaterial color="#1b2416" depthWrite={false} opacity={0.3} transparent />
+      </mesh>
+
       {/* Actual bee size, near enough. The world grew around it instead. */}
       <group
         ref={pollinatorRef}
@@ -1575,7 +1783,10 @@ function ScoutScene({
       >
         <PollinatorModel
           animationState={
-            playerMovement === "Pollinating"
+            // Feet down, wings folded to an idle flick.
+            perched
+              ? "idle"
+              : playerMovement === "Pollinating"
               ? "pollinating"
               : playerMovement === "Flying" || playerMovement === "Boosting"
                 ? "flying"
@@ -1598,7 +1809,7 @@ function ScoutScene({
           world space and left behind, which is what makes it a trail. It reads
           the bee's position from the same ref. `burst` puffs on a success. */}
       <PollinatorTrail
-        burst={pollinationCue}
+        burst={pollinationCue + puffs}
         color={selectedPollinator.trailColor ?? DEFAULT_POLLINATOR.trailColor}
         effect={selectedPollinator.trailEffect}
         sourceRef={pollinatorRef}
@@ -2217,7 +2428,9 @@ export function GameScene({
           >
             <span className={styles.debugLabel}>Scout Stats</span>
             <span className={styles.controlsToggleCue} data-open={statsFold.open}>
-              <span>
+              {/* Keyed by the count, so it is a new element each time the count
+                  changes and the little bounce plays again. */}
+              <span className={styles.countPulse} key={discoveredPlantCount}>
                 {statsFold.open
                   ? "Hide"
                   : `${discoveredPlantCount} / ${PLANTS.length} found`}
@@ -2302,6 +2515,7 @@ export function GameScene({
       <Quiz />
       <PollinationMinigame />
       <ProgressionWatcher />
+      <Moments />
       <FirstFlight />
 
       {isPreviewOpen ? (

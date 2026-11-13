@@ -17,7 +17,18 @@ export type SoundName =
   | "pollinateFail"
   | "badge"
   | "ui"
-  | "wing";
+  | "wing"
+  // Feel: the moments that used to pass in silence.
+  | "land"
+  | "takeoff"
+  | "boost"
+  | "bump"
+  | "match"
+  | "word"
+  | "miss"
+  | "tick"
+  | "streak"
+  | "parkUnlock";
 
 type Engine = {
   context: AudioContext;
@@ -177,6 +188,13 @@ export function setVolume(next: number) {
 }
 
 export function playSound(name: SoundName) {
+  // A spec that wants to know a moment was marked leaves a list here and reads
+  // what was asked for. Asked for, not heard: sound is off by default, and the
+  // question a test has is whether the game reached for the sound at all.
+  if (typeof window !== "undefined") {
+    (window as unknown as { __scoutSounds?: string[] }).__scoutSounds?.push(name);
+  }
+
   if (!enabled) {
     return;
   }
@@ -230,7 +248,119 @@ export function playSound(name: SoundName) {
     case "wing":
       blip(now, 180, 0.05, "sawtooth", 0.05, master);
       break;
+
+    case "land":
+      // Feet down: a soft low pat, then the smaller one of settling.
+      blip(now, 196, 0.09, "sine", 0.16, master);
+      blip(now + 0.07, 262, 0.07, "triangle", 0.08, master);
+      break;
+
+    case "takeoff":
+      // Up and away, two quick steps.
+      blip(now, 392, 0.06, "triangle", 0.1, master);
+      blip(now + 0.05, 587, 0.1, "triangle", 0.1, master);
+      break;
+
+    case "boost":
+      // A little whoosh: three quick rising notes, quiet, with an edge on them.
+      blip(now, 220, 0.07, "sawtooth", 0.04, master);
+      blip(now + 0.04, 330, 0.07, "sawtooth", 0.045, master);
+      blip(now + 0.08, 494, 0.12, "sawtooth", 0.04, master);
+      break;
+
+    case "bump":
+      // Bonk. Low and round: you flew into a tree, you did not crash a car.
+      blip(now, 147, 0.12, "sine", 0.2, master);
+      blip(now + 0.02, 98, 0.14, "sine", 0.12, master);
+      break;
+
+    case "match":
+      // Two notes that agree with each other.
+      blip(now, 659, 0.08, "triangle", 0.14, master);
+      blip(now + 0.07, 988, 0.16, "triangle", 0.14, master);
+      break;
+
+    case "word":
+      blip(now, 587, 0.07, "triangle", 0.14, master);
+      blip(now + 0.06, 784, 0.07, "triangle", 0.14, master);
+      blip(now + 0.12, 1175, 0.18, "triangle", 0.15, master);
+      break;
+
+    case "miss":
+      // One soft low note. Lighter than a failed pollination, because it is a
+      // smaller thing: a wrong letter, a seed that clipped you.
+      blip(now, 247, 0.12, "sine", 0.11, master);
+      break;
+
+    case "tick":
+      blip(now, 880, 0.03, "square", 0.05, master);
+      break;
+
+    case "streak":
+      blip(now, 784, 0.07, "square", 0.1, master);
+      blip(now + 0.07, 1047, 0.07, "square", 0.1, master);
+      blip(now + 0.14, 1319, 0.2, "square", 0.11, master);
+      break;
+
+    case "parkUnlock":
+      // The one real fanfare in the game: a whole new park is a big deal.
+      blip(now, 523, 0.14, "triangle", 0.18, master);
+      blip(now + 0.13, 659, 0.14, "triangle", 0.18, master);
+      blip(now + 0.26, 784, 0.14, "triangle", 0.18, master);
+      blip(now + 0.39, 1047, 0.2, "triangle", 0.2, master);
+      blip(now + 0.6, 784, 0.1, "triangle", 0.16, master);
+      blip(now + 0.7, 1047, 0.5, "triangle", 0.22, master);
+      break;
   }
+}
+
+type Hum = { osc: OscillatorNode; gain: GainNode };
+
+let hum: Hum | null = null;
+
+/**
+ * The bee's own wings, as a sound.
+ *
+ * A bee is a buzz, and this one flew in silence. `level` is how hard it is
+ * working, 0 hovering to 1 flat out: the hum rises in pitch and comes up a
+ * little in volume with it. It is very quiet on purpose. It should be the kind
+ * of sound you only notice when it stops, which it does the moment you land.
+ */
+export function setWingHum(level: number) {
+  if (!enabled && !hum) {
+    return;
+  }
+
+  const active = ensureEngine();
+
+  if (!active) {
+    return;
+  }
+
+  const { context, master } = active;
+
+  if (!hum) {
+    const osc = context.createOscillator();
+    const filter = context.createBiquadFilter();
+    const gain = context.createGain();
+
+    osc.type = "sawtooth";
+    osc.frequency.value = 170;
+    filter.type = "lowpass";
+    filter.frequency.value = 520;
+    gain.gain.value = 0;
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(master);
+    osc.start();
+    hum = { osc, gain };
+  }
+
+  const now = context.currentTime;
+  const clamped = Math.min(1, Math.max(0, level));
+
+  hum.osc.frequency.setTargetAtTime(165 + clamped * 75, now, 0.12);
+  hum.gain.gain.setTargetAtTime(level < 0 ? 0 : 0.012 + clamped * 0.022, now, 0.15);
 }
 
 /**

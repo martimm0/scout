@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ANAGRAM_TARGET, ANAGRAM_MIN_LENGTH } from "../../data/anagram";
 import { ANAGRAM_WORDS } from "../../data/anagram-words";
+import { buzz } from "../../audio/haptics";
 import { playSound } from "../../audio/sound";
 import { coarsePointerNow } from "../../hooks/use-media-query";
 import styles from "./anagram.module.css";
@@ -132,7 +133,8 @@ export function AnagramGame({
 
     if (!accepted.has(word)) {
       setFlash("bad");
-      playSound("pollinateFail");
+      // Not the sound of a failed pollination: this is one wrong word.
+      playSound("miss");
 
       return;
     }
@@ -140,7 +142,8 @@ export function AnagramGame({
     foundRef.current.add(word);
     setMine((was) => [...was, word]);
     setFlash("good");
-    playSound("tap");
+    playSound("word");
+    buzz("match");
     shared?.found(word);
   };
 
