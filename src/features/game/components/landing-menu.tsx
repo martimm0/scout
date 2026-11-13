@@ -26,6 +26,9 @@ import styles from "./landing-menu.module.css";
  *
  * Both offer the quiz, because reading the entry ought to be worth something.
  */
+/** How long the bee takes to come down and settle, which the card waits out. */
+const SETTLE_MS = 750;
+
 export function LandingMenu({
   busy,
   month,
@@ -102,7 +105,37 @@ export function LandingMenu({
     return () => clearInterval(timer);
   }, [busy, landedOn]);
 
-  if (!landedOn) {
+  /**
+   * The landing comes first, and the card after it.
+   *
+   * Pressing Space used to put this card on the screen in the same frame, over
+   * the top of a bee that had not yet moved. The bee now flies down and sets
+   * its feet on the flower, and that is worth seeing, so the card waits for it:
+   * a little under a second from the moment of landing, which `land` stamps.
+   * The controls are frozen from the first instant regardless, because that is
+   * the store's doing and not this card's.
+   *
+   * Measured from the stamp rather than from this component mounting, so
+   * coming BACK to the card (closing the entry you were reading) does not make
+   * you wait again. No wait at all for anybody who has asked for less motion.
+   */
+  const stamp = landedOn ? `${landedOn.key}:${landedOn.at ?? 0}` : null;
+  const arrivedAt = landedOn?.at ?? 0;
+  const [settled, setSettled] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!stamp) {
+      return;
+    }
+
+    const calm = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const wait = calm ? 0 : Math.max(0, SETTLE_MS - (Date.now() - arrivedAt));
+    const timer = window.setTimeout(() => setSettled(stamp), wait);
+
+    return () => window.clearTimeout(timer);
+  }, [arrivedAt, stamp]);
+
+  if (!landedOn || settled !== stamp) {
     return null;
   }
 

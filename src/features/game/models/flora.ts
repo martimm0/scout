@@ -23,7 +23,7 @@ import { VoxelGrid, type Vec3 } from "./voxel-grid";
  * could sit on. Tall plants get proportionally larger blocks, or a nine-unit
  * witch-hazel would cost as much as the rest of the meadow.
  */
-const VOXEL: Record<Quality, number> = { high: 0.04, low: 0.18 };
+const VOXEL: Record<Quality, number> = { high: 0.034, low: 0.18 };
 
 function voxelFor(plant: Plant, quality: Quality) {
   // The woodland ephemerals are a hand high and all their character is in one

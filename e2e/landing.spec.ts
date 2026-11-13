@@ -85,6 +85,45 @@ test.describe("landing", () => {
     expect(heard.indexOf("takeoff"), "take-off was silent").toBeGreaterThan(heard.indexOf("land"));
   });
 
+  test("the landing is shown before the card comes up", async ({ page }) => {
+    await enterGame(page);
+    expect(await findPlant(page), "never got near the flower").toBe(true);
+
+    const perch = perchPoint(nearestPlantToSpawn());
+    const hovering = await drawnBee(page);
+    const takeOff = page.getByRole("button", { name: "Take off" });
+
+    await page.keyboard.press("Space");
+    await page.waitForTimeout(350);
+
+    // A third of a second in: the bee is on its way down, and nothing is in
+    // front of it yet.
+    expect(await takeOff.count(), "the card came up over the landing").toBe(0);
+    expect(apart(await drawnBee(page), perch), "the bee has not started down").toBeLessThan(
+      apart(hovering, perch),
+    );
+
+    // And the controls are already frozen, card or no card.
+    const before = await readout(page);
+
+    await page.keyboard.press("KeyW");
+    await page.keyboard.press("KeyE");
+
+    await expect(takeOff).toBeVisible();
+    expect((await readout(page)).Position, "the bee could still be flown while landing").toBe(
+      before.Position,
+    );
+  });
+
+  test("with less motion asked for, the card does not wait", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await enterGame(page);
+    expect(await findPlant(page), "never got near the flower").toBe(true);
+
+    await page.keyboard.press("Space");
+    await expect(page.getByRole("button", { name: "Take off" })).toBeVisible({ timeout: 400 });
+  });
+
   test("it stays on the flower through the minigame", async ({ page }) => {
     await enterGame(page);
     expect(await findPlant(page)).toBe(true);

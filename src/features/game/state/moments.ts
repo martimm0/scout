@@ -91,3 +91,19 @@ export function momentsBetween(before: MomentState, after: MomentState): Moment[
   return out;
 }
 
+
+/** The name of the event `announce` raises and the Moments line listens for. */
+export const MOMENT_EVENT = "scout:moment";
+
+/**
+ * Say something on the moments line from outside the store.
+ *
+ * Most moments are read off a change in the save. A few are not about the save
+ * at all (the park dropping its own detail to keep the frame rate up), and
+ * those are simply announced.
+ */
+export function announce(moment: Moment) {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent<Moment>(MOMENT_EVENT, { detail: moment }));
+  }
+}

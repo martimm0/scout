@@ -133,23 +133,13 @@ export function buildTerrainGeometry(
     return Math.hypot(dx, dz) / (2 * SIZE);
   };
 
-  const pushTriangle = (
-    p: Vector3,
-    q: Vector3,
-    r: Vector3,
-    slope: number,
-  ) => {
-    ab.subVectors(q, p);
-    ac.subVectors(r, p);
-    normal.crossVectors(ab, ac).normalize();
-
-    const cx = (p.x + q.x + r.x) / 3;
-    const cy = (p.y + q.y + r.y) / 3;
-    const cz = (p.z + q.z + r.z) / 3;
-
+  /**
+   * The colour of the ground at a point, left in `base`. Returns how much to
+   * dim it: a little per-face variation, and the shade of whatever stands there.
+   */
+  const tone = (cx: number, cy: number, cz: number, slope: number) => {
     // A park that forgot to colour one of its areas gets grass, not black.
-    base
-      .set(park.biomeColor[areaAt(cx, cz).id] ?? "#6f8f52");
+    base.set(park.biomeColor[areaAt(cx, cz).id] ?? "#6f8f52");
 
     // Steep ground goes to rock. Falls Ravine's walls are genuinely too steep to
     // hold much, so this reads as accurate rather than as a shader trick.
@@ -181,7 +171,25 @@ export function buildTerrainGeometry(
     const shaded = 1 - shadeAt(cx, cz);
 
     // A little per-face variation, or large flats read as dead colour fields.
-    const jitter = (0.93 + sample(cx, cz, 5) * 0.14) * shaded;
+    return (0.93 + sample(cx, cz, 5) * 0.14) * shaded;
+  };
+
+  const pushTriangle = (
+    p: Vector3,
+    q: Vector3,
+    r: Vector3,
+    slope: number,
+  ) => {
+    ab.subVectors(q, p);
+    ac.subVectors(r, p);
+    normal.crossVectors(ab, ac).normalize();
+
+    const jitter = tone(
+      (p.x + q.x + r.x) / 3,
+      (p.y + q.y + r.y) / 3,
+      (p.z + q.z + r.z) / 3,
+      slope,
+    );
 
     for (const vertex of [p, q, r]) {
       positions.push(vertex.x, vertex.y, vertex.z);
@@ -190,31 +198,144 @@ export function buildTerrainGeometry(
     }
   };
 
-  for (let column = 0; column < columns; column += 1) {
-    for (let row = 0; row < rows; row += 1) {
-      const x0 = world().minX + column * SIZE;
-      const z0 = world().minZ + row * SIZE;
-      const x1 = x0 + SIZE;
-      const z1 = z0 + SIZE;
+  if (quality === "high") {
+    /**
+     * Voxel ground.
+     *
+     * Every two-unit cell is a column with a flat top, one unit of height at a
+     * time, and where a column stands above its neighbour the drop is a wall
+     * of bare earth. A hillside is a staircase and a creek bank is a cut, which
+     * is what the rest of the park is made of too: the smooth facets were the
+     * one surface in it that was not built from blocks.
+     *
+     * The tops sit at or just under the real height (`terrainHeight`), never
+     * over it, so the bee's floor and everything planted on the ground are
+     * where they always were.
+     */
+    const STEP = 1;
+    const tops = new Float32Array(columns * rows);
 
-      const h00 = heightAt(column, row);
-      const h10 = heightAt(column + 1, row);
-      const h11 = heightAt(column + 1, row + 1);
-      const h01 = heightAt(column, row + 1);
-      const slope = slopeAt(column, row);
+    for (let column = 0; column < columns; column += 1) {
+      for (let row = 0; row < rows; row += 1) {
+        const mean =
+          (heightAt(column, row) +
+            heightAt(column + 1, row) +
+            heightAt(column + 1, row + 1) +
+            heightAt(column, row + 1)) /
+          4;
 
-      // Wound counter-clockwise seen from above, so the face normals point at
-      // the sky. Reverse these and the whole park is backface-culled into
-      // invisibility, and you fly over an empty blue void.
-      a.set(x0, h00, z0);
-      b.set(x1, h10, z0);
-      c.set(x1, h11, z1);
-      pushTriangle(a.clone(), c.clone(), b.clone(), slope);
+        tops[column * rows + row] = Math.floor(mean / STEP) * STEP;
+      }
+    }
 
-      a.set(x0, h00, z0);
-      b.set(x1, h11, z1);
-      c.set(x0, h01, z1);
-      pushTriangle(a.clone(), c.clone(), b.clone(), slope);
+    const earth = new Color("#7b6349");
+    const side = new Color();
+    const quad = (
+      corners: [number, number, number][],
+      nx: number,
+      ny: number,
+      nz: number,
+      r: number,
+      g: number,
+      b: number,
+    ) => {
+      for (const index of [0, 1, 2, 0, 2, 3]) {
+        positions.push(corners[index][0], corners[index][1], corners[index][2]);
+        normals.push(nx, ny, nz);
+        colors.push(r, g, b);
+      }
+    };
+    // Each wall: which neighbour, which way it faces, how dark that side is,
+    // and its corners wound to face outward.
+    const WALLS: [number, number, number, number, number][] = [
+      [1, 0, 1, 0, 0.9],
+      [-1, 0, -1, 0, 0.9],
+      [0, 1, 0, 1, 0.96],
+      [0, -1, 0, -1, 0.84],
+    ];
+
+    for (let column = 0; column < columns; column += 1) {
+      for (let row = 0; row < rows; row += 1) {
+        const x0 = world().minX + column * SIZE;
+        const z0 = world().minZ + row * SIZE;
+        const x1 = x0 + SIZE;
+        const z1 = z0 + SIZE;
+        const y = tops[column * rows + row];
+        const jitter = tone(x0 + SIZE / 2, y, z0 + SIZE / 2, slopeAt(column, row));
+        const r = base.r * jitter;
+        const g = base.g * jitter;
+        const b = base.b * jitter;
+
+        quad([[x0, y, z0], [x0, y, z1], [x1, y, z1], [x1, y, z0]], 0, 1, 0, r, g, b);
+
+        for (const [dc, dr, nx, nz, dim] of WALLS) {
+          const c2 = column + dc;
+          const r2 = row + dr;
+
+          if (c2 < 0 || c2 >= columns || r2 < 0 || r2 >= rows) {
+            continue;
+          }
+
+          const low = tops[c2 * rows + r2];
+
+          if (low >= y) {
+            continue;
+          }
+
+          // One step down is turf: the riser is the colour of the tread, a
+          // little darker, so a gentle slope is green terraces and not a
+          // hillside of brown stripes. Only a real drop cuts through to bare
+          // earth, and a cliff goes on down to rock.
+          const drop = y - low;
+
+          side
+            .copy(base)
+            .lerp(earth, Math.min(1, Math.max(0, (drop - 1) / 3)))
+            .lerp(rock, Math.min(1, Math.max(0, (drop - 5) / 8)));
+
+          const sr = side.r * dim * jitter;
+          const sg = side.g * dim * jitter;
+          const sb = side.b * dim * jitter;
+
+          if (dc === 1) {
+            quad([[x1, low, z0], [x1, y, z0], [x1, y, z1], [x1, low, z1]], nx, 0, nz, sr, sg, sb);
+          } else if (dc === -1) {
+            quad([[x0, low, z1], [x0, y, z1], [x0, y, z0], [x0, low, z0]], nx, 0, nz, sr, sg, sb);
+          } else if (dr === 1) {
+            quad([[x1, low, z1], [x1, y, z1], [x0, y, z1], [x0, low, z1]], nx, 0, nz, sr, sg, sb);
+          } else {
+            quad([[x0, low, z0], [x0, y, z0], [x1, y, z0], [x1, low, z0]], nx, 0, nz, sr, sg, sb);
+          }
+        }
+      }
+    }
+  } else {
+    for (let column = 0; column < columns; column += 1) {
+      for (let row = 0; row < rows; row += 1) {
+        const x0 = world().minX + column * SIZE;
+        const z0 = world().minZ + row * SIZE;
+        const x1 = x0 + SIZE;
+        const z1 = z0 + SIZE;
+
+        const h00 = heightAt(column, row);
+        const h10 = heightAt(column + 1, row);
+        const h11 = heightAt(column + 1, row + 1);
+        const h01 = heightAt(column, row + 1);
+        const slope = slopeAt(column, row);
+
+        // Wound counter-clockwise seen from above, so the face normals point at
+        // the sky. Reverse these and the whole park is backface-culled into
+        // invisibility, and you fly over an empty blue void.
+        a.set(x0, h00, z0);
+        b.set(x1, h10, z0);
+        c.set(x1, h11, z1);
+        pushTriangle(a.clone(), c.clone(), b.clone(), slope);
+
+        a.set(x0, h00, z0);
+        b.set(x1, h11, z1);
+        c.set(x0, h01, z1);
+        pushTriangle(a.clone(), c.clone(), b.clone(), slope);
+      }
     }
   }
 

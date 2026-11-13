@@ -199,14 +199,14 @@ export function scatterFoliage(): FoliageScatter {
  * the whole park: a lawn is nothing to a person and a forest to a bee, and
  * without it you have no sense of how small you are.
  */
-export function scatterGrass(): Placement[] {
+export function scatterGrass(cell: number = GRASS_CELL): Placement[] {
   const park = activePark();
   const blades: Placement[] = [];
 
-  for (let x = world().minX; x <= world().maxX; x += GRASS_CELL) {
-    for (let z = world().minZ; z <= world().maxZ; z += GRASS_CELL) {
-      const px = x + (sample(x, z, 21) - 0.5) * GRASS_CELL;
-      const pz = z + (sample(x, z, 22) - 0.5) * GRASS_CELL;
+  for (let x = world().minX; x <= world().maxX; x += cell) {
+    for (let z = world().minZ; z <= world().maxZ; z += cell) {
+      const px = x + (sample(x, z, 21) - 0.5) * cell;
+      const pz = z + (sample(x, z, 22) - 0.5) * cell;
 
       const height = terrainHeight(px, pz);
 

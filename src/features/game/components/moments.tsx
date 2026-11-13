@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { useGameStore } from "../state/game-store";
-import { momentsBetween, type Moment } from "../state/moments";
+import { MOMENT_EVENT, momentsBetween, type Moment } from "../state/moments";
 import styles from "./moments.module.css";
 
 /** How long one stays up. Short: it is a nod, not a dialog. */
@@ -23,20 +23,28 @@ export function Moments() {
     let last = useGameStore.getState();
     let serial = 0;
 
-    return useGameStore.subscribe((state) => {
-      const before = last;
-
-      last = state;
-
-      const fresh = momentsBetween(before, state);
-
+    const add = (fresh: Moment[]) => {
       if (fresh.length > 0) {
         setQueue((current) => [
           ...current,
           ...fresh.map((moment) => ({ ...moment, id: (serial += 1) })),
         ]);
       }
+    };
+    const onAnnounce = (event: Event) => add([(event as CustomEvent<Moment>).detail]);
+    const unsubscribe = useGameStore.subscribe((state) => {
+      const before = last;
+
+      last = state;
+      add(momentsBetween(before, state));
     });
+
+    window.addEventListener(MOMENT_EVENT, onAnnounce);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener(MOMENT_EVENT, onAnnounce);
+    };
   }, []);
 
   const showing = queue[0];

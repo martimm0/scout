@@ -548,22 +548,22 @@ const BUILDERS: Record<FoliageKind, Build> = {
  * cost when every one of these was a handful of boxes.
  */
 const VOXEL: Record<FoliageKind, [number, number]> = {
-  hemlock: [2, 12],
-  oak: [2, 12],
-  shrub: [1, 6],
-  log: [1, 5],
-  stump: [0.8, 3.4],
-  acorn: [0.45, 2],
-  rock: [0.9, 4],
-  snag: [0.9, 4.6],
-  fern: [0.5, 3.6],
+  hemlock: [1.75, 12],
+  oak: [1.75, 12],
+  shrub: [0.9, 6],
+  log: [0.75, 5],
+  stump: [0.6, 4.2],
+  acorn: [0.35, 2.5],
+  rock: [0.7, 4.6],
+  snag: [0.7, 4.6],
+  fern: [0.46, 3.6],
   grass: [0.4, 0.5],
-  mushroom: [0.45, 1.9],
-  cattail: [0.4, 2.6],
-  branch: [0.5, 3.2],
-  leafLitter: [0.4, 1.7],
-  clover: [0.2, 1.2],
-  knotweed: [0.55, 3.8],
+  mushroom: [0.35, 2.4],
+  cattail: [0.32, 2.6],
+  branch: [0.4, 3.2],
+  leafLitter: [0.32, 1.7],
+  clover: [0.16, 1.5],
+  knotweed: [0.52, 3.8],
 };
 
 /**
@@ -594,6 +594,25 @@ export function buildFoliageKind(kind: FoliageKind, quality: Quality, variant = 
 
   // Everything here stands on the ground, so nothing needs an underside.
   return grid.build({ grounded: true });
+}
+
+export const FOLIAGE_KINDS = Object.keys(BUILDERS) as FoliageKind[];
+
+/**
+ * A stand-in that exists only to throw a shadow.
+ *
+ * A fine oak is eighteen thousand triangles, and drawing every tree in the
+ * park a second time into the shadow map would double the cost of the most
+ * expensive thing in it. A shadow on the ground cannot show that detail
+ * anyway, so the shadow is cast by the same tree at a third of the resolution
+ * and the fine one casts nothing.
+ */
+export function buildFoliageShadow(kind: FoliageKind, variant = 0): BufferGeometry {
+  const grid = new VoxelGrid(VOXEL[kind][0] * 2.8, variant + 1, true);
+
+  BUILDERS[kind](grid, variant, false);
+
+  return grid.build({ ao: false });
 }
 
 /** Every kind, in every variant the quality allows. */

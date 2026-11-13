@@ -94,6 +94,12 @@ export function leaf(
   const mid = polar(angle, length * 0.62, rise, base);
   const tip = polar(angle, length, rise - Math.abs(length) * 0.14, base);
 
+  // On the fine grid a leaf has a midrib and side veins running off it at a
+  // slant, which is most of what makes a green slab read as a leaf.
+  if (g.detailed && options.rib !== false && typeof paint === "string" && width > g.size * 4) {
+    paint = veined(g, paint, base, angle, length);
+  }
+
   g.blade(base, mid, width, paint, {
     profile: (t) => profile(t * 0.62),
     thickness: options.thickness,
@@ -103,9 +109,30 @@ export function leaf(
     thickness: options.thickness,
   });
 
-  if (options.rib !== false && typeof paint === "string" && width > g.size * 3) {
-    g.limb(add(base, [0, g.size, 0]), add(mid, [0, g.size, 0]), 0, 0, tint(paint, 0.2));
-  }
+}
+
+/** A leaf's colour with its veins drawn in: a pale midrib, darker side veins. */
+function veined(g: VoxelGrid, hex: string, base: Vec3, angle: number, length: number): PaintFn {
+  const rib = tint(hex, 0.24);
+  const vein = shade(hex, 0.12);
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const pitch = 5 / Math.max(Math.abs(length), 1e-6);
+
+  return (x, _y, z) => {
+    const dx = x - base[0];
+    const dz = z - base[2];
+    const along = dx * cos + dz * sin;
+    const across = Math.abs(dz * cos - dx * sin);
+
+    if (across < g.size * 0.7) {
+      return rib;
+    }
+
+    const stripe = along * pitch - across * pitch * 0.9;
+
+    return stripe - Math.floor(stripe) < 0.2 ? vein : hex;
+  };
 }
 
 export type LeavesOptions = LeafOptions & {
@@ -167,7 +194,17 @@ export type PetalOptions = {
 
 /** A ring of petals. `paint` may be two tones, used alternately. */
 export function petals(g: VoxelGrid, centre: Vec3, paint: Paint | [Paint, Paint], options: PetalOptions) {
-  const tones = Array.isArray(paint) ? paint : [paint, paint];
+  const reach = (options.inner ?? 0) + options.length;
+  // On the fine grid a petal is darker at the throat and paler at the tip.
+  const graded = (tone: Paint): Paint =>
+    g.detailed && typeof tone === "string" && options.length > g.size * 5
+      ? (x, _y, z) => {
+          const out = Math.hypot(x - centre[0], z - centre[2]) / reach;
+
+          return out < 0.36 ? shade(tone, 0.14) : out > 0.84 ? tint(tone, 0.14) : tone;
+        }
+      : tone;
+  const tones = (Array.isArray(paint) ? paint : [paint, paint]).map(graded);
 
   for (let i = 0; i < options.count; i += 1) {
     const angle = (i / options.count) * TAU + (options.phase ?? 0);

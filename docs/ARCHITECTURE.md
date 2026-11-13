@@ -155,16 +155,36 @@ The player's switch is "Detail" in the Controls panel and the touch tray, and
 |---|---|---|
 | Plants, fungi, foliage | fine voxels, roughened surfaces, speckle | the same forms in larger blocks, plain |
 | Trees | three variants of each kind | one |
-| Pollinators | the text art at double resolution, corners rounded, fur in two tones (`refineLayers`) | the text art as drawn |
-| Landmarks | boxes dropped on a voxel grid: corner shading, masonry patches | the boxes as authored |
-| Tree shadows | cast | not cast |
+| Pollinators | the text art at four times its resolution, corners rounded twice, fur in two tones (`refineLayers`) | the text art as drawn |
+| Landmarks | boxes dropped on a voxel grid and dressed by material: glazing bars, boards, shingles, masonry | the boxes as authored |
+| Ground | voxel columns two units square, stepped a unit at a time, with turf or earth risers | the smooth four-unit facets |
+| Ground cover | wildflowers, tufts, fallen leaves, stones; nearly twice the grass | none; the old lawn |
+| Tree shadows | cast, by a coarse stand-in for each tree (`buildFoliageShadow`) | not cast |
 
 Low is **held to what the park cost before the fine models existed**, because
 Low is what a phone runs. `quality.spec.ts` asks the renderer how many triangles
 it drew and compares it with the figure measured on the commit before
-(236,486 for Frick). High is roughly nine times that and holds 120 frames a
-second on the machine it was authored on; nothing has measured it on a phone,
-which is why a phone does not start there.
+(236,486 for Frick). High is roughly sixteen times that, about 3.9 million
+triangles, and holds 120 frames a second on the machine it was authored on with
+the odd dropped frame; nothing has measured it on a phone, which is why a phone
+does not start there.
+
+**High is offered, not imposed.** `QualityGuard` watches the frame rate for four
+seconds after the park has finished sharpening, and if it cannot hold about
+thirty it switches the park to Low and says so on the moments line. Once, and
+only when nobody has chosen: a player who picked High keeps it, a pinned test
+keeps its pin, and it never runs under automation (`navigator.webdriver`),
+where a slow software renderer would rebuild the park in the middle of a test.
+
+**The park arrives coarse and sharpens** (`hooks/use-progressive.ts`). Compiling
+every fine model on load froze the page for seconds before the first frame;
+on Firefox the canvas was not there yet when a test went looking for it. So
+everything is built at Low first, which is quick, and the park is on screen and
+flyable at once. The High versions are then compiled one at a time between
+frames and swapped in a few at a time. `document.documentElement.dataset
+.scoutBuilding` is the number still to do, and a spec that counts triangles at
+High waits for it to reach zero. Landmarks are compiled only for the park being
+flown; every park used to build all three parks' worth.
 
 **Colours go to the mesh once.** `Color.set("#hex")` already converts sRGB to the
 linear space the renderer works in. Every vertex-colour path used to convert a
@@ -223,6 +243,14 @@ as a calm. `strength` is zero and `flow` stops under `prefers-reduced-motion`.
 
 The rest of the same pass:
 
+- **The sky is painted, in bands** (`sky-dome.tsx`). It was a physical sky
+  model, which at noon is a pale haze the colour of the fog under it. The dome
+  takes the fog's colour at the horizon, so the far edge of the park still
+  dissolves into it, and climbs to blue in ten flat steps. It warms at the rim
+  under a low sun, greys under cloud and goes navy at night. The sun is a
+  square.
+- **A second, cool light** comes from the side the sun is not on, with no
+  shadows of its own, so the shaded side of everything is not one flat dark.
 - **Shade is baked into the ground.** `buildTerrainGeometry(quality, shades)`
   darkens faces under trees, shrubs, rocks and logs, so even Low, which casts no
   tree shadows, has trees that sit on the ground rather than float over it. High
@@ -474,6 +502,13 @@ they are.
   fading with altitude, for judging a landing. It is hidden while perched, when
   a flat disc under a bloom would show through the petals.
 
+**The landing is shown before the card.** Pressing Space freezes the controls
+at once, because that is the store's doing, but the landing card waits
+`SETTLE_MS` (three quarters of a second, measured from the stamp `land` puts on
+the arrival) so the bee is seen flying down and setting its feet on the flower
+first. Coming back to the card from an entry does not wait again, and nobody
+who has asked for less motion waits at all.
+
 **Landing is drawn, not simulated.** While a flower has the player (the landing
 card, its minigame, its quiz), the bee that is drawn eases onto that flower's
 perch (`world/perch.ts`, from the form's own perch point) and lifts off when it
@@ -494,8 +529,10 @@ opened in the same update as a find, a streak only if it rose by exactly one.
 
 **Sound and touch.** Ten new synthesized sounds mark what used to be silent
 (`land`, `takeoff`, `boost`, `bump`, `match`, `word`, `miss`, `tick`, `streak`,
-`parkUnlock`), plus a very quiet wing hum that rises with speed and stops with
-the bee's feet down. `audio/haptics.ts` answers the same moments in the hand on
+`parkUnlock`). All of them are short: a continuous wing hum was tried and
+taken out again, because `music.spec.ts` and `audio-spectrum.spec.ts` hold the
+game to having nothing that drones and nothing in the bass, and a hum is both.
+`audio/haptics.ts` answers the same moments in the hand on
 a touch device, with a switch in the tray. It is Android only in practice:
 Safari on an iPhone has no vibration API, and the switch is not shown where
 nothing can buzz. A spec that wants to know a moment was marked sets

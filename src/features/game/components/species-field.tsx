@@ -8,7 +8,6 @@ import {
   InstancedMesh,
   MeshLambertMaterial,
   Object3D,
-  type BufferGeometry,
 } from "three";
 
 import { buildFungusGeometry } from "../models/fungi";
@@ -17,6 +16,7 @@ import {
   buildPlantGeometry,
   buildSeedHeadGeometry,
 } from "../models/flora";
+import { useProgressive } from "../hooks/use-progressive";
 import { useQuality } from "../hooks/use-quality";
 import { useGameStore } from "../state/game-store";
 import { sway } from "../world/wind";
@@ -80,32 +80,29 @@ export function SpeciesField({
   const quality = useQuality();
 
   // One geometry per species, shared across all its placements.
-  const geometry = useMemo(() => {
-    const map = new Map<string, BufferGeometry>();
+  const byId = useMemo(() => {
+    const map = new Map<string, SpeciesInstance>();
 
     for (const instance of instances) {
-      if (map.has(instance.id)) {
-        continue;
+      if (!map.has(instance.id)) {
+        map.set(instance.id, instance);
       }
-
-      map.set(
-        instance.id,
-        instance.species.kind === "plant"
-          ? buildPlantGeometry(instance.species.plant, quality)
-          : buildFungusGeometry(instance.species.fungus, quality),
-      );
     }
 
     return map;
-  }, [instances, quality]);
+  }, [instances]);
+  const ids = useMemo(() => [...byId.keys()], [byId]);
+  const geometry = useProgressive(
+    ids,
+    (id, level) => {
+      const { species } = byId.get(id) as SpeciesInstance;
 
-  useEffect(
-    () => () => {
-      for (const part of geometry.values()) {
-        part.dispose();
-      }
+      return species.kind === "plant"
+        ? buildPlantGeometry(species.plant, level)
+        : buildFungusGeometry(species.fungus, level);
     },
-    [geometry],
+    quality,
+    "",
   );
 
   const highlight = useMemo(() => new Color("#fff6c9"), []);

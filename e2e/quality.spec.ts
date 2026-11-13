@@ -29,6 +29,14 @@ async function triangles(page: Page) {
   );
 }
 
+/** Wait for every fine model to have been compiled and swapped in. */
+async function whole(page: Page) {
+  await page.waitForFunction(() => document.documentElement.dataset.scoutBuilding === "0", undefined, {
+    timeout: 60_000,
+  });
+  await page.waitForTimeout(800);
+}
+
 /** Past the walkthrough, with Controls pinned open so the switch is on screen. */
 async function arrive(page: Page, subject: string, query = "") {
   await openPlay(page, subject);
@@ -49,7 +57,8 @@ test.describe("detail: high and low", () => {
     await arrive(page, "quality-switch");
 
     await expect(detail(page)).toHaveAttribute("data-quality", "high");
-    await page.waitForTimeout(1500);
+    // The park arrives coarse and sharpens: count it once it is whole.
+    await whole(page);
 
     const fine = await triangles(page);
 
@@ -84,13 +93,35 @@ test.describe("detail: high and low", () => {
     await expect(detail(page)).toHaveAttribute("data-quality", "low");
   });
 
+  test("the park is flyable before the fine models are ready", async ({ page }) => {
+    await openPlay(page, "quality-progressive");
+    await page.goto("/play?debug=1&hour=12&month=7&weather=clear&quality=high");
+
+    // The canvas is up and drawing while models are still being compiled...
+    await page.waitForSelector("canvas");
+
+    const early = await page.evaluate(() => ({
+      building: Number(document.documentElement.dataset.scoutBuilding ?? "0"),
+      triangles: (window as unknown as { __scoutGl?: { info: { render: { triangles: number } } } }).__scoutGl
+        ?.info.render.triangles,
+    }));
+
+    await whole(page);
+
+    // ...and ends up drawing far more than it started with.
+    expect(await triangles(page), "the park never sharpened").toBeGreaterThan(
+      Math.max(early.triangles ?? 0, 300_000) * 2,
+    );
+  });
+
   test("low costs no more than the whole park did before", async ({ page, browserName }) => {
     // The count depends on what is in view, and the old figure was taken in
     // this browser at this window size.
     test.skip(browserName !== "chromium", "measured in chromium");
 
     await enterGame(page);
-    await page.goto("/play?debug=1&hour=12&month=7&quality=low");
+    // A clear sky: the count must not depend on how cloudy Pittsburgh is today.
+    await page.goto("/play?debug=1&hour=12&month=7&weather=clear&quality=low");
     await page.waitForTimeout(5000);
     await hold(page, "ArrowUp", 1500);
 

@@ -4,11 +4,21 @@ import { useEffect, useMemo, useRef } from "react";
 import { Color, InstancedMesh, MeshLambertMaterial, Object3D, type BufferGeometry } from "three";
 
 import { useQuality } from "../hooks/use-quality";
-import { buildFoliageGeometry, SWAY, type FoliageKind } from "../models/foliage";
+import { useProgressive } from "../hooks/use-progressive";
+import {
+  buildFoliageKind,
+  buildFoliageShadow,
+  FOLIAGE_KINDS,
+  foliageVariants,
+  SWAY,
+  type FoliageKind,
+} from "../models/foliage";
+import { buildCoverGeometry, COVER_KINDS } from "../models/ground-cover";
 import { buildShoreGeometry } from "../models/shore";
+import { scatterCover } from "../world/ground-cover";
 import { scatterShore } from "../world/shoreline";
 import { ripple, sway as swayMaterial } from "../world/wind";
-import { buildLandmarkGeometry } from "../models/landmarks";
+import { buildLandmark } from "../models/landmarks";
 import { scatterFoliage, scatterGrass, type Placement } from "../world/scatter";
 import { seasonLook } from "../world/season";
 import { buildTerrainGeometry, type Shade } from "../world/terrain-mesh";
@@ -90,21 +100,30 @@ function Instances({
   geometry,
   placements,
   sway,
+  shadowOnly = false,
 }: {
   castShadow?: boolean;
   geometry: BufferGeometry;
   placements: Placement[];
   /** Moves in the wind: the model's height and how far its top travels. */
   sway?: [height: number, amount: number];
+  /** Drawn into the shadow map and nowhere else. */
+  shadowOnly?: boolean;
 }) {
   const meshRef = useRef<InstancedMesh>(null);
   const swayHeight = sway?.[0];
   const swayAmount = sway?.[1];
   const material = useMemo(() => {
+    if (shadowOnly) {
+      // Writes nothing to the screen: no colour and no depth. It is in the
+      // scene so the light can see it.
+      return new MeshLambertMaterial({ colorWrite: false, depthWrite: false });
+    }
+
     const lambert = new MeshLambertMaterial({ vertexColors: true });
 
     return swayHeight && swayAmount ? swayMaterial(lambert, swayHeight, swayAmount) : lambert;
-  }, [swayAmount, swayHeight]);
+  }, [shadowOnly, swayAmount, swayHeight]);
 
   useEffect(() => () => material.dispose(), [material]);
 
@@ -140,8 +159,9 @@ function Instances({
       // Remounted with its geometry: an instanced mesh keeps the count it was
       // built with, and a variant's share of the placements can change.
       key={`${geometry.uuid}-${placements.length}`}
-      receiveShadow
+      receiveShadow={!shadowOnly}
       ref={meshRef}
+      userData={{ shadowOnly }}
     />
   );
 }
@@ -160,6 +180,8 @@ const SHADE: Partial<Record<FoliageKind, [radius: number, depth: number]>> = {
   log: [14, 0.18],
   knotweed: [9, 0.2],
 };
+
+const TERRAIN = ["ground"] as const;
 
 function groundShade(): Shade[] {
   const shades: Shade[] = [];
@@ -186,18 +208,23 @@ export function Terrain({ month }: { month: number }) {
   // Rebuilt only when the month turns. Snow lies over the ground in winter; the
   // rest of the year the terrain keeps its own colours.
   const seasonKey = Math.floor(month);
-  const geometry = useMemo(() => {
-    const look = lookForMonth(seasonKey);
+  const parkId = activePark().id;
+  const built = useProgressive(
+    TERRAIN,
+    (_key, level) => {
+      const look = lookForMonth(seasonKey);
 
-    return tintGeometry(
-      buildTerrainGeometry(quality, groundShade()),
-      look.groundTint,
-      look.groundMix,
-      0,
-    );
-  }, [quality, seasonKey]);
-
-  useEffect(() => () => geometry.dispose(), [geometry]);
+      return tintGeometry(
+        buildTerrainGeometry(level, groundShade()),
+        look.groundTint,
+        look.groundMix,
+        0,
+      );
+    },
+    quality,
+    `${parkId}:${seasonKey}`,
+  );
+  const geometry = built.get("ground");
 
   return (
     <mesh geometry={geometry} receiveShadow>
@@ -251,27 +278,108 @@ export function Foliage({ month }: { month: number }) {
   // winter, fresh green in spring. Rebuilt only when the month turns, or when
   // the player asks for a finer or a coarser park.
   const seasonKey = Math.floor(month);
-  const geometry = useMemo(() => {
-    const look = lookForMonth(seasonKey);
-    const built = buildFoliageGeometry(quality);
+  const variants = foliageVariants(quality);
+  const keys = useMemo(
+    () =>
+      FOLIAGE_KINDS.flatMap((kind) =>
+        // Grass is one model however fine: its variety is in how it is scattered.
+        Array.from({ length: kind === "grass" ? 1 : variants }, (_, variant) => `${kind}:${variant}`),
+      ),
+    [variants],
+  );
+  const geometry = useProgressive(
+    keys,
+    (key, level) => {
+      const [kind, variant] = key.split(":");
+      const look = lookForMonth(seasonKey);
 
-    for (const variants of Object.values(built)) {
-      for (const part of variants) {
-        tintGeometry(part, look.foliageTint, look.foliageMix, look.snow * 0.4);
-      }
-    }
-
-    return built;
-  }, [quality, seasonKey]);
+      return tintGeometry(
+        buildFoliageKind(kind as FoliageKind, level, Number(variant)),
+        look.foliageTint,
+        look.foliageMix,
+        look.snow * 0.4,
+      );
+    },
+    quality,
+    String(seasonKey),
+  );
   const placements = useMemo(() => scatterFoliage(), []);
-  const grass = useMemo(() => scatterGrass(), []);
+  // A thicker lawn on the fine park: nearly twice the blades.
+  const grass = useMemo(() => scatterGrass(quality === "high" ? 5.4 : undefined), [quality]);
+  // What throws the trees' shadows: see `buildFoliageShadow`.
+  const shadows = useMemo(
+    () =>
+      quality === "high"
+        ? keys
+            .filter((key) => SHADE_TREES.has(key.split(":")[0] as FoliageKind))
+            .map((key) => {
+              const [kind, variant] = key.split(":") as [FoliageKind, string];
+
+              return { key, kind, variant: Number(variant), geometry: buildFoliageShadow(kind, Number(variant)) };
+            })
+        : [],
+    [keys, quality],
+  );
 
   useEffect(
     () => () => {
-      for (const variants of Object.values(geometry)) {
-        for (const part of variants) {
-          part.dispose();
-        }
+      for (const shadow of shadows) {
+        shadow.geometry.dispose();
+      }
+    },
+    [shadows],
+  );
+
+  return (
+    <>
+      {shadows.map((shadow) => (
+        <Instances
+          castShadow
+          geometry={shadow.geometry}
+          key={`shadow-${shadow.key}`}
+          placements={placements[shadow.kind].filter((_, index) => index % variants === shadow.variant)}
+          shadowOnly
+        />
+      ))}
+      {quality === "high" ? <GroundCover /> : null}
+      {keys
+        .filter((key) => !key.startsWith("grass:"))
+        .map((key) => {
+          const [kind, variant] = key.split(":") as [FoliageKind, string];
+          const part = geometry.get(key);
+
+          return part ? (
+            <Instances
+              geometry={part}
+              key={key}
+              // Each variant takes every nth placement, so three oaks are spread
+              // through the wood rather than standing in three groves.
+              placements={placements[kind].filter((_, index) => index % variants === Number(variant))}
+              sway={SWAY[kind]}
+            />
+          ) : null;
+        })}
+      {/* Thousands of blades, one draw call. This is what tells the player how
+          small they are, so it has to be everywhere and it has to be cheap. */}
+      {geometry.get("grass:0") ? (
+        <Instances geometry={geometry.get("grass:0") as BufferGeometry} placements={grass} sway={SWAY.grass} />
+      ) : null}
+    </>
+  );
+}
+
+/** Wildflowers, tufts, fallen leaves and stones: the fine park's ground. */
+function GroundCover() {
+  const placements = useMemo(() => scatterCover(), []);
+  const geometry = useMemo(
+    () => new Map(COVER_KINDS.map((kind) => [kind, buildCoverGeometry(kind)])),
+    [],
+  );
+
+  useEffect(
+    () => () => {
+      for (const part of geometry.values()) {
+        part.dispose();
       }
     },
     [geometry],
@@ -279,24 +387,14 @@ export function Foliage({ month }: { month: number }) {
 
   return (
     <>
-      {(Object.keys(geometry) as FoliageKind[])
-        .filter((kind) => kind !== "grass")
-        .flatMap((kind) =>
-          // Each variant takes every nth placement, so three oaks are spread
-          // through the wood rather than standing in three groves.
-          geometry[kind].map((part, variant, all) => (
-            <Instances
-              castShadow={quality === "high" && SHADE_TREES.has(kind)}
-              geometry={part}
-              key={`${kind}-${variant}`}
-              placements={placements[kind].filter((_, index) => index % all.length === variant)}
-              sway={SWAY[kind]}
-            />
-          )),
-        )}
-      {/* Thousands of blades, one draw call. This is what tells the player how
-          small they are, so it has to be everywhere and it has to be cheap. */}
-      <Instances geometry={geometry.grass[0]} placements={grass} sway={SWAY.grass} />
+      {COVER_KINDS.map((kind) => (
+        <Instances
+          geometry={geometry.get(kind) as BufferGeometry}
+          key={kind}
+          placements={placements[kind]}
+          sway={kind === "stone" || kind === "leaves" ? undefined : [3.2, 0.1]}
+        />
+      ))}
     </>
   );
 }
@@ -307,17 +405,15 @@ export function Foliage({ month }: { month: number }) {
  */
 export function Landmarks() {
   const quality = useQuality();
-  const geometry = useMemo(() => buildLandmarkGeometry(quality), [quality]);
-  const props = PROPS_BY_PARK[activePark().id] ?? [];
-
-  useEffect(
-    () => () => {
-      for (const part of Object.values(geometry)) {
-        part.dispose();
-      }
-    },
-    [geometry],
+  const parkId = activePark().id;
+  const props = PROPS_BY_PARK[parkId] ?? [];
+  // Only what this park actually has standing in it. Every park used to
+  // compile all three parks' landmarks and throw two thirds of them away.
+  const kinds = useMemo(
+    () => [...new Set((PROPS_BY_PARK[parkId] ?? []).map((prop) => prop.kind))],
+    [parkId],
   );
+  const geometry = useProgressive(kinds, (kind, level) => buildLandmark(kind, level), quality, "");
 
   return (
     <>
@@ -331,7 +427,7 @@ export function Landmarks() {
         return (
           <mesh
             castShadow
-            geometry={geometry[prop.kind]}
+            geometry={geometry.get(prop.kind)}
             key={`${prop.kind}-${x}-${z}-${index}`}
             position={[x, y, z]}
             receiveShadow

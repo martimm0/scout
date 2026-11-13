@@ -314,55 +314,6 @@ export function playSound(name: SoundName) {
   }
 }
 
-type Hum = { osc: OscillatorNode; gain: GainNode };
-
-let hum: Hum | null = null;
-
-/**
- * The bee's own wings, as a sound.
- *
- * A bee is a buzz, and this one flew in silence. `level` is how hard it is
- * working, 0 hovering to 1 flat out: the hum rises in pitch and comes up a
- * little in volume with it. It is very quiet on purpose. It should be the kind
- * of sound you only notice when it stops, which it does the moment you land.
- */
-export function setWingHum(level: number) {
-  if (!enabled && !hum) {
-    return;
-  }
-
-  const active = ensureEngine();
-
-  if (!active) {
-    return;
-  }
-
-  const { context, master } = active;
-
-  if (!hum) {
-    const osc = context.createOscillator();
-    const filter = context.createBiquadFilter();
-    const gain = context.createGain();
-
-    osc.type = "sawtooth";
-    osc.frequency.value = 170;
-    filter.type = "lowpass";
-    filter.frequency.value = 520;
-    gain.gain.value = 0;
-    osc.connect(filter);
-    filter.connect(gain);
-    gain.connect(master);
-    osc.start();
-    hum = { osc, gain };
-  }
-
-  const now = context.currentTime;
-  const clamped = Math.min(1, Math.max(0, level));
-
-  hum.osc.frequency.setTargetAtTime(165 + clamped * 75, now, 0.12);
-  hum.gain.gain.setTargetAtTime(level < 0 ? 0 : 0.012 + clamped * 0.022, now, 0.15);
-}
-
 /**
  * The music.
  *

@@ -319,9 +319,15 @@ is stamped into a voxel grid, and the rules for the look follow from that.
   is the same forms in larger blocks and is what a phone starts on. The Detail
   switch is in Controls, and in the tray on touch.
 
+- **The ground is blocks too.** On High the park is terraced in two-unit
+  columns, and between the flowers you can land on there are buttercups, violets
+  and daisies you cannot, with fallen leaves under the trees.
+- **The sky is blue.** Painted in bands, with a square sun, warm at the rim at
+  dusk and grey under cloud.
+
 The bee lands on the flower. It used to hang in the air beside it while a card
 opened; now it flies down, sets its feet on the bloom and folds its wings, and
-lifts off when you are done.
+only then does the card come up. It lifts off when you are done.
 
 ## Where this is going
 

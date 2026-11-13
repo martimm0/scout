@@ -1,6 +1,5 @@
 "use client";
 
-import { Sky } from "@react-three/drei";
 import { createRoot, extend, useFrame, useThree } from "@react-three/fiber";
 import {
   useCallback,
@@ -23,7 +22,6 @@ import {
 import { trackEvent } from "@/lib/analytics";
 import {
   playSound,
-  setWingHum,
   setAreaAmbience,
   setSoundEnabled,
   setVolume,
@@ -66,8 +64,10 @@ import { PollinationMinigame } from "./pollination-minigame";
 import { Moments } from "./moments";
 import { ProgressionWatcher } from "./progression-watcher";
 import { DetailToggle } from "./detail-toggle";
+import { QualityGuard } from "./quality-guard";
+import { SkyDome } from "./sky-dome";
 import { SoundToggle } from "./sound-toggle";
-import { pinQuality, type Quality } from "../models/quality";
+import { pinQuality, pinnedQuality, type Quality } from "../models/quality";
 import { perchPoint } from "../world/perch";
 import { wind, windStrength } from "../world/wind";
 import { buzz } from "../audio/haptics";
@@ -648,6 +648,9 @@ function ScoutScene({
   /** Scratch vector for the collision slide. Reused so the loop allocates nothing. */
   const pushOutRef = useRef(new Vector3());
   const sunRef = useRef<DirectionalLight>(null);
+  // Sharper shadows on the fine park. Read once: a shadow map cannot be resized
+  // while it is in use, and the switch rebuilds everything else anyway.
+  const [fineShadows] = useState(() => pinnedQuality() !== "low" && useGameStore.getState().settings.quality !== "low");
   // Less motion asked for: read once a frame, so kept in a ref and out of render.
   const stillAir = useRef(false);
 
@@ -1366,13 +1369,6 @@ function ScoutScene({
     }
 
     wasBoostingRef.current = isBoosting;
-    // Wings: harder the faster it goes, and silent with its feet down.
-    setWingHum(
-      perchKeyRef.current !== null
-        ? -1
-        : clamp(velocity.length() / (BASE_SPEED * BOOST_MULTIPLIER) + Math.abs(climbRef.current) / 60, 0, 1),
-    );
-
     movementState.current = riding
       ? "Flying"
       : isPollinating
@@ -1683,21 +1679,10 @@ function ScoutScene({
 
   return (
     <>
-      {/* The sky is the real Pittsburgh sky: the sun's position, the turbidity
-          and the rayleigh scattering all come from the hour. Dawn is long and
-          red because the light is coming through more atmosphere, which is true. */}
-      <Sky
-        distance={450000}
-        mieCoefficient={0.005}
-        mieDirectionalG={0.8}
-        rayleigh={sky.rayleigh}
-        sunPosition={[
-          sky.sun[0] * 100,
-          sky.sun[1] * 100,
-          sky.sun[2] * 100,
-        ]}
-        turbidity={sky.turbidity}
-      />
+      {/* The sky is the real Pittsburgh sky in its colours and its sun: blue at
+          noon, warm at the rim when the sun is low, grey under cloud, navy at
+          night. Painted in bands rather than modelled; see sky-dome.tsx. */}
+      <SkyDome cloudCover={weather.cloudCover} sky={sky} />
       <ambientLight
         color={sky.ambientColor}
         intensity={sky.ambientIntensity}
@@ -1716,8 +1701,17 @@ function ScoutScene({
         // A quarter of the texels on a phone. The shadows are soft and the screen
         // is small; the difference is hard to see and easy to feel.
         shadow-mapSize={
-          coarsePointerNow() ? [1024, 1024] : [2048, 2048]
+          coarsePointerNow() ? [1024, 1024] : fineShadows ? [4096, 4096] : [2048, 2048]
         }
+      />
+      {/* The sky's own light, from the side the sun is not on. Cool against the
+          sun's warm, and with no shadows of its own: it is what stops the
+          shaded side of everything being one flat dark, and it is the cheapest
+          depth in the scene. */}
+      <directionalLight
+        color="#bcd4ff"
+        intensity={sky.sunIntensity * 0.2}
+        position={[-sky.sun[0] * 100, 40, -sky.sun[2] * 100]}
       />
       <hemisphereLight
         args={[
@@ -1763,6 +1757,7 @@ function ScoutScene({
           which is every solo session. */}
       <OtherBees />
       <SceneHandle />
+      <QualityGuard />
 
       {/* How high up you are, drawn on the ground. Eight-sided, like everything. */}
       <mesh ref={shadowRef} renderOrder={2} rotation={[-Math.PI / 2, 0, 0]} userData={{ heightShadow: true }}>

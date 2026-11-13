@@ -22,10 +22,10 @@ import { triangleCount } from "../src/features/game/models/voxel-grid";
 
 /** The most triangles one model of each set may have: high, then low. */
 const BUDGET: Record<string, [number, number]> = {
-  plants: [12_000, 2_400],
-  fungi: [12_000, 2_400],
-  foliage: [12_500, 1_200],
-  landmarks: [12_000, 800],
+  plants: [19_000, 1_400],
+  fungi: [17_500, 1_300],
+  foliage: [18_000, 600],
+  landmarks: [15_000, 800],
 };
 
 /**

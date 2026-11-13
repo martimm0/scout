@@ -14,7 +14,7 @@ import { VoxelGrid, type Vec3 } from "./voxel-grid";
  */
 
 /** Voxel size in the fungus's own units: high, then low. */
-const VOXEL: Record<Quality, number> = { high: 0.03, low: 0.09 };
+const VOXEL: Record<Quality, number> = { high: 0.024, low: 0.09 };
 
 /**
  * Forms are drawn at life proportions and then enlarged, all three axes alike.

@@ -79,6 +79,11 @@ export class VoxelGrid {
     private readonly plain = false,
   ) {}
 
+  /** Whether fine detail is wanted: veins, speckle, roughness. False on low. */
+  get detailed() {
+    return !this.plain;
+  }
+
   /** How many cells are filled. */
   get count() {
     return this.cells.size;
@@ -396,9 +401,9 @@ export class VoxelGrid {
   }
 
   /** Every axis-aligned box of an older model, dropped onto the grid. */
-  boxes(boxes: Box[], recolor?: (color: string) => Paint) {
+  boxes(boxes: Box[], recolor?: (color: string, box: Box) => Paint) {
     for (const box of boxes) {
-      this.box(box.position, box.size, recolor ? recolor(box.color) : box.color);
+      this.box(box.position, box.size, recolor ? recolor(box.color, box) : box.color);
     }
 
     return this;

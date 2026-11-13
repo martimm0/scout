@@ -1,8 +1,8 @@
 import type { BufferGeometry } from "three";
 
 import type { Quality } from "./quality";
-import { buildBoxGeometry, type Box } from "./voxel";
-import { patches, VoxelGrid } from "./voxel-grid";
+import { buildBoxGeometry, shade, tint, type Box } from "./voxel";
+import { patches, VoxelGrid, type Paint } from "./voxel-grid";
 
 /**
  * The things that make it Frick Park and not just any wood.
@@ -806,9 +806,78 @@ export function buildLandmark(kind: LandmarkKind, quality: Quality): BufferGeome
 
   // Fine enough to keep its thinnest rail a rail, coarse enough that the
   // longest bridge is a couple of hundred cells and not a couple of thousand.
-  const size = Math.max((max - min) / 170, Math.min(thinnest, (max - min) / 60));
+  const size = Math.max((max - min) / 230, Math.min(thinnest, (max - min) / 70));
 
-  return new VoxelGrid(size).boxes(boxes, (color) => patches(color, 0.045, size * 3)).build();
+  return new VoxelGrid(size).boxes(boxes, (color) => dressed(color, size)).build();
+}
+
+/** How far a colour is from another, roughly: enough to tell timber from stone. */
+function near(a: string, b: string) {
+  const pa = Number.parseInt(a.slice(1), 16);
+  const pb = Number.parseInt(b.slice(1), 16);
+
+  return (
+    Math.abs((pa >> 16) - (pb >> 16)) +
+    Math.abs(((pa >> 8) & 255) - ((pb >> 8) & 255)) +
+    Math.abs((pa & 255) - (pb & 255)) <
+    40
+  );
+}
+
+const wrap = (value: number, period: number) => ((value % period) + period) % period;
+
+/**
+ * A material, from its colour.
+ *
+ * The landmarks are authored as plain coloured boxes and there are twenty-nine
+ * of them, so rather than redraw each one the fine build reads what a box is
+ * MADE of from the colour it was given and dresses it accordingly. Glass gets
+ * glazing bars. Timber gets boards with seams between them. Slate gets courses
+ * of shingles. Water gets nothing, since still water is flat. Everything else
+ * is masonry, in blocks.
+ */
+function dressed(color: string, size: number): Paint {
+  if (near(color, GLASS) || near(color, GLASS_DARK)) {
+    // Panes five voxels across, in pale metal frames.
+    const pane = size * 6;
+
+    return (x, y, z) =>
+      wrap(x, pane) < size || wrap(y, pane) < size || wrap(z, pane) < size
+        ? "#e4ecea"
+        : wrap(Math.floor(x / pane) + Math.floor(y / pane) + Math.floor(z / pane), 3) === 0
+          ? tint(color, 0.16)
+          : color;
+  }
+
+  if (near(color, TIMBER) || near(color, "#7a5f42") || near(color, "#6b4f36")) {
+    // Boards, four voxels deep, with a dark seam and the odd paler one.
+    const board = size * 4;
+
+    return (_x, y, z) =>
+      wrap(y, board) < size * 0.9
+        ? shade(color, 0.2)
+        : wrap(Math.floor(y / board) + Math.floor(z / (board * 3)), 4) === 0
+          ? tint(color, 0.08)
+          : color;
+  }
+
+  if (near(color, SLATE)) {
+    // Shingles, in courses, each course set half a shingle along from the last.
+    const course = size * 2;
+
+    return (x, y, z) => {
+      const row = Math.floor(y / course);
+      const along = Math.floor((x + z + (wrap(row, 2) * course) / 2) / course);
+
+      return wrap(along + row, 3) === 0 ? shade(color, 0.12) : wrap(along, 2) === 0 ? tint(color, 0.06) : color;
+    };
+  }
+
+  if (near(color, WATER) || near(color, WATER_DEEP)) {
+    return color;
+  }
+
+  return patches(color, 0.05, size * 3);
 }
 
 export function buildLandmarkGeometry(quality: Quality): Record<LandmarkKind, BufferGeometry> {

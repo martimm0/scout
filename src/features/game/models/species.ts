@@ -252,8 +252,8 @@ const TEXTURE: Record<string, string> = { F: "f", B: "b", S: "s", D: "s" };
  * One part, at the quality asked for.
  *
  * Low is the text art exactly as drawn, which is what the bee has always been.
- * High is the same art at twice the resolution with its corners rounded and its
- * fur in two tones (`refineLayers`). Same parts, same pivots, same palette
+ * High is the same art at four times the resolution with its corners rounded
+ * and its fur in two tones (`refineLayers`). Same parts, same pivots, same palette
  * keys, so the rig, the accessories and the customize screen never learn the
  * difference.
  */
@@ -269,12 +269,14 @@ function compilePart(
     return buildVoxelGeometry({ ao, layers, origin, palette, size });
   }
 
+  // Twice over: eight sub-voxels, then eight of each of those. The second pass
+  // knocks the corners off the first's, so a block-built body comes out round.
   return buildVoxelGeometry({
     ao,
-    layers: refineLayers(layers, { texture: ao === false ? undefined : TEXTURE }),
-    origin: [origin[0] * 2, origin[1] * 2, origin[2] * 2],
+    layers: refineLayers(refineLayers(layers), { texture: ao === false ? undefined : TEXTURE, rate: 0.26 }),
+    origin: [origin[0] * 4, origin[1] * 4, origin[2] * 4],
     palette,
-    size: size / 2,
+    size: size / 4,
   });
 }
 
