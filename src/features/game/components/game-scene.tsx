@@ -63,7 +63,10 @@ import { FirstFlight } from "./first-flight";
 import { PlantEntry } from "./plant-entry";
 import { PollinationMinigame } from "./pollination-minigame";
 import { ProgressionWatcher } from "./progression-watcher";
+import { DetailToggle } from "./detail-toggle";
 import { SoundToggle } from "./sound-toggle";
+import { pinQuality, type Quality } from "../models/quality";
+import { wind, windStrength } from "../world/wind";
 import { CloudSyncBadge } from "./cloud-sync-badge";
 import { MAX_PHOTOS, usePhotoStore } from "../state/photo-store";
 import { PLANTS, PLANTS_BY_ID } from "../data/plants";
@@ -607,6 +610,20 @@ function ScoutScene({
   /** Scratch vector for the collision slide. Reused so the loop allocates nothing. */
   const pushOutRef = useRef(new Vector3());
   const sunRef = useRef<DirectionalLight>(null);
+  // Less motion asked for: read once a frame, so kept in a ref and out of render.
+  const stillAir = useRef(false);
+
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => {
+      stillAir.current = query.matches;
+    };
+
+    sync();
+    query.addEventListener("change", sync);
+
+    return () => query.removeEventListener("change", sync);
+  }, []);
 
   // How the chosen species handles. A hoverfly darts and stops dead; a butterfly
   // floats and drifts. Without this the species picker is a costume change.
@@ -1247,6 +1264,12 @@ function ScoutScene({
     // The sun rides along with the bee. A directional light's shadow camera can
     // only cover a small box, and the world is 140x110, parking it at the
     // origin would leave the bee shadowless almost everywhere.
+    // The wind, for everything rooted: one clock and one strength, read by
+    // every swaying material on the graphics card. Still for anybody who has
+    // asked for less motion.
+    wind.time.value = elapsed;
+    wind.strength.value = stillAir.current ? 0 : windStrength(weather.wind);
+
     const sun = sunRef.current;
 
     if (sun) {
@@ -1586,6 +1609,7 @@ export function GameScene({
   hour,
   month: forcedMonth,
   park: forcedPark,
+  quality: forcedQuality,
   weather: forcedWeather,
 }: {
   /** Pins who is on the flowers. Test hook, same as `hour`. */
@@ -1599,10 +1623,15 @@ export function GameScene({
   month?: number;
   /** Pins the park. Test hook, same as `hour`. */
   park?: ParkId;
+  /** Pins how finely the park is drawn. Test hook, same as `hour`. */
+  quality?: Quality;
   /** Pins the sky. Test hook, same as `hour`. */
   weather?: Weather;
 }) {
   const debugVisible = debug;
+
+  // Before anything below builds a mesh: the pin is read on the first render.
+  useState(() => pinQuality(forcedQuality ?? null));
 
   const storedPark = useGameStore((state) => state.currentPark);
 
@@ -2162,6 +2191,7 @@ export function GameScene({
               Show me again
             </button>
             <SoundToggle />
+            <DetailToggle />
             <CloudSyncBadge />
           </>
         ) : null}

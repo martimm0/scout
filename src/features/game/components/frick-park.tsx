@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { Color, InstancedMesh, Object3D, type BufferGeometry } from "three";
+import { Color, InstancedMesh, MeshLambertMaterial, Object3D, type BufferGeometry } from "three";
 
-import { buildFoliageGeometry, type FoliageKind } from "../models/foliage";
+import { useQuality } from "../hooks/use-quality";
+import { buildFoliageGeometry, SWAY, type FoliageKind } from "../models/foliage";
+import { sway as swayMaterial } from "../world/wind";
 import { buildLandmarkGeometry } from "../models/landmarks";
 import { scatterFoliage, scatterGrass, type Placement } from "../world/scatter";
 import { seasonLook } from "../world/season";
@@ -68,15 +70,32 @@ function tintGeometry(
   return geometry;
 }
 
+/** The kinds big enough to throw shade worth drawing. */
+const SHADE_TREES: ReadonlySet<FoliageKind> = new Set(["hemlock", "oak", "snag", "shrub"]);
+
 /** Instanced copies of one prop, placed once and never touched again. */
 function Instances({
+  castShadow = false,
   geometry,
   placements,
+  sway,
 }: {
+  castShadow?: boolean;
   geometry: BufferGeometry;
   placements: Placement[];
+  /** Moves in the wind: the model's height and how far its top travels. */
+  sway?: [height: number, amount: number];
 }) {
   const meshRef = useRef<InstancedMesh>(null);
+  const swayHeight = sway?.[0];
+  const swayAmount = sway?.[1];
+  const material = useMemo(() => {
+    const lambert = new MeshLambertMaterial({ vertexColors: true });
+
+    return swayHeight && swayAmount ? swayMaterial(lambert, swayHeight, swayAmount) : lambert;
+  }, [swayAmount, swayHeight]);
+
+  useEffect(() => () => material.dispose(), [material]);
 
   useEffect(() => {
     const mesh = meshRef.current;
@@ -105,12 +124,14 @@ function Instances({
 
   return (
     <instancedMesh
-      args={[geometry, undefined, placements.length]}
+      args={[geometry, material, placements.length]}
+      castShadow={castShadow}
+      // Remounted with its geometry: an instanced mesh keeps the count it was
+      // built with, and a variant's share of the placements can change.
+      key={`${geometry.uuid}-${placements.length}`}
       receiveShadow
       ref={meshRef}
-    >
-      <meshLambertMaterial vertexColors />
-    </instancedMesh>
+    />
   );
 }
 
@@ -153,26 +174,32 @@ export function Creek() {
 }
 
 export function Foliage({ month }: { month: number }) {
+  const quality = useQuality();
   // The wood itself turns: gold in autumn, bare grey-brown and snow-dusted in
-  // winter, fresh green in spring. Rebuilt only when the month turns.
+  // winter, fresh green in spring. Rebuilt only when the month turns, or when
+  // the player asks for a finer or a coarser park.
   const seasonKey = Math.floor(month);
   const geometry = useMemo(() => {
     const look = lookForMonth(seasonKey);
-    const built = buildFoliageGeometry();
+    const built = buildFoliageGeometry(quality);
 
-    for (const part of Object.values(built)) {
-      tintGeometry(part, look.foliageTint, look.foliageMix, look.snow * 0.4);
+    for (const variants of Object.values(built)) {
+      for (const part of variants) {
+        tintGeometry(part, look.foliageTint, look.foliageMix, look.snow * 0.4);
+      }
     }
 
     return built;
-  }, [seasonKey]);
+  }, [quality, seasonKey]);
   const placements = useMemo(() => scatterFoliage(), []);
   const grass = useMemo(() => scatterGrass(), []);
 
   useEffect(
     () => () => {
-      for (const part of Object.values(geometry)) {
-        part.dispose();
+      for (const variants of Object.values(geometry)) {
+        for (const part of variants) {
+          part.dispose();
+        }
       }
     },
     [geometry],
@@ -182,16 +209,22 @@ export function Foliage({ month }: { month: number }) {
     <>
       {(Object.keys(geometry) as FoliageKind[])
         .filter((kind) => kind !== "grass")
-        .map((kind) => (
-          <Instances
-            geometry={geometry[kind]}
-            key={kind}
-            placements={placements[kind]}
-          />
-        ))}
+        .flatMap((kind) =>
+          // Each variant takes every nth placement, so three oaks are spread
+          // through the wood rather than standing in three groves.
+          geometry[kind].map((part, variant, all) => (
+            <Instances
+              castShadow={quality === "high" && SHADE_TREES.has(kind)}
+              geometry={part}
+              key={`${kind}-${variant}`}
+              placements={placements[kind].filter((_, index) => index % all.length === variant)}
+              sway={SWAY[kind]}
+            />
+          )),
+        )}
       {/* Thousands of blades, one draw call. This is what tells the player how
           small they are, so it has to be everywhere and it has to be cheap. */}
-      <Instances geometry={geometry.grass} placements={grass} />
+      <Instances geometry={geometry.grass[0]} placements={grass} sway={SWAY.grass} />
     </>
   );
 }
@@ -201,7 +234,8 @@ export function Foliage({ month }: { month: number }) {
  * they are landmarks, and a landmark you scattered randomly is not one.
  */
 export function Landmarks() {
-  const geometry = useMemo(() => buildLandmarkGeometry(), []);
+  const quality = useQuality();
+  const geometry = useMemo(() => buildLandmarkGeometry(quality), [quality]);
   const props = PROPS_BY_PARK[activePark().id] ?? [];
 
   useEffect(

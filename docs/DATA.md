@@ -505,6 +505,20 @@ type SavedProgress = {
 };
 ```
 
+**Not in the save: the device's own settings.** `settings` lives in
+localStorage beside the save and is never pushed, because every field is a fact
+about this device rather than about the player:
+
+```ts
+type Settings = {
+  soundOn: boolean;               // off until asked for
+  volume: number;
+  pinnedPanels?: Partial<Record<"controls" | "fieldNotes" | "stats", boolean>>;
+  quality?: "low" | "high";       // unset: high for a mouse, low for a thumb
+  hapticsOn?: boolean;            // unset: on. Small buzzes on a phone.
+};
+```
+
 A push also declares `resetAt`, the last admin reset the device knows about. The
 route compares it with the account's and does not store it; see
 [Every device adds to the save](#every-device-adds-to-the-save).

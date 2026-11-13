@@ -102,8 +102,79 @@ head: {
 ```
 
 Editing the bee means editing a picture, not tweaking forty `position={[0.32,
-0.16, -0.08]}` triples. `buildVoxelGeometry` handles the fine work (the bee, the
-accessories); `buildBoxGeometry` handles the chunky work (trees, landmarks).
+0.16, -0.08]}` triples. `buildVoxelGeometry` compiles the text art (the bee, the
+accessories).
+
+Everything that is not text art is drawn on a **voxel canvas**
+(`models/voxel-grid.ts`). A model is described in world units by stamping shapes
+into a grid: `ball`, `limb`, `column`, `blade`, `box`. The voxel size belongs to
+the grid, not to the model, so one description compiles at two resolutions, and
+that is what the quality setting is (below). `build()` drops hidden faces, shades
+every visible corner by what crowds it (the rule the bee always used), and merges
+flat runs of one colour and one shade into single quads. The merge is what makes
+fine voxels affordable: a trunk is a few dozen quads, not a few thousand.
+
+Three things follow from the merge and are easy to break:
+
+- **Speckle is expensive.** A face that differs from its neighbour cannot merge
+  with it. `mottle` is three tones and no more; `patches` varies a colour in
+  block-sized cubes so a hundred-unit bridge still merges; a paint rule that
+  flecks single voxels can triple a model's cost.
+- **Shaded faces do not merge with clear ones.** Grass blades are placed two
+  cells apart for exactly this reason, and it is a third of the lawn's cost.
+- **`grounded: true`** leaves out the faces looking down from the lowest layer,
+  for anything standing on the ground.
+
+`e2e/models.spec.ts` builds every model in Node, with no browser, and holds each
+to a triangle budget at both qualities.
+
+**Every species has a form of its own.** There were six plant shapes for
+forty-three plants and six fungus shapes for twenty-one fungi, so a trillium and
+a bloodroot were one model in two whites, in a game about telling them apart.
+`models/plant-forms.ts` and `models/fungus-forms.ts` hold one function per
+species, assembled from a shared kit (`models/plant-kit.ts`: `stem`, `leaves`,
+`petals`, `bell`, `tube`, `cluster`, `spire`, `canes`). Each is built round the
+feature you would point at in the field: the milkweed's ball of flowers and its
+warty pod, the mayapple hiding its one flower under two umbrellas, the ink
+dripping off a shaggy mane. A form returns its **perch**, the point a bee sets
+down on, which is not always the top: the mayapple's is in the fork.
+`models.spec.ts` fails if a species has no form, or if two species share a
+silhouette once size and colour are divided out.
+
+`/dev/models` (development only, 404 in production) lays every model out side by
+side: `?set=plants|fungi|foliage|landmarks|pollinators`, `?quality=high|low`,
+and `?only=`, `?cols=`, `?turn=` for a closer look. It is how sixty-four species
+get checked without sixty-four flights.
+
+**Two qualities.** `settings.quality` is `"high"`, `"low"`, or unset, meaning
+whatever suits the device: high for a mouse, low for a thumb (`useQuality`).
+The player's switch is "Detail" in the Controls panel and the touch tray, and
+`?quality=` pins it for a test.
+
+| | High | Low |
+|---|---|---|
+| Plants, fungi, foliage | fine voxels, roughened surfaces, speckle | the same forms in larger blocks, plain |
+| Trees | three variants of each kind | one |
+| Pollinators | the text art at double resolution, corners rounded, fur in two tones (`refineLayers`) | the text art as drawn |
+| Landmarks | boxes dropped on a voxel grid: corner shading, masonry patches | the boxes as authored |
+| Tree shadows | cast | not cast |
+
+Low is **held to what the park cost before the fine models existed**, because
+Low is what a phone runs. `quality.spec.ts` asks the renderer how many triangles
+it drew and compares it with the figure measured on the commit before
+(236,486 for Frick). High is roughly nine times that and holds 120 frames a
+second on the machine it was authored on; nothing has measured it on a phone,
+which is why a phone does not start there.
+
+**Colours go to the mesh once.** `Color.set("#hex")` already converts sRGB to the
+linear space the renderer works in. Every vertex-colour path used to convert a
+second time on top, so every model was drawn far darker and more saturated than
+its palette (a `#5f8a4e` leaf came out near black) and the lights were turned up
+to around five times the physically sensible total to compensate. The second
+conversion is gone, the lights in `daylight.ts` are back near a sum of pi, and a
+palette entry now looks like itself. If a model ever looks crushed and inky,
+somebody has added `convertSRGBToLinear()` to a colour that had already been
+`set`.
 
 The pipeline is **axis-aligned on purpose**. `Box` has no rotation. When the
 reservoir wanted a ring, it got a stair-stepped circle of axis-aligned segments

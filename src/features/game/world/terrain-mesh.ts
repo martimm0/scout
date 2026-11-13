@@ -35,9 +35,9 @@ export function buildTerrainGeometry(): BufferGeometry {
   const colors: number[] = [];
 
   const base = new Color();
-  const rock = new Color(ROCK).convertSRGBToLinear();
-  const shallows = new Color(SHALLOWS).convertSRGBToLinear();
-  const trail = new Color(TRAIL).convertSRGBToLinear();
+  const rock = new Color(ROCK);
+  const shallows = new Color(SHALLOWS);
+  const trail = new Color(TRAIL);
 
   const a = new Vector3();
   const b = new Vector3();
@@ -97,8 +97,7 @@ export function buildTerrainGeometry(): BufferGeometry {
 
     // A park that forgot to colour one of its areas gets grass, not black.
     base
-      .set(park.biomeColor[areaAt(cx, cz).id] ?? "#6f8f52")
-      .convertSRGBToLinear();
+      .set(park.biomeColor[areaAt(cx, cz).id] ?? "#6f8f52");
 
     // Steep ground goes to rock. Falls Ravine's walls are genuinely too steep to
     // hold much, so this reads as accurate rather than as a shader trick.

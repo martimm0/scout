@@ -2,7 +2,7 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { Color, InstancedMesh, Object3D, type BufferGeometry } from "three";
+import { Color, InstancedMesh, MeshLambertMaterial, Object3D, type BufferGeometry } from "three";
 
 import { buildFungusGeometry } from "../models/fungi";
 import {
@@ -10,13 +10,35 @@ import {
   buildPlantGeometry,
   buildSeedHeadGeometry,
 } from "../models/flora";
+import { useQuality } from "../hooks/use-quality";
 import { useGameStore } from "../state/game-store";
+import { sway } from "../world/wind";
 import {
   isFindable,
   isOut,
   landingHeight,
   type SpeciesInstance,
 } from "../world/species-scatter";
+
+/** The two hooks a material needs to lean with the wind, as JSX props. */
+const swayCache = new Map<number, Pick<MeshLambertMaterial, "customProgramCacheKey" | "onBeforeCompile">>();
+
+function swayProps(height: number) {
+  let props = swayCache.get(height);
+
+  if (!props) {
+    // Borrowed from a throwaway material: only the two hooks are kept.
+    const patched = sway(new MeshLambertMaterial(), height, 0.045, 1.7);
+
+    props = {
+      customProgramCacheKey: patched.customProgramCacheKey,
+      onBeforeCompile: patched.onBeforeCompile,
+    };
+    swayCache.set(height, props);
+  }
+
+  return props;
+}
 
 /**
  * Everything you can find, drawn.
@@ -48,6 +70,7 @@ export function SpeciesField({
   instances: SpeciesInstance[];
 }) {
   const nearby = useGameStore((state) => state.ui.nearby);
+  const quality = useQuality();
 
   // One geometry per species, shared across all its placements.
   const geometry = useMemo(() => {
@@ -61,13 +84,13 @@ export function SpeciesField({
       map.set(
         instance.id,
         instance.species.kind === "plant"
-          ? buildPlantGeometry(instance.species.plant)
-          : buildFungusGeometry(instance.species.fungus),
+          ? buildPlantGeometry(instance.species.plant, quality)
+          : buildFungusGeometry(instance.species.fungus, quality),
       );
     }
 
     return map;
-  }, [instances]);
+  }, [instances, quality]);
 
   useEffect(
     () => () => {
@@ -115,6 +138,10 @@ export function SpeciesField({
           >
             <mesh castShadow geometry={geometry.get(instance.id)}>
               <meshLambertMaterial
+                // A flower nods in the wind. A mushroom does not.
+                {...(instance.species.kind === "plant"
+                  ? swayProps(instance.species.plant.height)
+                  : null)}
                 emissive={
                   isNearby ? highlight : glowing ? glow : undefined
                 }

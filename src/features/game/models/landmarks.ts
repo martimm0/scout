@@ -1,6 +1,8 @@
 import type { BufferGeometry } from "three";
 
+import type { Quality } from "./quality";
 import { buildBoxGeometry, type Box } from "./voxel";
+import { patches, VoxelGrid } from "./voxel-grid";
 
 /**
  * The things that make it Frick Park and not just any wood.
@@ -773,11 +775,46 @@ const BUILDERS: Record<LandmarkKind, () => Box[]> = {
   slag,
 };
 
-export function buildLandmarkGeometry(): Record<LandmarkKind, BufferGeometry> {
+/**
+ * One landmark, at the quality asked for.
+ *
+ * Low is the boxes as authored, one flat shade per face, which is what these
+ * have always been. High drops the same boxes onto a voxel grid sized to the
+ * landmark, so a bridge pier gets shaded where it meets the deck, a roof gets a
+ * shadow line under its eaves, and stone and timber are broken up a little
+ * instead of being one flat colour a hundred units long. The shapes do not move
+ * by more than half a voxel, and the collision boxes do not move at all.
+ */
+export function buildLandmark(kind: LandmarkKind, quality: Quality): BufferGeometry {
+  const boxes = BUILDERS[kind]();
+
+  if (quality === "low") {
+    return buildBoxGeometry(boxes);
+  }
+
+  let min = Infinity;
+  let max = -Infinity;
+  let thinnest = Infinity;
+
+  for (const box of boxes) {
+    for (let axis = 0; axis < 3; axis += 1) {
+      min = Math.min(min, box.position[axis] - box.size[axis] / 2);
+      max = Math.max(max, box.position[axis] + box.size[axis] / 2);
+      thinnest = Math.min(thinnest, box.size[axis]);
+    }
+  }
+
+  // Fine enough to keep its thinnest rail a rail, coarse enough that the
+  // longest bridge is a couple of hundred cells and not a couple of thousand.
+  const size = Math.max((max - min) / 170, Math.min(thinnest, (max - min) / 60));
+
+  return new VoxelGrid(size).boxes(boxes, (color) => patches(color, 0.045, size * 3)).build();
+}
+
+export function buildLandmarkGeometry(quality: Quality): Record<LandmarkKind, BufferGeometry> {
   return Object.fromEntries(
-    (Object.keys(BUILDERS) as LandmarkKind[]).map((kind) => [
-      kind,
-      buildBoxGeometry(BUILDERS[kind]()),
-    ]),
+    (Object.keys(BUILDERS) as LandmarkKind[]).map((kind) => [kind, buildLandmark(kind, quality)]),
   ) as Record<LandmarkKind, BufferGeometry>;
 }
+
+export const LANDMARK_KINDS = Object.keys(BUILDERS) as LandmarkKind[];

@@ -1,6 +1,7 @@
 import type { BufferGeometry } from "three";
 
-import { buildVoxelGeometry, shade, tint, type VoxelPalette } from "./voxel";
+import type { Quality } from "./quality";
+import { buildVoxelGeometry, refineLayers, shade, tint, type VoxelPalette } from "./voxel";
 
 /**
  * A pollinator species, as data.
@@ -244,21 +245,55 @@ export function accessoryOffset(accessory: Accessory) {
   return ACCESSORY_OFFSET[accessory];
 }
 
+/** Which keys get a second tone on the fine model, and what it is. */
+const TEXTURE: Record<string, string> = { F: "f", B: "b", S: "s", D: "s" };
+
+/**
+ * One part, at the quality asked for.
+ *
+ * Low is the text art exactly as drawn, which is what the bee has always been.
+ * High is the same art at twice the resolution with its corners rounded and its
+ * fur in two tones (`refineLayers`). Same parts, same pivots, same palette
+ * keys, so the rig, the accessories and the customize screen never learn the
+ * difference.
+ */
+function compilePart(
+  layers: string[][],
+  origin: [number, number, number],
+  size: number,
+  palette: VoxelPalette,
+  quality: Quality,
+  ao?: boolean,
+) {
+  if (quality === "low") {
+    return buildVoxelGeometry({ ao, layers, origin, palette, size });
+  }
+
+  return buildVoxelGeometry({
+    ao,
+    layers: refineLayers(layers, { texture: ao === false ? undefined : TEXTURE }),
+    origin: [origin[0] * 2, origin[1] * 2, origin[2] * 2],
+    palette,
+    size: size / 2,
+  });
+}
+
 export function buildSpeciesGeometry(
   spec: SpeciesSpec,
   colors: Colors,
   accessory: Accessory = "none",
+  quality: Quality = "high",
 ): PollinatorGeometry {
   const palette = { ...basePalette(colors), ...spec.palette(colors) };
 
+  // The second tone of each, for the fine model: fur is never one colour. Taken
+  // from the finished palette, since a species may have repainted the first.
+  palette.f = tint(palette.F, 0.22);
+  palette.b = shade(palette.B, 0.08);
+  palette.s = tint(palette.S, 0.1);
+
   const compile = (part: Part) =>
-    buildVoxelGeometry({
-      ao: part.ao,
-      layers: part.layers,
-      origin: part.origin,
-      palette,
-      size: part.size ?? spec.voxelSize,
-    });
+    compilePart(part.layers, part.origin, part.size ?? spec.voxelSize, palette, quality, part.ao);
 
   const accessoryLayers = ACCESSORY_LAYERS[accessory];
 
@@ -272,12 +307,7 @@ export function buildSpeciesGeometry(
     pollen: compile(spec.parts.pollen),
     antennae: compile(spec.parts.antennae),
     accessory: accessoryLayers
-      ? buildVoxelGeometry({
-          layers: accessoryLayers,
-          origin: [3.5, 0, 1.5],
-          palette,
-          size: spec.voxelSize,
-        })
+      ? compilePart(accessoryLayers, [3.5, 0, 1.5], spec.voxelSize, palette, quality)
       : null,
   };
 }
@@ -289,13 +319,8 @@ export function buildSpeciesGeometry(
  * so the coat can come and go with the rain without rebuilding the whole bee. Only
  * the letter Y is used in the layers, so the palette is a single colour.
  */
-export function buildRaincoatGeometry(voxelSize: number, color: string) {
-  return buildVoxelGeometry({
-    layers: RAINCOAT_LAYERS,
-    origin: [3.5, 0, 1.5],
-    palette: { Y: color },
-    size: voxelSize,
-  });
+export function buildRaincoatGeometry(voxelSize: number, color: string, quality: Quality = "high") {
+  return compilePart(RAINCOAT_LAYERS, [3.5, 0, 1.5], voxelSize, { Y: color }, quality);
 }
 
 export const RAINCOAT_OFFSET = ACCESSORY_OFFSET.raincoat;

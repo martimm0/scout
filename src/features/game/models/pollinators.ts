@@ -3,6 +3,7 @@ import { BEE_SPEC, beeWingLayers } from "./bee";
 import { BUTTERFLY_SPEC } from "./butterfly";
 import { HOVERFLY_SPEC } from "./hoverfly";
 import { MOTH_SPEC } from "./moth";
+import type { Quality } from "./quality";
 import {
   buildRaincoatGeometry,
   buildSpeciesGeometry,
@@ -39,6 +40,7 @@ export function buildPollinatorGeometry(
   colors: Colors,
   wingStyle: WingStyle = "round",
   accessory: Accessory = "none",
+  quality: Quality = "high",
 ): PollinatorGeometry {
   const spec = speciesFor(type);
 
@@ -55,12 +57,12 @@ export function buildPollinatorGeometry(
       }
     : spec;
 
-  return buildSpeciesGeometry(resolved, colors, accessory);
+  return buildSpeciesGeometry(resolved, colors, accessory, quality);
 }
 
 /** The raincoat for a given species, in the player's colour. */
-export function buildRaincoatFor(type: PollinatorType, color: string) {
-  return buildRaincoatGeometry(speciesFor(type).voxelSize, color);
+export function buildRaincoatFor(type: PollinatorType, color: string, quality: Quality = "high") {
+  return buildRaincoatGeometry(speciesFor(type).voxelSize, color, quality);
 }
 
 export { accessoryOffset, ACCESSORIES, RAINCOAT_OFFSET, WING_STYLES } from "./species";

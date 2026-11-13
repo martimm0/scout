@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { Quality } from "../models/quality";
 import { accessoryUnlocked } from "../data/accessories";
 import type { Accessory } from "../models/species";
 import { PLANTS_BY_ID, SOLO_PLANTS } from "../data/plants";
@@ -144,6 +145,14 @@ export type Settings = {
    * device's settings rather than following the account.
    */
   pinnedPanels?: Partial<Record<PanelId, boolean>>;
+  /**
+   * How finely the park is drawn. Unset means "whatever suits this device":
+   * high for a mouse, low for a thumb (`useQuality`). Stays with the device for
+   * the same reason the pins do, and more so: it is a fact about this GPU.
+   */
+  quality?: Quality;
+  /** Small buzzes on a phone: landing, a bump, a result. Unset means on. */
+  hapticsOn?: boolean;
 };
 
 /** Counters the badge rules need that aren't derivable from the boolean records. */

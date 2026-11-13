@@ -13,6 +13,7 @@ import {
   type Accessory,
   type WingStyle,
 } from "../models/pollinators";
+import { useQuality } from "../hooks/use-quality";
 import { disposePollinatorGeometry } from "../models/species";
 import type { Pollinator } from "../state/game-store";
 
@@ -183,6 +184,7 @@ export function PollinatorModel({
   showRaincoat?: boolean;
 }) {
   const spec = speciesFor(pollinator.type);
+  const quality = useQuality();
 
   const geometry = useMemo(
     () =>
@@ -195,8 +197,10 @@ export function PollinatorModel({
         },
         pollinator.wingStyle as WingStyle,
         pollinator.accessory as Accessory,
+        quality,
       ),
     [
+      quality,
       pollinator.type,
       pollinator.bodyColor,
       pollinator.wingColor,
@@ -227,8 +231,8 @@ export function PollinatorModel({
   // changes.
   const raincoatColor = pollinator.raincoatColor ?? "#f7e07a";
   const raincoatGeometry = useMemo(
-    () => buildRaincoatFor(pollinator.type, raincoatColor),
-    [pollinator.type, raincoatColor],
+    () => buildRaincoatFor(pollinator.type, raincoatColor, quality),
+    [pollinator.type, quality, raincoatColor],
   );
 
   useEffect(() => () => raincoatGeometry.dispose(), [raincoatGeometry]);

@@ -170,13 +170,13 @@ export function daylightForHour(hour: number): Daylight {
     // Moonlight is dim and blue, but it is NOT nothing. A night you cannot see
     // in is not a night, it is a bug report.
     sunColor: mix("#a8bcea", daySun, light),
-    sunIntensity: lerp(1.0, 2.5, light),
+    sunIntensity: lerp(0.5, 1.9, light),
 
     ambientColor: mix("#8496c4", "#fff2dd", light),
-    ambientIntensity: lerp(0.95, 1.3, light),
+    ambientIntensity: lerp(0.5, 0.62, light),
 
     groundColor: mix("#3d5045", "#6f8f52", light),
-    hemiIntensity: lerp(0.85, 1.35, light),
+    hemiIntensity: lerp(0.45, 0.72, light),
 
     fogColor: mix("#2c3757", "#d2e2f0", light),
     // Night closes in around you: it should feel smaller and less certain. A

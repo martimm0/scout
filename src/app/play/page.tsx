@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { requireSignIn } from "@/features/auth/components/sign-in-required";
 import { GameScene } from "@/features/game/components/game-scene";
+import { parseQuality } from "@/features/game/models/quality";
 import { weatherPreset } from "@/features/game/world/weather";
 import { PARKS, type ParkId } from "@/features/game/world/terrain";
 
@@ -82,6 +83,10 @@ export default async function PlayPage({
   const raw_busy = String(params.busy ?? "");
   const busy = raw_busy === "on" || raw_busy === "off" ? raw_busy : undefined;
 
+  // `?quality=low` pins how finely the park is drawn. The player's own switch
+  // is in the Controls panel; this is for a test that needs one or the other.
+  const quality = parseQuality(String(params.quality ?? ""));
+
   return (
     <GameScene
       busy={busy}
@@ -89,6 +94,7 @@ export default async function PlayPage({
       hour={hour}
       month={month}
       park={park}
+      quality={quality}
       weather={weather}
     />
   );

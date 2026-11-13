@@ -10,10 +10,13 @@ import * as THREE from "three";
 
 import { AMBIENT_COHORTS, type AmbientCohort } from "../data/ambient";
 import { coarsePointerNow } from "../hooks/use-media-query";
+import { useQuality } from "../hooks/use-quality";
+import { buildCreatureGeometry, WING_ROOT, type CreatureKind } from "../models/creatures";
 import type { Daylight } from "../world/daylight";
 import { hash } from "../world/park";
 import { terrainHeight, world } from "../world/terrain";
 import type { Weather } from "../world/weather";
+import { flap } from "../world/wind";
 
 /**
  * The living park.
@@ -58,23 +61,42 @@ function seedOf(id: string): number {
 function Cohort({ cohort }: { cohort: AmbientCohort }) {
   const mesh = useRef<THREE.InstancedMesh>(null);
 
-  const geometry = useMemo(() => new THREE.BoxGeometry(1, 1, 1), []);
-  const material = useMemo(
-    () =>
-      new THREE.MeshBasicMaterial({
-        color: cohort.color,
-        transparent: true,
-        // Fireflies glow: they add their light to the night rather than sitting
-        // on it as a flat chip. The others are just small bodies.
-        blending:
-          cohort.kind === "firefly"
-            ? THREE.AdditiveBlending
-            : THREE.NormalBlending,
-        depthWrite: cohort.kind !== "firefly",
-        opacity: cohort.kind === "pollinator" ? 0.9 : 1,
-      }),
-    [cohort.color, cohort.kind],
+  // A firefly is a point of light and stays a cube. Everything else is an
+  // animal now, with wings that beat.
+  const creature: CreatureKind | null =
+    cohort.kind === "bird" ? "bird" : cohort.kind === "moth" ? "moth" : cohort.kind === "firefly" ? null : "bug";
+  const fine = useQuality() === "high";
+  const geometry = useMemo(
+    () => (creature ? buildCreatureGeometry(creature, fine) : new THREE.BoxGeometry(1, 1, 1)),
+    [creature, fine],
   );
+  const material = useMemo(() => {
+    const basic = new THREE.MeshBasicMaterial({
+      // The models carry their own colours; a firefly is all one.
+      color: creature ? "#ffffff" : cohort.color,
+      vertexColors: creature !== null,
+      transparent: true,
+      // Fireflies glow: they add their light to the night rather than sitting
+      // on it as a flat chip. The others are just small bodies.
+      blending:
+        cohort.kind === "firefly"
+          ? THREE.AdditiveBlending
+          : THREE.NormalBlending,
+      depthWrite: cohort.kind !== "firefly",
+      opacity: cohort.kind === "pollinator" ? 0.9 : 1,
+    });
+
+    if (!creature) {
+      return basic;
+    }
+
+    // A bird rows; a moth flutters; a bee is a blur.
+    return creature === "bird"
+      ? flap(basic, WING_ROOT.bird, 5, 0.5)
+      : creature === "moth"
+        ? flap(basic, WING_ROOT.moth, 16, 0.7)
+        : flap(basic, WING_ROOT.bug, 46, 0.5);
+  }, [cohort.color, cohort.kind, creature]);
 
   useEffect(() => () => geometry.dispose(), [geometry]);
   useEffect(() => () => material.dispose(), [material]);
@@ -196,11 +218,15 @@ function Cohort({ cohort }: { cohort: AmbientCohort }) {
       dummy.position.set(x, y, z);
 
       if (cohort.kind === "bird") {
-        // Wide and flat: a silhouette with a wingspan, turned along its arc.
-        dummy.scale.set(cohort.size, cohort.size * 0.28, cohort.size * 0.7);
-        dummy.rotation.set(0, -t, 0);
-      } else {
+        // Nose along its arc, banked into the turn. The model is one unit
+        // across the wings, where the old plank was one unit across the lot.
+        dummy.scale.setScalar(cohort.size * 3.2);
+        dummy.rotation.set(0, Math.PI - t, 0.3);
+      } else if (cohort.kind === "firefly") {
         dummy.scale.setScalar(Math.max(0, size));
+        dummy.rotation.set(0, t, 0);
+      } else {
+        dummy.scale.setScalar(Math.max(0, size) * 2.4);
         dummy.rotation.set(0, t, 0);
       }
 

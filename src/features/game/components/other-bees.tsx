@@ -157,20 +157,24 @@ function RemoteBee({ sub, type }: { sub: string; type: string }) {
  */
 export function SceneHandle() {
   const scene = useThree((state) => state.scene);
+  // The renderer too, for the specs that count what a frame costs.
+  const gl = useThree((state) => state.gl);
 
   useEffect(() => {
     if (process.env.NODE_ENV === "production") {
       return;
     }
 
-    const holder = window as unknown as { __scoutScene?: unknown };
+    const holder = window as unknown as { __scoutScene?: unknown; __scoutGl?: unknown };
 
     holder.__scoutScene = scene;
+    holder.__scoutGl = gl;
 
     return () => {
       delete holder.__scoutScene;
+      delete holder.__scoutGl;
     };
-  }, [scene]);
+  }, [gl, scene]);
 
   return null;
 }

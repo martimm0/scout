@@ -21,6 +21,7 @@ import {
   virtualInput,
 } from "../state/virtual-input";
 import styles from "./touch-controls.module.css";
+import { DetailToggle } from "./detail-toggle";
 
 /**
  * The pad: two sticks and a few buttons, overlaid on the park.
@@ -368,6 +369,8 @@ export function TouchControls({
             >
               Show me again
             </button>
+
+            <DetailToggle className={styles.trayButton} />
 
             {/* The scene covers the site header on a touch device, so this is the
                 way back to the rest of Scout. */}

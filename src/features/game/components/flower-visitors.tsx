@@ -2,7 +2,11 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { BoxGeometry, InstancedMesh, MeshBasicMaterial, Object3D } from "three";
+import { InstancedMesh, MeshBasicMaterial, Object3D } from "three";
+
+import { useQuality } from "../hooks/use-quality";
+import { buildCreatureGeometry, WING_ROOT } from "../models/creatures";
+import { flap } from "../world/wind";
 
 import {
   FORAGERS,
@@ -69,9 +73,11 @@ export function FlowerVisitors({
     [flowers.length],
   );
 
-  const geometry = useMemo(() => new BoxGeometry(1, 1, 1), []);
+  // Another bee, small enough to be three stripes and a blur of wing.
+  const fine = useQuality() === "high";
+  const geometry = useMemo(() => buildCreatureGeometry("bug", fine), [fine]);
   const material = useMemo(
-    () => new MeshBasicMaterial({ color: "#e8c15a", transparent: true, opacity: 0.95 }),
+    () => flap(new MeshBasicMaterial({ vertexColors: true }), WING_ROOT.bug, 46, 0.5),
     [],
   );
 
@@ -130,7 +136,8 @@ export function FlowerVisitors({
         top + 1.2 + Math.sin(wobble * 1.7) * 0.4,
         z + Math.cos(wobble * 0.9) * 0.6,
       );
-      dummy.scale.setScalar(occupancy.forager.size);
+      // One unit across the wings, where the cube it replaces was one across all.
+      dummy.scale.setScalar(occupancy.forager.size * 2.4);
       dummy.rotation.set(0, wobble * 0.4, 0);
       dummy.updateMatrix();
       instanced.setMatrixAt(drawn, dummy.matrix);

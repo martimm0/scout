@@ -35,7 +35,7 @@ export type VoxelPart = {
 
 type Axis = readonly [number, number, number];
 
-type Face = {
+export type Face = {
   normal: Axis;
   u: Axis;
   v: Axis;
@@ -43,7 +43,7 @@ type Face = {
 };
 
 // Corners wind counter-clockwise seen from outside, so front faces point out.
-const FACES: readonly Face[] = [
+export const FACES: readonly Face[] = [
   {
     normal: [1, 0, 0],
     u: [0, 1, 0],
@@ -113,7 +113,7 @@ const FACES: readonly Face[] = [
 ];
 
 // Four occlusion steps, from a fully boxed-in corner to an open one.
-const AO_LEVELS = [0.58, 0.74, 0.88, 1] as const;
+export const AO_LEVELS = [0.58, 0.74, 0.88, 1] as const;
 
 const EMPTY = new Set([".", " ", "_"]);
 
@@ -167,7 +167,7 @@ export function buildVoxelGeometry(part: VoxelPart): BufferGeometry {
 
     // Vertex colours are multiplied in linear space by the renderer, so convert
     // once here rather than fighting washed-out output later.
-    scratch.set(hex).convertSRGBToLinear();
+    scratch.set(hex);
     const rgb: [number, number, number] = [scratch.r, scratch.g, scratch.b];
     resolved.set(key, rgb);
 
@@ -267,6 +267,81 @@ export function buildVoxelGeometry(part: VoxelPart): BufferGeometry {
   return geometry;
 }
 
+/**
+ * Text art at twice the resolution, with its corners knocked off.
+ *
+ * Every voxel becomes eight. Then any of those eight sitting on an outside
+ * corner or an outside edge of a solid mass is removed, so a block-built body
+ * comes out rounded without anybody redrawing it. A sub-voxel only goes if the
+ * mass continues behind it: a leg one voxel thick has nothing behind it in any
+ * direction, so it is left exactly as thick as it was drawn.
+ *
+ * `texture` swaps a share of chosen keys for a second key, cell by cell, so a
+ * field of fuzz is two tones rather than one. The caller owns what those keys
+ * mean.
+ */
+export function refineLayers(
+  layers: string[][],
+  options: { texture?: Record<string, string>; rate?: number } = {},
+): string[][] {
+  const at = (x: number, y: number, z: number) => layers[y]?.[z]?.[x];
+  const solid = (x: number, y: number, z: number) => !isEmpty(at(x, y, z));
+  const rate = options.rate ?? 0.3;
+  const out: string[][] = [];
+
+  for (let y = 0; y < layers.length; y += 1) {
+    const depth = layers[y].length;
+    const upper: string[] = [];
+    const lower: string[] = [];
+
+    for (let z = 0; z < depth; z += 1) {
+      const row = layers[y][z];
+      // Four output rows for this input row: two heights by two depths.
+      const rows = ["", "", "", ""];
+
+      for (let x = 0; x < row.length; x += 1) {
+        const key = row[x];
+
+        for (let sy = 0; sy < 2; sy += 1) {
+          for (let sz = 0; sz < 2; sz += 1) {
+            for (let sx = 0; sx < 2; sx += 1) {
+              let cell = ".";
+
+              if (!isEmpty(key)) {
+                const dx = sx === 1 ? 1 : -1;
+                const dy = sy === 1 ? 1 : -1;
+                const dz = sz === 1 ? 1 : -1;
+                // Open on this side, and backed on the far side.
+                const ex = !solid(x + dx, y, z) && solid(x - dx, y, z);
+                const ey = !solid(x, y + dy, z) && solid(x, y - dy, z);
+                const ez = !solid(x, y, z + dz) && solid(x, y, z - dz);
+                const exposed = Number(ex) + Number(ey) + Number(ez);
+
+                if (exposed < 2) {
+                  const swap = options.texture?.[key];
+                  // A cheap stable hash of the sub-voxel's own position.
+                  const h = Math.abs(Math.sin((x * 2 + sx) * 12.9898 + (y * 2 + sy) * 78.233 + (z * 2 + sz) * 37.719) * 43758.5453) % 1;
+
+                  cell = swap && h < rate ? swap : key;
+                }
+              }
+
+              rows[sy * 2 + sz] += cell;
+            }
+          }
+        }
+      }
+
+      lower.push(rows[0], rows[1]);
+      upper.push(rows[2], rows[3]);
+    }
+
+    out.push(lower, upper);
+  }
+
+  return out;
+}
+
 export type Box = {
   position: [number, number, number];
   size: [number, number, number];
@@ -297,7 +372,7 @@ export function buildBoxGeometry(boxes: Box[]): BufferGeometry {
     const [cx, cy, cz] = box.position;
     const [sx, sy, sz] = box.size;
 
-    scratch.set(box.color).convertSRGBToLinear();
+    scratch.set(box.color);
     const { r, g, b } = scratch;
 
     FACES.forEach((face, index) => {
