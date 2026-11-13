@@ -37,7 +37,14 @@ function pump() {
 
   // One model, usually. More if they are small: a frame's worth and no more.
   while (queue.length > 0 && performance.now() - started < 8) {
-    (queue.shift() as () => void)();
+    try {
+      (queue.shift() as () => void)();
+    } catch (error) {
+      // One model that will not build must not stop the rest: the pump is the
+      // page's, not the model's, and a stalled queue would leave the park
+      // coarse and everything that waits for it waiting for good.
+      console.error("a model failed to build", error);
+    }
   }
 
   if (queue.length > 0) {
@@ -128,6 +135,11 @@ export function useProgressive<K extends string>(
       for (const geometry of done.values()) {
         geometry.dispose();
       }
+
+      // And let go of them. Without this, switching to low and back handed
+      // the disposed set to the scene again (the low set had not changed, so
+      // it still looked current), and nothing ever disposed it a second time.
+      setFine(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coarse, quality]);

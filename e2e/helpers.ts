@@ -744,3 +744,11 @@ export async function playMinigame(page: Page, seconds = 14) {
 
   return kind;
 }
+
+/** Wait for every fine model to have been compiled and swapped in. */
+export async function whole(page: Page) {
+  await page.waitForFunction(() => document.documentElement.dataset.scoutBuilding === "0", undefined, {
+    timeout: 60_000,
+  });
+  await page.waitForTimeout(800);
+}

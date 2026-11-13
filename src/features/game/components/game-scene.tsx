@@ -65,6 +65,7 @@ import { Moments } from "./moments";
 import { ProgressionWatcher } from "./progression-watcher";
 import { DetailToggle } from "./detail-toggle";
 import { QualityGuard } from "./quality-guard";
+import { useQuality } from "../hooks/use-quality";
 import { SkyDome } from "./sky-dome";
 import { SoundToggle } from "./sound-toggle";
 import { pinQuality, pinnedQuality, type Quality } from "../models/quality";
@@ -106,6 +107,7 @@ import {
   ceiling,
   setActivePark,
   startPosition,
+  groundDrop,
   terrainHeight,
   waterLevel,
   world,
@@ -653,6 +655,13 @@ function ScoutScene({
   const [fineShadows] = useState(() => pinnedQuality() !== "low" && useGameStore.getState().settings.quality !== "low");
   // Less motion asked for: read once a frame, so kept in a ref and out of render.
   const stillAir = useRef(false);
+  // Whether the ground is the fine park's stepped one, for the frame loop.
+  const quality = useQuality();
+  const fineRef = useRef(quality === "high");
+
+  useEffect(() => {
+    fineRef.current = quality === "high";
+  }, [quality]);
 
   useEffect(() => {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -944,6 +953,14 @@ function ScoutScene({
       // the browser refuse a request that the player never asked for. A tap on the
       // park should just be a tap on the park.
       if (window.matchMedia("(pointer: coarse)").matches) {
+        return;
+      }
+
+      // Not while landed. Landing hands the pointer back so the card can be
+      // pressed, and the card comes up a moment after the bee has settled: a
+      // click on the park in that moment locked the pointer again, and the card
+      // arrived with no cursor to press it with.
+      if (useGameStore.getState().ui.landedOn) {
         return;
       }
 
@@ -1259,12 +1276,19 @@ function ScoutScene({
         const instance = species.find((candidate) => candidate.key === heldKey);
 
         if (instance) {
-          perchRef.current.set(...perchPoint(instance));
+          perchRef.current.set(...perchPoint(instance, fineRef.current ? "high" : "low"));
           // Standing on it, not sunk into it.
           perchRef.current.y += 0.26;
           playSound("land");
           buzz("land");
           setPuffs((count) => count + 1);
+        } else {
+          // The flower has left the park's list in the moment between the card
+          // opening and this frame (the hour rolled, the park changed). Settle
+          // where the bee already is: the perch still held the LAST flower, or
+          // the origin on a first landing, and the bee and the camera eased
+          // off to it.
+          perchRef.current.copy(targetPosition);
         }
       } else {
         playSound("takeoff");
@@ -1285,9 +1309,26 @@ function ScoutScene({
       Math.sin(elapsed * (hasMovementInput ? 9 : 3.2)) * 0.08 * (1 - onPerch);
 
     renderPosition.set(targetPosition.x, targetPosition.y + bob, targetPosition.z);
+
+    if (fineRef.current) {
+      // Drawn clear of the fine park's steps as well as of the real ground:
+      // at the foot of a steep bank a step can stand over the height the
+      // flight floor is measured from, and the bee skimmed along inside it.
+      const rise = groundDrop(targetPosition.x, targetPosition.z, "high");
+
+      if (rise > 0) {
+        renderPosition.y = Math.max(
+          renderPosition.y,
+          terrainHeight(targetPosition.x, targetPosition.z) + rise + GROUND_CLEARANCE,
+        );
+      }
+    }
+
     renderPosition.lerp(perchRef.current, onPerch);
-    // A little hop on the way down and on the way back up.
-    renderPosition.y += Math.sin(Math.PI * settle) * 0.7;
+    // A little hop on the way down and on the way back up. Not for anybody
+    // who asked for less motion: they get the bee moved to the flower and
+    // nothing more.
+    renderPosition.y += stillAir.current ? 0 : Math.sin(Math.PI * settle) * 0.7;
     pollinator.position.lerp(
       renderPosition,
       1 - Math.exp(-delta * 12),
@@ -1395,7 +1436,7 @@ function ScoutScene({
     cameraPullRef.current += (pace - cameraPullRef.current) * (1 - Math.exp(-delta * 3));
 
     const cameraDistance =
-      CAMERA_DISTANCE * (1 + (calm ? 0 : cameraPullRef.current * 0.16) - onPerch * 0.2);
+      CAMERA_DISTANCE * (1 + (calm ? 0 : cameraPullRef.current * 0.16 - onPerch * 0.2));
 
     cameraTarget.copy(pollinator.position);
 
@@ -1425,9 +1466,13 @@ function ScoutScene({
     const blob = shadowRef.current;
 
     if (blob) {
+      // On the ground as it is DRAWN: the fine park's steps sit up to a unit
+      // under the real height, and a shadow laid on the real one hung in the
+      // air over them.
       const floor =
         Math.max(
-          terrainHeight(pollinator.position.x, pollinator.position.z),
+          terrainHeight(pollinator.position.x, pollinator.position.z) +
+            groundDrop(pollinator.position.x, pollinator.position.z, fineRef.current ? "high" : "low"),
           waterLevel(),
         ) + 0.14;
       const height = Math.max(0, pollinator.position.y - floor);
@@ -1445,8 +1490,12 @@ function ScoutScene({
     camera.position.lerp(cameraPosition, 1 - Math.exp(-delta * 5));
 
     // Never let the camera clip through a hillside behind the bee.
+    // Whichever is higher of the real ground and the drawn one: at the foot of
+    // a steep bank the fine park's step stands a little over the real height.
     const cameraGround =
-      terrainHeight(camera.position.x, camera.position.z) + 0.7;
+      terrainHeight(camera.position.x, camera.position.z) +
+      Math.max(0, groundDrop(camera.position.x, camera.position.z, fineRef.current ? "high" : "low")) +
+      0.7;
 
     if (camera.position.y < cameraGround) {
       camera.position.y = cameraGround;

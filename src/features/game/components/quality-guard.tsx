@@ -26,6 +26,7 @@ import { announce } from "../state/moments";
 const WATCH_SECONDS = 4;
 const SETTLE_SECONDS = 1.2;
 const FLOOR_FPS = 28;
+const HIDDEN_SECONDS = 2;
 
 export function QualityGuard() {
   const watch = useRef({ waited: 0, time: 0, frames: 0, done: false });
@@ -53,8 +54,11 @@ export function QualityGuard() {
       return;
     }
 
-    // A frame that took a quarter of a second is a tab that was hidden.
-    if (delta > 0.25) {
+    // A frame that took seconds is a tab that was hidden, not a slow machine.
+    // The line has to be well above a slow frame: at a quarter of a second it
+    // threw away every frame of a machine drawing four a second, which is the
+    // one this guard most needs to catch.
+    if (delta > HIDDEN_SECONDS) {
       return;
     }
 

@@ -19,6 +19,7 @@ import {
 import { useProgressive } from "../hooks/use-progressive";
 import { useQuality } from "../hooks/use-quality";
 import { useGameStore } from "../state/game-store";
+import { plantDrop } from "../world/perch";
 import { sway } from "../world/wind";
 import {
   isFindable,
@@ -136,9 +137,15 @@ export function SpeciesField({
         return (
           <group
             key={instance.key}
-            position={instance.position}
+            position={[
+              instance.position[0],
+              instance.position[1] + plantDrop(instance, quality),
+              instance.position[2],
+            ]}
             rotation={[0, instance.rotation, 0]}
             scale={instance.scale}
+            // For the specs, which check that a plant stands on the ground.
+            userData={{ plant: instance.key }}
           >
             <mesh castShadow geometry={geometry.get(instance.id)}>
               <meshLambertMaterial
@@ -184,6 +191,7 @@ function SeedHeads({
   instances: SpeciesInstance[];
 }) {
   const pollinatedPlants = useGameStore((state) => state.pollinatedPlants);
+  const quality = useQuality();
   const geometry = useMemo(() => buildSeedHeadGeometry(), []);
   const meshRef = useRef<InstancedMesh>(null);
 
@@ -215,7 +223,7 @@ function SeedHeads({
       // A dry pod barely moves; a slow nod in the wind, no more.
       const sway = Math.sin(elapsed * 0.8 + index) * 0.04;
 
-      dummy.position.set(x, landingHeight(instance) - 1, z);
+      dummy.position.set(x, landingHeight(instance) + plantDrop(instance, quality) - 1, z);
       dummy.rotation.set(sway, instance.rotation, 0);
       dummy.scale.setScalar(instance.scale * 0.9);
       dummy.updateMatrix();

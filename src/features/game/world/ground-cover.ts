@@ -3,6 +3,7 @@ import type { Placement } from "./scatter";
 import {
   activePark,
   areaAt,
+  columnTop,
   sample,
   terrainHeight,
   terrainSlope,
@@ -61,8 +62,9 @@ export function scatterCover(): Record<CoverKind, Placement[]> {
 
       if (kind) {
         out[kind].push({
-          // Sunk a little, like the grass, so nothing hovers on a step.
-          position: [px, Math.floor(height) - 0.25, pz],
+          // On the step as it is drawn (this is the fine park's alone), and
+          // sunk a hair so nothing shows daylight under it.
+          position: [px, columnTop(px, pz) - 0.1, pz],
           rotation: sample(x, z, 54) * Math.PI * 2,
           scale: 0.7 + sample(x, z, 55) * 0.8,
         });

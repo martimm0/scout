@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { useGameStore } from "../state/game-store";
 import { MOMENT_EVENT, momentsBetween, type Moment } from "../state/moments";
+import { activePark } from "../world/terrain";
 import styles from "./moments.module.css";
 
 /** How long one stays up. Short: it is a nod, not a dialog. */
@@ -36,7 +37,7 @@ export function Moments() {
       const before = last;
 
       last = state;
-      add(momentsBetween(before, state));
+      add(momentsBetween(before, state, activePark().id));
     });
 
     window.addEventListener(MOMENT_EVENT, onAnnounce);

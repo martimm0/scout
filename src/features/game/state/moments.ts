@@ -37,7 +37,15 @@ function newKeys(before: Record<string, boolean>, after: Record<string, boolean>
   return Object.keys(after).filter((key) => after[key] && !before[key]);
 }
 
-export function momentsBetween(before: MomentState, after: MomentState): Moment[] {
+export function momentsBetween(
+  before: MomentState,
+  after: MomentState,
+  /**
+   * The park being FLOWN, which is not always the one the save prefers: a
+   * party, or a park named in the address, puts the bee somewhere else.
+   */
+  here: ParkId = after.currentPark,
+): Moment[] {
   const out: Moment[] = [];
   const plants = newKeys(before.discoveredPlants, after.discoveredPlants);
   const fungi = newKeys(before.discoveredFungi, after.discoveredFungi);
@@ -63,7 +71,6 @@ export function momentsBetween(before: MomentState, after: MomentState): Moment[
 
     // The last plant of the park you are standing in.
     if (plants.length === 1) {
-      const here = after.currentPark;
       const total = plantsIn(here).length;
 
       if (

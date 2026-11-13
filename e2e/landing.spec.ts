@@ -49,7 +49,7 @@ test.describe("landing", () => {
     await enterGame(page);
     expect(await findPlant(page), "never got near the flower").toBe(true);
 
-    const perch = perchPoint(nearestPlantToSpawn());
+    const perch = perchPoint(nearestPlantToSpawn(), "high");
     const hovering = await drawnBee(page);
     const flown = await readout(page);
 
@@ -89,7 +89,7 @@ test.describe("landing", () => {
     await enterGame(page);
     expect(await findPlant(page), "never got near the flower").toBe(true);
 
-    const perch = perchPoint(nearestPlantToSpawn());
+    const perch = perchPoint(nearestPlantToSpawn(), "high");
     const hovering = await drawnBee(page);
     const takeOff = page.getByRole("button", { name: "Take off" });
 
@@ -128,7 +128,7 @@ test.describe("landing", () => {
     await enterGame(page);
     expect(await findPlant(page)).toBe(true);
 
-    const perch = perchPoint(nearestPlantToSpawn());
+    const perch = perchPoint(nearestPlantToSpawn(), "high");
 
     await page.keyboard.press("Space");
     await page.getByRole("button", { name: /^Pollinate/ }).click();

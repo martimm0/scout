@@ -19,11 +19,13 @@ import { scatterCover } from "../world/ground-cover";
 import { scatterShore } from "../world/shoreline";
 import { ripple, sway as swayMaterial } from "../world/wind";
 import { buildLandmark } from "../models/landmarks";
+import type { Quality } from "../models/quality";
 import { scatterFoliage, scatterGrass, type Placement } from "../world/scatter";
 import { seasonLook } from "../world/season";
 import { buildTerrainGeometry, type Shade } from "../world/terrain-mesh";
 import {
   activePark,
+  groundDrop,
   terrainHeight,
   waterLevel,
   world,
@@ -146,7 +148,11 @@ function Instances({
 
     mesh.instanceMatrix.needsUpdate = true;
     mesh.computeBoundingSphere();
-  }, [placements]);
+    // The geometry too: the mesh is remounted when its model sharpens (see the
+    // key below), and a new mesh starts with every instance at the origin.
+    // Grass passes the same placements array each render, so without this the
+    // whole lawn was left stacked on one spot as soon as the fine blade came in.
+  }, [geometry, placements]);
 
   if (placements.length === 0) {
     return null;
@@ -161,9 +167,29 @@ function Instances({
       key={`${geometry.uuid}-${placements.length}`}
       receiveShadow={!shadowOnly}
       ref={meshRef}
-      userData={{ shadowOnly }}
+      // `planted` is for the specs: they find what stands on the ground by it.
+      userData={{ planted: true, shadowOnly }}
     />
   );
+}
+
+/**
+ * The same placements, standing on the ground as this quality draws it.
+ *
+ * Every scatter plants on the real height. The fine park's ground is stepped,
+ * a whole unit at a time, and sits up to a unit under that: left alone, the
+ * trees, the rocks and every blade of grass hovered over it.
+ */
+function standing(placements: Placement[], quality: Quality): Placement[] {
+  if (quality !== "high") {
+    return placements;
+  }
+
+  return placements.map((placement) => {
+    const [x, y, z] = placement.position;
+
+    return { ...placement, position: [x, y + groundDrop(x, z, quality), z] };
+  });
 }
 
 /**
@@ -247,7 +273,16 @@ export function Creek() {
   );
   // The waterline is dressed on high only: it is a few hundred small models,
   // and low has no triangles to spare for pebbles.
-  const shore = useMemo(() => (fine ? scatterShore() : null), [fine]);
+  const shore = useMemo(() => {
+    if (!fine) {
+      return null;
+    }
+
+    const scattered = scatterShore();
+
+    // The pebbles lie on the bank; the lily pads float and stay where they are.
+    return { ...scattered, pebbles: standing(scattered.pebbles, "high") };
+  }, [fine]);
   const pebbles = useMemo(() => (fine ? buildShoreGeometry("pebbles", true) : null), [fine]);
   const lilyPad = useMemo(() => (fine ? buildShoreGeometry("lilyPad", true) : null), [fine]);
 
@@ -303,9 +338,20 @@ export function Foliage({ month }: { month: number }) {
     quality,
     String(seasonKey),
   );
-  const placements = useMemo(() => scatterFoliage(), []);
+  const placements = useMemo(() => {
+    const scattered = scatterFoliage();
+
+    for (const kind of Object.keys(scattered) as (keyof typeof scattered)[]) {
+      scattered[kind] = standing(scattered[kind], quality);
+    }
+
+    return scattered;
+  }, [quality]);
   // A thicker lawn on the fine park: nearly twice the blades.
-  const grass = useMemo(() => scatterGrass(quality === "high" ? 5.4 : undefined), [quality]);
+  const grass = useMemo(
+    () => standing(scatterGrass(quality === "high" ? 5.4 : undefined), quality),
+    [quality],
+  );
   // What throws the trees' shadows: see `buildFoliageShadow`.
   const shadows = useMemo(
     () =>

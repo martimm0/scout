@@ -1,7 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { columnTop, waterLevel } from "../src/features/game/world/terrain";
 import { buildTerrainGeometry } from "../src/features/game/world/terrain-mesh";
-import { enterGame } from "./helpers";
+import { enterGame, whole } from "./helpers";
 
 /**
  * The park moves, and is lit.
@@ -199,6 +200,103 @@ test.describe("the park moves", () => {
     await page.goto("/play?debug=1&hour=13&month=7&quality=low");
     await page.waitForTimeout(4000);
     expect(await casters(), "low is paying for tree shadows").toBe(0);
+  });
+});
+
+/**
+ * Everything planted in the park as it is drawn: each instance of the trees,
+ * the grass and the small stuff, and each flower and fungus.
+ */
+const planted = (page: Page) =>
+  page.evaluate(() => {
+    type Node = {
+      isInstancedMesh?: boolean;
+      count?: number;
+      instanceMatrix?: { array: ArrayLike<number> };
+      userData: { planted?: boolean; shadowOnly?: boolean; plant?: string };
+      position: { x: number; y: number; z: number };
+      children: Node[];
+    };
+    const meshes: { count: number; at: [number, number, number][] }[] = [];
+    const plants: [number, number, number][] = [];
+    const walk = (node: Node) => {
+      if (node.isInstancedMesh && node.userData?.planted && !node.userData.shadowOnly) {
+        const matrix = (node.instanceMatrix as { array: ArrayLike<number> }).array;
+        const count = node.count as number;
+        const at: [number, number, number][] = [];
+        // Up to a couple of hundred of each, spread through the whole list.
+        const stride = Math.max(1, Math.floor(count / 200));
+
+        for (let index = 0; index < count; index += stride) {
+          at.push([matrix[index * 16 + 12], matrix[index * 16 + 13], matrix[index * 16 + 14]]);
+        }
+
+        meshes.push({ count, at });
+      }
+
+      if (node.userData?.plant) {
+        plants.push([node.position.x, node.position.y, node.position.z]);
+      }
+
+      node.children.forEach(walk);
+    };
+
+    walk((window as unknown as { __scoutScene: Node }).__scoutScene);
+
+    return { meshes, plants };
+  });
+
+test.describe("what is planted, on the fine park", () => {
+  test.describe.configure({ timeout: 180_000 });
+
+  test.beforeEach(async ({ page }) => {
+    await enterGame(page);
+    await page.goto("/play?debug=1&hour=13&month=7&weather=clear&quality=high");
+    await page.waitForSelector("canvas");
+    await whole(page);
+  });
+
+  test("is where it was scattered once the fine models are in", async ({ page }) => {
+    /**
+     * The whole lawn stood on one spot. An instanced mesh is remounted when its
+     * model sharpens, a new one starts with every instance at the origin, and
+     * the grass (alone: its placements are the same array every render) was
+     * never laid out again. Thousands of blades, one on top of another, at the
+     * middle of the map.
+     */
+    const { meshes } = await planted(page);
+
+    expect(meshes.length, "nothing planted was found in the scene").toBeGreaterThan(10);
+
+    for (const mesh of meshes.filter((candidate) => candidate.count > 40)) {
+      const xs = mesh.at.map(([x]) => x);
+
+      expect(
+        Math.max(...xs) - Math.min(...xs),
+        `${mesh.count} of something are standing in one place`,
+      ).toBeGreaterThan(60);
+    }
+  });
+
+  test("stands on the ground as it is drawn, not over it", async ({ page }) => {
+    /**
+     * The fine ground is stepped, a whole unit at a time, and sits up to a unit
+     * under the height everything is scattered on. Flowers hovered over it by
+     * as much as half a unit and the grass by as much again.
+     */
+    const { meshes, plants } = await planted(page);
+    const floating = (x: number, y: number, z: number) =>
+      // The lily pads float, and are meant to.
+      columnTop(x, z) < waterLevel() ? 0 : y - columnTop(x, z);
+
+    expect(plants.length, "no flower or fungus was found in the scene").toBeGreaterThan(20);
+
+    const worst = Math.max(
+      ...plants.map(([x, y, z]) => floating(x, y, z)),
+      ...meshes.flatMap((mesh) => mesh.at.map(([x, y, z]) => floating(x, y, z))),
+    );
+
+    expect(worst, "something is hovering over the ground").toBeLessThanOrEqual(0.001);
   });
 });
 

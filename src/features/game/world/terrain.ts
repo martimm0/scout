@@ -95,6 +95,55 @@ export function terrainHeight(x: number, z: number) {
   return active.height(x, z);
 }
 
+/** How wide one column of the fine park's voxel ground is. */
+export const GROUND_COLUMN = 2;
+
+/**
+ * The top of the voxel column that is DRAWN at this spot on the fine park.
+ *
+ * The real ground (`terrainHeight`) is a smooth field, and it is what the
+ * flight floor, the collisions and every scatter are measured against. The
+ * fine park draws it as flat-topped columns a whole unit at a time, so the
+ * drawn ground is up to a unit under the real one on the flat and can be a
+ * little over it at the foot of a steep bank. Anything that has to LOOK as if
+ * it stands on the ground asks this, through `groundDrop`.
+ *
+ * `buildTerrainGeometry` builds its columns from the same sum, to the same
+ * 32-bit precision, so the two cannot disagree about which step a cell is on.
+ */
+export function columnTop(x: number, z: number) {
+  const { minX, minZ, maxX, maxZ } = active.world;
+  const columns = Math.ceil((maxX - minX) / GROUND_COLUMN);
+  const rows = Math.ceil((maxZ - minZ) / GROUND_COLUMN);
+  const column = Math.min(columns - 1, Math.max(0, Math.floor((x - minX) / GROUND_COLUMN)));
+  const row = Math.min(rows - 1, Math.max(0, Math.floor((z - minZ) / GROUND_COLUMN)));
+  const x0 = minX + column * GROUND_COLUMN;
+  const z0 = minZ + row * GROUND_COLUMN;
+
+  return columnStep(
+    Math.fround(terrainHeight(x0, z0)),
+    Math.fround(terrainHeight(x0 + GROUND_COLUMN, z0)),
+    Math.fround(terrainHeight(x0 + GROUND_COLUMN, z0 + GROUND_COLUMN)),
+    Math.fround(terrainHeight(x0, z0 + GROUND_COLUMN)),
+  );
+}
+
+/** One column's top from the heights at its four corners. */
+export function columnStep(a: number, b: number, c: number, d: number) {
+  return Math.floor((a + b + c + d) / 4);
+}
+
+/**
+ * How far to move something planted at this spot so that it stands on the
+ * ground as drawn. Nothing on the low park, whose ground is the real one.
+ *
+ * For drawing only. Where a thing IS, for finding it, landing on it and
+ * bumping into it, does not change with the quality.
+ */
+export function groundDrop(x: number, z: number, quality: "low" | "high") {
+  return quality === "high" ? columnTop(x, z) - terrainHeight(x, z) : 0;
+}
+
 /** Central difference on the height field. Used to avoid planting on cliffs. */
 export function terrainSlope(x: number, z: number) {
   const step = 4;

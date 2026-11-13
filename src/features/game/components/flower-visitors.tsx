@@ -6,6 +6,7 @@ import { InstancedMesh, MeshBasicMaterial, Object3D } from "three";
 
 import { useQuality } from "../hooks/use-quality";
 import { buildCreatureGeometry, WING_ROOT } from "../models/creatures";
+import { plantDrop } from "../world/perch";
 import { flap } from "../world/wind";
 
 import {
@@ -124,7 +125,7 @@ export function FlowerVisitors({
       }
 
       const [x, , z] = flower.position;
-      const top = landingHeight(flower);
+      const top = landingHeight(flower) + plantDrop(flower, fine ? "high" : "low");
 
       // A small busy hover right at the head of the flower, not a body parked
       // in the middle of it. The wobble is a function of the clock and the

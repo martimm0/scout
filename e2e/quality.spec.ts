@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { enterGame, hold, openPlay, pinPanels } from "./helpers";
+import { enterGame, hold, openPlay, pinPanels, whole } from "./helpers";
 
 /**
  * Two qualities, and a promise about the lower one.
@@ -27,14 +27,6 @@ async function triangles(page: Page) {
       (window as unknown as { __scoutGl: { info: { render: { triangles: number } } } }).__scoutGl
         .info.render.triangles,
   );
-}
-
-/** Wait for every fine model to have been compiled and swapped in. */
-async function whole(page: Page) {
-  await page.waitForFunction(() => document.documentElement.dataset.scoutBuilding === "0", undefined, {
-    timeout: 60_000,
-  });
-  await page.waitForTimeout(800);
 }
 
 /** Past the walkthrough, with Controls pinned open so the switch is on screen. */
@@ -69,6 +61,40 @@ test.describe("detail: high and low", () => {
     const coarse = await triangles(page);
 
     expect(coarse, "low drew as much as high: nothing was rebuilt").toBeLessThan(fine * 0.5);
+  });
+
+  test("switching down and back up does not keep the old models", async ({ page }) => {
+    /**
+     * Going to low disposed the fine models and then, on the way back to high,
+     * handed the same disposed set to the scene again: the renderer uploaded
+     * every one of them a second time, the freshly built set replaced them, and
+     * nothing was left holding the first to let it go. One whole park of
+     * geometry, including the fine ground, for every round trip.
+     */
+    const held = () =>
+      page.evaluate(
+        () =>
+          (window as unknown as { __scoutGl: { info: { memory: { geometries: number } } } }).__scoutGl
+            .info.memory.geometries,
+      );
+
+    await arrive(page, "quality-round-trip", "&weather=clear");
+    await whole(page);
+
+    const before = await held();
+
+    for (let trip = 0; trip < 2; trip += 1) {
+      await detail(page).click();
+      await expect(detail(page)).toHaveAttribute("data-quality", "low");
+      await page.waitForTimeout(1500);
+      await detail(page).click();
+      await expect(detail(page)).toHaveAttribute("data-quality", "high");
+      await page.waitForTimeout(500);
+      await whole(page);
+    }
+
+    // A handful either way is what happens to be in view (a mote, a visitor).
+    expect(await held(), "the park is holding models it no longer draws").toBeLessThan(before + 12);
   });
 
   test("the choice is remembered", async ({ page }) => {

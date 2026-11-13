@@ -1,7 +1,9 @@
 import { BufferAttribute, BufferGeometry, Color, Vector3 } from "three";
 
 import {
+  GROUND_COLUMN,
   areaAt,
+  columnStep,
   sample,
   terrainHeight,
   trailStrength,
@@ -17,7 +19,7 @@ import {
  * High halves it: the banks of the run and the lips of the trails stop being
  * four-unit facets, for four times the triangles, which a desktop has to spare.
  */
-const RESOLUTION = { low: 4, high: 2 } as const;
+const RESOLUTION = { low: 4, high: GROUND_COLUMN } as const;
 
 /** Something standing on the ground that keeps the light off it. */
 export type Shade = { x: number; z: number; radius: number; depth: number };
@@ -208,23 +210,22 @@ export function buildTerrainGeometry(
      * is what the rest of the park is made of too: the smooth facets were the
      * one surface in it that was not built from blocks.
      *
-     * The tops sit at or just under the real height (`terrainHeight`), never
-     * over it, so the bee's floor and everything planted on the ground are
-     * where they always were.
+     * A top is the mean of its four corners, rounded down to a whole unit, so
+     * it is under the real height (`terrainHeight`) on the flat and can be a
+     * little over it at the foot of a steep bank. Nothing in the flight model
+     * moves for that: what is planted on the ground is drawn `groundDrop`
+     * lower, and `columnTop` is this same sum for one spot.
      */
-    const STEP = 1;
     const tops = new Float32Array(columns * rows);
 
     for (let column = 0; column < columns; column += 1) {
       for (let row = 0; row < rows; row += 1) {
-        const mean =
-          (heightAt(column, row) +
-            heightAt(column + 1, row) +
-            heightAt(column + 1, row + 1) +
-            heightAt(column, row + 1)) /
-          4;
-
-        tops[column * rows + row] = Math.floor(mean / STEP) * STEP;
+        tops[column * rows + row] = columnStep(
+          heightAt(column, row),
+          heightAt(column + 1, row),
+          heightAt(column + 1, row + 1),
+          heightAt(column, row + 1),
+        );
       }
     }
 

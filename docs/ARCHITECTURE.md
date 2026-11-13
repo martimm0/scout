@@ -175,6 +175,28 @@ thirty it switches the park to Low and says so on the moments line. Once, and
 only when nobody has chosen: a player who picked High keeps it, a pinned test
 keeps its pin, and it never runs under automation (`navigator.webdriver`),
 where a slow software renderer would rebuild the park in the middle of a test.
+A frame longer than two seconds is taken for a hidden tab and not counted. That
+line was a quarter of a second at first, which threw away every frame of a
+machine drawing four a second: the one machine the guard most needs to catch
+was the one it could never see.
+
+**The fine ground is drawn lower than the real one, and what stands on it is
+drawn to match.** `terrainHeight` is a smooth field, and it is what the flight
+floor, the collisions and every scatter are measured against at either quality.
+High draws it as flat-topped columns a whole unit at a time (`columnTop`, the
+same sum `buildTerrainGeometry` uses), so on the flat the drawn ground is up to
+a unit under the real one, and at the foot of a steep bank a step can stand a
+little over it. `groundDrop(x, z, quality)` is that difference, zero on Low,
+and everything that has to look as if it stands on the ground adds it when it
+draws: foliage, grass and pebbles (`standing` in `frick-park.tsx`), each
+flower and fungus, its seed head, its visitors and the perch the bee lands on
+(`plantDrop`, kept per plant), the bee's height shadow, and the floors the
+drawn bee and the camera are kept above. Nothing that decides where a thing
+IS reads it: finding, landing and bumping are the same at both qualities, which
+is what lets one set of flight tests cover both. Before this the flowers
+hovered over the steps by up to half a unit and the grass by as much again.
+`world-art.spec.ts` reads every planted thing out of the scene and checks none
+is over its column.
 
 **The park arrives coarse and sharpens** (`hooks/use-progressive.ts`). Compiling
 every fine model on load froze the page for seconds before the first frame;
@@ -185,6 +207,24 @@ frames and swapped in a few at a time. `document.documentElement.dataset
 .scoutBuilding` is the number still to do, and a spec that counts triangles at
 High waits for it to reach zero. Landmarks are compiled only for the park being
 flown; every park used to build all three parks' worth.
+
+Three things about the swap that each went wrong once:
+
+- **An instanced mesh is remounted with its model**, because it keeps the count
+  it was built with, and a new one starts with every instance at the origin. So
+  the effect that lays the instances out depends on the geometry as well as the
+  placements. Grass hands over the same placements array every render, and
+  until the geometry was in that list the whole lawn was stacked on one spot at
+  the middle of the map as soon as the fine blade arrived.
+- **Leaving High lets go of the fine set as well as disposing it.** The hook
+  used to keep it in state, and since the Low set under it had not changed it
+  still looked current: back on High the scene was handed the disposed models,
+  the renderer uploaded them again, the fresh build replaced them, and nothing
+  was left holding the first lot to free it. A whole park of geometry per round
+  trip. `quality.spec.ts` counts what the renderer holds across two of them.
+- **One model that throws does not stop the pump.** The queue is the page's,
+  not the model's, and a stalled one would leave the park coarse and
+  `scoutBuilding` above zero for good.
 
 **Colours go to the mesh once.** `Color.set("#hex")` already converts sRGB to the
 linear space the renderer works in. Every vertex-colour path used to convert a
@@ -494,7 +534,8 @@ they are.
   tuned in).
 - **The camera answers.** It hangs back a little at speed, looks slightly ahead,
   widens from 52 to 58 degrees on a boost and comes in close on a landing. None
-  of it under reduced motion.
+  of it under reduced motion, and no hop on the way onto the flower either: the
+  bee is moved to it and that is all.
 - **A bump is one bump.** Flying into something at more than `BUMP_SPEED` plays
   a bonk, flinches the bee and throws a puff, at most once per 0.4 s. Brushing
   along a trunk does nothing.
@@ -507,7 +548,10 @@ at once, because that is the store's doing, but the landing card waits
 `SETTLE_MS` (three quarters of a second, measured from the stamp `land` puts on
 the arrival) so the bee is seen flying down and setting its feet on the flower
 first. Coming back to the card from an entry does not wait again, and nobody
-who has asked for less motion waits at all.
+who has asked for less motion waits at all. For that moment there is no card
+over the park, so a click on the canvas is ignored while landed: it used to
+take the pointer lock back, and the card then came up with no cursor to press
+it with.
 
 **Landing is drawn, not simulated.** While a flower has the player (the landing
 card, its minigame, its quiz), the bee that is drawn eases onto that flower's
@@ -525,6 +569,8 @@ change and returns the moments in it: a first find, a park opening, a streak of
 a save arriving from the cloud adds forty discoveries in one update: a find only
 counts if it is the single new one and the bee is beside it, a park only if it
 opened in the same update as a find, a streak only if it rose by exactly one.
+The last plant of a park means the park being FLOWN (`activePark()`), which in
+a party or under `?park=` is not the one the save prefers.
 `rewards.spec.ts` runs that function in Node against both cases.
 
 **Sound and touch.** Ten new synthesized sounds mark what used to be silent
