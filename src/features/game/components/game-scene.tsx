@@ -1270,6 +1270,10 @@ function ScoutScene({
     wind.time.value = elapsed;
     wind.strength.value = stillAir.current ? 0 : windStrength(weather.wind);
 
+    if (!stillAir.current) {
+      wind.flow.value += delta;
+    }
+
     const sun = sunRef.current;
 
     if (sun) {

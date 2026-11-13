@@ -5,11 +5,13 @@ import { Color, InstancedMesh, MeshLambertMaterial, Object3D, type BufferGeometr
 
 import { useQuality } from "../hooks/use-quality";
 import { buildFoliageGeometry, SWAY, type FoliageKind } from "../models/foliage";
-import { sway as swayMaterial } from "../world/wind";
+import { buildShoreGeometry } from "../models/shore";
+import { scatterShore } from "../world/shoreline";
+import { ripple, sway as swayMaterial } from "../world/wind";
 import { buildLandmarkGeometry } from "../models/landmarks";
 import { scatterFoliage, scatterGrass, type Placement } from "../world/scatter";
 import { seasonLook } from "../world/season";
-import { buildTerrainGeometry } from "../world/terrain-mesh";
+import { buildTerrainGeometry, type Shade } from "../world/terrain-mesh";
 import {
   activePark,
   terrainHeight,
@@ -57,11 +59,20 @@ function tintGeometry(
 
   const tint = new Color(tintHex);
   const c = new Color();
+  const normals = geometry.getAttribute("normal");
 
   for (let i = 0; i < colors.count; i += 1) {
     c.fromBufferAttribute(colors, i);
     if (tintMix > 0) c.lerp(tint, tintMix);
-    if (snow > 0) c.lerp(SNOW, snow);
+
+    if (snow > 0) {
+      // Snow lies on things; it does not coat their sides. A voxel model has
+      // honest tops, so the tops take most of it and the rest gets a dusting.
+      const lying = !normals || normals.getY(i) > 0.5;
+
+      c.lerp(SNOW, lying ? Math.min(1, snow * 2.2) : snow * 0.3);
+    }
+
     colors.setXYZ(i, c.r, c.g, c.b);
   }
 
@@ -135,14 +146,56 @@ function Instances({
   );
 }
 
+/**
+ * What keeps the light off the ground, and how much: wide and soft under a
+ * tree, tight and dark at the foot of a rock.
+ */
+const SHADE: Partial<Record<FoliageKind, [radius: number, depth: number]>> = {
+  hemlock: [24, 0.3],
+  oak: [27, 0.3],
+  shrub: [10, 0.24],
+  snag: [7, 0.18],
+  rock: [9, 0.22],
+  stump: [9, 0.2],
+  log: [14, 0.18],
+  knotweed: [9, 0.2],
+};
+
+function groundShade(): Shade[] {
+  const shades: Shade[] = [];
+  const placements = scatterFoliage();
+
+  for (const kind of Object.keys(SHADE) as FoliageKind[]) {
+    const [radius, depth] = SHADE[kind] as [number, number];
+
+    for (const placement of placements[kind]) {
+      shades.push({
+        x: placement.position[0],
+        z: placement.position[2],
+        radius: radius * placement.scale,
+        depth,
+      });
+    }
+  }
+
+  return shades;
+}
+
 export function Terrain({ month }: { month: number }) {
+  const quality = useQuality();
   // Rebuilt only when the month turns. Snow lies over the ground in winter; the
   // rest of the year the terrain keeps its own colours.
   const seasonKey = Math.floor(month);
   const geometry = useMemo(() => {
     const look = lookForMonth(seasonKey);
-    return tintGeometry(buildTerrainGeometry(), look.groundTint, look.groundMix, 0);
-  }, [seasonKey]);
+
+    return tintGeometry(
+      buildTerrainGeometry(quality, groundShade()),
+      look.groundTint,
+      look.groundMix,
+      0,
+    );
+  }, [quality, seasonKey]);
 
   useEffect(() => () => geometry.dispose(), [geometry]);
 
@@ -159,17 +212,36 @@ export function Terrain({ month }: { month: number }) {
  * of the ravine. No spline, no ribbon mesh, no seams.
  */
 export function Creek() {
+  const quality = useQuality();
+  const fine = quality === "high";
+  const material = useMemo(
+    () => ripple(new MeshLambertMaterial({ color: "#4f9ac4", opacity: 0.86, transparent: true })),
+    [],
+  );
+  // The waterline is dressed on high only: it is a few hundred small models,
+  // and low has no triangles to spare for pebbles.
+  const shore = useMemo(() => (fine ? scatterShore() : null), [fine]);
+  const pebbles = useMemo(() => (fine ? buildShoreGeometry("pebbles", true) : null), [fine]);
+  const lilyPad = useMemo(() => (fine ? buildShoreGeometry("lilyPad", true) : null), [fine]);
+
+  useEffect(() => () => material.dispose(), [material]);
+  useEffect(() => () => pebbles?.dispose(), [pebbles]);
+  useEffect(() => () => lilyPad?.dispose(), [lilyPad]);
+
   return (
-    <mesh position={[0, waterLevel(), 0]} rotation={[-Math.PI / 2, 0, 0]}>
-      <planeGeometry
-        args={[world().maxX - world().minX, world().maxZ - world().minZ]}
-      />
-      <meshLambertMaterial
-        color="#4d90b8"
-        opacity={0.82}
-        transparent
-      />
-    </mesh>
+    <>
+      <mesh
+        material={material}
+        position={[0, waterLevel(), 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+      >
+        <planeGeometry
+          args={[world().maxX - world().minX, world().maxZ - world().minZ]}
+        />
+      </mesh>
+      {shore && pebbles ? <Instances geometry={pebbles} placements={shore.pebbles} /> : null}
+      {shore && lilyPad ? <Instances geometry={lilyPad} placements={shore.lilyPads} /> : null}
+    </>
   );
 }
 

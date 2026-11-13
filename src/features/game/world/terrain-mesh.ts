@@ -11,12 +11,16 @@ import {
 } from "./terrain";
 
 /**
- * Quad size. The world is now 700x520, so this can't stay at 1.4, that would be
- * 370k triangles of ground. Four units per quad is coarse to a human and vast to
- * a bee, which is exactly the register we want.
+ * Quad size. The world is 700x520, so this can't be 1.4, that would be 370k
+ * triangles of ground. Four units per quad is coarse to a human and vast to a
+ * bee, which is the register we want, and it is what the low quality draws.
+ * High halves it: the banks of the run and the lips of the trails stop being
+ * four-unit facets, for four times the triangles, which a desktop has to spare.
  */
-const RESOLUTION = 4;
+const RESOLUTION = { low: 4, high: 2 } as const;
 
+/** Something standing on the ground that keeps the light off it. */
+export type Shade = { x: number; z: number; radius: number; depth: number };
 
 const ROCK = "#8a8175";
 const SHALLOWS = "#6d6a52";
@@ -28,8 +32,56 @@ const TRAIL = "#a68b63";
  * a texture: biome tint, greying out on steep faces where soil wouldn't hold,
  * and turning to silt as it drops toward the creek.
  */
-export function buildTerrainGeometry(): BufferGeometry {
+export function buildTerrainGeometry(
+  quality: "low" | "high" = "low",
+  shades: Shade[] = [],
+): BufferGeometry {
+  const SIZE = RESOLUTION[quality];
   const park = activePark();
+  const litter = new Color("#7d6b45");
+  const sunny = new Color("#a9c46a");
+
+  // Shade, bucketed so each face asks only about what stands near it.
+  const BUCKET = 32;
+  const buckets = new Map<number, Shade[]>();
+
+  for (const shade of shades) {
+    const reach = Math.ceil(shade.radius / BUCKET);
+    const bx = Math.floor(shade.x / BUCKET);
+    const bz = Math.floor(shade.z / BUCKET);
+
+    for (let dx = -reach; dx <= reach; dx += 1) {
+      for (let dz = -reach; dz <= reach; dz += 1) {
+        const key = (bx + dx) * 4096 + (bz + dz);
+        const list = buckets.get(key);
+
+        if (list) {
+          list.push(shade);
+        } else {
+          buckets.set(key, [shade]);
+        }
+      }
+    }
+  }
+
+  /** How much light is kept off a point: 0 open ground, toward 1 under a trunk. */
+  const shadeAt = (x: number, z: number) => {
+    const list = buckets.get(Math.floor(x / BUCKET) * 4096 + Math.floor(z / BUCKET));
+    let dark = 0;
+
+    if (list) {
+      for (const shade of list) {
+        const reach = Math.hypot(x - shade.x, z - shade.z) / shade.radius;
+
+        if (reach < 1) {
+          // Deepest at the foot, gone by the edge.
+          dark = Math.max(dark, shade.depth * (1 - reach * reach));
+        }
+      }
+    }
+
+    return dark;
+  };
   const positions: number[] = [];
   const normals: number[] = [];
   const colors: number[] = [];
@@ -46,8 +98,8 @@ export function buildTerrainGeometry(): BufferGeometry {
   const ac = new Vector3();
   const normal = new Vector3();
 
-  const columns = Math.ceil((world().maxX - world().minX) / RESOLUTION);
-  const rows = Math.ceil((world().maxZ - world().minZ) / RESOLUTION);
+  const columns = Math.ceil((world().maxX - world().minX) / SIZE);
+  const rows = Math.ceil((world().maxZ - world().minZ) / SIZE);
 
   // Sample the height field ONCE per grid corner and reuse it.
   //
@@ -61,8 +113,8 @@ export function buildTerrainGeometry(): BufferGeometry {
   for (let column = 0; column <= columns; column += 1) {
     for (let row = 0; row <= rows; row += 1) {
       heights[column * (rows + 1) + row] = terrainHeight(
-        world().minX + column * RESOLUTION,
-        world().minZ + row * RESOLUTION,
+        world().minX + column * SIZE,
+        world().minZ + row * SIZE,
       );
     }
   }
@@ -78,7 +130,7 @@ export function buildTerrainGeometry(): BufferGeometry {
     const dx = heightAt(column + 1, row) - heightAt(column - 1, row);
     const dz = heightAt(column, row + 1) - heightAt(column, row - 1);
 
-    return Math.hypot(dx, dz) / (2 * RESOLUTION);
+    return Math.hypot(dx, dz) / (2 * SIZE);
   };
 
   const pushTriangle = (
@@ -111,8 +163,25 @@ export function buildTerrainGeometry(): BufferGeometry {
     // the air the paths are the thing you actually navigate by.
     base.lerp(trail, trailStrength(cx, cz) * 0.92);
 
+    // The ground is not one colour for a hundred units. In broad drifts it runs
+    // to leaf litter under the trees and to a sunnier green in the open, which
+    // is all a wood floor and a lawn really are from above.
+    const biome = park.biome[areaAt(cx, cz).id] ?? "mown";
+    const drift = sample(Math.round(cx / 22), Math.round(cz / 22), 31);
+    const trodden = trailStrength(cx, cz);
+
+    if (biome === "deep-woods" || biome === "slope-woods") {
+      base.lerp(litter, drift * 0.34 * (1 - trodden));
+    } else {
+      base.lerp(sunny, Math.max(0, drift - 0.45) * 0.5 * (1 - trodden));
+    }
+
+    // And it is darker under anything standing on it. Baked in, so even the
+    // quality with no cast shadows has trees that sit ON the ground.
+    const shaded = 1 - shadeAt(cx, cz);
+
     // A little per-face variation, or large flats read as dead colour fields.
-    const jitter = 0.92 + sample(cx, cz, 5) * 0.16;
+    const jitter = (0.93 + sample(cx, cz, 5) * 0.14) * shaded;
 
     for (const vertex of [p, q, r]) {
       positions.push(vertex.x, vertex.y, vertex.z);
@@ -123,10 +192,10 @@ export function buildTerrainGeometry(): BufferGeometry {
 
   for (let column = 0; column < columns; column += 1) {
     for (let row = 0; row < rows; row += 1) {
-      const x0 = world().minX + column * RESOLUTION;
-      const z0 = world().minZ + row * RESOLUTION;
-      const x1 = x0 + RESOLUTION;
-      const z1 = z0 + RESOLUTION;
+      const x0 = world().minX + column * SIZE;
+      const z0 = world().minZ + row * SIZE;
+      const x1 = x0 + SIZE;
+      const z1 = z0 + SIZE;
 
       const h00 = heightAt(column, row);
       const h10 = heightAt(column + 1, row);

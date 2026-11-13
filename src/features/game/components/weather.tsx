@@ -240,45 +240,77 @@ function Snow({ weather }: { weather: Weather }) {
  * is over Pittsburgh, and on a clear day there are none.
  */
 function Clouds({ weather }: { weather: Weather }) {
-  const group = useRef<THREE.Group>(null);
+  const mesh = useRef<THREE.InstancedMesh>(null);
   const count = Math.round(weather.cloudCover * 26);
 
-  const slabs = useMemo(
+  /**
+   * Each cloud is three lumps: a wide base, and two smaller masses riding on
+   * it. One slab apiece read as a fleet of flat-roofed warehouses.
+   */
+  const clouds = useMemo(
     () =>
       Array.from({ length: count }, (_, i) => {
         // Deterministic-ish per index, so they do not reshuffle every render.
         const angle = i * 2.399;
         const radius = 60 + ((i * 37) % 260);
+        const width = 60 + ((i * 17) % 90);
+        const height = 8 + ((i * 7) % 10);
+        const depth = 50 + ((i * 23) % 80);
 
         return {
-          position: [
-            Math.cos(angle) * radius,
-            190 + ((i * 13) % 50),
-            Math.sin(angle) * radius,
-          ] as [number, number, number],
-          scale: [
-            60 + ((i * 17) % 90),
-            8 + ((i * 7) % 10),
-            50 + ((i * 23) % 80),
-          ] as [number, number, number],
+          x: Math.cos(angle) * radius,
+          y: 190 + ((i * 13) % 50),
+          z: Math.sin(angle) * radius,
+          lumps: [
+            [0, 0, 0, width, height, depth],
+            [-width * 0.18, height * 0.8, depth * 0.08, width * 0.52, height * 0.9, depth * 0.56],
+            [width * 0.22, height * 0.6, -depth * 0.12, width * 0.4, height * 0.7, depth * 0.44],
+          ] as [number, number, number, number, number, number][],
         };
       }),
     [count],
   );
 
+  // How far each cloud has drifted. Kept apart from where it started, so each
+  // one wraps on its own.
+  const drifted = useRef(0);
+  const dummy = useMemo(() => new THREE.Object3D(), []);
   const drift = Math.min(9, weather.wind * 0.25);
 
-  useFrame((state, delta) => {
-    if (!group.current) {
+  useFrame((_state, delta) => {
+    const instanced = mesh.current;
+
+    if (!instanced) {
       return;
     }
 
-    group.current.position.x += drift * delta;
+    drifted.current += drift * delta;
 
-    // Wrap them round, so the sky never runs out of cloud.
-    if (group.current.position.x > 340) {
-      group.current.position.x = -340;
+    let index = 0;
+
+    for (const cloud of clouds) {
+      /**
+       * Wrap each cloud round the sky by itself.
+       *
+       * They used to be one group, moved together and snapped back together, so
+       * every few minutes the whole sky jumped 680 units at once. Now one cloud
+       * at a time slips off the downwind edge and comes back on the upwind one,
+       * shrinking to nothing as it goes and growing as it returns, far enough
+       * out that nobody is looking.
+       */
+      const x = ((((cloud.x + drifted.current + EDGE) % (EDGE * 2)) + EDGE * 2) % (EDGE * 2)) - EDGE;
+      const fade = Math.min(1, (EDGE - Math.abs(x)) / 50);
+
+      for (const [lx, ly, lz, sx, sy, sz] of cloud.lumps) {
+        dummy.position.set(x + lx * fade, cloud.y + ly * fade, cloud.z + lz * fade);
+        dummy.scale.set(sx * fade, sy * fade, sz * fade);
+        dummy.updateMatrix();
+        instanced.setMatrixAt(index, dummy.matrix);
+        index += 1;
+      }
     }
+
+    instanced.instanceMatrix.needsUpdate = true;
   });
 
   if (count === 0) {
@@ -286,20 +318,27 @@ function Clouds({ weather }: { weather: Weather }) {
   }
 
   return (
-    <group ref={group}>
-      {slabs.map((slab, index) => (
-        <mesh key={index} position={slab.position} scale={slab.scale}>
-          <boxGeometry args={[1, 1, 1]} />
-          <meshLambertMaterial
-            color={weather.condition === "clear" ? "#ffffff" : "#c8ccd2"}
-            opacity={0.55 + weather.cloudCover * 0.35}
-            transparent
-          />
-        </mesh>
-      ))}
-    </group>
+    <instancedMesh
+      args={[undefined, undefined, count * 3]}
+      frustumCulled={false}
+      key={count}
+      ref={mesh}
+      // For the spec that checks no cloud ever jumps: it needs to find this mesh
+      // and to wind the drift forward to where clouds are crossing the edge.
+      userData={{ clouds: true, drifted }}
+    >
+      <boxGeometry args={[1, 1, 1]} />
+      <meshLambertMaterial
+        color={weather.condition === "clear" ? "#ffffff" : "#c8ccd2"}
+        opacity={0.55 + weather.cloudCover * 0.35}
+        transparent
+      />
+    </instancedMesh>
   );
 }
+
+/** Half the width of the sky the clouds cross before coming round again. */
+const EDGE = 340;
 
 export function WeatherLayer({ weather }: { weather: Weather }) {
   return (

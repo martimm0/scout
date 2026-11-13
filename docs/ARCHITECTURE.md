@@ -199,6 +199,48 @@ peaks. Between the two, the game rendered snow in January and nowhere else, and
 nothing about it threw or looked obviously wrong. `season.spec.ts` asserts the
 shape of the curve and that every winter month has white ground.
 
+### 1a. The park moves on the graphics card
+
+Nothing rooted used to move: the grass stood to attention in a thunderstorm.
+`world/wind.ts` holds three shared uniforms (`time`, `strength`, and `flow`, the
+water's clock) which the scene writes once a frame, and three shader patches that
+read them:
+
+- **`sway(material, height, amount)`** bends vertices by how high up their own
+  model they are, squared, so roots stay put and tips travel. Each instance takes
+  its phase from its own position, or the whole meadow nods in unison. Applied to
+  the foliage kinds listed in `SWAY` (`models/foliage.ts`) and to every plant.
+  Rocks, logs, stumps and fungi do not sway.
+- **`flap(material, body, speed, amount)`** beats the wings of the small
+  creatures (`models/creatures.ts`), which are drawn wings out along X so one
+  line of shader can do it.
+- **`ripple(material)`** cuts the creek's single quad into two-unit blocks in the
+  fragment shader and lights a block when two slow waves agree, so glints drift
+  downstream in steps. Still one quad: it costs a phone what the flat sheet did.
+
+All of it is free on the CPU, which is the point: a gale costs a phone the same
+as a calm. `strength` is zero and `flow` stops under `prefers-reduced-motion`.
+
+The rest of the same pass:
+
+- **Shade is baked into the ground.** `buildTerrainGeometry(quality, shades)`
+  darkens faces under trees, shrubs, rocks and logs, so even Low, which casts no
+  tree shadows, has trees that sit on the ground rather than float over it. High
+  also casts real shadows from trees and draws the ground on a 2-unit grid
+  rather than a 4-unit one.
+- **Clouds wrap one at a time.** They were one group that snapped back 680 units
+  together every few minutes. Each now crosses the sky on its own and shrinks to
+  nothing at the edge, in one instanced draw.
+- **The waterline is dressed** on High with pebbles and lily pads
+  (`world/shoreline.ts`, `models/shore.ts`).
+- **Snow lies on top faces.** `tintGeometry` reads the normal: tops take most of
+  the snow and sides a dusting.
+
+`world-art.spec.ts` covers these. The creek is checked by reading the flow
+uniform out of the program the renderer compiled, not by diffing pixels: the
+camera bobs with the bee, so the creek changes on screen whether it is running
+or not, and a pixel test of it measures the bee.
+
 ### 2. Species are specs, not subclasses
 
 Bee, hoverfly, butterfly and moth are four `SpeciesSpec` data objects feeding

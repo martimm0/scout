@@ -8,6 +8,7 @@ import { STARTER_POLLINATORS } from "../data/starter-pollinators";
 import { partyPoses, usePartyStore } from "../state/party-store";
 import type { Gesture } from "./game-scene";
 import { PollinatorModel } from "./pollinator-model";
+import { wind } from "../world/wind";
 
 /**
  * The other bees in the park.
@@ -165,14 +166,22 @@ export function SceneHandle() {
       return;
     }
 
-    const holder = window as unknown as { __scoutScene?: unknown; __scoutGl?: unknown };
+    const holder = window as unknown as {
+      __scoutScene?: unknown;
+      __scoutGl?: unknown;
+      __scoutWind?: unknown;
+    };
 
     holder.__scoutScene = scene;
     holder.__scoutGl = gl;
+    // The wind's two numbers and the water's clock, which live in uniforms and
+    // are otherwise only visible as leaves moving.
+    holder.__scoutWind = wind;
 
     return () => {
       delete holder.__scoutScene;
       delete holder.__scoutGl;
+      delete holder.__scoutWind;
     };
   }, [gl, scene]);
 

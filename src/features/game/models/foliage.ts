@@ -1,4 +1,4 @@
-import type { BufferGeometry } from "three";
+import { Color, type BufferGeometry } from "three";
 
 import type { Quality } from "./quality";
 import { shade, tint } from "./voxel";
@@ -37,7 +37,13 @@ function vary(variant: number, channel: number) {
  * canopy one colour, which is what lets their faces merge.
  */
 function lit(hex: string, y0: number, y1: number, amount = 0.16): PaintFn {
-  const steps = [shade(hex, amount), shade(hex, amount * 0.45), hex, tint(hex, amount * 0.6), tint(hex, amount * 1.1)];
+  const steps = [
+    shade(hex, amount),
+    shade(hex, amount * 0.45),
+    hex,
+    sunlit(hex, amount * 1.1),
+    sunlit(hex, amount * 2),
+  ];
 
   return (_x, y, _z, h) => {
     const t = (y - y0) / (y1 - y0) + (h - 0.5) * 0.3;
@@ -45,6 +51,21 @@ function lit(hex: string, y0: number, y1: number, amount = 0.16): PaintFn {
     return steps[Math.min(4, Math.max(0, Math.floor(t * 5)))];
   };
 }
+
+/**
+ * A leaf in the sun goes yellow-green, not grey. Lightening toward white is
+ * right for fur and wrong for a canopy: it made the top of every oak look
+ * frosted.
+ */
+function sunlit(hex: string, amount: number) {
+  const color = new Color(hex);
+
+  color.lerp(SUN_ON_LEAF, amount);
+
+  return `#${color.getHexString()}`;
+}
+
+const SUN_ON_LEAF = new Color("#d9ec7a");
 
 /** Bark: vertical streaks, darker in the furrows. */
 function bark(hex: string, grain = 1.6): PaintFn {
@@ -75,7 +96,7 @@ const hemlock: Build = (g, v) => {
     const width = (42 - t * 35) * (0.92 + vary(v, 10 + i) * 0.16);
     const y = 25 + i * 7.6;
     const green = i < 2 ? "#3f6d42" : i < 5 ? "#4a7d4d" : "#578b56";
-    const tips = tint(green, 0.2);
+    const tips = sunlit(green, 0.3);
     const half = width / 2;
 
     // Each tier is a drooping skirt: wide and thin at the hem, thick at the trunk.
@@ -83,7 +104,7 @@ const hemlock: Build = (g, v) => {
       const reach = Math.hypot(x - lean * t, z) / half;
 
       // New growth at the tips is paler, which is how you tell a hemlock is well.
-      return reach > 0.78 && h > 0.35 ? tips : yy < y - 1 ? shade(green, 0.14) : h > 0.86 ? tint(green, 0.08) : green;
+      return reach > 0.8 && h > 0.6 ? tips : yy < y - 1 ? shade(green, 0.14) : h > 0.86 ? sunlit(green, 0.12) : green;
     }, { rough: 0.22 });
     g.ball([lean * t, y + 3.4, 0], [half * 0.62, 3.4, half * 0.62], lit(green, y + 1, y + 7), { rough: 0.2 });
   }

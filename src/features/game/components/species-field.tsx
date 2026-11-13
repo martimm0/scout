@@ -2,7 +2,14 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { Color, InstancedMesh, MeshLambertMaterial, Object3D, type BufferGeometry } from "three";
+import {
+  AdditiveBlending,
+  Color,
+  InstancedMesh,
+  MeshLambertMaterial,
+  Object3D,
+  type BufferGeometry,
+} from "three";
 
 import { buildFungusGeometry } from "../models/fungi";
 import {
@@ -146,8 +153,9 @@ export function SpeciesField({
                   isNearby ? highlight : glowing ? glow : undefined
                 }
                 emissiveIntensity={isNearby ? 0.3 : glowing ? 0.55 : 0}
-                // A closed flower is drab. It has nothing to advertise.
-                color={open ? "#ffffff" : "#8d8d86"}
+                // A closed flower is drab. It has nothing to advertise. A cool
+                // dusk wash rather than flat grey, which read as dead.
+                color={open ? "#ffffff" : "#aeb0c2"}
                 vertexColors
               />
             </mesh>
@@ -256,6 +264,9 @@ function Motes({
   const discoveredFungi = useGameStore((state) => state.discoveredFungi);
   const geometry = useMemo(() => buildMoteGeometry(), []);
   const meshRef = useRef<InstancedMesh>(null);
+  const haloRef = useRef<InstancedMesh>(null);
+  // When this set of motes appeared, so they can grow in rather than pop.
+  const born = useRef(-1);
 
   const pending = useMemo(
     () =>
@@ -279,8 +290,15 @@ function Motes({
 
   useEffect(() => () => geometry.dispose(), [geometry]);
 
+  // The mesh is rebuilt whenever the count changes (an instanced mesh keeps the
+  // count it was made with), so that is the moment to start growing again.
+  useEffect(() => {
+    born.current = -1;
+  }, [pending.length]);
+
   useFrame(({ clock }) => {
     const mesh = meshRef.current;
+    const halo = haloRef.current;
 
     if (!mesh) {
       return;
@@ -289,18 +307,37 @@ function Motes({
     const elapsed = clock.getElapsedTime();
     const dummy = new Object3D();
 
+    if (born.current < 0) {
+      born.current = elapsed;
+    }
+
+    // Ease out: quick at first, settling into full size.
+    const age = Math.min(1, (elapsed - born.current) / 0.5);
+    const grow = 1 - (1 - age) * (1 - age);
+
     pending.forEach((instance, index) => {
       const [x, y, z] = instance.position;
       const bob = Math.sin(elapsed * 1.8 + index * 1.7) * 1.6;
 
       dummy.position.set(x, y + instance.height * instance.scale + 7 + bob, z);
       dummy.rotation.set(elapsed * 0.6, elapsed * 0.9, 0);
-      dummy.scale.setScalar(9);
+      dummy.scale.setScalar(9 * grow);
       dummy.updateMatrix();
       mesh.setMatrixAt(index, dummy.matrix);
+
+      if (halo) {
+        // A breath of light round each one, slowly swelling and fading.
+        dummy.scale.setScalar(9 * grow * (2.6 + Math.sin(elapsed * 2.2 + index) * 0.5));
+        dummy.updateMatrix();
+        halo.setMatrixAt(index, dummy.matrix);
+      }
     });
 
     mesh.instanceMatrix.needsUpdate = true;
+
+    if (halo) {
+      halo.instanceMatrix.needsUpdate = true;
+    }
   });
 
   if (pending.length === 0) {
@@ -308,12 +345,30 @@ function Motes({
   }
 
   return (
-    <instancedMesh
-      args={[geometry, undefined, pending.length]}
-      key={pending.length}
-      ref={meshRef}
-    >
-      <meshBasicMaterial toneMapped={false} vertexColors />
-    </instancedMesh>
+    <>
+      <instancedMesh
+        args={[geometry, undefined, pending.length]}
+        key={pending.length}
+        ref={meshRef}
+      >
+        <meshBasicMaterial toneMapped={false} vertexColors />
+      </instancedMesh>
+      {/* The glow. Added to what is behind it rather than drawn over it, so a
+          mote reads as lit from within and not as a bigger, paler cube. */}
+      <instancedMesh
+        args={[geometry, undefined, pending.length]}
+        key={`halo-${pending.length}`}
+        ref={haloRef}
+      >
+        <meshBasicMaterial
+          blending={AdditiveBlending}
+          color="#ffe9a8"
+          depthWrite={false}
+          opacity={0.1}
+          toneMapped={false}
+          transparent
+        />
+      </instancedMesh>
+    </>
   );
 }

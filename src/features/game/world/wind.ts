@@ -16,6 +16,8 @@ import type { Material } from "three";
 export const wind = {
   time: { value: 0 },
   strength: { value: 0 },
+  /** Time that stops for anybody who has asked for less motion: the water's clock. */
+  flow: { value: 0 },
 };
 
 /** Miles an hour, as the weather reports it, to a sway strength. */
@@ -110,4 +112,44 @@ export function flap<T extends Material>(material: T, body: number, speed: numbe
     uFlapSpeed: { value: speed },
     uFlapAmount: { value: amount },
   }) as T;
+}
+
+/**
+ * Voxel water: one flat sheet whose surface is cut into blocks in the shader.
+ *
+ * Each two-unit cell of the world is a block of water, and a block is either
+ * catching the light or it is not. Two slow waves travel across the cells and
+ * where they agree a block lights up, so glints drift down the run in chunky
+ * steps rather than shimmering smoothly, which would be the one smooth thing in
+ * the park. Broader bands darken and lighten the body of the water behind them.
+ * Still a single quad, so it costs a phone exactly what the flat sheet did.
+ */
+export function ripple<T extends Material>(material: T, cell = 2): T {
+  material.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, { uWaterFlow: wind.flow, uWaterCell: { value: cell } });
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec2 vWaterXZ;")
+      .replace(
+        "#include <begin_vertex>",
+        "#include <begin_vertex>\nvWaterXZ = (modelMatrix * vec4(transformed, 1.0)).xz;",
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "#include <common>",
+        "#include <common>\nvarying vec2 vWaterXZ;\nuniform float uWaterFlow;\nuniform float uWaterCell;",
+      )
+      .replace(
+        "#include <color_fragment>",
+        `#include <color_fragment>
+        vec2 waterCell = floor(vWaterXZ / uWaterCell);
+        float waterA = sin(waterCell.x * 0.61 + waterCell.y * 0.27 + uWaterFlow * 1.1);
+        float waterB = sin(waterCell.x * 0.23 - waterCell.y * 0.71 + uWaterFlow * 0.7 + 2.0);
+        float waterBand = floor((sin(waterCell.y * 0.09 + waterCell.x * 0.05 - uWaterFlow * 0.35) * 0.5 + 0.5) * 3.0) / 3.0;
+        diffuseColor.rgb *= 0.88 + waterBand * 0.2;
+        diffuseColor.rgb += step(1.45, waterA + waterB) * vec3(0.22, 0.26, 0.24);`,
+      );
+  };
+  material.customProgramCacheKey = () => "scout-ripple";
+
+  return material;
 }

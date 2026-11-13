@@ -186,8 +186,10 @@ export function daylightForHour(hour: number): Daylight {
     // you should be able to SEE that it is. Weather still closes it back in: the
     // fog and rain multipliers in `weather.ts` sit on top of this.
     fogDensity: lerp(0.0022, 0.00065, light),
-    turbidity: lerp(2, 5, light),
-    rayleigh: lerp(0.4, 1.2, light),
+    // Clearer air and more scatter by day than this had: the noon sky was a
+    // pale haze the colour of the fog under it, and a summer sky is blue.
+    turbidity: lerp(2, 3, light),
+    rayleigh: lerp(0.4, 1.9, light),
   };
 }
 

@@ -60,6 +60,7 @@ function seedOf(id: string): number {
 
 function Cohort({ cohort }: { cohort: AmbientCohort }) {
   const mesh = useRef<THREE.InstancedMesh>(null);
+  const halo = useRef<THREE.InstancedMesh>(null);
 
   // A firefly is a point of light and stays a cube. Everything else is an
   // animal now, with wings that beat.
@@ -232,9 +233,20 @@ function Cohort({ cohort }: { cohort: AmbientCohort }) {
 
       dummy.updateMatrix();
       instanced.setMatrixAt(i, dummy.matrix);
+
+      if (halo.current) {
+        // The glow round a firefly: three times its size and much fainter.
+        dummy.scale.multiplyScalar(3.4);
+        dummy.updateMatrix();
+        halo.current.setMatrixAt(i, dummy.matrix);
+      }
     }
 
     instanced.instanceMatrix.needsUpdate = true;
+
+    if (halo.current) {
+      halo.current.instanceMatrix.needsUpdate = true;
+    }
   });
 
   return (
@@ -242,11 +254,29 @@ function Cohort({ cohort }: { cohort: AmbientCohort }) {
     // instance the frame loop never writes keeps its identity matrix, which draws
     // a box at the world origin: on a phone, where the pools are thinned, that
     // would be a small pile of debris in the middle of the park.
-    <instancedMesh
-      args={[geometry, material, homes.length]}
-      frustumCulled={false}
-      key={homes.length}
-      ref={mesh}
-    />
+    <>
+      <instancedMesh
+        args={[geometry, material, homes.length]}
+        frustumCulled={false}
+        key={homes.length}
+        ref={mesh}
+      />
+      {cohort.kind === "firefly" ? (
+        <instancedMesh
+          args={[geometry, undefined, homes.length]}
+          frustumCulled={false}
+          key={`halo-${homes.length}`}
+          ref={halo}
+        >
+          <meshBasicMaterial
+            blending={THREE.AdditiveBlending}
+            color={cohort.color}
+            depthWrite={false}
+            opacity={0.14}
+            transparent
+          />
+        </instancedMesh>
+      ) : null}
+    </>
   );
 }
