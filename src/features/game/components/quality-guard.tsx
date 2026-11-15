@@ -7,6 +7,7 @@ import { coarsePointerNow } from "../hooks/use-media-query";
 import { pinnedQuality } from "../models/quality";
 import { useGameStore } from "../state/game-store";
 import { announce } from "../state/moments";
+import { ENOUGH_FRAMES, typicalRate } from "../world/pace";
 
 /**
  * If the fine park is too much for this machine, stop drawing it.
@@ -26,10 +27,10 @@ import { announce } from "../state/moments";
 const WATCH_SECONDS = 4;
 const SETTLE_SECONDS = 1.2;
 const FLOOR_FPS = 28;
-const HIDDEN_SECONDS = 2;
+const HIDDEN_SECONDS = 0.9;
 
 export function QualityGuard() {
-  const watch = useRef({ waited: 0, time: 0, frames: 0, done: false });
+  const watch = useRef({ waited: 0, time: 0, frames: [] as number[], done: false });
 
   useFrame((_state, delta) => {
     const state = watch.current;
@@ -54,10 +55,12 @@ export function QualityGuard() {
       return;
     }
 
-    // A frame that took seconds is a tab that was hidden, not a slow machine.
-    // The line has to be well above a slow frame: at a quarter of a second it
-    // threw away every frame of a machine drawing four a second, which is the
-    // one this guard most needs to catch.
+    // A frame that took the best part of a second is a page that is not being
+    // shown, not a slow machine: a browser hands a page it has put in the
+    // background exactly one frame a second, and that is the cadence to
+    // refuse. The line has to stay well above a slow frame, though. At a
+    // quarter of a second it threw away every frame of a machine drawing four
+    // a second, which is the one this guard most needs to catch.
     if (delta > HIDDEN_SECONDS) {
       return;
     }
@@ -69,12 +72,15 @@ export function QualityGuard() {
     }
 
     state.time += delta;
-    state.frames += 1;
+    state.frames.push(delta);
 
-    if (state.time >= WATCH_SECONDS) {
+    // Long enough, and enough of them. Judged by the typical frame and not by
+    // how many arrived: a window that is not in front is drawn in bursts, and
+    // counting those per second called a fast machine slow. See `world/pace.ts`.
+    if (state.time >= WATCH_SECONDS && state.frames.length >= ENOUGH_FRAMES) {
       state.done = true;
 
-      if (state.frames / state.time < FLOOR_FPS) {
+      if (typicalRate(state.frames) < FLOOR_FPS) {
         useGameStore.getState().updateSettings({ quality: "low" });
         announce({
           label: "Detail set to low",

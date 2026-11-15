@@ -175,10 +175,18 @@ thirty it switches the park to Low and says so on the moments line. Once, and
 only when nobody has chosen: a player who picked High keeps it, a pinned test
 keeps its pin, and it never runs under automation (`navigator.webdriver`),
 where a slow software renderer would rebuild the park in the middle of a test.
-A frame longer than two seconds is taken for a hidden tab and not counted. That
-line was a quarter of a second at first, which threw away every frame of a
-machine drawing four a second: the one machine the guard most needs to catch
-was the one it could never see.
+The rate is the TYPICAL frame's, the middle one by length (`world/pace.ts`),
+not the number of frames that arrived. A page that is not really being shown
+(a window behind another, a pane put away) is still handed frames, in short
+bursts with long gaps or at exactly one a second, and each of those frames is
+as quick as ever. Counted per second that is a slow machine, and it dropped
+the park to Low on a fast computer whose window was simply not in front. The
+middle frame of a burst is short; the middle frame of a slow machine is long.
+A frame of most of a second or more is not counted at all, since one a second
+is the cadence a browser gives a page in the background. That line was a
+quarter of a second at first, which threw away every frame of a machine
+drawing four a second: the one machine the guard most needs to catch was the
+one it could never see.
 
 **The fine ground is drawn lower than the real one, and what stands on it is
 drawn to match.** `terrainHeight` is a smooth field, and it is what the flight
