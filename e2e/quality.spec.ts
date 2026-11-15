@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { typicalRate } from "../src/features/game/world/pace";
 import { enterGame, hold, openPlay, pinPanels, whole } from "./helpers";
 
 /**
@@ -154,5 +155,23 @@ test.describe("detail: high and low", () => {
     expect(await triangles(page), "low is heavier than the park it replaced").toBeLessThanOrEqual(
       TRIANGLES_BEFORE,
     );
+  });
+});
+
+test.describe("the frame rate guard, as data", () => {
+  test.skip(({ browserName }) => browserName !== "chromium", "no browser involved");
+
+  test("tells a slow machine from a window that is not in front", () => {
+    // A window behind another is handed frames in bursts: each one quick, with
+    // long gaps between. Counted per second that is five frames a second, and
+    // it dropped a fast computer to Low. The typical frame is still quick.
+    const throttled = [...Array.from({ length: 30 }, () => 0.0084), 0.9, 1.4, 0.7, 1.1];
+
+    expect(throttled.length / throttled.reduce((sum, value) => sum + value, 0), "the old measure").toBeLessThan(10);
+    expect(typicalRate(throttled)).toBeGreaterThan(100);
+    // A machine that really is drawing four a second is still caught.
+    expect(typicalRate(Array.from({ length: 16 }, () => 0.25))).toBe(4);
+    // And one hitch among smooth frames is not a slow machine.
+    expect(typicalRate([...Array.from({ length: 40 }, () => 1 / 60), 0.4])).toBeCloseTo(60, 0);
   });
 });
