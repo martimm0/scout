@@ -15,6 +15,7 @@ import { buildCreatureGeometry, WING_ROOT, type CreatureKind } from "../models/c
 import type { Daylight } from "../world/daylight";
 import { hash } from "../world/park";
 import { terrainHeight, world } from "../world/terrain";
+import { MAX_SPARKS, sparks } from "../world/sparks";
 import type { Weather } from "../world/weather";
 import { flap } from "../world/wind";
 
@@ -101,6 +102,15 @@ function Cohort({ cohort }: { cohort: AmbientCohort }) {
 
   useEffect(() => () => geometry.dispose(), [geometry]);
   useEffect(() => () => material.dispose(), [material]);
+  // When the fireflies go in for the day, so do their lights.
+  useEffect(
+    () => () => {
+      if (cohort.kind === "firefly") {
+        sparks.count = 0;
+      }
+    },
+    [cohort.kind],
+  );
 
   // Calmer for anyone who has asked for less motion: the firefly twinkle steadies
   // and everything drifts a little more slowly.
@@ -226,6 +236,13 @@ function Cohort({ cohort }: { cohort: AmbientCohort }) {
       } else if (cohort.kind === "firefly") {
         dummy.scale.setScalar(Math.max(0, size));
         dummy.rotation.set(0, t, 0);
+
+        // Left where the Ultra lamps can find them: see `world/sparks.ts`.
+        if (i < MAX_SPARKS) {
+          sparks.at[i * 3] = x;
+          sparks.at[i * 3 + 1] = y;
+          sparks.at[i * 3 + 2] = z;
+        }
       } else {
         dummy.scale.setScalar(Math.max(0, size) * 2.4);
         dummy.rotation.set(0, t, 0);
@@ -240,6 +257,10 @@ function Cohort({ cohort }: { cohort: AmbientCohort }) {
         dummy.updateMatrix();
         halo.current.setMatrixAt(i, dummy.matrix);
       }
+    }
+
+    if (cohort.kind === "firefly") {
+      sparks.count = Math.min(homes.length, MAX_SPARKS);
     }
 
     instanced.instanceMatrix.needsUpdate = true;

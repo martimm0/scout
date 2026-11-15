@@ -17,6 +17,7 @@ declare module "n8ao" {
       intensity: number;
       color: Color;
       halfRes: boolean;
+      transparencyAware: boolean;
       depthAwareUpsampling: boolean;
       screenSpaceRadius: boolean;
       gammaCorrection: boolean;

@@ -63,6 +63,8 @@ export class VoxelGrid {
   private readonly cells = new Map<number, number>();
   /** Linear RGB triples. A cell stores an index into this, plus one. */
   private readonly colors: number[] = [];
+  /** What each of those colours is made of: see `models/made.ts`. */
+  private readonly madeOf: number[] = [];
   private readonly lookup = new Map<string, number>();
   private readonly scratch = new Color();
 
@@ -90,16 +92,25 @@ export class VoxelGrid {
     return this.cells.size;
   }
 
-  private colorIndex(hex: string) {
+  private colorIndex(tagged: string) {
+    // Low has nothing to say about what a block is made of, and must not pay
+    // for it: two faces of one colour that differ only in the tag would be two
+    // entries and could not merge, and merging is what low lives on.
+    const hex = this.plain && tagged.includes("@") ? tagged.slice(0, tagged.indexOf("@")) : tagged;
     const known = this.lookup.get(hex);
 
     if (known !== undefined) {
       return known;
     }
 
+    // A colour may say what it is made of, as "#rrggbb@n". The same green as
+    // a leaf and as paint on a bench are two entries, or they would merge.
+    const at = hex.indexOf("@");
+
     // Vertex colours are multiplied in linear space by the renderer.
-    this.scratch.set(hex);
+    this.scratch.set(at < 0 ? hex : hex.slice(0, at));
     this.colors.push(this.scratch.r, this.scratch.g, this.scratch.b);
+    this.madeOf.push(at < 0 ? 0 : Number(hex.slice(at + 1)));
 
     const index = this.colors.length / 3;
 
@@ -425,6 +436,10 @@ export class VoxelGrid {
     const positions: number[] = [];
     const normals: number[] = [];
     const colors: number[] = [];
+    // Only for a model that is made of more than one thing, and never on low:
+    // it is a float a vertex, and most models have nothing to say.
+    const mixed = !this.plain && this.madeOf.some((what) => what !== 0);
+    const materials: number[] = [];
 
     if (this.cells.size > 0) {
       let minX = Infinity;
@@ -509,6 +524,10 @@ export class VoxelGrid {
           positions.push(vertex[0], vertex[1], vertex[2]);
           normals.push(face.normal[0], face.normal[1], face.normal[2]);
           colors.push(vertex[3], vertex[4], vertex[5]);
+
+          if (mixed) {
+            materials.push(this.madeOf[color - 1]);
+          }
         }
       };
 
@@ -643,6 +662,11 @@ export class VoxelGrid {
     geometry.setAttribute("position", new BufferAttribute(new Float32Array(positions), 3));
     geometry.setAttribute("normal", new BufferAttribute(new Float32Array(normals), 3));
     geometry.setAttribute("color", new BufferAttribute(new Float32Array(colors), 3));
+
+    if (mixed) {
+      geometry.setAttribute("made", new BufferAttribute(new Float32Array(materials), 1));
+    }
+
     geometry.computeBoundingSphere();
 
     // X and Z cells are centred on the origin and Y cells sit on it: see `world` above.

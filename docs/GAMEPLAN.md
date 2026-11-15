@@ -321,8 +321,12 @@ voxel grid, and the rules for the look follow from that.
 - **Ultra is the same park, photographed.** For a fast desktop, and only when
   asked for: the blocks stay blocks, but they are lit like a real model on a
   real table. Soft shadows where things touch, a lens that keeps the bee sharp
-  and lets the distance go soft, light through petals, a creek that reflects
-  the sky, dust in the sunbeams. It is the one place the game uses
+  and lets the distance go soft, light through petals, glass that is glass and
+  bark that is bark, a creek that reflects the trees over it, a sky with a sun
+  in it and stars after dark, rain that leaves the ground wet, mist in the
+  ravine at first light, windows lit at dusk, dust in the sunbeams and leaves
+  coming down in October. A photograph taken there is drawn with more care
+  than the frame it was taken from. It is the one place the game uses
   post-processing, and it is never the default. Cute first: if an effect makes
   the park look less like a toy and more like a simulation, it is turned down.
 

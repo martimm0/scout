@@ -142,7 +142,16 @@ function BodySurface({ geometry, quality }: { geometry: BufferGeometry | undefin
   );
 
   if (ultra) {
-    return <meshPhysicalMaterial {...ultra} key="ultra" sheen={0.35} sheenColor="#ffe2a8" sheenRoughness={0.5} />;
+    return (
+      <meshPhysicalMaterial
+        {...ultra}
+        // A new material with each new model: see `SpeciesSurface`.
+        key={`ultra-${geometry?.uuid}`}
+        sheen={0.35}
+        sheenColor="#ffe2a8"
+        sheenRoughness={0.5}
+      />
+    );
   }
 
   return <meshLambertMaterial vertexColors />;

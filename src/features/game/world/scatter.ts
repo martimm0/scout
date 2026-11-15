@@ -194,6 +194,62 @@ export function scatterFoliage(): FoliageScatter {
   return result;
 }
 
+/** The blade of grass that grows in the cell at (x, z), if one does. */
+function bladeAt(park: ReturnType<typeof activePark>, x: number, z: number, cell: number, seed: number): Placement | null {
+  const px = x + (sample(x, z, seed) - 0.5) * cell;
+  const pz = z + (sample(x, z, seed + 1) - 0.5) * cell;
+
+  const height = terrainHeight(px, pz);
+
+  if (height < waterLevel() + 2) {
+    return null;
+  }
+
+  /**
+   * Bare on the cliffs, thin in deep shade, thick on the mown grass.
+   *
+   * Keyed off the BIOME, not off Frick's area names. This still read
+   * `area === "fern-hollow"` after `pickKind` had been fixed, which meant
+   * every area of every other park fell through to 0.7 and grew grass. In
+   * Highland that put a lawn on the surface of the city's drinking water:
+   * the reservoirs are declared at density 0 and the foliage scatter honours
+   * that, but the grass scatter had never heard of it.
+   */
+  const area = areaAt(px, pz).id;
+  const biome = park.biome[area] ?? "mown";
+  const planted = park.density[area] ?? 0.3;
+
+  // Nothing grows where nothing grows. A park that says an area is bare
+  // means it.
+  if (planted <= 0) {
+    return null;
+  }
+
+  const density =
+    biome === "deep-woods" || biome === "slope-woods"
+      ? 0.35
+      : biome === "mown"
+        ? Math.min(0.95, 0.5 + planted)
+        : 0.7;
+
+  // Grass gets worn off the trails too, though not as completely.
+  if (
+    terrainSlope(px, pz) > 1 ||
+    sample(x, z, seed + 2) > density * (1 - trailStrength(px, pz) * 0.85)
+  ) {
+    return null;
+  }
+
+  return {
+    position: [px, height - 0.5, pz],
+    rotation: sample(x, z, seed + 3) * Math.PI * 2,
+    // A mown lawn is clipped short. Everywhere else runs wild.
+    scale:
+      (biome === "mown" && planted < 0.25 ? 0.35 : 0.7) +
+      sample(x, z, seed + 4) * 0.75,
+  };
+}
+
 /**
  * Grass, everywhere it can grow. This is the model that does the most work in
  * the whole park: a lawn is nothing to a person and a forest to a bee, and
@@ -205,58 +261,42 @@ export function scatterGrass(cell: number = GRASS_CELL): Placement[] {
 
   for (let x = world().minX; x <= world().maxX; x += cell) {
     for (let z = world().minZ; z <= world().maxZ; z += cell) {
-      const px = x + (sample(x, z, 21) - 0.5) * cell;
-      const pz = z + (sample(x, z, 22) - 0.5) * cell;
+      const blade = bladeAt(park, x, z, cell, 21);
 
-      const height = terrainHeight(px, pz);
+      if (blade) {
+        blades.push(blade);
+      }
+    }
+  }
 
-      if (height < waterLevel() + 2) {
+  return blades;
+}
+
+/**
+ * More grass, close to: the blades within `radius` of a spot, on a much finer
+ * grid than the lawn's. For Ultra, which thickens the ground round the bee and
+ * nowhere else. The cells are fixed to the world, so a blade is where it was
+ * the last time the bee came this way, and they are seeded apart from the
+ * lawn's so the two do not stand on each other.
+ */
+export function scatterGrassNear(cx: number, cz: number, radius: number, cell: number): Placement[] {
+  const park = activePark();
+  const blades: Placement[] = [];
+  const { minX, minZ, maxX, maxZ } = world();
+  const x0 = Math.max(minX, Math.floor((cx - radius) / cell) * cell);
+  const z0 = Math.max(minZ, Math.floor((cz - radius) / cell) * cell);
+
+  for (let x = x0; x <= Math.min(maxX, cx + radius); x += cell) {
+    for (let z = z0; z <= Math.min(maxZ, cz + radius); z += cell) {
+      if ((x - cx) ** 2 + (z - cz) ** 2 > radius * radius) {
         continue;
       }
 
-      /**
-       * Bare on the cliffs, thin in deep shade, thick on the mown grass.
-       *
-       * Keyed off the BIOME, not off Frick's area names. This still read
-       * `area === "fern-hollow"` after `pickKind` had been fixed, which meant
-       * every area of every other park fell through to 0.7 and grew grass. In
-       * Highland that put a lawn on the surface of the city's drinking water:
-       * the reservoirs are declared at density 0 and the foliage scatter honours
-       * that, but the grass scatter had never heard of it.
-       */
-      const area = areaAt(px, pz).id;
-      const biome = park.biome[area] ?? "mown";
-      const planted = park.density[area] ?? 0.3;
+      const blade = bladeAt(park, x, z, cell, 61);
 
-      // Nothing grows where nothing grows. A park that says an area is bare
-      // means it.
-      if (planted <= 0) {
-        continue;
+      if (blade) {
+        blades.push(blade);
       }
-
-      const density =
-        biome === "deep-woods" || biome === "slope-woods"
-          ? 0.35
-          : biome === "mown"
-            ? Math.min(0.95, 0.5 + planted)
-            : 0.7;
-
-      // Grass gets worn off the trails too, though not as completely.
-      if (
-        terrainSlope(px, pz) > 1 ||
-        sample(x, z, 23) > density * (1 - trailStrength(px, pz) * 0.85)
-      ) {
-        continue;
-      }
-
-      blades.push({
-        position: [px, height - 0.5, pz],
-        rotation: sample(x, z, 24) * Math.PI * 2,
-        // A mown lawn is clipped short. Everywhere else runs wild.
-        scale:
-          (biome === "mown" && planted < 0.25 ? 0.35 : 0.7) +
-          sample(x, z, 25) * 0.75,
-      });
     }
   }
 

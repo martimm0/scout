@@ -3,6 +3,7 @@ import { Color, type BufferGeometry } from "three";
 import type { Quality } from "./quality";
 import { shade, tint } from "./voxel";
 import { HEART, mottle, SPOON, VoxelGrid, type PaintFn, type Vec3 } from "./voxel-grid";
+import { MADE, madeOf } from "./made";
 
 /**
  * The park's furniture, sized for an insect.
@@ -72,11 +73,13 @@ function bark(hex: string, grain = 1.6): PaintFn {
   const dark = shade(hex, 0.16);
   const light = tint(hex, 0.08);
 
-  return (x, _y, z, h) => {
+  // Wood, and said to be: a tree is bark under leaves in one mesh, and on
+  // Ultra the two do not answer the light alike.
+  return madeOf((x, _y, z, h) => {
     const streak = Math.sin((x * 1.7 + z * 2.3) / grain);
 
     return streak > 0.55 ? dark : streak < -0.7 || h > 0.9 ? light : hex;
-  };
+  }, MADE.wood) as PaintFn;
 }
 
 type Build = (grid: VoxelGrid, variant: number, fine: boolean) => void;

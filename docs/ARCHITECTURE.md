@@ -328,6 +328,16 @@ scene is drawn into a floating-point buffer and then, in order:
 
 - **Ambient occlusion** (`n8ao`, half resolution). Where two blocks meet, less
   sky can see in. This is what sits a tree on the ground.
+- **Steadying** (`ultra-temporal.ts`). Each frame is drawn a fraction of a
+  pixel off from the last, in a fixed eight-frame pattern, and blended into a
+  running picture of the frames before it, read back from where each pixel
+  WAS on screen (its depth says where it is in the park). The history is held
+  to the range of the pixels round it now, so a wing or a leaf in the wind
+  does not leave a ghost, and the result is sharpened slightly on the way
+  out, never on the way into the history. This replaced smoothing each frame
+  on its own, which cannot stop a thin edge crawling from one frame to the
+  next. The offset is on the camera itself (`camera.view`), and is cleared
+  when Ultra is.
 - **Depth of field**, focused on the bee. The library's lens blurs from the
   focal plane outward, which softened the bee's own wings, so its shader is
   patched to give a zone that is simply sharp (`focusSharp`) before the
@@ -337,8 +347,7 @@ scene is drawn into a floating-point buffer and then, in order:
 - **Shafts of light** from the sun (found in the scene by `userData.sun`),
   faded out at night and under cloud.
 - **Bloom** on whatever is brighter than white, then **filmic tone**, a small
-  **saturation and contrast** grade, a **vignette**, and **SMAA** in a pass of
-  its own.
+  **saturation and contrast** grade, and a **vignette**.
 
 It takes the frame over with `useFrame(..., 1)`, which is why it is a component
 and not a flag. `document.documentElement.dataset.scoutUltra` is `"on"` while
@@ -348,13 +357,23 @@ the specs and for tuning.
 **The materials are physical** (`world/surface.ts`). `surface(quality, look,
 geometry)` is the one place a vertex-coloured model gets its material: the
 matte Lambert on Low and High, exactly as before, and on Ultra a
-`MeshStandardMaterial` patched with four things:
+`MeshStandardMaterial` with one shader patch that does all of this:
 
 - **A roughness, and the sky.** `LOOKS` says what each kind of thing is made
   of. The sky lights it: `SkyLight` (`sky-dome.tsx`) paints a small smooth copy
   of the sky with the ground's colour under it, blurs it into an environment,
   and the two flat lamps that stand in for the sky elsewhere are turned most
-  of the way down. It is rebuilt only when the sky's colours change.
+  of the way down (and back up at night, when a true night sky would light
+  nothing and the fungi still have to be found).
+- **What each block is made of** (`models/made.ts`). One material for a whole
+  model is wrong as soon as the model is two things. A paint can be tagged
+  (`made("#hex", MADE.glass)`, or `madeOf(paint, MADE.wood)` for a whole
+  rule), the grid keeps the tag with the colour so the two never merge, and
+  the mesher writes it to a `made` attribute, one float a vertex, only on
+  fine models that used a tag at all. Bark, timber, glass in its metal
+  frames, bronze, still water, and every plant's stem and leaves are tagged
+  where they are drawn (`bark`, `dressed`, `stem`, `leaves`), so no model
+  had to be redrawn. `MADE_FRAGMENT` is the table of what each tag means.
 - **Bevelled blocks.** A real block's edge is slightly round and that is what
   catches light. Every face of a voxel model points along one axis, so the
   other two say how near a point is to the edge of its block; the shader leans
@@ -363,50 +382,158 @@ matte Lambert on Low and High, exactly as before, and on Ultra a
   records its lattice on the geometry it returns (`models/lattice.ts`). A
   geometry scaled after it is built (the fungi are) must scale its lattice too.
 - **Blocks within blocks.** `split` cuts each voxel into smaller ones in the
-  same arithmetic, each with a very slight tone of its own. The ground's
-  two-unit columns read as half-unit blocks for no triangles at all.
+  same arithmetic, each with a very slight tone of its own, and `fine` halves
+  them once more where the camera is close enough to see it. The ground's
+  two-unit columns read as half-unit blocks, and quarter-unit ones as the bee
+  comes down to them, for no triangles at all.
 - **Light through thin things.** Leaves and petals glow with the sun behind
-  them. The first directional light is the sun, and the shader relies on that.
+  them; wood, stone, glass and metal do not. The first directional light is
+  the sun, and the shader relies on that.
+- **Weather**, read from `world/air.ts`, which the scene writes when the hour
+  or the sky changes: rain darkens and smooths everything and stands in
+  puddles on flat ground; cloud shadows drift over on the wind under a broken
+  sky; mist lies low, thick at the water and gone a tree's height above it;
+  after dark about half the windows are lit.
+- **The water's edge.** Ground just above the creek is dark and wet, and
+  ground under it has the sun's light moving on it, a block at a time.
 
-All four fade out by screen size (`fwidth`): a bevel narrower than a pixel is
-only shimmer. The wind patch is folded into the same shader, so a material is
-either `scout-ultra` or `scout-ultra-sway` and everything else is uniforms.
+The block detail fades out by screen size (`fwidth`): a bevel narrower than a
+pixel is only shimmer. The wind patch is folded into the same shader, so a
+material is either `scout-ultra` or `scout-ultra-sway` and everything else is
+uniforms.
+
+**The sky is drawn, not painted** (`PhotographedSky`). Per pixel, from the same
+three colours the banded sky is mixed from: pale at the rim and deep overhead,
+a glow round wherever the light is coming from, a warm band along the horizon
+under a low sun, and at night stars, which are squares on a grid and twinkle on
+the water's clock. The square sun is still a mesh, because the shafts need one.
+
+**Shadows** reach twice as far (a 280-unit box, on the same 4096 map), have a
+soft edge, and sway: the light draws the scene with a material of its own that
+knows nothing about the wind, so anything that sways and casts hands it a
+`customDepthMaterial` that does. What they do not do is soften with distance
+from the thing casting them. three reads its shadow map through a comparison
+sampler, which answers "lit or not" and never "how far away was the blocker",
+and that distance is what a contact-hardening shadow is made from.
 
 **Finer blocks where the lens goes.** The flowers and fungi are built on a
 finer grid on Ultra (0.025 against 0.034) and the bee is refined a third time,
-to eight times its drawn resolution. Trees and ground are not: `split` does
-that work in the shader, and they are most of the triangles.
+to eight times its drawn resolution. Trees, ground and buildings are not:
+`split` does that work in the shader, they are most of the triangles, and
+`sharedDetail` keeps Ultra from rebuilding them when the switch moves. Close
+to, the ground is thickened instead: `NearGrass` plants a second, much denser
+set of small blades within thirty-odd units of the bee (`scatterGrassNear`,
+cells fixed to the world and seeded apart from the lawn's) and re-plants as
+the bee moves on.
 
-**The water** (`world/water.ts`) is still one sheet in two-unit blocks. On Ultra
-each block is tilted a few degrees by the waves that used to switch its glint
-on and off, so it reflects in facets; it is clear over the shallows and dark
-over the deep, read from a one-texel-per-column map of `waterLevel -
-columnTop`; and the blocks in the thinnest water foam.
+**The water** (`world/water.ts`) is still one sheet in two-unit blocks, and on
+Ultra the sheet is a mirror: three's `Reflector`, which before it is drawn
+takes a picture of the scene from under its own surface, with its flat
+material thrown away and the water's put in its place. Each block looks into
+that picture at its own slight angle, tilted by the waves that used to switch
+its glint on and off. The picture is a second drawing of the park, so the
+grass, the flowers and the small stuff are moved to a layer of their own
+(`UNREFLECTED`) that the camera under the water does not look at, and the
+main camera is told to look at both. The water is clear over the shallows and
+dark over the deep, from a one-texel-per-column map of `waterLevel -
+columnTop`; the blocks in the thinnest water foam; rain knocks blocks to a new
+angle; mist lies on it.
 
-**The air** has pollen and dust in it (`ultra-dust.tsx`): a few hundred square
-specks in a box that travels with the camera, drifted and wrapped in the vertex
-shader, lit only when there is direct sun.
+**The air** (`ultra-dust.tsx`) has pollen and dust in it, lit only when there
+is direct sun, and leaves coming down: a trickle all summer, a great many in
+late October, none once the trees are bare (`leafFall`). Both are points in a
+box that travels with the camera, drifted and wrapped in the vertex shader.
+
+**What glows, lights** (`ultra-night.tsx`). Four point lamps, mounted together
+once it is dark and unmounted together at dawn. The number of lights is
+compiled into every material, so they never come or go one at a time. Two go
+to the nearest glowing fungi and two to the nearest fireflies, whose positions
+the loop that moves them leaves in `world/sparks.ts`.
+
+**A photograph is a better frame than the one on screen** (`world/still.ts`).
+Pressing P on Ultra draws eight frames at full resolution (capped, so a very
+large window does not ask for more memory than a card has) with the shading
+sampled properly and the lens at full size, each a fraction of a pixel from
+the last and each given an equal say, into the canvas; the camera copies that
+out and the settings are put back, whatever happens in between. It is the one place Ultra can afford everything, because it is one
+frame.
 
 **Holding the frame rate.** Nearly all of this is paid per pixel, so Ultra
-draws at one and a half real pixels per pixel at most, where High draws at two,
-and `UltraPipeline` watches the rate once a second: under about fifty-five it
-steps the pixel ratio down a quarter, and back up once it has been steady,
-never below one. If Ultra still cannot hold twenty-four frames a
+draws at one and three quarter real pixels per pixel at most, where High draws
+at two, and `UltraPipeline` watches the rate once a second: under about
+fifty-five it steps the pixel ratio down a quarter, and back up once it has
+been steady, never below one. If a step down buys nothing, the screen is the
+limit and not the card (a fifty hertz display never reaches fifty-five), so
+the pixels are given back and the steering stops. The fibre root resets the
+ratio to the device's on every resize, so Ultra's is put back after one. If Ultra still cannot hold twenty-four frames a
 second, `QualityGuard` puts the park back on High and says so: Ultra is the
 one chosen setting the guard will overrule, because it is the one that can
 make the switch to turn it off unreachable. Neither runs under automation.
 
 Measured on the machine it was authored on (an M4 Pro, a 1440 by 827 window on
-a retina screen, headless with the frame rate uncapped): High about 3 ms a
-frame at two pixels per pixel; Ultra about 15 ms at two, with one frame in ten
-over the 16 ms that sixty a second allows, and about 12 ms at one and a half,
-which is why that is its ceiling. The ambient occlusion is the dearest single
-pass, at just under 4 ms. Nothing has measured it anywhere else.
+a retina screen, headless on the real graphics card with the frame rate
+uncapped): High about 3 ms a frame at two pixels per pixel; Ultra about 11.5 ms
+at one and a half, 13 at one and three quarters, 15 at two. Full resolution
+was the aim. It fits inside a sixty-a-second frame on this machine with
+nothing to spare, so the ceiling is one and three quarters. What it costs,
+roughly, by part: ambient occlusion 3 ms, the physical materials 3 to 4 over
+High's, the mirror 1, the steadying pass under 2, the wider shadows 1. Three
+things found by measuring or by review rather than by guessing, all worth
+remembering:
 
-`ultra.spec.ts` checks that it is off until asked for, that when on the lens
-is really drawing and the planted meshes are really the physical material,
-that the picture is neither blank nor High's, that the lens tracks the bee and
-comes in on a landing, and that turning it off leaves no textures behind.
+- **A light that is switched off is not free.** Four point lamps left in the
+  scene at zero intensity all day were 2.4 ms of every frame, because every
+  pixel of every surface loops over them regardless. They are mounted at dusk
+  now and unmounted at dawn, with a gap between the two thresholds so a sky
+  on the line does not rebuild the park's shaders over and over.
+- **A mirror draws the park twice.** As first written the creek's reflection
+  cost 3 ms, as much as the whole of High. Leaving out the small stuff and
+  reflecting the trees' shadow stand-ins instead of the trees took it to 1.
+- **The occlusion pass will redraw the scene if it is not told not to.**
+  `n8ao` looks for transparent things each frame, and on finding any (the
+  water, the wings, the dust) switches on a mode that draws the whole scene
+  twice more to work round them: two more shadow maps and another reflection
+  with it. `transparencyAware` is set to false in so many words.
+
+The harness reports an occasional frame of twice the usual length followed by
+a very short one. That is the browser's graphics process catching up with
+itself, not extra work (the two together come to two ordinary frames), so the
+median is the figure to read. Nothing has measured Ultra on any other machine.
+
+**Switching it off has to put everything back,** and four things it did not,
+at first, each of which left High or Low wrong afterwards:
+
+- The composer turns off the renderer's own clearing of the frame and never
+  turns it back on. High then drew every frame over the last. `autoClear` is
+  restored when the pipeline goes.
+- An instanced mesh is rebuilt when its material is, as when its geometry is
+  (section 1), and the material now depends on the quality. The pebbles and
+  the ground cover never change their geometry or placements, so nothing laid
+  them out again and they stood at the origin. The layout effect depends on
+  the material too.
+- A shadow camera works out its box once, when its map is made. The wider box
+  for Ultra (or the narrower one for High) needs `updateProjectionMatrix`
+  called when the number changes.
+- A prop that goes back to `undefined` is left as it was. A flower's mesh
+  carried across the switch kept Ultra's swaying shadow material, so the mesh
+  is keyed by which it is.
+
+And one within Ultra: the bevel is cut along the model's blocks, which the
+shader reads once, when it is built. A flower that kept its material while its
+model sharpened kept the coarse model's blocks. Each physical material is
+keyed by its geometry.
+
+`ultra.spec.ts` checks that it is off until asked for; that when on the lens
+is really drawing, the planted meshes are really the physical material, the
+creek is really a mirror with the grass left out of it, shadows sway and the
+frames are offset for the steadying pass, and that none of that is true on
+High; that the picture is neither blank nor High's; that the lens tracks the
+bee and comes in on a landing; that there are no lamps by day and four lit
+ones by night; that a photograph is taken and the canvas comes back to its
+size; that a resize does not undo the resolution ceiling; and that turning it
+off leaves no textures behind, the frame clearing, nothing stacked at the
+origin, the shadows' box as it was and no flower with Ultra's shadow. As data, in Node: the material
+tags, the weather arithmetic, and the grass round the bee.
 
 ### 2. Species are specs, not subclasses
 

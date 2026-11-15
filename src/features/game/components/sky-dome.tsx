@@ -10,12 +10,15 @@ import {
   MeshBasicMaterial,
   PMREMGenerator,
   Scene,
+  ShaderMaterial,
   SphereGeometry,
+  Vector3,
   type Group,
   type Texture,
 } from "three";
 
 import type { Daylight } from "../world/daylight";
+import { wind } from "../world/wind";
 
 /**
  * The sky, in bands.
@@ -87,16 +90,18 @@ function SkyLight({ cloudCover, sky }: { cloudCover: number; sky: Daylight }) {
     );
 
     const room = new Scene();
+    const paint = new MeshBasicMaterial({ side: BackSide, vertexColors: true });
 
-    room.add(new Mesh(sphere, new MeshBasicMaterial({ side: BackSide, vertexColors: true })));
+    room.add(new Mesh(sphere, paint));
 
-    return { generator: new PMREMGenerator(gl), room, sphere };
+    return { generator: new PMREMGenerator(gl), paint, room, sphere };
   }, [gl]);
 
   useEffect(
     () => () => {
       rig.generator.dispose();
       rig.sphere.dispose();
+      rig.paint.dispose();
     },
     [rig],
   );
@@ -137,6 +142,133 @@ function SkyLight({ cloudCover, sky }: { cloudCover: number; sky: Daylight }) {
   }, [brightness, cloudCover, elevation, rig, scene, sky.fogColor, sky.groundColor]);
 
   return null;
+}
+
+/**
+ * The sky itself, on Ultra.
+ *
+ * The banded sky is a painting, and a good one for a park of flat colours. A
+ * photograph of the same park has a sky that is brightest and palest near the
+ * sun, deepens away from it and overhead, glows along the horizon the sun is
+ * setting behind, and at night has stars in it. This draws that, per pixel:
+ * the same three colours the painting is mixed from, a glow round wherever the
+ * light is coming from, and stars.
+ *
+ * The stars are squares, on a grid, a few of them brighter than the rest, and
+ * they twinkle on the water's clock so they hold still for anybody who asked.
+ * Brighter than white where it should flare, since the picture is
+ * floating-point here and the lens at the end knows what to do with that.
+ */
+const SKY_VERTEX = /* glsl */ `
+  varying vec3 vSkyDirection;
+
+  void main() {
+    vSkyDirection = position;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const SKY_FRAGMENT = /* glsl */ `
+  uniform vec3 uRim;
+  uniform vec3 uZenith;
+  uniform vec3 uGlow;
+  uniform vec3 uSun;
+  uniform float uDay;
+  uniform float uClear;
+  uniform float uTime;
+  varying vec3 vSkyDirection;
+
+  float skyHash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+  }
+
+  void main() {
+    vec3 direction = normalize(vSkyDirection);
+    float up = max(direction.y, 0.0);
+    float toSun = max(dot(direction, uSun), 0.0);
+
+    // Pale at the rim, deep overhead, and deeper still away from the sun.
+    vec3 color = mix(uRim, uZenith, pow(up, 0.55));
+    color *= 1.0 - 0.16 * uDay * (1.0 - toSun) * up;
+
+    // The light in the sky round the sun: a tight bright core, a wide soft
+    // one, and a band along the horizon under it when it is low.
+    float low = 1.0 - smoothstep(0.0, 0.45, uSun.y);
+    vec3 glow = uGlow * uClear;
+    color += glow * (pow(toSun, 90.0) * 1.6 + pow(toSun, 9.0) * 0.32);
+    color += glow * low * pow(toSun, 2.5) * (1.0 - smoothstep(0.0, 0.3, up)) * 0.55;
+
+    // Stars: one to a cell of sky, most cells empty, square because they are.
+    vec2 chart = vec2(atan(direction.z, direction.x) * 64.0, direction.y * 96.0);
+    vec2 cell = floor(chart);
+    float seed = skyHash(cell);
+    vec2 inside = abs(fract(chart) - 0.5);
+    float size = 0.07 + 0.12 * skyHash(cell + 9.0);
+    // About one cell in fifty: a sky with stars in it, not a sky made of them.
+    float star = step(0.98, seed) * step(max(inside.x, inside.y), size);
+    float twinkle = 0.7 + 0.3 * sin(uTime * (1.0 + seed * 3.0) + seed * 40.0);
+    color += vec3(0.9, 0.94, 1.0) * star * twinkle * (1.0 - uDay) * uClear * smoothstep(0.03, 0.2, up) * (0.9 + 1.6 * skyHash(cell + 3.0));
+
+    gl_FragColor = vec4(color, 1.0);
+  }
+`;
+
+/** Set the sky's shader to this hour and this much cloud. */
+function tuneSky(material: ShaderMaterial, sky: Daylight, cloudCover: number) {
+  const { rim, zenith } = skyPaint(sky, cloudCover);
+  const { uniforms } = material;
+
+  (uniforms.uRim.value as Color).copy(rim);
+  // A touch deeper than the painting's: the lens lifts everything a little.
+  (uniforms.uZenith.value as Color).copy(zenith).multiplyScalar(0.86);
+  (uniforms.uGlow.value as Color).set(sky.sunColor).multiplyScalar(0.5 + sky.brightness * 1.3);
+  (uniforms.uSun.value as Vector3).set(...sky.sun).normalize();
+  uniforms.uDay.value = Math.min(1, Math.max(0, (sky.brightness - 0.12) / 0.3));
+  uniforms.uClear.value = Math.max(0, 1 - cloudCover * 1.05);
+}
+
+function PhotographedSky({
+  cloudCover,
+  geometry,
+  sky,
+}: {
+  cloudCover: number;
+  geometry: SphereGeometry;
+  sky: Daylight;
+}) {
+  const material = useMemo(
+    () =>
+      new ShaderMaterial({
+        depthWrite: false,
+        fog: false,
+        fragmentShader: SKY_FRAGMENT,
+        side: BackSide,
+        toneMapped: false,
+        uniforms: {
+          uRim: { value: new Color() },
+          uZenith: { value: new Color() },
+          uGlow: { value: new Color() },
+          uSun: { value: new Vector3(0, 1, 0) },
+          uDay: { value: 1 },
+          uClear: { value: 1 },
+          uTime: wind.flow,
+        },
+        vertexShader: SKY_VERTEX,
+      }),
+    [],
+  );
+  const brightness = sky.brightness;
+  const [sunX, sunY, sunZ] = sky.sun;
+
+  useEffect(() => () => material.dispose(), [material]);
+
+  useEffect(() => {
+    tuneSky(material, sky, cloudCover);
+    // `sky` is a new object every minute; these are what the paint reads from it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brightness, cloudCover, material, sky.fogColor, sky.sunColor, sunX, sunY, sunZ]);
+
+  return <mesh geometry={geometry} material={material} renderOrder={-10} scale={RADIUS} />;
 }
 
 export function SkyDome({
@@ -195,9 +327,13 @@ export function SkyDome({
   return (
     <group ref={group}>
       {lit ? <SkyLight cloudCover={cloudCover} sky={sky} /> : null}
-      <mesh geometry={geometry} renderOrder={-10} scale={RADIUS}>
-        <meshBasicMaterial depthWrite={false} fog={false} side={BackSide} toneMapped={false} vertexColors />
-      </mesh>
+      {lit ? (
+        <PhotographedSky cloudCover={cloudCover} geometry={geometry} sky={sky} />
+      ) : (
+        <mesh geometry={geometry} renderOrder={-10} scale={RADIUS}>
+          <meshBasicMaterial depthWrite={false} fog={false} side={BackSide} toneMapped={false} vertexColors />
+        </mesh>
+      )}
       {/* The sun by day and the moon by night: the same square, where the light
           is actually coming from. */}
       <mesh

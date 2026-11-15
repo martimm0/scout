@@ -42,7 +42,8 @@ export function DetailToggle({ className }: { className?: string }) {
 
   return (
     <button
-      aria-label={`Detail: ${quality}. Switch to ${next}.`}
+      // Ultra draws High's park, and that is what this switch reads.
+      aria-label={`Detail: ${quality === "low" ? "low" : "high"}. Switch to ${next}.`}
       className={className ?? soundStyles.button}
       data-quality={quality}
       onClick={() => updateSettings({ quality: next })}

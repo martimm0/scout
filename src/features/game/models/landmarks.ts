@@ -2,6 +2,7 @@ import type { BufferGeometry } from "three";
 
 import type { Quality } from "./quality";
 import { buildBoxGeometry, shade, tint, type Box } from "./voxel";
+import { MADE, made, madeOf } from "./made";
 import { patches, VoxelGrid, type Paint } from "./voxel-grid";
 
 /**
@@ -826,6 +827,9 @@ function near(a: string, b: string) {
 
 const wrap = (value: number, period: number) => ((value % period) + period) % period;
 
+/** Cast bronze, and the dark iron of a fence. */
+const METALS = [BRONZE, BRONZE_LIT, "#4a4a44"];
+
 /**
  * A material, from its colour.
  *
@@ -843,22 +847,28 @@ function dressed(color: string, size: number): Paint {
 
     return (x, y, z) =>
       wrap(x, pane) < size || wrap(y, pane) < size || wrap(z, pane) < size
-        ? "#e4ecea"
-        : wrap(Math.floor(x / pane) + Math.floor(y / pane) + Math.floor(z / pane), 3) === 0
-          ? tint(color, 0.16)
-          : color;
+        ? made("#e4ecea", MADE.metal)
+        : made(
+            wrap(Math.floor(x / pane) + Math.floor(y / pane) + Math.floor(z / pane), 3) === 0
+              ? tint(color, 0.16)
+              : color,
+            MADE.glass,
+          );
   }
 
   if (near(color, TIMBER) || near(color, "#7a5f42") || near(color, "#6b4f36")) {
     // Boards, four voxels deep, with a dark seam and the odd paler one.
     const board = size * 4;
 
-    return (_x, y, z) =>
-      wrap(y, board) < size * 0.9
-        ? shade(color, 0.2)
-        : wrap(Math.floor(y / board) + Math.floor(z / (board * 3)), 4) === 0
-          ? tint(color, 0.08)
-          : color;
+    return madeOf(
+      (_x, y, z) =>
+        wrap(y, board) < size * 0.9
+          ? shade(color, 0.2)
+          : wrap(Math.floor(y / board) + Math.floor(z / (board * 3)), 4) === 0
+            ? tint(color, 0.08)
+            : color,
+      MADE.wood,
+    );
   }
 
   if (near(color, SLATE)) {
@@ -874,7 +884,12 @@ function dressed(color: string, size: number): Paint {
   }
 
   if (near(color, WATER) || near(color, WATER_DEEP)) {
-    return color;
+    // Still water in a basin: flat, and as smooth as anything in the park.
+    return made(color, MADE.water);
+  }
+
+  if (METALS.some((metal) => near(color, metal))) {
+    return made(color, MADE.metal);
   }
 
   return patches(color, 0.05, size * 3);

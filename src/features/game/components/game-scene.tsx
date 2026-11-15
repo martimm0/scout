@@ -11,7 +11,7 @@ import {
 } from "react";
 import * as THREE from "three";
 import type { DirectionalLight, Group, Mesh, MeshBasicMaterial, PerspectiveCamera } from "three";
-import { Vector3 } from "three";
+import { Color, Vector3 } from "three";
 import {
   countUnlocked,
   DEFAULT_POLLINATOR,
@@ -65,7 +65,10 @@ import { Moments } from "./moments";
 import { ProgressionWatcher } from "./progression-watcher";
 import { DetailToggle, UltraToggle } from "./detail-toggle";
 import { QualityGuard } from "./quality-guard";
-import { UltraDust } from "./ultra-dust";
+import { air, cloudShadow, mistiness } from "../world/air";
+import { still } from "../world/still";
+import { UltraDust, UltraLeaves } from "./ultra-dust";
+import { UltraNight } from "./ultra-night";
 import { UltraPipeline } from "./ultra-pipeline";
 import { useQuality } from "../hooks/use-quality";
 import { SkyDome } from "./sky-dome";
@@ -316,6 +319,8 @@ const GESTURE_DURATION: Record<Gesture, number> = {
   // gets in the way of flying on to the next one.
   celebrate: 1.6,
 };
+
+const MIST_WHITE = new Color("#ffffff");
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -660,9 +665,47 @@ function ScoutScene({
   // Whether the ground is the fine park's stepped one, for the frame loop.
   const quality = useQuality();
   const ultra = quality === "ultra";
+  const shadowReach = ultra ? 140 : 70;
+
+  // A shadow camera works out its box once, when its map is first made, and
+  // nothing recalculates it when these numbers change. Without this the box
+  // stayed whatever size the page loaded with, whichever way the switch went.
+  useEffect(() => {
+    sunRef.current?.shadow.camera.updateProjectionMatrix();
+  }, [shadowReach]);
+
+  // Dark enough for the lamps. With a gap between on and off, because the
+  // lamps coming or going rebuilds every shader in the park, and a sky that
+  // hovered on the line would do that over and over.
+  const [lampsLit, setLampsLit] = useState(false);
+
   // A night sky lights almost nothing, which is true and unplayable: the fungi
   // are found after dark. So as the day goes the lamps come back up.
   const lampsAtNight = (1 - sky.brightness) * 0.8;
+  const lampsWanted = lampsLit ? sky.brightness < 0.36 : sky.brightness < 0.3;
+
+  // Adjusted while rendering, which React allows for state worked out from
+  // what was just rendered: no extra frame with the wrong answer in it.
+  if (lampsWanted !== lampsLit) {
+    setLampsLit(lampsWanted);
+  }
+
+  // The state of the air, for every Ultra surface at once: see `world/air.ts`.
+  // Written here because this is where the hour and the weather arrive.
+  const rainfall = weather.falling === "rain" ? 0.4 + weather.intensity * 0.6 : 0;
+
+  useEffect(() => {
+    air.night.value = Math.min(1, Math.max(0, (0.32 - sky.brightness) / 0.22));
+    // Still drying for a while after it stops.
+    air.wet.value = Math.max(rainfall, weather.precipitation > 0.2 ? 0.3 : 0);
+    air.mist.value = mistiness(daylight.hour, weather.condition === "fog" ? 1 : 0, rainfall);
+    // The colour of the haze, a little paler, and only as bright as the hour:
+    // mist at night is not a white sheet.
+    air.mistColor.value.set(sky.fogColor).lerp(MIST_WHITE, 0.35 * sky.brightness);
+    air.cloud.value = cloudShadow(weather.cloudCover) * Math.min(1, sky.brightness * 2);
+    air.water.value = waterLevel();
+  }, [daylight.hour, rainfall, sky.brightness, sky.fogColor, weather.cloudCover, weather.condition, weather.precipitation]);
+
   // How much direct sun there is, 0 to 1: up, and with a sky that lets it
   // through. It is what throws shafts and lights the dust in the air.
   const directSun =
@@ -670,9 +713,11 @@ function ScoutScene({
     Math.min(1, Math.max(0, sky.sun[1] * 6)) *
     (sky.brightness > 0.3 ? 1 : 0);
   const fineRef = useRef(quality !== "low");
+  const ultraRef = useRef(ultra);
 
   useEffect(() => {
     fineRef.current = quality !== "low";
+    ultraRef.current = quality === "ultra";
   }, [quality]);
 
   useEffect(() => {
@@ -1526,6 +1571,9 @@ function ScoutScene({
 
     if (!stillAir.current) {
       wind.flow.value += delta;
+      // The cloud shadows go over on the wind, faster when it blows.
+      air.drift.value.x += delta * (1.6 + wind.strength.value * 4);
+      air.drift.value.y += delta * (0.7 + wind.strength.value * 1.6);
     }
 
     const sun = sunRef.current;
@@ -1536,10 +1584,14 @@ function ScoutScene({
       // the real sun's: low and long at dawn, overhead at noon, gone at night.
       const [sx, sy, sz] = sky.sun;
 
+      // Further back on Ultra, where the shadow box is twice the size: a
+      // tall tree at the edge of it has to be in front of the light to be seen.
+      const back = ultraRef.current ? 230 : 140;
+
       sun.position.set(
-        pollinator.position.x + sx * 140,
-        pollinator.position.y + sy * 140,
-        pollinator.position.z + sz * 140,
+        pollinator.position.x + sx * back,
+        pollinator.position.y + sy * back,
+        pollinator.position.z + sz * back,
       );
       sun.target.position.copy(pollinator.position);
       sun.target.updateMatrixWorld();
@@ -1753,19 +1805,19 @@ function ScoutScene({
       <directionalLight
         castShadow
         color={sky.sunColor}
-        // Stronger against the sky on Ultra: real sunlight is many times the
-        // shade beside it, and that gap is most of what makes a picture look
-        // like outdoors. The filmic curve at the end has room for it.
-        intensity={sky.sunIntensity * (ultra ? 1.2 : 1)}
+        intensity={sky.sunIntensity}
         ref={sunRef}
         shadow-bias={-0.0012}
         // A soft edge on Ultra: the sun is a disc, not a point.
         shadow-radius={ultra ? 2.6 : 1}
-        shadow-camera-bottom={-70}
-        shadow-camera-far={300}
-        shadow-camera-left={-70}
-        shadow-camera-right={70}
-        shadow-camera-top={70}
+        // Twice as far in every direction on Ultra, so the trees across the
+        // creek throw shadows too. The map is 4096 across there, which keeps a
+        // texel under a tenth of a unit: fine under a soft edge.
+        shadow-camera-bottom={-shadowReach}
+        shadow-camera-far={ultra ? 420 : 300}
+        shadow-camera-left={-shadowReach}
+        shadow-camera-right={shadowReach}
+        shadow-camera-top={shadowReach}
         // A quarter of the texels on a phone. The shadows are soft and the screen
         // is small; the difference is hard to see and easy to feel.
         shadow-mapSize={
@@ -1831,6 +1883,15 @@ function ScoutScene({
         <>
           <UltraPipeline clear={directSun} focus={pollinatorRef} landed={perched} />
           <UltraDust clear={directSun} />
+          <UltraLeaves month={month} />
+          {/* Only once it is dark. A lamp that is switched off still costs
+              what a lit one does, in every pixel of every surface, and four
+              of them were a fifth of the frame at midday. Mounting them at
+              dusk rebuilds the park's shaders once, which is a stutter of a
+              moment, twice a day. */}
+          {lampsLit ? (
+            <UltraNight focus={pollinatorRef} hour={daylight.hour} instances={species} month={month} />
+          ) : null}
         </>
       ) : null}
 
@@ -2219,7 +2280,12 @@ export function GameScene({
       return;
     }
 
+    // On Ultra the picture kept is a better one than the frame on screen: see
+    // `world/still.ts`. Drawn now, copied out, and then the settings put back.
+    const restore = still.take?.();
+
     context.drawImage(canvas, 0, 0, width, height);
+    restore?.();
 
     // Deliberately NOT fire-and-forget. The flash is a promise that the picture
     // was kept, and firing it before the album has accepted the photograph would

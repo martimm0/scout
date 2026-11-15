@@ -1,3 +1,4 @@
+import { MADE, madeOf, type Made } from "./made";
 import { shade, tint } from "./voxel";
 import { LANCE, type Paint, type PaintFn, type Vec3, type VoxelGrid } from "./voxel-grid";
 
@@ -56,6 +57,9 @@ export function stem(
   const straight = bend[0] === 0 && bend[1] === 0 && bend[2] === 0;
   const segments = straight ? 1 : 6;
 
+  // A stem is the plant's green, not its bloom: see `models/made.ts`.
+  paint = madeOf(paint, MADE.leaf);
+
   for (let i = 0; i < segments; i += 1) {
     const t0 = i / segments;
     const t1 = (i + 1) / segments;
@@ -73,6 +77,8 @@ export type LeafOptions = {
   /** A paler rib down the middle. On by default; off for petals and tiny leaves. */
   rib?: boolean;
   thickness?: number;
+  /** What it is made of, when that is not what the plant mostly is. */
+  made?: Made;
 };
 
 /**
@@ -98,6 +104,11 @@ export function leaf(
   // slant, which is most of what makes a green slab read as a leaf.
   if (g.detailed && options.rib !== false && typeof paint === "string" && width > g.size * 4) {
     paint = veined(g, paint, base, angle, length);
+  }
+
+  // After the veins, which are worked out on the bare colour.
+  if (options.made) {
+    paint = madeOf(paint, options.made);
   }
 
   g.blade(base, mid, width, paint, {
@@ -173,7 +184,7 @@ export function leaves(g: VoxelGrid, at: Along, paint: string, options: LeavesOp
         options.length * scale,
         options.width * scale,
         (node + i) % 2 === 0 ? paint : darker,
-        options,
+        { ...options, made: MADE.leaf },
       );
     }
   }

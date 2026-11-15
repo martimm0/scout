@@ -1,7 +1,15 @@
 "use client";
 
+import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { Color, InstancedMesh, MeshLambertMaterial, Object3D, type BufferGeometry } from "three";
+import {
+  Color,
+  InstancedMesh,
+  MeshDepthMaterial,
+  MeshLambertMaterial,
+  Object3D,
+  type BufferGeometry,
+} from "three";
 
 import { useQuality } from "../hooks/use-quality";
 import { useProgressive } from "../hooks/use-progressive";
@@ -19,10 +27,11 @@ import { buildShoreGeometry } from "../models/shore";
 import { scatterCover } from "../world/ground-cover";
 import { scatterShore } from "../world/shoreline";
 import { LOOKS, surface, type Look } from "../world/surface";
-import { waterMaterial } from "../world/water";
+import { creek, REFLECTED_ONLY, UNREFLECTED } from "../world/water";
+import { sway as swayMaterial } from "../world/wind";
 import { buildLandmark } from "../models/landmarks";
 import { sharedDetail, type Quality } from "../models/quality";
-import { scatterFoliage, scatterGrass, type Placement } from "../world/scatter";
+import { scatterFoliage, scatterGrass, scatterGrassNear, type Placement } from "../world/scatter";
 import { seasonLook } from "../world/season";
 import { buildTerrainGeometry, type Shade } from "../world/terrain-mesh";
 import {
@@ -140,12 +149,18 @@ const SHADE_TREES: ReadonlySet<FoliageKind> = new Set(["hemlock", "oak", "snag",
 
 /** Instanced copies of one prop, placed once and never touched again. */
 function Instances({
+  aside = false,
   castShadow = false,
   geometry,
   look = LOOKS.hard,
+  mirrored = false,
   placements,
   shadowOnly = false,
 }: {
+  /** Left out of the water's reflection on Ultra: see `creek`. */
+  aside?: boolean;
+  /** Drawn ONLY in the water's reflection: a tree's cheap stand-in. */
+  mirrored?: boolean;
   castShadow?: boolean;
   geometry: BufferGeometry;
   /** What it is made of, and whether it moves in the wind. A stable object. */
@@ -163,10 +178,24 @@ function Instances({
       return new MeshLambertMaterial({ colorWrite: false, depthWrite: false });
     }
 
-    return surface(quality, look, geometry);
-  }, [geometry, look, quality, shadowOnly]);
+    // In a reflection cut into two-unit blocks nobody can tell a bevel from a
+    // flat face, so what only the water sees gets the plain matte material.
+    return mirrored ? new MeshLambertMaterial({ vertexColors: true }) : surface(quality, look, geometry);
+  }, [geometry, look, mirrored, quality, shadowOnly]);
+
+  // On Ultra a shadow leans with the thing that throws it. The light draws
+  // the scene with a material of its own, which knows nothing about the wind,
+  // so anything that sways and casts hands it one that does.
+  const shade = useMemo(
+    () =>
+      quality === "ultra" && castShadow && look.sway
+        ? swayMaterial(new MeshDepthMaterial(), look.sway[0], look.sway[1], look.sway[2])
+        : undefined,
+    [castShadow, look, quality],
+  );
 
   useEffect(() => () => material.dispose(), [material]);
+  useEffect(() => () => shade?.dispose(), [shade]);
 
   useEffect(() => {
     const mesh = meshRef.current;
@@ -191,7 +220,11 @@ function Instances({
     // key below), and a new mesh starts with every instance at the origin.
     // Grass passes the same placements array each render, so without this the
     // whole lawn was left stacked on one spot as soon as the fine blade came in.
-  }, [geometry, placements]);
+    // And the material, for the same reason: it is rebuilt when the quality
+    // changes, and with it the mesh. The pebbles and the ground cover never
+    // change their geometry or their placements, so switching Ultra on or off
+    // left every one of them at the origin until this was in the list.
+  }, [geometry, material, placements]);
 
   if (placements.length === 0) {
     return null;
@@ -201,9 +234,11 @@ function Instances({
     <instancedMesh
       args={[geometry, material, placements.length]}
       castShadow={castShadow}
+      customDepthMaterial={shade}
+      layers={quality !== "ultra" ? 0 : mirrored ? REFLECTED_ONLY : aside ? UNREFLECTED : 0}
       // Remounted with its geometry: an instanced mesh keeps the count it was
       // built with, and a variant's share of the placements can change.
-      key={`${geometry.uuid}-${placements.length}`}
+      key={`${geometry.uuid}-${material.uuid}-${placements.length}`}
       receiveShadow={!shadowOnly}
       ref={meshRef}
       // `planted` is for the specs: they find what stands on the ground by it.
@@ -305,7 +340,7 @@ export function Creek() {
   const fine = quality !== "low";
   const parkId = activePark().id;
   const water = useMemo(
-    () => waterMaterial(quality),
+    () => creek(quality, world().maxX - world().minX, world().maxZ - world().minZ),
     // The park too: on Ultra the water knows how deep its own bed is.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [parkId, quality],
@@ -331,16 +366,27 @@ export function Creek() {
 
   return (
     <>
-      <mesh
-        material={water.material}
-        position={[0, waterLevel(), 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-      >
-        <planeGeometry
-          args={[world().maxX - world().minX, world().maxZ - world().minZ]}
+      {water.mirror ? (
+        // Ultra: the sheet is a mirror, with the water's material on it.
+        <primitive
+          object={water.mirror}
+          position={[0, waterLevel(), 0]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          userData={{ water: true }}
         />
-      </mesh>
-      {shore && pebbles ? <Instances geometry={pebbles} placements={shore.pebbles} /> : null}
+      ) : (
+        <mesh
+          material={water.material}
+          position={[0, waterLevel(), 0]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          userData={{ water: true }}
+        >
+          <planeGeometry
+            args={[world().maxX - world().minX, world().maxZ - world().minZ]}
+          />
+        </mesh>
+      )}
+      {shore && pebbles ? <Instances aside geometry={pebbles} placements={shore.pebbles} /> : null}
       {shore && lilyPad ? <Instances geometry={lilyPad} placements={shore.lilyPads} /> : null}
     </>
   );
@@ -400,10 +446,24 @@ export function Foliage({ month }: { month: number }) {
             .map((key) => {
               const [kind, variant] = key.split(":") as [FoliageKind, string];
 
-              return { key, kind, variant: Number(variant), geometry: buildFoliageShadow(kind, Number(variant)) };
+              const look = lookForMonth(seasonKey);
+
+              // Tinted like the trees they stand in for: the sun does not care
+              // what colour a shadow's caster is, but the water reflects them.
+              return {
+                key,
+                kind,
+                variant: Number(variant),
+                geometry: tintGeometry(
+                  buildFoliageShadow(kind, Number(variant)),
+                  look.foliageTint,
+                  look.foliageMix,
+                  look.snow * 0.4,
+                ),
+              };
             })
         : [],
-    [keys, quality],
+    [keys, quality, seasonKey],
   );
 
   useEffect(
@@ -422,10 +482,23 @@ export function Foliage({ month }: { month: number }) {
           castShadow
           geometry={shadow.geometry}
           key={`shadow-${shadow.key}`}
+          look={FOLIAGE_LOOK[shadow.kind]}
           placements={placements[shadow.kind].filter((_, index) => index % variants === shadow.variant)}
           shadowOnly
         />
       ))}
+      {/* The same stand-ins again, in colour, for the water to reflect in
+          place of the trees themselves. Ultra only: nothing else has a mirror. */}
+      {quality === "ultra"
+        ? shadows.map((shadow) => (
+            <Instances
+              geometry={shadow.geometry}
+              key={`mirror-${shadow.key}`}
+              mirrored
+              placements={placements[shadow.kind].filter((_, index) => index % variants === shadow.variant)}
+            />
+          ))
+        : null}
       {quality !== "low" ? <GroundCover /> : null}
       {keys
         .filter((key) => !key.startsWith("grass:"))
@@ -435,6 +508,8 @@ export function Foliage({ month }: { month: number }) {
 
           return part ? (
             <Instances
+              // Not in the water's reflection: its stand-in is, below.
+              aside
               geometry={part}
               key={key}
               // Each variant takes every nth placement, so three oaks are spread
@@ -448,12 +523,106 @@ export function Foliage({ month }: { month: number }) {
           small they are, so it has to be everywhere and it has to be cheap. */}
       {geometry.get("grass:0") ? (
         <Instances
+          aside
           geometry={geometry.get("grass:0") as BufferGeometry}
           look={FOLIAGE_LOOK.grass}
           placements={grass}
         />
       ) : null}
+      {quality === "ultra" && geometry.get("grass:0") ? (
+        <NearGrass geometry={geometry.get("grass:0") as BufferGeometry} />
+      ) : null}
     </>
+  );
+}
+
+/**
+ * More grass, round the bee. Ultra only.
+ *
+ * The lawn is one blade every five units, which is a meadow from the air and
+ * a sparse one from a flower. Close to, where the lens is, the ground wants to
+ * be thick with it. So Ultra plants a second, much denser set of small blades
+ * within thirty-odd units of the bee and re-plants it as the bee moves on. The
+ * cells are fixed to the world (`scatterGrassNear`), so the grass is where it
+ * was when the bee comes back, and it thins toward the edge of the circle so
+ * that it grows in rather than appearing.
+ */
+const NEAR = { radius: 36, cell: 1.9, move: 10, most: 1500 };
+
+function NearGrass({ geometry }: { geometry: BufferGeometry }) {
+  const scene = useThree((state) => state.scene);
+  const mesh = useRef<InstancedMesh>(null);
+  const material = useSurface(FOLIAGE_LOOK.grass, geometry);
+  const last = useRef<{ bee: Object3D | null; x: number; z: number }>({ bee: null, x: Infinity, z: Infinity });
+  const dummy = useMemo(() => new Object3D(), []);
+
+  // A new mesh (the blade sharpened, the quality changed) starts empty.
+  useEffect(() => {
+    last.current.x = Infinity;
+  }, [geometry, material]);
+
+  useFrame(() => {
+    const state = last.current;
+    const blades = mesh.current;
+
+    if (!blades) {
+      return;
+    }
+
+    if (!state.bee) {
+      scene.traverse((node) => {
+        if (node.userData.playerBee) {
+          state.bee = node;
+        }
+      });
+    }
+
+    if (!state.bee) {
+      return;
+    }
+
+    const { x, z } = state.bee.position;
+
+    if (Math.hypot(x - state.x, z - state.z) < NEAR.move) {
+      return;
+    }
+
+    state.x = x;
+    state.z = z;
+
+    // One pool of blades, laid out again in place. It was a fresh mesh each
+    // time at first, which at flying speed was four new meshes a second.
+    const near = scatterGrassNear(x, z, NEAR.radius, NEAR.cell);
+    const count = Math.min(near.length, NEAR.most);
+
+    for (let index = 0; index < count; index += 1) {
+      const blade = near[index];
+      const [bx, by, bz] = blade.position;
+      const away = Math.hypot(bx - x, bz - z) / NEAR.radius;
+
+      dummy.position.set(bx, by + groundDrop(bx, bz, "ultra"), bz);
+      dummy.rotation.set(0, blade.rotation, 0);
+      // Half the height of the lawn's, and less toward the edge.
+      dummy.scale.setScalar(blade.scale * 0.5 * Math.min(1, (1 - away) * 3.2));
+      dummy.updateMatrix();
+      blades.setMatrixAt(index, dummy.matrix);
+    }
+
+    blades.count = count;
+    blades.instanceMatrix.needsUpdate = true;
+  });
+
+  return (
+    <instancedMesh
+      args={[geometry, material, NEAR.most]}
+      // Wherever the bee is, which is not where an empty buffer says.
+      frustumCulled={false}
+      key={`${geometry.uuid}-${material.uuid}`}
+      layers={UNREFLECTED}
+      receiveShadow
+      ref={mesh}
+      userData={{ nearGrass: true }}
+    />
   );
 }
 
@@ -478,6 +647,7 @@ function GroundCover() {
     <>
       {COVER_KINDS.map((kind) => (
         <Instances
+          aside
           geometry={geometry.get(kind) as BufferGeometry}
           key={kind}
           look={kind === "stone" || kind === "leaves" ? LOOKS.hard : COVER_LOOK}

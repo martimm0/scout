@@ -6,6 +6,7 @@ import {
   AdditiveBlending,
   Color,
   InstancedMesh,
+  MeshDepthMaterial,
   MeshLambertMaterial,
   Object3D,
   type BufferGeometry,
@@ -23,6 +24,7 @@ import { useGameStore } from "../state/game-store";
 import type { Quality } from "../models/quality";
 import { plantDrop } from "../world/perch";
 import { LOOKS, ultraProps } from "../world/surface";
+import { UNREFLECTED } from "../world/water";
 import { sway } from "../world/wind";
 import {
   isFindable,
@@ -30,6 +32,24 @@ import {
   landingHeight,
   type SpeciesInstance,
 } from "../world/species-scatter";
+
+/**
+ * The material the sun draws a swaying plant's shadow with, one per height and
+ * kept for the life of the page: there are a few dozen heights, and they are
+ * tiny.
+ */
+const shadeCache = new Map<number, MeshDepthMaterial>();
+
+function swayShade(height: number) {
+  let shade = shadeCache.get(height);
+
+  if (!shade) {
+    shade = sway(new MeshDepthMaterial(), height, 0.045, 1.7);
+    shadeCache.set(height, shade);
+  }
+
+  return shade;
+}
 
 /** The two hooks a material needs to lean with the wind, as JSX props. */
 const swayCache = new Map<number, Pick<MeshLambertMaterial, "customProgramCacheKey" | "onBeforeCompile">>();
@@ -150,7 +170,22 @@ export function SpeciesField({
             // For the specs, which check that a plant stands on the ground.
             userData={{ plant: instance.key }}
           >
-            <mesh castShadow geometry={geometry.get(instance.id)}>
+            <mesh
+              castShadow
+              // A mesh of its own for Ultra. One mesh carried across the
+              // switch kept Ultra's swaying shadow material on High, because a
+              // prop that goes back to `undefined` is left as it was.
+              key={quality === "ultra" ? "ultra" : "plain"}
+              // Not one of the things the water reflects: see `creek`.
+              layers={quality === "ultra" ? UNREFLECTED : 0}
+              // On Ultra the shadow nods with the flower.
+              customDepthMaterial={
+                quality === "ultra" && instance.species.kind === "plant"
+                  ? swayShade(instance.species.plant.height)
+                  : undefined
+              }
+              geometry={geometry.get(instance.id)}
+            >
               <SpeciesSurface
                 // A closed flower is drab. It has nothing to advertise. A cool
                 // dusk wash rather than flat grey, which read as dead.
@@ -213,8 +248,11 @@ function SpeciesSurface({
         color={color}
         emissive={emissive}
         emissiveIntensity={emissiveIntensity}
-        // A different material type from the matte one: never reuse its program.
-        key="ultra"
+        // A new material whenever the model is: the bevel is cut along the
+        // model's own blocks, and those are read once, when the shader is
+        // built. A flower that kept its material while it sharpened kept the
+        // coarse model's blocks, and its seams ran across the fine ones.
+        key={`ultra-${geometry?.uuid}`}
       />
     );
   }

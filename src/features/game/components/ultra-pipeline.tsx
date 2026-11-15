@@ -11,20 +11,24 @@ import {
   GodRaysEffect,
   HueSaturationEffect,
   RenderPass,
-  SMAAEffect,
-  SMAAPreset,
   ToneMappingEffect,
   ToneMappingMode,
   VignetteEffect,
 } from "postprocessing";
 import { useEffect, useRef, type RefObject } from "react";
+
+import { still } from "../world/still";
+import { TemporalPass } from "./ultra-temporal";
+import { UNREFLECTED } from "../world/water";
 import {
   Color,
   HalfFloatType,
+  Vector2,
   Vector3,
   type Camera,
   type Mesh,
   type Object3D,
+  type PerspectiveCamera,
   type Scene,
   type WebGLRenderer,
 } from "three";
@@ -45,8 +49,10 @@ import {
  *   softness is most of why the park reads as a model on a table.
  * - **Bloom.** Anything brighter than white (the sun, a glint off water or a
  *   wing, a firefly) spills a little into what is next to it.
- * - **Filmic tone and a vignette**, then antialiasing, last, on the finished
- *   picture.
+ * - **Filmic tone and a vignette.**
+ *
+ * Between the occlusion and the lens the picture is steadied against the
+ * frames before it (`ultra-temporal.ts`), which is what does the antialiasing.
  *
  * It takes over drawing the frame (the `1` on `useFrame`), which is why it is
  * a component and not a setting: mounted is on, unmounted is off, and High
@@ -78,14 +84,27 @@ function buildPipeline(gl: WebGLRenderer, scene: Scene, camera: Camera) {
   occlusion.configuration.aoRadius = 3.2;
   occlusion.configuration.distanceFalloff = 1.2;
   occlusion.configuration.intensity = 2.6;
-  occlusion.configuration.aoSamples = 12;
-  occlusion.configuration.denoiseSamples = 6;
+  // Few samples: the steadying pass after this adds up eight frames of them.
+  occlusion.configuration.aoSamples = 8;
+  occlusion.configuration.denoiseSamples = 4;
   occlusion.configuration.denoiseRadius = 10;
   occlusion.configuration.halfRes = true;
+  // Said out loud, because left unsaid the pass decides for itself: it sees
+  // that the scene has transparent things in it (the water, the wings, the
+  // dust) and quietly draws the whole park twice more every frame to work out
+  // which pixels they cover. Two more scene draws, two more shadow maps and
+  // another reflection, for a refinement nobody could see here.
+  occlusion.configuration.transparencyAware = false;
   // Shade is not black out of doors. It is the colour of the sky it can
   // still see: a deep cool green here, under leaves.
   occlusion.configuration.color = new Color("#12241c");
   composer.addPass(occlusion);
+
+  // Then steadied against the frames before it: see ultra-temporal.ts. Here,
+  // before the lens, so that what the lens blurs is already still.
+  const steady = new TemporalPass(camera as PerspectiveCamera);
+
+  composer.addPass(steady);
 
   const lens = new DepthOfFieldEffect(camera, {
     focusRange: SOFT.flying,
@@ -149,13 +168,19 @@ function buildPipeline(gl: WebGLRenderer, scene: Scene, camera: Camera) {
   composer.addPass(
     new EffectPass(camera, ...(shafts ? [lens, shafts] : [lens]), bloom, film, grade, punch, vignette),
   );
-  // On the finished picture, and in a pass of its own: it reads its
-  // neighbours, and so does the lens.
-  composer.addPass(new EffectPass(camera, new SMAAEffect({ preset: SMAAPreset.HIGH })));
+
+  const buffer = new Vector2();
+  /** One frame: nudge the lens for the steadying pass, then draw. */
+  const draw = (delta: number) => {
+    gl.getDrawingBufferSize(buffer);
+    steady.aim(buffer.x, buffer.y);
+    composer.render(delta);
+  };
 
   return {
     composer,
     lens,
+    steady,
     bloom,
     occlusion,
     vignette,
@@ -182,12 +207,73 @@ function buildPipeline(gl: WebGLRenderer, scene: Scene, camera: Camera) {
         circle.uniforms.focusSharp.value = SHARP.flying + (SHARP.landed - SHARP.flying) * close;
       }
 
-      composer.render(delta);
+      draw(delta);
+    },
+    /**
+     * One picture to keep: full resolution, the shading sampled properly, the
+     * lens at full size. Drawn into the canvas now; call what comes back once
+     * the picture has been copied out of it. See `world/still.ts`.
+     */
+    still() {
+      const settings = occlusion.configuration;
+      const before = {
+        half: settings.halfRes,
+        lens: lens.resolution.scale,
+        ratio: gl.getPixelRatio(),
+        samples: settings.aoSamples,
+        smooth: settings.denoiseSamples,
+      };
+      const { clientHeight: height, clientWidth: width } = gl.domElement;
+      const restore = () => {
+        gl.setPixelRatio(before.ratio);
+        settings.halfRes = before.half;
+        settings.aoSamples = before.samples;
+        settings.denoiseSamples = before.smooth;
+        lens.resolution.scale = before.lens;
+        steady.average(null);
+        composer.setSize(width, height, false);
+        // Resizing clears the canvas: draw it again rather than show a blank frame.
+        draw(0);
+      };
+
+      try {
+        // Two real pixels per pixel, but no wider than a still needs: the
+        // picture kept is 720 across, and on a very large window "full
+        // resolution" eight times over is more memory than a card has.
+        gl.setPixelRatio(Math.max(before.ratio, Math.min(2, STILL_WIDTH / Math.max(1, width))));
+        settings.halfRes = false;
+        settings.aoSamples = 32;
+        settings.denoiseSamples = 12;
+        lens.resolution.scale = 1;
+        composer.setSize(width, height, false);
+
+        // Eight frames, each a fraction of a pixel from the last, each given
+        // the same say in the result: the picture kept has been sampled eight
+        // times over.
+        for (let frame = 0; frame < 8; frame += 1) {
+          steady.average(frame);
+          draw(0);
+        }
+      } catch (error) {
+        // Whatever went wrong, the game is not left drawing at a still's settings.
+        restore();
+        throw error;
+      }
+
+      return restore;
     },
   };
 }
 
 type Pipeline = ReturnType<typeof buildPipeline>;
+
+function clears(gl: WebGLRenderer, on: boolean) {
+  gl.autoClear = on;
+}
+
+function seeAll(camera: Camera) {
+  camera.layers.enable(UNREFLECTED);
+}
 
 /**
  * Hold sixty frames a second by drawing fewer pixels.
@@ -197,20 +283,38 @@ type Pipeline = ReturnType<typeof buildPipeline>;
  * at the end mostly hides. Once a second: under about fifty-five, step the
  * pixel ratio down a quarter; steady for twenty seconds, try one step back up
  * (twice at most, or a machine on the edge would breathe in and out for ever).
+ * If a step down does not make it any faster, the screen is the limit and not
+ * the card (a fifty hertz display never reaches fifty-five): the pixels are
+ * given back and the steering stops.
  * Never below one real pixel per pixel, and never under automation, where the
  * frame rate is the test runner's and not the machine's.
  */
+type Pace = {
+  time: number;
+  frames: number;
+  top: number;
+  now: number;
+  probes: number;
+  steady: number;
+  /** The rate just before the last step down, to see whether the step helped. */
+  tried: number;
+  /** Stepping down did not help: leave the resolution alone from here on. */
+  settled: boolean;
+};
+
 const STEP = 0.25;
 const FLOOR = 1;
-const TOP = 1.5;
+const TOP = 1.75;
+/** A still is drawn no wider than this many real pixels. */
+const STILL_WIDTH = 2880;
 
 function steer(
-  pace: { time: number; frames: number; top: number; now: number; probes: number; steady: number },
+  pace: Pace,
   delta: number,
   setDpr: (dpr: number) => void,
 ) {
   // A hidden tab, or the park still being built: neither is a slow machine.
-  if (delta > 0.5 || pace.top === 0 || document.documentElement.dataset.scoutBuilding !== "0") {
+  if (delta > 0.5 || pace.top === 0 || pace.settled || document.documentElement.dataset.scoutBuilding !== "0") {
     return;
   }
 
@@ -230,7 +334,25 @@ function steer(
     return;
   }
 
+  // The last step down bought nothing: this is a fifty or thirty hertz screen,
+  // not a slow card, and fewer pixels will never make it faster. Give the
+  // pixels back and stop.
+  if (pace.tried > 0) {
+    const gained = rate > pace.tried * 1.05;
+
+    pace.tried = 0;
+
+    if (!gained) {
+      pace.now = Math.min(pace.top, pace.now + STEP);
+      pace.settled = true;
+      setDpr(pace.now);
+
+      return;
+    }
+  }
+
   if (rate < 55 && pace.now > FLOOR) {
+    pace.tried = rate;
     pace.now = Math.max(FLOOR, pace.now - STEP);
     pace.steady = 0;
     setDpr(pace.now);
@@ -265,7 +387,7 @@ export function UltraPipeline({
   const dpr = useThree((state) => state.viewport.dpr);
   const setDpr = useThree((state) => state.setDpr);
   const pipeline = useRef<Pipeline | null>(null);
-  const pace = useRef({ time: 0, frames: 0, top: 0, now: 0, probes: 0, steady: 0 });
+  const pace = useRef<Pace>({ time: 0, frames: 0, top: 0, now: 0, probes: 0, steady: 0, tried: 0, settled: false });
   const close = useRef(0);
   const landedRef = useRef(landed);
   const clearRef = useRef(clear);
@@ -276,11 +398,19 @@ export function UltraPipeline({
   }, [clear, landed]);
 
   useEffect(() => {
+    // The composer switches off the renderer's own clearing of the frame, for
+    // good, and never switches it back. Left like that, High would draw each
+    // frame over the last for ever after: put it back when Ultra goes.
+    const cleared = gl.autoClear;
     const built = buildPipeline(gl, scene, camera);
     const host = window as unknown as { __scoutUltra?: unknown };
     const root = document.documentElement;
 
     pipeline.current = built;
+    still.take = () => built.still();
+    // The small stuff is on a layer of its own on Ultra, so the water can
+    // leave it out of its reflection. This camera looks at both.
+    seeAll(camera);
     // For the specs: this is how they know the picture came through here.
     root.dataset.scoutUltra = "on";
 
@@ -292,9 +422,11 @@ export function UltraPipeline({
 
     return () => {
       pipeline.current = null;
+      still.take = null;
       delete root.dataset.scoutUltra;
       delete host.__scoutUltra;
       built.composer.dispose();
+      clears(gl, cleared);
     };
   }, [camera, gl, scene]);
 
@@ -305,12 +437,13 @@ export function UltraPipeline({
     pipeline.current?.composer.setSize(size.width, size.height, false);
   }, [camera, dpr, gl, scene, size.height, size.width]);
 
-  // Ultra draws at one and a half real pixels per pixel at most, where High
-  // draws at two. Measured: at two it sat at about fifteen milliseconds a frame
-  // on the machine it was written on, with one frame in ten over the sixteen
-  // that sixty a second allows; at one and a half it is twelve, and the
-  // antialiasing at the end hides most of the difference. Whatever the
-  // resolution was before Ultra, it is again after.
+  // Ultra draws at one and three quarter real pixels per pixel at most, where
+  // High draws at two. Measured on the machine it was written on: about
+  // fifteen milliseconds a frame at two, which is inside the sixteen that
+  // sixty a second allows but with nothing to spare, thirteen at one and
+  // three quarters, eleven and a half at one and a half. The steadying pass
+  // hides most of the difference. Whatever the resolution was before Ultra,
+  // it is again after.
   useEffect(() => {
     const before = gl.getPixelRatio();
     const top = Math.min(before, TOP);
@@ -324,6 +457,17 @@ export function UltraPipeline({
 
     return () => setDpr(before);
   }, [gl, setDpr]);
+
+  // The fibre root sets the pixel ratio back to the device's whenever the
+  // window is resized. Ultra's is put back, or one resize would leave it
+  // drawing at full resolution with the steering convinced it was not.
+  useEffect(() => {
+    const wanted = pace.current.now;
+
+    if (wanted > 0 && Math.abs(dpr - wanted) > 0.001) {
+      setDpr(wanted);
+    }
+  }, [dpr, setDpr]);
 
   useFrame((_state, delta) => {
     // The lens eases in when the bee lands, and back out when it leaves.
