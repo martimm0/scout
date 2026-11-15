@@ -66,7 +66,7 @@ function Cohort({ cohort }: { cohort: AmbientCohort }) {
   // animal now, with wings that beat.
   const creature: CreatureKind | null =
     cohort.kind === "bird" ? "bird" : cohort.kind === "moth" ? "moth" : cohort.kind === "firefly" ? null : "bug";
-  const fine = useQuality() === "high";
+  const fine = useQuality() !== "low";
   const geometry = useMemo(
     () => (creature ? buildCreatureGeometry(creature, fine) : new THREE.BoxGeometry(1, 1, 1)),
     [creature, fine],

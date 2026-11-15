@@ -1,3 +1,4 @@
+import { scaleLattice } from "./lattice";
 import type { BufferGeometry } from "three";
 
 import type { Fungus } from "../data/fungi";
@@ -14,7 +15,7 @@ import { VoxelGrid, type Vec3 } from "./voxel-grid";
  */
 
 /** Voxel size in the fungus's own units: high, then low. */
-const VOXEL: Record<Quality, number> = { high: 0.024, low: 0.09 };
+const VOXEL: Record<Quality, number> = { ultra: 0.018, high: 0.024, low: 0.09 };
 
 /**
  * Forms are drawn at life proportions and then enlarged, all three axes alike.
@@ -35,7 +36,7 @@ const fallback: FungusForm = (g, { capColor, height, stemColor }) => {
 };
 
 function draw(fungus: Fungus, quality: Quality) {
-  const fine = quality === "high";
+  const fine = quality !== "low";
   const grid = new VoxelGrid(VOXEL[quality] * Math.max(1, fungus.height / 0.6), 1, !fine);
   const perch = (FUNGUS_FORMS[fungus.id] ?? fallback)(grid, fungus);
 
@@ -43,7 +44,10 @@ function draw(fungus: Fungus, quality: Quality) {
 }
 
 export function buildFungusGeometry(fungus: Fungus, quality: Quality): BufferGeometry {
-  return draw(fungus, quality).grid.build({ grounded: true }).scale(ENLARGE, ENLARGE, ENLARGE);
+  return scaleLattice(
+    draw(fungus, quality).grid.build({ grounded: true }).scale(ENLARGE, ENLARGE, ENLARGE),
+    ENLARGE,
+  );
 }
 
 const perches = new Map<string, Vec3>();

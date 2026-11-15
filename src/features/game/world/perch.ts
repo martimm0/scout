@@ -15,7 +15,7 @@ const drops = new WeakMap<SpeciesInstance, number>();
  * the things that ask (the seed heads, the visiting bees) ask every frame.
  */
 export function plantDrop(instance: SpeciesInstance, quality: Quality) {
-  if (quality !== "high") {
+  if (quality === "low") {
     return 0;
   }
 

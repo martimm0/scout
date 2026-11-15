@@ -583,11 +583,11 @@ export const SWAY: Partial<Record<FoliageKind, [height: number, amount: number]>
 
 /** How many different oaks there are. One on low, to keep the draw calls down. */
 export function foliageVariants(quality: Quality) {
-  return quality === "high" ? 3 : 1;
+  return quality !== "low" ? 3 : 1;
 }
 
 export function buildFoliageKind(kind: FoliageKind, quality: Quality, variant = 0): BufferGeometry {
-  const fine = quality === "high";
+  const fine = quality !== "low";
   const grid = new VoxelGrid(VOXEL[kind][fine ? 0 : 1], variant + 1, !fine);
 
   BUILDERS[kind](grid, variant, fine);

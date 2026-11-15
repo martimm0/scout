@@ -63,8 +63,10 @@ import { PlantEntry } from "./plant-entry";
 import { PollinationMinigame } from "./pollination-minigame";
 import { Moments } from "./moments";
 import { ProgressionWatcher } from "./progression-watcher";
-import { DetailToggle } from "./detail-toggle";
+import { DetailToggle, UltraToggle } from "./detail-toggle";
 import { QualityGuard } from "./quality-guard";
+import { UltraDust } from "./ultra-dust";
+import { UltraPipeline } from "./ultra-pipeline";
 import { useQuality } from "../hooks/use-quality";
 import { SkyDome } from "./sky-dome";
 import { SoundToggle } from "./sound-toggle";
@@ -657,10 +659,20 @@ function ScoutScene({
   const stillAir = useRef(false);
   // Whether the ground is the fine park's stepped one, for the frame loop.
   const quality = useQuality();
-  const fineRef = useRef(quality === "high");
+  const ultra = quality === "ultra";
+  // A night sky lights almost nothing, which is true and unplayable: the fungi
+  // are found after dark. So as the day goes the lamps come back up.
+  const lampsAtNight = (1 - sky.brightness) * 0.8;
+  // How much direct sun there is, 0 to 1: up, and with a sky that lets it
+  // through. It is what throws shafts and lights the dust in the air.
+  const directSun =
+    Math.max(0, 1 - weather.cloudCover * 1.2) *
+    Math.min(1, Math.max(0, sky.sun[1] * 6)) *
+    (sky.brightness > 0.3 ? 1 : 0);
+  const fineRef = useRef(quality !== "low");
 
   useEffect(() => {
-    fineRef.current = quality === "high";
+    fineRef.current = quality !== "low";
   }, [quality]);
 
   useEffect(() => {
@@ -1731,17 +1743,24 @@ function ScoutScene({
       {/* The sky is the real Pittsburgh sky in its colours and its sun: blue at
           noon, warm at the rim when the sun is low, grey under cloud, navy at
           night. Painted in bands rather than modelled; see sky-dome.tsx. */}
-      <SkyDome cloudCover={weather.cloudCover} sky={sky} />
+      <SkyDome cloudCover={weather.cloudCover} lit={ultra} sky={sky} />
+      {/* On Ultra the sky itself lights the park (see `SkyLight`), so the two
+          flat lamps that stand in for it are turned most of the way down. */}
       <ambientLight
         color={sky.ambientColor}
-        intensity={sky.ambientIntensity}
+        intensity={sky.ambientIntensity * (ultra ? 0.3 + lampsAtNight : 1)}
       />
       <directionalLight
         castShadow
         color={sky.sunColor}
-        intensity={sky.sunIntensity}
+        // Stronger against the sky on Ultra: real sunlight is many times the
+        // shade beside it, and that gap is most of what makes a picture look
+        // like outdoors. The filmic curve at the end has room for it.
+        intensity={sky.sunIntensity * (ultra ? 1.2 : 1)}
         ref={sunRef}
         shadow-bias={-0.0012}
+        // A soft edge on Ultra: the sun is a disc, not a point.
+        shadow-radius={ultra ? 2.6 : 1}
         shadow-camera-bottom={-70}
         shadow-camera-far={300}
         shadow-camera-left={-70}
@@ -1766,7 +1785,7 @@ function ScoutScene({
         args={[
           sky.ambientColor,
           sky.groundColor,
-          sky.hemiIntensity,
+          sky.hemiIntensity * (ultra ? 0.35 + lampsAtNight : 1),
         ]}
       />
       {/* Haze at the far edge of the park, so the map ends in distance rather
@@ -1807,6 +1826,13 @@ function ScoutScene({
       <OtherBees />
       <SceneHandle />
       <QualityGuard />
+      {/* The park, photographed. Mounted is on: see ultra-pipeline.tsx. */}
+      {ultra ? (
+        <>
+          <UltraPipeline clear={directSun} focus={pollinatorRef} landed={perched} />
+          <UltraDust clear={directSun} />
+        </>
+      ) : null}
 
       {/* How high up you are, drawn on the ground. Eight-sided, like everything. */}
       <mesh ref={shadowRef} renderOrder={2} rotation={[-Math.PI / 2, 0, 0]} userData={{ heightShadow: true }}>
@@ -1826,6 +1852,7 @@ function ScoutScene({
         userData={{ playerBee: true }}
       >
         <PollinatorModel
+          photographed
           animationState={
             // Feet down, wings folded to an idle flick.
             perched
@@ -2451,6 +2478,7 @@ export function GameScene({
             </button>
             <SoundToggle />
             <DetailToggle />
+            <UltraToggle />
             <CloudSyncBadge />
           </>
         ) : null}

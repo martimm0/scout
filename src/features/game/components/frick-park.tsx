@@ -5,6 +5,7 @@ import { Color, InstancedMesh, MeshLambertMaterial, Object3D, type BufferGeometr
 
 import { useQuality } from "../hooks/use-quality";
 import { useProgressive } from "../hooks/use-progressive";
+import { useSurface } from "../hooks/use-surface";
 import {
   buildFoliageKind,
   buildFoliageShadow,
@@ -17,9 +18,10 @@ import { buildCoverGeometry, COVER_KINDS } from "../models/ground-cover";
 import { buildShoreGeometry } from "../models/shore";
 import { scatterCover } from "../world/ground-cover";
 import { scatterShore } from "../world/shoreline";
-import { ripple, sway as swayMaterial } from "../world/wind";
+import { LOOKS, surface, type Look } from "../world/surface";
+import { waterMaterial } from "../world/water";
 import { buildLandmark } from "../models/landmarks";
-import type { Quality } from "../models/quality";
+import { sharedDetail, type Quality } from "../models/quality";
 import { scatterFoliage, scatterGrass, type Placement } from "../world/scatter";
 import { seasonLook } from "../world/season";
 import { buildTerrainGeometry, type Shade } from "../world/terrain-mesh";
@@ -93,6 +95,46 @@ function tintGeometry(
   return geometry;
 }
 
+/** What each kind of foliage is made of, with its lean in the wind. */
+const SOFT: ReadonlySet<FoliageKind> = new Set(["fern", "grass", "cattail", "clover", "knotweed", "leafLitter"]);
+const LEAFY: ReadonlySet<FoliageKind> = new Set(["hemlock", "oak", "shrub"]);
+
+const FOLIAGE_LOOK = Object.fromEntries(
+  FOLIAGE_KINDS.map((kind) => {
+    const base: Look =
+      kind === "mushroom" ? LOOKS.fungus : SOFT.has(kind) ? LOOKS.blade : LEAFY.has(kind) ? LOOKS.tree : LOOKS.hard;
+
+    return [kind, SWAY[kind] ? { ...base, sway: SWAY[kind] } : base];
+  }),
+) as Record<FoliageKind, Look>;
+
+/** The wildflowers and tufts between the real flowers. */
+const COVER_LOOK: Look = { ...LOOKS.blade, sway: [3.2, 0.1] };
+
+/** One building, bridge or bench. */
+function Landmark({
+  geometry,
+  position,
+  rotation,
+}: {
+  geometry: BufferGeometry | undefined;
+  position: [number, number, number];
+  rotation: number;
+}) {
+  const material = useSurface(LOOKS.built, geometry);
+
+  return (
+    <mesh
+      castShadow
+      geometry={geometry}
+      material={material}
+      position={position}
+      receiveShadow
+      rotation={[0, rotation, 0]}
+    />
+  );
+}
+
 /** The kinds big enough to throw shade worth drawing. */
 const SHADE_TREES: ReadonlySet<FoliageKind> = new Set(["hemlock", "oak", "snag", "shrub"]);
 
@@ -100,21 +142,20 @@ const SHADE_TREES: ReadonlySet<FoliageKind> = new Set(["hemlock", "oak", "snag",
 function Instances({
   castShadow = false,
   geometry,
+  look = LOOKS.hard,
   placements,
-  sway,
   shadowOnly = false,
 }: {
   castShadow?: boolean;
   geometry: BufferGeometry;
+  /** What it is made of, and whether it moves in the wind. A stable object. */
+  look?: Look;
   placements: Placement[];
-  /** Moves in the wind: the model's height and how far its top travels. */
-  sway?: [height: number, amount: number];
   /** Drawn into the shadow map and nowhere else. */
   shadowOnly?: boolean;
 }) {
   const meshRef = useRef<InstancedMesh>(null);
-  const swayHeight = sway?.[0];
-  const swayAmount = sway?.[1];
+  const quality = useQuality();
   const material = useMemo(() => {
     if (shadowOnly) {
       // Writes nothing to the screen: no colour and no depth. It is in the
@@ -122,10 +163,8 @@ function Instances({
       return new MeshLambertMaterial({ colorWrite: false, depthWrite: false });
     }
 
-    const lambert = new MeshLambertMaterial({ vertexColors: true });
-
-    return swayHeight && swayAmount ? swayMaterial(lambert, swayHeight, swayAmount) : lambert;
-  }, [shadowOnly, swayAmount, swayHeight]);
+    return surface(quality, look, geometry);
+  }, [geometry, look, quality, shadowOnly]);
 
   useEffect(() => () => material.dispose(), [material]);
 
@@ -181,7 +220,7 @@ function Instances({
  * trees, the rocks and every blade of grass hovered over it.
  */
 function standing(placements: Placement[], quality: Quality): Placement[] {
-  if (quality !== "high") {
+  if (quality === "low") {
     return placements;
   }
 
@@ -247,16 +286,13 @@ export function Terrain({ month }: { month: number }) {
         0,
       );
     },
-    quality,
+    sharedDetail(quality),
     `${parkId}:${seasonKey}`,
   );
   const geometry = built.get("ground");
+  const material = useSurface(LOOKS.ground, geometry);
 
-  return (
-    <mesh geometry={geometry} receiveShadow>
-      <meshLambertMaterial vertexColors />
-    </mesh>
-  );
+  return <mesh geometry={geometry} material={material} receiveShadow />;
 }
 
 /**
@@ -266,10 +302,13 @@ export function Terrain({ month }: { month: number }) {
  */
 export function Creek() {
   const quality = useQuality();
-  const fine = quality === "high";
-  const material = useMemo(
-    () => ripple(new MeshLambertMaterial({ color: "#4f9ac4", opacity: 0.86, transparent: true })),
-    [],
+  const fine = quality !== "low";
+  const parkId = activePark().id;
+  const water = useMemo(
+    () => waterMaterial(quality),
+    // The park too: on Ultra the water knows how deep its own bed is.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [parkId, quality],
   );
   // The waterline is dressed on high only: it is a few hundred small models,
   // and low has no triangles to spare for pebbles.
@@ -286,14 +325,14 @@ export function Creek() {
   const pebbles = useMemo(() => (fine ? buildShoreGeometry("pebbles", true) : null), [fine]);
   const lilyPad = useMemo(() => (fine ? buildShoreGeometry("lilyPad", true) : null), [fine]);
 
-  useEffect(() => () => material.dispose(), [material]);
+  useEffect(() => () => water.dispose(), [water]);
   useEffect(() => () => pebbles?.dispose(), [pebbles]);
   useEffect(() => () => lilyPad?.dispose(), [lilyPad]);
 
   return (
     <>
       <mesh
-        material={material}
+        material={water.material}
         position={[0, waterLevel(), 0]}
         rotation={[-Math.PI / 2, 0, 0]}
       >
@@ -335,7 +374,7 @@ export function Foliage({ month }: { month: number }) {
         look.snow * 0.4,
       );
     },
-    quality,
+    sharedDetail(quality),
     String(seasonKey),
   );
   const placements = useMemo(() => {
@@ -349,13 +388,13 @@ export function Foliage({ month }: { month: number }) {
   }, [quality]);
   // A thicker lawn on the fine park: nearly twice the blades.
   const grass = useMemo(
-    () => standing(scatterGrass(quality === "high" ? 5.4 : undefined), quality),
+    () => standing(scatterGrass(quality !== "low" ? 5.4 : undefined), quality),
     [quality],
   );
   // What throws the trees' shadows: see `buildFoliageShadow`.
   const shadows = useMemo(
     () =>
-      quality === "high"
+      quality !== "low"
         ? keys
             .filter((key) => SHADE_TREES.has(key.split(":")[0] as FoliageKind))
             .map((key) => {
@@ -387,7 +426,7 @@ export function Foliage({ month }: { month: number }) {
           shadowOnly
         />
       ))}
-      {quality === "high" ? <GroundCover /> : null}
+      {quality !== "low" ? <GroundCover /> : null}
       {keys
         .filter((key) => !key.startsWith("grass:"))
         .map((key) => {
@@ -400,15 +439,19 @@ export function Foliage({ month }: { month: number }) {
               key={key}
               // Each variant takes every nth placement, so three oaks are spread
               // through the wood rather than standing in three groves.
+              look={FOLIAGE_LOOK[kind]}
               placements={placements[kind].filter((_, index) => index % variants === Number(variant))}
-              sway={SWAY[kind]}
             />
           ) : null;
         })}
       {/* Thousands of blades, one draw call. This is what tells the player how
           small they are, so it has to be everywhere and it has to be cheap. */}
       {geometry.get("grass:0") ? (
-        <Instances geometry={geometry.get("grass:0") as BufferGeometry} placements={grass} sway={SWAY.grass} />
+        <Instances
+          geometry={geometry.get("grass:0") as BufferGeometry}
+          look={FOLIAGE_LOOK.grass}
+          placements={grass}
+        />
       ) : null}
     </>
   );
@@ -437,8 +480,8 @@ function GroundCover() {
         <Instances
           geometry={geometry.get(kind) as BufferGeometry}
           key={kind}
+          look={kind === "stone" || kind === "leaves" ? LOOKS.hard : COVER_LOOK}
           placements={placements[kind]}
-          sway={kind === "stone" || kind === "leaves" ? undefined : [3.2, 0.1]}
         />
       ))}
     </>
@@ -459,7 +502,7 @@ export function Landmarks() {
     () => [...new Set((PROPS_BY_PARK[parkId] ?? []).map((prop) => prop.kind))],
     [parkId],
   );
-  const geometry = useProgressive(kinds, (kind, level) => buildLandmark(kind, level), quality, "");
+  const geometry = useProgressive(kinds, (kind, level) => buildLandmark(kind, level), sharedDetail(quality), "");
 
   return (
     <>
@@ -471,16 +514,12 @@ export function Landmarks() {
           prop.hangAt ?? terrainHeight(x, z) - (prop.sink ?? 1);
 
         return (
-          <mesh
-            castShadow
+          <Landmark
             geometry={geometry.get(prop.kind)}
             key={`${prop.kind}-${x}-${z}-${index}`}
             position={[x, y, z]}
-            receiveShadow
-            rotation={[0, prop.rotation ?? 0, 0]}
-          >
-            <meshLambertMaterial vertexColors />
-          </mesh>
+            rotation={prop.rotation ?? 0}
+          />
         );
       })}
     </>

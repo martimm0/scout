@@ -1,0 +1,343 @@
+"use client";
+
+import { useFrame, useThree } from "@react-three/fiber";
+import { N8AOPostPass } from "n8ao";
+import {
+  BloomEffect,
+  BrightnessContrastEffect,
+  DepthOfFieldEffect,
+  EffectComposer,
+  EffectPass,
+  GodRaysEffect,
+  HueSaturationEffect,
+  RenderPass,
+  SMAAEffect,
+  SMAAPreset,
+  ToneMappingEffect,
+  ToneMappingMode,
+  VignetteEffect,
+} from "postprocessing";
+import { useEffect, useRef, type RefObject } from "react";
+import {
+  Color,
+  HalfFloatType,
+  Vector3,
+  type Camera,
+  type Mesh,
+  type Object3D,
+  type Scene,
+  type WebGLRenderer,
+} from "three";
+
+/**
+ * Ultra: the park, photographed.
+ *
+ * Everything up to here draws the scene once, straight to the screen. Ultra
+ * draws it into a floating-point picture first and then does to that picture
+ * what a camera and an eye would have done to the real thing:
+ *
+ * - **Ambient occlusion.** Where two blocks meet, less of the sky can see in,
+ *   so the crease is darker. It is the single thing that makes a pile of
+ *   blocks look like it is sitting on the ground rather than pasted over it.
+ * - **Depth of field.** The lens is focused on the bee. What is far behind it
+ *   goes soft, and when the bee lands the lens comes in close and the far
+ *   bank melts, the way a photograph of something small always looks. That
+ *   softness is most of why the park reads as a model on a table.
+ * - **Bloom.** Anything brighter than white (the sun, a glint off water or a
+ *   wing, a firefly) spills a little into what is next to it.
+ * - **Filmic tone and a vignette**, then antialiasing, last, on the finished
+ *   picture.
+ *
+ * It takes over drawing the frame (the `1` on `useFrame`), which is why it is
+ * a component and not a setting: mounted is on, unmounted is off, and High
+ * never pays for any of it.
+ */
+
+/**
+ * The lens, flying and landed, in world units from the bee.
+ *
+ * `sharp` is how far either side of it nothing is blurred at all, and `soft`
+ * is where the blur is complete. In flight that is a long way: the flowers the
+ * player is looking for are tens of units off, and a game cannot blur what it
+ * is asking you to find. Landed, the lens comes in and the far bank melts.
+ */
+const SHARP = { flying: 70, landed: 7 };
+const SOFT = { flying: 620, landed: 60 };
+const BOKEH = { flying: 2.6, landed: 4 };
+
+/** Everything the photograph is made with, and the one thing done to it each frame. */
+function buildPipeline(gl: WebGLRenderer, scene: Scene, camera: Camera) {
+  const composer = new EffectComposer(gl, { frameBufferType: HalfFloatType });
+
+  composer.addPass(new RenderPass(scene, camera));
+
+  const occlusion = new N8AOPostPass(scene, camera, 1, 1);
+
+  // In world units: about the height of a flower. Wide enough to ground a
+  // tree on the grass, tight enough that a meadow is not one grey smudge.
+  occlusion.configuration.aoRadius = 3.2;
+  occlusion.configuration.distanceFalloff = 1.2;
+  occlusion.configuration.intensity = 2.6;
+  occlusion.configuration.aoSamples = 12;
+  occlusion.configuration.denoiseSamples = 6;
+  occlusion.configuration.denoiseRadius = 10;
+  occlusion.configuration.halfRes = true;
+  // Shade is not black out of doors. It is the colour of the sky it can
+  // still see: a deep cool green here, under leaves.
+  occlusion.configuration.color = new Color("#12241c");
+  composer.addPass(occlusion);
+
+  const lens = new DepthOfFieldEffect(camera, {
+    focusRange: SOFT.flying,
+    bokehScale: BOKEH.flying,
+    resolutionScale: 0.5,
+  });
+
+  lens.target = new Vector3();
+
+  // The library's lens starts to blur the moment anything leaves the focal
+  // plane, which softens the bee's own wings. This gives it a zone that is
+  // simply sharp, and only then the falloff.
+  const circle = lens.cocMaterial;
+  const patched = circle.fragmentShader
+    .replace("uniform float focusRange;", "uniform float focusRange;uniform float focusSharp;")
+    .replace("smoothstep(0.0,focusRange,", "smoothstep(focusSharp,focusRange,");
+
+  if (patched.includes("focusSharp,focusRange")) {
+    circle.fragmentShader = patched;
+    circle.uniforms.focusSharp = { value: SHARP.flying };
+    circle.needsUpdate = true;
+  }
+
+  const bloom = new BloomEffect({
+    intensity: 0.55,
+    luminanceThreshold: 0.98,
+    luminanceSmoothing: 0.12,
+    mipmapBlur: true,
+    radius: 0.72,
+  });
+  const film = new ToneMappingEffect({ mode: ToneMappingMode.ACES_FILMIC });
+  // The filmic curve takes some colour out with the glare. This puts a little
+  // back, and a little contrast with it: the park is a cheerful place.
+  const grade = new HueSaturationEffect({ saturation: 0.16 });
+  const punch = new BrightnessContrastEffect({ brightness: 0.0, contrast: 0.08 });
+  const vignette = new VignetteEffect({ offset: 0.32, darkness: 0.42 });
+
+  // Shafts of light: the sun, smeared outward from where it stands, wherever
+  // the trees leave a gap for it. Only if there is a sun in the scene to smear.
+  let sun: Mesh | null = null;
+
+  scene.traverse((node) => {
+    if (node.userData.sun) {
+      sun = node as Mesh;
+    }
+  });
+
+  const shafts = sun
+    ? new GodRaysEffect(camera, sun, {
+        blur: true,
+        clampMax: 1,
+        decay: 0.93,
+        density: 0.9,
+        exposure: 0.5,
+        resolutionScale: 0.5,
+        samples: 36,
+        weight: 0.3,
+      })
+    : null;
+
+  composer.addPass(
+    new EffectPass(camera, ...(shafts ? [lens, shafts] : [lens]), bloom, film, grade, punch, vignette),
+  );
+  // On the finished picture, and in a pass of its own: it reads its
+  // neighbours, and so does the lens.
+  composer.addPass(new EffectPass(camera, new SMAAEffect({ preset: SMAAPreset.HIGH })));
+
+  return {
+    composer,
+    lens,
+    bloom,
+    occlusion,
+    vignette,
+    film,
+    shafts,
+    /**
+     * Focus on the bee, with the lens `close` (0 flying, 1 landed), and draw.
+     * `clear` is how much direct sun there is to throw shafts: none at night
+     * or under a lid of cloud.
+     */
+    frame(delta: number, bee: Object3D | null, close: number, clear: number) {
+      if (shafts) {
+        shafts.blendMode.opacity.value = clear;
+      }
+
+      if (bee && lens.target) {
+        lens.target.copy(bee.position);
+      }
+
+      circle.focusRange = SOFT.flying + (SOFT.landed - SOFT.flying) * close;
+      lens.bokehScale = BOKEH.flying + (BOKEH.landed - BOKEH.flying) * close;
+
+      if (circle.uniforms.focusSharp) {
+        circle.uniforms.focusSharp.value = SHARP.flying + (SHARP.landed - SHARP.flying) * close;
+      }
+
+      composer.render(delta);
+    },
+  };
+}
+
+type Pipeline = ReturnType<typeof buildPipeline>;
+
+/**
+ * Hold sixty frames a second by drawing fewer pixels.
+ *
+ * Nearly everything Ultra adds is paid for per pixel, so the cheapest way to
+ * buy back a slow frame is a slightly smaller picture, which the antialiasing
+ * at the end mostly hides. Once a second: under about fifty-five, step the
+ * pixel ratio down a quarter; steady for twenty seconds, try one step back up
+ * (twice at most, or a machine on the edge would breathe in and out for ever).
+ * Never below one real pixel per pixel, and never under automation, where the
+ * frame rate is the test runner's and not the machine's.
+ */
+const STEP = 0.25;
+const FLOOR = 1;
+const TOP = 1.5;
+
+function steer(
+  pace: { time: number; frames: number; top: number; now: number; probes: number; steady: number },
+  delta: number,
+  setDpr: (dpr: number) => void,
+) {
+  // A hidden tab, or the park still being built: neither is a slow machine.
+  if (delta > 0.5 || pace.top === 0 || document.documentElement.dataset.scoutBuilding !== "0") {
+    return;
+  }
+
+  pace.time += delta;
+  pace.frames += 1;
+
+  if (pace.time < 1) {
+    return;
+  }
+
+  const rate = pace.frames / pace.time;
+
+  pace.time = 0;
+  pace.frames = 0;
+
+  if (navigator.webdriver) {
+    return;
+  }
+
+  if (rate < 55 && pace.now > FLOOR) {
+    pace.now = Math.max(FLOOR, pace.now - STEP);
+    pace.steady = 0;
+    setDpr(pace.now);
+  } else if (rate >= 58) {
+    pace.steady += 1;
+
+    if (pace.steady >= 20 && pace.now < pace.top && pace.probes < 2) {
+      pace.now = Math.min(pace.top, pace.now + STEP);
+      pace.probes += 1;
+      pace.steady = 0;
+      setDpr(pace.now);
+    }
+  }
+}
+
+export function UltraPipeline({
+  clear,
+  focus,
+  landed,
+}: {
+  /** How much direct sun there is, 0 to 1: it is what throws the shafts. */
+  clear: number;
+  /** What the lens is focused on: the bee. */
+  focus: RefObject<Object3D | null>;
+  /** Feet down on a flower: the lens comes in close. */
+  landed: boolean;
+}) {
+  const gl = useThree((state) => state.gl);
+  const scene = useThree((state) => state.scene);
+  const camera = useThree((state) => state.camera);
+  const size = useThree((state) => state.size);
+  const dpr = useThree((state) => state.viewport.dpr);
+  const setDpr = useThree((state) => state.setDpr);
+  const pipeline = useRef<Pipeline | null>(null);
+  const pace = useRef({ time: 0, frames: 0, top: 0, now: 0, probes: 0, steady: 0 });
+  const close = useRef(0);
+  const landedRef = useRef(landed);
+  const clearRef = useRef(clear);
+
+  useEffect(() => {
+    landedRef.current = landed;
+    clearRef.current = clear;
+  }, [clear, landed]);
+
+  useEffect(() => {
+    const built = buildPipeline(gl, scene, camera);
+    const host = window as unknown as { __scoutUltra?: unknown };
+    const root = document.documentElement;
+
+    pipeline.current = built;
+    // For the specs: this is how they know the picture came through here.
+    root.dataset.scoutUltra = "on";
+
+    // Development only, like the scene handle: the specs read the pipeline
+    // through this, and it is how the look gets tuned without a rebuild.
+    if (process.env.NODE_ENV !== "production") {
+      host.__scoutUltra = { ...built, sharp: SHARP, soft: SOFT, bokeh: BOKEH };
+    }
+
+    return () => {
+      pipeline.current = null;
+      delete root.dataset.scoutUltra;
+      delete host.__scoutUltra;
+      built.composer.dispose();
+    };
+  }, [camera, gl, scene]);
+
+  useEffect(() => {
+    // The renderer is already the right size: it is the fibre root's to manage.
+    // (And its pixel ratio, which is why that is in the list: the buffers are
+    // sized in real pixels.)
+    pipeline.current?.composer.setSize(size.width, size.height, false);
+  }, [camera, dpr, gl, scene, size.height, size.width]);
+
+  // Ultra draws at one and a half real pixels per pixel at most, where High
+  // draws at two. Measured: at two it sat at about fifteen milliseconds a frame
+  // on the machine it was written on, with one frame in ten over the sixteen
+  // that sixty a second allows; at one and a half it is twelve, and the
+  // antialiasing at the end hides most of the difference. Whatever the
+  // resolution was before Ultra, it is again after.
+  useEffect(() => {
+    const before = gl.getPixelRatio();
+    const top = Math.min(before, TOP);
+
+    pace.current.top = top;
+    pace.current.now = top;
+
+    if (top !== before) {
+      setDpr(top);
+    }
+
+    return () => setDpr(before);
+  }, [gl, setDpr]);
+
+  useFrame((_state, delta) => {
+    // The lens eases in when the bee lands, and back out when it leaves.
+    close.current += ((landedRef.current ? 1 : 0) - close.current) * (1 - Math.exp(-delta * 2.5));
+
+    steer(pace.current, delta, setDpr);
+
+    if (pipeline.current) {
+      pipeline.current.frame(delta, focus.current, close.current, clearRef.current);
+    } else {
+      // Taking the frame over means drawing it, even before the pipeline is up.
+      gl.render(scene, camera);
+    }
+  }, 1);
+
+  return null;
+}

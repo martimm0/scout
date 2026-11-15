@@ -514,7 +514,8 @@ type Settings = {
   soundOn: boolean;               // off until asked for
   volume: number;
   pinnedPanels?: Partial<Record<"controls" | "fieldNotes" | "stats", boolean>>;
-  quality?: "low" | "high";       // unset: high for a mouse, low for a thumb
+  quality?: "low" | "high" | "ultra"; // unset: high for a mouse, low for a thumb.
+                                  // "ultra" is only ever chosen, never a default.
   hapticsOn?: boolean;            // unset: on. Small buzzes on a phone.
 };
 ```

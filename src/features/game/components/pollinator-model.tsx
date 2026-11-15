@@ -2,7 +2,14 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { DoubleSide, MeshLambertMaterial, type BufferGeometry, type Group } from "three";
+import {
+  DoubleSide,
+  MeshLambertMaterial,
+  MeshPhysicalMaterial,
+  type BufferGeometry,
+  type Group,
+  type Material,
+} from "three";
 
 import {
   accessoryOffset,
@@ -14,6 +21,8 @@ import {
   type WingStyle,
 } from "../models/pollinators";
 import { useQuality } from "../hooks/use-quality";
+import type { Quality } from "../models/quality";
+import { ultraProps } from "../world/surface";
 import { disposePollinatorGeometry } from "../models/species";
 import type { Pollinator } from "../state/game-store";
 
@@ -95,10 +104,9 @@ function approach(current: number, target: number, delta: number, rate: number) 
   return current + (target - current) * (1 - Math.exp(-delta * rate));
 }
 
-function wingMaterial(color: string, opacity: number) {
+function wingMaterial(color: string, opacity: number, quality: Quality) {
   const solid = opacity >= 1;
-
-  return new MeshLambertMaterial({
+  const shared = {
     color,
     // Opaque wings (a butterfly's) must write depth, or they render as ghosts
     // that the abdomen shows straight through.
@@ -107,8 +115,40 @@ function wingMaterial(color: string, opacity: number) {
     side: DoubleSide,
     transparent: !solid,
     vertexColors: true,
-  });
+  };
+
+  if (quality !== "ultra") {
+    return new MeshLambertMaterial(shared);
+  }
+
+  // A clear wing is a film: glassy, and it throws the colours a soap bubble
+  // does as it turns in the light. A butterfly's is scaled and dusty.
+  return new MeshPhysicalMaterial(
+    solid
+      ? { ...shared, roughness: 0.62, sheen: 0.6, sheenRoughness: 0.5 }
+      : { ...shared, roughness: 0.12, iridescence: 0.85, iridescenceIOR: 1.35, envMapIntensity: 1.4 },
+  );
 }
+
+/**
+ * The body: matte on Low and High, and on Ultra a little furred, which is to
+ * say it catches light along its edges the way anything covered in short hair
+ * does. Each part bevels along its own blocks.
+ */
+function BodySurface({ geometry, quality }: { geometry: BufferGeometry | undefined; quality: Quality }) {
+  const ultra = useMemo(
+    () => (quality === "ultra" ? ultraProps(BODY_LOOK, geometry) : null),
+    [geometry, quality],
+  );
+
+  if (ultra) {
+    return <meshPhysicalMaterial {...ultra} key="ultra" sheen={0.35} sheenColor="#ffe2a8" sheenRoughness={0.5} />;
+  }
+
+  return <meshLambertMaterial vertexColors />;
+}
+
+const BODY_LOOK = { roughness: 0.78, bevel: 0.5, grain: 0.05 };
 
 /**
  * A wing and its mirror, sharing one material instance so the pair can be faded
@@ -124,7 +164,7 @@ function WingPair({
 }: {
   geometry: BufferGeometry;
   leftRef: React.RefObject<Group | null>;
-  material: MeshLambertMaterial;
+  material: Material;
   offset: readonly [number, number, number];
   rightRef: React.RefObject<Group | null>;
 }) {
@@ -162,6 +202,7 @@ export function PollinatorModel({
   hasPollen = false,
   pollinator,
   showRaincoat = false,
+  photographed = false,
 }: {
   animationState?: PollinatorAnimationState;
   /** Hold the pose: no wingbeat, no bob. See `HELD_STILL`. */
@@ -182,9 +223,15 @@ export function PollinatorModel({
   pollinator: Pollinator;
   /** Draw the raincoat. The scene only sets this while it is actually raining. */
   showRaincoat?: boolean;
+  /** In the park, where Ultra has a sky to light it. See below. */
+  photographed?: boolean;
 }) {
   const spec = speciesFor(pollinator.type);
-  const quality = useQuality();
+  const setting = useQuality();
+  // Ultra's materials want Ultra's light. The customize page, the preview and
+  // the camera each have a small canvas of their own with a couple of lamps
+  // and no sky, so there the bee stays High's.
+  const quality = setting === "ultra" && !photographed ? "high" : setting;
 
   const geometry = useMemo(
     () =>
@@ -215,13 +262,15 @@ export function PollinatorModel({
       wing: wingMaterial(
         spec.wings.tinted ? pollinator.wingColor : "#ffffff",
         spec.wings.opacity,
+        quality,
       ),
       hindWing: wingMaterial(
         spec.wings.tinted ? pollinator.wingColor : "#ffffff",
         spec.wings.hindOpacity,
+        quality,
       ),
     }),
-    [pollinator.wingColor, spec],
+    [pollinator.wingColor, quality, spec],
   );
 
   useEffect(() => () => disposePollinatorGeometry(geometry), [geometry]);
@@ -424,24 +473,24 @@ export function PollinatorModel({
     <group ref={rootRef}>
       <group ref={bodyRef}>
         <mesh castShadow geometry={geometry.thorax} position={spec.offsets.thorax}>
-          <meshLambertMaterial vertexColors />
+          <BodySurface geometry={geometry.thorax} quality={quality} />
         </mesh>
 
         <group position={spec.offsets.abdomen} ref={abdomenRef}>
           <mesh castShadow geometry={geometry.abdomen}>
-            <meshLambertMaterial vertexColors />
+            <BodySurface geometry={geometry.abdomen} quality={quality} />
           </mesh>
         </group>
 
         <group position={spec.offsets.head} ref={headRef}>
           <mesh castShadow geometry={geometry.head}>
-            <meshLambertMaterial vertexColors />
+            <BodySurface geometry={geometry.head} quality={quality} />
           </mesh>
         </group>
 
         <group position={spec.offsets.antennae} ref={antennaeRef}>
           <mesh geometry={geometry.antennae}>
-            <meshLambertMaterial vertexColors />
+            <BodySurface geometry={geometry.antennae} quality={quality} />
           </mesh>
         </group>
 
@@ -451,23 +500,23 @@ export function PollinatorModel({
             geometry={geometry.accessory}
             position={accessoryOffset(pollinator.accessory as Accessory)}
           >
-            <meshLambertMaterial vertexColors />
+            <BodySurface geometry={geometry.accessory} quality={quality} />
           </mesh>
         ) : null}
 
         {showRaincoat ? (
           <mesh castShadow geometry={raincoatGeometry} position={RAINCOAT_OFFSET}>
-            <meshLambertMaterial vertexColors />
+            <BodySurface geometry={raincoatGeometry} quality={quality} />
           </mesh>
         ) : null}
 
         <group position={spec.offsets.legs} ref={legsRef}>
           <mesh geometry={geometry.legs}>
-            <meshLambertMaterial vertexColors />
+            <BodySurface geometry={geometry.legs} quality={quality} />
           </mesh>
           {hasPollen ? (
             <mesh geometry={geometry.pollen}>
-              <meshLambertMaterial vertexColors />
+              <BodySurface geometry={geometry.pollen} quality={quality} />
             </mesh>
           ) : null}
         </group>

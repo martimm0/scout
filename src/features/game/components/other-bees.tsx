@@ -142,6 +142,7 @@ function RemoteBee({ sub, type }: { sub: string; type: string }) {
       <PollinatorModel
         animationState="flying"
         gestureRef={gestureRef}
+        photographed
         pollinator={pollinator}
       />
     </group>

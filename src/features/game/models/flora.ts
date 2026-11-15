@@ -23,12 +23,12 @@ import { VoxelGrid, type Vec3 } from "./voxel-grid";
  * could sit on. Tall plants get proportionally larger blocks, or a nine-unit
  * witch-hazel would cost as much as the rest of the meadow.
  */
-const VOXEL: Record<Quality, number> = { high: 0.034, low: 0.18 };
+const VOXEL: Record<Quality, number> = { ultra: 0.025, high: 0.034, low: 0.18 };
 
 function voxelFor(plant: Plant, quality: Quality) {
   // The woodland ephemerals are a hand high and all their character is in one
   // small flower, so they get the finest grid of anything in the park.
-  const small = quality === "high" && plant.height < 1.7 ? 0.85 : 1;
+  const small = quality !== "low" && plant.height < 1.7 ? 0.85 : 1;
 
   return VOXEL[quality] * small * Math.max(1, plant.height / 2.6);
 }
@@ -44,7 +44,7 @@ const fallback: PlantForm = (g, { bloomColor, height, leafColor }) => {
 };
 
 function draw(plant: Plant, quality: Quality) {
-  const fine = quality === "high";
+  const fine = quality !== "low";
   const grid = new VoxelGrid(voxelFor(plant, quality), 1, !fine);
   const perch = (PLANT_FORMS[plant.id] ?? fallback)(grid, plant);
 

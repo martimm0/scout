@@ -50,6 +50,9 @@ test.describe("feel on touch", () => {
 
     await detail.tap();
     await expect(detail).toHaveAttribute("data-quality", "high");
+    // And that is as far as a thumb can take it. Ultra wants a desktop
+    // graphics card and is not offered here at all.
+    await expect(page.getByRole("button", { name: /^Ultra:/ })).toHaveCount(0);
   });
 
   test("landing buzzes, and stops buzzing when told to", async ({ page }, info) => {

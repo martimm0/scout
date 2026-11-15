@@ -8,6 +8,7 @@ import {
   InstancedMesh,
   MeshLambertMaterial,
   Object3D,
+  type BufferGeometry,
 } from "three";
 
 import { buildFungusGeometry } from "../models/fungi";
@@ -19,7 +20,9 @@ import {
 import { useProgressive } from "../hooks/use-progressive";
 import { useQuality } from "../hooks/use-quality";
 import { useGameStore } from "../state/game-store";
+import type { Quality } from "../models/quality";
 import { plantDrop } from "../world/perch";
+import { LOOKS, ultraProps } from "../world/surface";
 import { sway } from "../world/wind";
 import {
   isFindable,
@@ -148,19 +151,16 @@ export function SpeciesField({
             userData={{ plant: instance.key }}
           >
             <mesh castShadow geometry={geometry.get(instance.id)}>
-              <meshLambertMaterial
-                // A flower nods in the wind. A mushroom does not.
-                {...(instance.species.kind === "plant"
-                  ? swayProps(instance.species.plant.height)
-                  : null)}
-                emissive={
-                  isNearby ? highlight : glowing ? glow : undefined
-                }
-                emissiveIntensity={isNearby ? 0.3 : glowing ? 0.55 : 0}
+              <SpeciesSurface
                 // A closed flower is drab. It has nothing to advertise. A cool
                 // dusk wash rather than flat grey, which read as dead.
                 color={open ? "#ffffff" : "#aeb0c2"}
-                vertexColors
+                emissive={isNearby ? highlight : glowing ? glow : undefined}
+                // Brighter than white on Ultra, where what glows spills light.
+                emissiveIntensity={isNearby ? 0.3 : glowing ? (quality === "ultra" ? 2.4 : 0.55) : 0}
+                geometry={geometry.get(instance.id)}
+                instance={instance}
+                quality={quality}
               />
             </mesh>
           </group>
@@ -169,6 +169,64 @@ export function SpeciesField({
       <Motes hour={hour} month={month} instances={visible} />
       <SeedHeads hour={hour} month={month} instances={visible} />
     </>
+  );
+}
+
+/**
+ * What one flower or fungus is made of.
+ *
+ * Matte on Low and High, as ever. On Ultra a petal is waxy and lets the sun
+ * through, and a cap is wet. A flower nods in the wind at every quality. A
+ * mushroom does not.
+ */
+function SpeciesSurface({
+  color,
+  emissive,
+  emissiveIntensity,
+  geometry,
+  instance,
+  quality,
+}: {
+  color: string;
+  emissive: Color | undefined;
+  emissiveIntensity: number;
+  geometry: BufferGeometry | undefined;
+  instance: SpeciesInstance;
+  quality: Quality;
+}) {
+  const height = instance.species.kind === "plant" ? instance.species.plant.height : null;
+  const ultra = useMemo(
+    () =>
+      quality === "ultra"
+        ? ultraProps(
+            height === null ? LOOKS.fungus : { ...LOOKS.flower, sway: [height, 0.045, 1.7] },
+            geometry,
+          )
+        : null,
+    [geometry, height, quality],
+  );
+
+  if (ultra) {
+    return (
+      <meshStandardMaterial
+        {...ultra}
+        color={color}
+        emissive={emissive}
+        emissiveIntensity={emissiveIntensity}
+        // A different material type from the matte one: never reuse its program.
+        key="ultra"
+      />
+    );
+  }
+
+  return (
+    <meshLambertMaterial
+      {...(height === null ? null : swayProps(height))}
+      color={color}
+      emissive={emissive}
+      emissiveIntensity={emissiveIntensity}
+      vertexColors
+    />
   );
 }
 

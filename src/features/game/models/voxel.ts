@@ -1,5 +1,7 @@
 import { BufferAttribute, BufferGeometry, Color } from "three";
 
+import { setLattice } from "./lattice";
+
 /**
  * Compiles layered text-art into voxel geometry.
  *
@@ -264,7 +266,8 @@ export function buildVoxelGeometry(part: VoxelPart): BufferGeometry {
   geometry.setAttribute("color", new BufferAttribute(new Float32Array(colors), 3));
   geometry.computeBoundingSphere();
 
-  return geometry;
+  // A corner at lattice point k is at (k - origin) * size.
+  return setLattice(geometry, { size: [size, size, size], offset: [origin[0], origin[1], origin[2]] });
 }
 
 /**

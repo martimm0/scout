@@ -75,7 +75,7 @@ export function FlowerVisitors({
   );
 
   // Another bee, small enough to be three stripes and a blur of wing.
-  const fine = useQuality() === "high";
+  const fine = useQuality() !== "low";
   const geometry = useMemo(() => buildCreatureGeometry("bug", fine), [fine]);
   const material = useMemo(
     () => flap(new MeshBasicMaterial({ vertexColors: true }), WING_ROOT.bug, 46, 0.5),

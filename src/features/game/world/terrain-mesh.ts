@@ -1,5 +1,7 @@
 import { BufferAttribute, BufferGeometry, Color, Vector3 } from "three";
 
+import { setLattice } from "../models/lattice";
+import type { Quality } from "../models/quality";
 import {
   GROUND_COLUMN,
   areaAt,
@@ -19,7 +21,7 @@ import {
  * High halves it: the banks of the run and the lips of the trails stop being
  * four-unit facets, for four times the triangles, which a desktop has to spare.
  */
-const RESOLUTION = { low: 4, high: GROUND_COLUMN } as const;
+const RESOLUTION = { low: 4, high: GROUND_COLUMN, ultra: GROUND_COLUMN } as const;
 
 /** Something standing on the ground that keeps the light off it. */
 export type Shade = { x: number; z: number; radius: number; depth: number };
@@ -35,7 +37,7 @@ const TRAIL = "#a68b63";
  * and turning to silt as it drops toward the creek.
  */
 export function buildTerrainGeometry(
-  quality: "low" | "high" = "low",
+  quality: Quality = "low",
   shades: Shade[] = [],
 ): BufferGeometry {
   const SIZE = RESOLUTION[quality];
@@ -200,7 +202,7 @@ export function buildTerrainGeometry(
     }
   };
 
-  if (quality === "high") {
+  if (quality !== "low") {
     /**
      * Voxel ground.
      *
@@ -352,5 +354,10 @@ export function buildTerrainGeometry(
   geometry.setAttribute("color", new BufferAttribute(new Float32Array(colors), 3));
   geometry.computeBoundingSphere();
 
-  return geometry;
+  // For the Ultra materials, which cut every column into smaller blocks: the
+  // lattice is the columns', two units a side, starting at the world's corner.
+  return setLattice(geometry, {
+    size: [SIZE, SIZE, SIZE],
+    offset: [-world().minX / SIZE, 0, -world().minZ / SIZE],
+  });
 }

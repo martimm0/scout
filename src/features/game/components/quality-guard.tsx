@@ -1,15 +1,16 @@
 "use client";
 
 import { useFrame } from "@react-three/fiber";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import { coarsePointerNow } from "../hooks/use-media-query";
+import { useQuality } from "../hooks/use-quality";
 import { pinnedQuality } from "../models/quality";
 import { useGameStore } from "../state/game-store";
 import { announce } from "../state/moments";
 
 /**
- * If the fine park is too much for this machine, stop drawing it.
+ * If what is being drawn is too much for this machine, stop drawing it.
  *
  * A mouse starts on high, and high is several million triangles. That is
  * nothing to a recent laptop and a slideshow on an old one, and the player on
@@ -22,14 +23,29 @@ import { announce } from "../state/moments";
  * test that pinned a quality gets that quality. And never under automation,
  * where a slow software renderer would rebuild the park in the middle of a
  * test that was counting on it staying put.
+ *
+ * Ultra is the exception to "a choice is kept". It is the one setting that
+ * can make the game unplayable on the machine that asked for it, and the
+ * switch to turn it off again is in a panel that is no fun to reach at four
+ * frames a second. So Ultra is watched too, for longer (it has already tried
+ * drawing fewer pixels by then: see `UltraPipeline`), and if it still cannot
+ * hold a playable rate it goes back to High and says so.
  */
-const WATCH_SECONDS = 4;
-const SETTLE_SECONDS = 1.2;
-const FLOOR_FPS = 28;
 const HIDDEN_SECONDS = 2;
+const RULES = {
+  /** Nobody chose: High, on a mouse. */
+  high: { settle: 1.2, watch: 4, floor: 28, fall: "low", title: "Keeping it smooth", label: "Detail set to low" },
+  ultra: { settle: 5, watch: 6, floor: 24, fall: "high", title: "Ultra switched off", label: "Detail set to high" },
+} as const;
 
 export function QualityGuard() {
+  const quality = useQuality();
   const watch = useRef({ waited: 0, time: 0, frames: 0, done: false });
+
+  // A new setting is a new question.
+  useEffect(() => {
+    watch.current = { waited: 0, time: 0, frames: 0, done: false };
+  }, [quality]);
 
   useFrame((_state, delta) => {
     const state = watch.current;
@@ -38,16 +54,20 @@ export function QualityGuard() {
       return;
     }
 
+    const chosen = useGameStore.getState().settings.quality;
+
     if (
       navigator.webdriver ||
       coarsePointerNow() ||
       pinnedQuality() !== null ||
-      useGameStore.getState().settings.quality !== undefined
+      (chosen !== undefined && chosen !== "ultra")
     ) {
       state.done = true;
 
       return;
     }
+
+    const rule = chosen === "ultra" ? RULES.ultra : RULES.high;
 
     // Not until the park is whole: the sharpening itself drops frames.
     if (document.documentElement.dataset.scoutBuilding !== "0") {
@@ -62,7 +82,7 @@ export function QualityGuard() {
       return;
     }
 
-    if (state.waited < SETTLE_SECONDS) {
+    if (state.waited < rule.settle) {
       state.waited += delta;
 
       return;
@@ -71,14 +91,14 @@ export function QualityGuard() {
     state.time += delta;
     state.frames += 1;
 
-    if (state.time >= WATCH_SECONDS) {
+    if (state.time >= rule.watch) {
       state.done = true;
 
-      if (state.frames / state.time < FLOOR_FPS) {
-        useGameStore.getState().updateSettings({ quality: "low" });
+      if (state.frames / state.time < rule.floor) {
+        useGameStore.getState().updateSettings({ quality: rule.fall });
         announce({
-          label: "Detail set to low",
-          title: "Keeping it smooth",
+          label: rule.label,
+          title: rule.title,
           detail: "Change it back in Controls.",
         });
       }

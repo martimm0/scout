@@ -99,7 +99,7 @@ export function useProgressive<K extends string>(
   const [fine, setFine] = useState<{ of: typeof coarse; map: Map<K, BufferGeometry> } | null>(null);
 
   useEffect(() => {
-    if (quality !== "high") {
+    if (quality === "low") {
       return;
     }
 
@@ -113,7 +113,7 @@ export function useProgressive<K extends string>(
           return;
         }
 
-        done.set(key, build(key, "high"));
+        done.set(key, build(key, quality));
 
         // Swapped in a few at a time, not one render per model.
         if (!flush) {
@@ -154,7 +154,7 @@ export function useProgressive<K extends string>(
   );
 
   return useMemo(() => {
-    if (quality !== "high" || !fine || fine.of !== coarse) {
+    if (quality === "low" || !fine || fine.of !== coarse) {
       return coarse;
     }
 

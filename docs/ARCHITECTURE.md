@@ -17,6 +17,9 @@ game IS, see [GAMEPLAN.md](GAMEPLAN.md). For how the data is shaped, see
 - **three.js + React Three Fiber + drei.** The scene uses R3F's *imperative*
   root (`createRoot` / `configure` / `render`) rather than `<Canvas>`, because
   the game needs to own its own sizing and lifecycle.
+- **postprocessing + n8ao**, for the Ultra detail setting and nothing else: the
+  lens, the bloom, the ambient occlusion. Neither is loaded into a frame on Low
+  or High (section 1b).
 - **Zustand** for game state, with `persist` to localStorage.
 - **Auth.js v5** with Google, JWT sessions.
 - **Neon Postgres** via `@vercel/postgres`.
@@ -146,10 +149,13 @@ side: `?set=plants|fungi|foliage|landmarks|pollinators`, `?quality=high|low`,
 and `?only=`, `?cols=`, `?turn=` for a closer look. It is how sixty-four species
 get checked without sixty-four flights.
 
-**Two qualities.** `settings.quality` is `"high"`, `"low"`, or unset, meaning
-whatever suits the device: high for a mouse, low for a thumb (`useQuality`).
-The player's switch is "Detail" in the Controls panel and the touch tray, and
-`?quality=` pins it for a test.
+**Two qualities, and a third on top.** `settings.quality` is `"high"`, `"low"`,
+`"ultra"`, or unset, meaning whatever suits the device: high for a mouse, low
+for a thumb (`useQuality`). Nothing ever defaults to Ultra. The player's switch
+is "Detail" in the Controls panel and the touch tray, and `?quality=` pins it
+for a test. Ultra is High's park lit and shaded differently, with its own
+switch, and has a section to itself (1b); `isFine(quality)` is the question
+most code actually wants to ask, and it is true of both.
 
 | | High | Low |
 |---|---|---|
@@ -308,6 +314,99 @@ The rest of the same pass:
 uniform out of the program the renderer compiled, not by diffing pixels: the
 camera bobs with the bee, so the creek changes on screen whether it is running
 or not, and a pixel test of it measures the bee.
+
+### 1b. Ultra: the park, photographed
+
+Ultra is the third detail setting. The blocks, the colours and the shapes are
+High's. What changes is how they answer the light and what happens to the
+picture afterwards, the aim being a photograph of a model on a table rather
+than a drawing of one. It is opt-in, desktop only, and everything it adds is
+mounted when it is on and gone when it is off, so Low and High pay nothing.
+
+**The picture goes through a lens** (`components/ultra-pipeline.tsx`). The
+scene is drawn into a floating-point buffer and then, in order:
+
+- **Ambient occlusion** (`n8ao`, half resolution). Where two blocks meet, less
+  sky can see in. This is what sits a tree on the ground.
+- **Depth of field**, focused on the bee. The library's lens blurs from the
+  focal plane outward, which softened the bee's own wings, so its shader is
+  patched to give a zone that is simply sharp (`focusSharp`) before the
+  falloff. Flying, that zone is seventy units either side, because the game
+  cannot blur the flowers it is asking you to find. Landed, the lens eases in
+  to seven and the far bank melts.
+- **Shafts of light** from the sun (found in the scene by `userData.sun`),
+  faded out at night and under cloud.
+- **Bloom** on whatever is brighter than white, then **filmic tone**, a small
+  **saturation and contrast** grade, a **vignette**, and **SMAA** in a pass of
+  its own.
+
+It takes the frame over with `useFrame(..., 1)`, which is why it is a component
+and not a flag. `document.documentElement.dataset.scoutUltra` is `"on"` while
+it is drawing, and in development `window.__scoutUltra` holds the pipeline for
+the specs and for tuning.
+
+**The materials are physical** (`world/surface.ts`). `surface(quality, look,
+geometry)` is the one place a vertex-coloured model gets its material: the
+matte Lambert on Low and High, exactly as before, and on Ultra a
+`MeshStandardMaterial` patched with four things:
+
+- **A roughness, and the sky.** `LOOKS` says what each kind of thing is made
+  of. The sky lights it: `SkyLight` (`sky-dome.tsx`) paints a small smooth copy
+  of the sky with the ground's colour under it, blurs it into an environment,
+  and the two flat lamps that stand in for the sky elsewhere are turned most
+  of the way down. It is rebuilt only when the sky's colours change.
+- **Bevelled blocks.** A real block's edge is slightly round and that is what
+  catches light. Every face of a voxel model points along one axis, so the
+  other two say how near a point is to the edge of its block; the shader leans
+  the surface direction over as it gets there. For that it has to know where
+  the blocks are, which a greedy-merged mesh has forgotten, so every builder
+  records its lattice on the geometry it returns (`models/lattice.ts`). A
+  geometry scaled after it is built (the fungi are) must scale its lattice too.
+- **Blocks within blocks.** `split` cuts each voxel into smaller ones in the
+  same arithmetic, each with a very slight tone of its own. The ground's
+  two-unit columns read as half-unit blocks for no triangles at all.
+- **Light through thin things.** Leaves and petals glow with the sun behind
+  them. The first directional light is the sun, and the shader relies on that.
+
+All four fade out by screen size (`fwidth`): a bevel narrower than a pixel is
+only shimmer. The wind patch is folded into the same shader, so a material is
+either `scout-ultra` or `scout-ultra-sway` and everything else is uniforms.
+
+**Finer blocks where the lens goes.** The flowers and fungi are built on a
+finer grid on Ultra (0.025 against 0.034) and the bee is refined a third time,
+to eight times its drawn resolution. Trees and ground are not: `split` does
+that work in the shader, and they are most of the triangles.
+
+**The water** (`world/water.ts`) is still one sheet in two-unit blocks. On Ultra
+each block is tilted a few degrees by the waves that used to switch its glint
+on and off, so it reflects in facets; it is clear over the shallows and dark
+over the deep, read from a one-texel-per-column map of `waterLevel -
+columnTop`; and the blocks in the thinnest water foam.
+
+**The air** has pollen and dust in it (`ultra-dust.tsx`): a few hundred square
+specks in a box that travels with the camera, drifted and wrapped in the vertex
+shader, lit only when there is direct sun.
+
+**Holding the frame rate.** Nearly all of this is paid per pixel, so Ultra
+draws at one and a half real pixels per pixel at most, where High draws at two,
+and `UltraPipeline` watches the rate once a second: under about fifty-five it
+steps the pixel ratio down a quarter, and back up once it has been steady,
+never below one. If Ultra still cannot hold twenty-four frames a
+second, `QualityGuard` puts the park back on High and says so: Ultra is the
+one chosen setting the guard will overrule, because it is the one that can
+make the switch to turn it off unreachable. Neither runs under automation.
+
+Measured on the machine it was authored on (an M4 Pro, a 1440 by 827 window on
+a retina screen, headless with the frame rate uncapped): High about 3 ms a
+frame at two pixels per pixel; Ultra about 15 ms at two, with one frame in ten
+over the 16 ms that sixty a second allows, and about 12 ms at one and a half,
+which is why that is its ceiling. The ambient occlusion is the dearest single
+pass, at just under 4 ms. Nothing has measured it anywhere else.
+
+`ultra.spec.ts` checks that it is off until asked for, that when on the lens
+is really drawing and the planted meshes are really the physical material,
+that the picture is neither blank nor High's, that the lens tracks the bee and
+comes in on a landing, and that turning it off leaves no textures behind.
 
 ### 2. Species are specs, not subclasses
 

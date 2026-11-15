@@ -299,9 +299,9 @@ either way.
 
 ## How it looks
 
-Voxels, all of it, and nothing that is not: no imported models, no image
-textures, no post-processing. The bee is drawn as text art and everything else
-is stamped into a voxel grid, and the rules for the look follow from that.
+Voxels, all of it, and nothing that is not: no imported models and no image
+textures. The bee is drawn as text art and everything else is stamped into a
+voxel grid, and the rules for the look follow from that.
 
 - **Chunky is the style, not a budget.** A flower is still made of blocks you
   could count. Fidelity means finer blocks and better light on them, never a
@@ -318,6 +318,13 @@ is stamped into a voxel grid, and the rules for the look follow from that.
 - **Two levels of detail, one look.** High is what the art is authored for. Low
   is the same forms in larger blocks and is what a phone starts on. The Detail
   switch is in Controls, and in the tray on touch.
+- **Ultra is the same park, photographed.** For a fast desktop, and only when
+  asked for: the blocks stay blocks, but they are lit like a real model on a
+  real table. Soft shadows where things touch, a lens that keeps the bee sharp
+  and lets the distance go soft, light through petals, a creek that reflects
+  the sky, dust in the sunbeams. It is the one place the game uses
+  post-processing, and it is never the default. Cute first: if an effect makes
+  the park look less like a toy and more like a simulation, it is turned down.
 
 - **The ground is blocks too.** On High the park is terraced in two-unit
   columns, and between the flowers you can land on there are buttercups, violets

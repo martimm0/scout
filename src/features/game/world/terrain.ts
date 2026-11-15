@@ -7,6 +7,7 @@ import {
   type Park,
   type ParkId,
 } from "./park";
+import type { Quality } from "../models/quality";
 import { FRICK } from "./parks/frick";
 import { HIGHLAND } from "./parks/highland";
 import { SCHENLEY } from "./parks/schenley";
@@ -140,8 +141,8 @@ export function columnStep(a: number, b: number, c: number, d: number) {
  * For drawing only. Where a thing IS, for finding it, landing on it and
  * bumping into it, does not change with the quality.
  */
-export function groundDrop(x: number, z: number, quality: "low" | "high") {
-  return quality === "high" ? columnTop(x, z) - terrainHeight(x, z) : 0;
+export function groundDrop(x: number, z: number, quality: Quality) {
+  return quality !== "low" ? columnTop(x, z) - terrainHeight(x, z) : 0;
 }
 
 /** Central difference on the height field. Used to avoid planting on cliffs. */

@@ -271,12 +271,22 @@ function compilePart(
 
   // Twice over: eight sub-voxels, then eight of each of those. The second pass
   // knocks the corners off the first's, so a block-built body comes out round.
+  // Ultra goes round once more, for the close-up when the lens comes in on a
+  // landing: the same bee at eight times the drawn resolution.
+  const passes = quality === "ultra" ? 3 : 2;
+  const scale = 2 ** passes;
+  let fine = layers;
+
+  for (let pass = 1; pass < passes; pass += 1) {
+    fine = refineLayers(fine);
+  }
+
   return buildVoxelGeometry({
     ao,
-    layers: refineLayers(refineLayers(layers), { texture: ao === false ? undefined : TEXTURE, rate: 0.26 }),
-    origin: [origin[0] * 4, origin[1] * 4, origin[2] * 4],
+    layers: refineLayers(fine, { texture: ao === false ? undefined : TEXTURE, rate: 0.26 }),
+    origin: [origin[0] * scale, origin[1] * scale, origin[2] * scale],
     palette,
-    size: size / 4,
+    size: size / scale,
   });
 }
 

@@ -1,5 +1,6 @@
 import { BufferAttribute, BufferGeometry, Color } from "three";
 
+import { setLattice } from "./lattice";
 import { AO_LEVELS, FACES, shade, tint, type Box } from "./voxel";
 
 /**
@@ -644,7 +645,8 @@ export class VoxelGrid {
     geometry.setAttribute("color", new BufferAttribute(new Float32Array(colors), 3));
     geometry.computeBoundingSphere();
 
-    return geometry;
+    // X and Z cells are centred on the origin and Y cells sit on it: see `world` above.
+    return setLattice(geometry, { size: [size, size, size], offset: [0.5, 0, 0.5] });
   }
 }
 
