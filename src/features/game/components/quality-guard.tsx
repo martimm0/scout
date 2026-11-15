@@ -8,6 +8,7 @@ import { useQuality } from "../hooks/use-quality";
 import { pinnedQuality } from "../models/quality";
 import { useGameStore } from "../state/game-store";
 import { announce } from "../state/moments";
+import { ENOUGH_FRAMES, typicalRate } from "../world/pace";
 
 /**
  * If what is being drawn is too much for this machine, stop drawing it.
@@ -31,7 +32,7 @@ import { announce } from "../state/moments";
  * drawing fewer pixels by then: see `UltraPipeline`), and if it still cannot
  * hold a playable rate it goes back to High and says so.
  */
-const HIDDEN_SECONDS = 2;
+const HIDDEN_SECONDS = 0.9;
 const RULES = {
   /** Nobody chose: High, on a mouse. */
   high: { settle: 1.2, watch: 4, floor: 28, fall: "low", title: "Keeping it smooth", label: "Detail set to low" },
@@ -40,11 +41,11 @@ const RULES = {
 
 export function QualityGuard() {
   const quality = useQuality();
-  const watch = useRef({ waited: 0, time: 0, frames: 0, done: false });
+  const watch = useRef({ waited: 0, time: 0, frames: [] as number[], done: false });
 
   // A new setting is a new question.
   useEffect(() => {
-    watch.current = { waited: 0, time: 0, frames: 0, done: false };
+    watch.current = { waited: 0, time: 0, frames: [], done: false };
   }, [quality]);
 
   useFrame((_state, delta) => {
@@ -74,10 +75,12 @@ export function QualityGuard() {
       return;
     }
 
-    // A frame that took seconds is a tab that was hidden, not a slow machine.
-    // The line has to be well above a slow frame: at a quarter of a second it
-    // threw away every frame of a machine drawing four a second, which is the
-    // one this guard most needs to catch.
+    // A frame that took the best part of a second is a page that is not being
+    // shown, not a slow machine: a browser hands a page it has put in the
+    // background exactly one frame a second, and that is the cadence to
+    // refuse. The line has to stay well above a slow frame, though. At a
+    // quarter of a second it threw away every frame of a machine drawing four
+    // a second, which is the one this guard most needs to catch.
     if (delta > HIDDEN_SECONDS) {
       return;
     }
@@ -89,12 +92,15 @@ export function QualityGuard() {
     }
 
     state.time += delta;
-    state.frames += 1;
+    state.frames.push(delta);
 
-    if (state.time >= rule.watch) {
+    // Long enough, and enough of them. Judged by the typical frame and not by
+    // how many arrived: a window that is not in front is drawn in bursts, and
+    // counting those per second called a fast machine slow. See `world/pace.ts`.
+    if (state.time >= rule.watch && state.frames.length >= ENOUGH_FRAMES) {
       state.done = true;
 
-      if (state.frames / state.time < rule.floor) {
+      if (typicalRate(state.frames) < rule.floor) {
         useGameStore.getState().updateSettings({ quality: rule.fall });
         announce({
           label: rule.label,

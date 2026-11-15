@@ -11,6 +11,7 @@ import { buildPollinatorGeometry } from "../src/features/game/models/pollinators
 import { parseQuality } from "../src/features/game/models/quality";
 import { triangleCount } from "../src/features/game/models/voxel-grid";
 import { cloudShadow, mistiness } from "../src/features/game/world/air";
+import { typicalRate } from "../src/features/game/world/pace";
 import { scatterGrass, scatterGrassNear } from "../src/features/game/world/scatter";
 import { LOOKS, surface } from "../src/features/game/world/surface";
 import { enterGame, findPlant, openPlay, pinPanels, whole } from "./helpers";
@@ -122,6 +123,29 @@ const state = (page: Page) =>
     };
   });
 
+/**
+ * The Controls panel, open and pinned, whatever state it was left in.
+ *
+ * `pinPanels` pins what is on screen when it runs, and on a slow browser the
+ * Controls pin is sometimes not there yet. The panel then folds itself away a
+ * few seconds later and takes the Ultra switch with it, in the middle of a
+ * test that is about to press it.
+ */
+async function controls(page: Page) {
+  const pin = page.getByRole("button", { name: "Keep Controls open" });
+  const show = page.getByRole("button", { name: "Show the controls" });
+
+  if (await pin.isVisible().catch(() => false)) {
+    await pin.click();
+  }
+
+  if (await show.isVisible().catch(() => false)) {
+    await show.click();
+  }
+
+  await expect(ultra(page)).toBeVisible();
+}
+
 /** Past the walkthrough, with Controls pinned open so the switches are on screen. */
 async function arrive(page: Page, subject: string, query = "") {
   await openPlay(page, subject);
@@ -133,6 +157,7 @@ async function arrive(page: Page, subject: string, query = "") {
 
   await page.getByRole("button", { name: "Skip", exact: true }).click();
   await pinPanels(page);
+  await controls(page);
 }
 
 test.describe("ultra", () => {
@@ -175,20 +200,19 @@ test.describe("ultra", () => {
   });
 
   test("off again leaves nothing of itself behind", async ({ page }) => {
-    await arrive(page, "ultra-round-trip", "&quality=high");
-    await page.goto("/play?debug=1&hour=13&month=7&weather=clear");
-    await page.waitForTimeout(2500);
-    await pinPanels(page);
+    await arrive(page, "ultra-round-trip", "&weather=clear");
     await whole(page);
 
     const before = await state(page);
 
     for (let trip = 0; trip < 2; trip += 1) {
+      await controls(page);
       await ultra(page).click();
       await expect(ultra(page)).toHaveAttribute("data-ultra", "on");
       await page.waitForTimeout(800);
       await whole(page);
       await page.waitForTimeout(1200);
+      await controls(page);
       await ultra(page).click();
       await expect(ultra(page)).toHaveAttribute("data-ultra", "off");
       await page.waitForTimeout(800);
@@ -335,6 +359,7 @@ test.describe("ultra", () => {
     await page.goto("/play?debug=1&hour=13&month=7&weather=clear");
     await page.waitForTimeout(2500);
     await pinPanels(page);
+    await controls(page);
     // A pin is not a choice: without it the park is back on High.
     await expect(ultra(page)).toHaveAttribute("data-ultra", "off");
 
@@ -343,6 +368,7 @@ test.describe("ultra", () => {
     await page.reload();
     await page.waitForTimeout(3000);
     await pinPanels(page);
+    await controls(page);
     await expect(ultra(page), "the park forgot it was asked for ultra").toHaveAttribute("data-ultra", "on");
   });
 
@@ -559,10 +585,7 @@ test.describe("ultra, on a retina screen", () => {
     const ratio = () =>
       page.evaluate(() => (window as unknown as { __scoutGl: { getPixelRatio(): number } }).__scoutGl.getPixelRatio());
 
-    await arrive(page, "ultra-retina", "&quality=high");
-    await page.goto("/play?debug=1&hour=13&month=7&weather=clear");
-    await page.waitForTimeout(2500);
-    await pinPanels(page);
+    await arrive(page, "ultra-retina", "&weather=clear");
     await whole(page);
     expect(await ratio()).toBe(2);
 
@@ -577,6 +600,7 @@ test.describe("ultra, on a retina screen", () => {
     await page.waitForTimeout(1500);
     expect(await ratio(), "a resize put ultra back to full resolution").toBe(1.75);
 
+    await controls(page);
     await ultra(page).click();
     await expect(ultra(page)).toHaveAttribute("data-ultra", "off");
     await page.waitForTimeout(800);
@@ -670,6 +694,20 @@ test.describe("ultra, as data", () => {
     expect(leafFall(2)).toBe(0);
     expect(leafFall(7)).toBeGreaterThan(0);
     expect(leafFall(7)).toBeLessThan(0.3);
+  });
+
+  test("tells a slow machine from a window that is not in front", () => {
+    // A window behind another is handed frames in bursts: each one quick, with
+    // long gaps between. Counted per second that is five frames a second, and
+    // it dropped a fast computer to Low. The typical frame is still quick.
+    const throttled = [...Array.from({ length: 30 }, () => 0.0084), 0.9, 1.4, 0.7, 1.1];
+
+    expect(throttled.length / throttled.reduce((sum, value) => sum + value, 0), "the old measure").toBeLessThan(10);
+    expect(typicalRate(throttled)).toBeGreaterThan(100);
+    // A machine that really is drawing four a second is still caught.
+    expect(typicalRate(Array.from({ length: 16 }, () => 0.25))).toBe(4);
+    // And one hitch among smooth frames is not a slow machine.
+    expect(typicalRate([...Array.from({ length: 40 }, () => 1 / 60), 0.4])).toBeCloseTo(60, 0);
   });
 
   test("thickens the grass round the bee, the same way every time", () => {

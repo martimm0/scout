@@ -181,10 +181,18 @@ thirty it switches the park to Low and says so on the moments line. Once, and
 only when nobody has chosen: a player who picked High keeps it, a pinned test
 keeps its pin, and it never runs under automation (`navigator.webdriver`),
 where a slow software renderer would rebuild the park in the middle of a test.
-A frame longer than two seconds is taken for a hidden tab and not counted. That
-line was a quarter of a second at first, which threw away every frame of a
-machine drawing four a second: the one machine the guard most needs to catch
-was the one it could never see.
+The rate is the TYPICAL frame's, the middle one by length (`world/pace.ts`),
+not the number of frames that arrived. A page that is not really being shown
+(a window behind another, a pane put away) is still handed frames, in short
+bursts with long gaps or at exactly one a second, and each of those frames is
+as quick as ever. Counted per second that is a slow machine, and it dropped
+the park to Low on a fast computer whose window was simply not in front. The
+middle frame of a burst is short; the middle frame of a slow machine is long.
+A frame of most of a second or more is not counted at all, since one a second
+is the cadence a browser gives a page in the background. That line was a
+quarter of a second at first, which threw away every frame of a machine
+drawing four a second: the one machine the guard most needs to catch was the
+one it could never see.
 
 **The fine ground is drawn lower than the real one, and what stands on it is
 drawn to match.** `terrainHeight` is a smooth field, and it is what the flight
@@ -462,7 +470,10 @@ frame.
 draws at one and three quarter real pixels per pixel at most, where High draws
 at two, and `UltraPipeline` watches the rate once a second: under about
 fifty-five it steps the pixel ratio down a quarter, and back up once it has
-been steady, never below one. If a step down buys nothing, the screen is the
+been steady, never below one. It reads the typical frame, as the guard does,
+waits out the first few seconds (Ultra's shaders are built the first time each
+is drawn, and stepping down on that took a fast machine from 1.75 to 1.25 for
+nothing) and wants two slow seconds running. If a step down buys nothing, the screen is the
 limit and not the card (a fifty hertz display never reaches fifty-five), so
 the pixels are given back and the steering stops. The fibre root resets the
 ratio to the device's on every resize, so Ultra's is put back after one. If Ultra still cannot hold twenty-four frames a

@@ -17,6 +17,7 @@ import {
 } from "postprocessing";
 import { useEffect, useRef, type RefObject } from "react";
 
+import { ENOUGH_FRAMES, typicalRate } from "../world/pace";
 import { still } from "../world/still";
 import { TemporalPass } from "./ultra-temporal";
 import { UNREFLECTED } from "../world/water";
@@ -280,8 +281,8 @@ function seeAll(camera: Camera) {
  *
  * Nearly everything Ultra adds is paid for per pixel, so the cheapest way to
  * buy back a slow frame is a slightly smaller picture, which the antialiasing
- * at the end mostly hides. Once a second: under about fifty-five, step the
- * pixel ratio down a quarter; steady for twenty seconds, try one step back up
+ * at the end mostly hides. Once a second, after the first few: under about
+ * fifty-five two seconds running, step the pixel ratio down a quarter; steady for twenty seconds, try one step back up
  * (twice at most, or a machine on the edge would breathe in and out for ever).
  * If a step down does not make it any faster, the screen is the limit and not
  * the card (a fifty hertz display never reaches fifty-five): the pixels are
@@ -291,7 +292,8 @@ function seeAll(camera: Camera) {
  */
 type Pace = {
   time: number;
-  frames: number;
+  /** How long each frame of the second being judged took. */
+  frames: number[];
   top: number;
   now: number;
   probes: number;
@@ -300,9 +302,15 @@ type Pace = {
   tried: number;
   /** Stepping down did not help: leave the resolution alone from here on. */
   settled: boolean;
+  /** Seconds judged so far, while the first few are being let go. */
+  warm: number;
+  /** Slow seconds in a row. */
+  slow: number;
 };
 
 const STEP = 0.25;
+/** Seconds after the park is whole before the rate is believed. */
+const WARM_UP = 5;
 const FLOOR = 1;
 const TOP = 1.75;
 /** A still is drawn no wider than this many real pixels. */
@@ -319,18 +327,30 @@ function steer(
   }
 
   pace.time += delta;
-  pace.frames += 1;
+  pace.frames.push(delta);
 
-  if (pace.time < 1) {
+  if (pace.time < 1 || pace.frames.length < ENOUGH_FRAMES) {
     return;
   }
 
-  const rate = pace.frames / pace.time;
+  // The typical frame, not the count of them: a window that is not in front
+  // is drawn in bursts, and that is not a slow card. See `world/pace.ts`.
+  const rate = typicalRate(pace.frames);
 
   pace.time = 0;
-  pace.frames = 0;
+  pace.frames = [];
 
   if (navigator.webdriver) {
+    return;
+  }
+
+  // Not in the first few seconds. Ultra's shaders are built the first time
+  // each is drawn, the flowers are rebuilt finer, and for a moment the rate
+  // is whatever that leaves: stepping down on it took the resolution from
+  // 1.75 to 1.25 on a machine that then drew that at twice the rate asked.
+  if (pace.warm < WARM_UP) {
+    pace.warm += 1;
+
     return;
   }
 
@@ -351,7 +371,11 @@ function steer(
     }
   }
 
-  if (rate < 55 && pace.now > FLOOR) {
+  // Two slow seconds running, not one: a single one is a hitch.
+  pace.slow = rate < 55 ? pace.slow + 1 : 0;
+
+  if (pace.slow >= 2 && pace.now > FLOOR) {
+    pace.slow = 0;
     pace.tried = rate;
     pace.now = Math.max(FLOOR, pace.now - STEP);
     pace.steady = 0;
@@ -387,7 +411,7 @@ export function UltraPipeline({
   const dpr = useThree((state) => state.viewport.dpr);
   const setDpr = useThree((state) => state.setDpr);
   const pipeline = useRef<Pipeline | null>(null);
-  const pace = useRef<Pace>({ time: 0, frames: 0, top: 0, now: 0, probes: 0, steady: 0, tried: 0, settled: false });
+  const pace = useRef<Pace>({ time: 0, frames: [], top: 0, now: 0, probes: 0, steady: 0, tried: 0, settled: false, warm: 0, slow: 0 });
   const close = useRef(0);
   const landedRef = useRef(landed);
   const clearRef = useRef(clear);
