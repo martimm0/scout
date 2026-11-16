@@ -391,6 +391,13 @@ Everything you do alone you can do in company. On top of that:
   flower takes for both of you or for neither.
 - **Four games** to play with the people you are with: Seed and Sprout, Trellis
   Four, Leaf Turn and Field Notes. Several can be going at once.
+- **Races.** Two courses in each park, a short one and one right round it, flown
+  in laps through columns of light, and a quick dash to a landmark the room
+  picks. Every pollinator flies a race at the same speed, so it is flown and
+  not chosen on the pollinator screen. Any of them can be flown alone.
+- **Hide and seek.** One bee counts while the rest hide in one corner of the
+  park, marked with a ring. Whoever is found joins the looking, and the seekers
+  are told how warm they are in a word, never which way.
 - **Twelve species you cannot meet alone**, four in each park, and six badges
   that go with them.
 
@@ -398,11 +405,13 @@ A party does **not** require the park to be unlocked. Being invited somewhere is
 not the same as earning it, and a friend saying "come to Highland" should not be
 met with a locked door.
 
-None of it is competitive, which is the standing rule kept rather than bent. The
-board games are games and somebody wins them, and that is where it stops: no
-badge is awarded for winning, nothing is ranked across players, and the twelve
-party species count towards their own badges rather than being folded into the
-ones you have been working on alone.
+None of it is worth anything, which is the standing rule kept rather than bent.
+The board games are games and somebody wins them. A race has a clock and a
+finishing order, and a round of hide and seek has a last one found, and that is
+where it stops: no badge is awarded for winning, no time is kept, nothing is
+ranked across players, and the result of a round is gone a minute after the
+round ends, or sooner if everybody in it presses Done. The twelve party species count towards their own badges rather than being
+folded into the ones you have been working on alone.
 
 ## Pocket
 
@@ -433,11 +442,15 @@ work is a punishment for having a job, and this game does not punish.
 
 ## Deliberately not doing
 
-- **Competition.** No leaderboard, no timer on anything that matters, no scoring
-  a player against another player. Badges mark what you have seen and learned.
-  Garden parties do not change this: other people in the park are company, and
-  the two-player board games are games, but nothing anybody does is ranked
-  against anybody else and nothing you find is taken from somebody who did not.
+- **Competition that counts.** No leaderboard, no timer on anything that
+  matters, no scoring a player against another player. Badges mark what you
+  have seen and learned. Garden parties do not change this: other people in the
+  park are company, the board games are games, and a race or a round of hide
+  and seek is a game with a clock in it. The clock is inside the round and so
+  is the result. Nothing anybody does there is saved, rewarded or ranked
+  against anybody else, and nothing you find is taken from somebody who did
+  not. The day a race is worth something is the day the room has to start
+  checking where bees say they are, and it does not.
 - **Punishing failure.** See rule 3.
 - **A prettier lie.** An invented fact, an unlicensed photograph, or a species in
   a park it does not grow in is worse than a gap. This is why the Pocket

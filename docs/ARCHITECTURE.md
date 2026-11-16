@@ -1390,6 +1390,155 @@ showed the first.
 seconds, so a quick game of noughts and crosses used it up and the "gg" after was
 dropped without a word. `party.spec.ts`.
 
+### Rounds out in the park: races, and hide and seek
+
+Two games are played by flying and not at a table. In code a round of either is
+an **outing**, so it is never confused with a table. The rules are pure
+transitions in `party/games/outings.ts`, the courses and hiding places are plain
+numbers in `party/games/courses.ts`, and `party/games/outing-room.ts` holds the
+list for one room so that `garden.ts` stays a socket handler.
+
+**The room referees from the poses it was already relaying.** Nobody sends "I
+passed the gate" or "I found her". Every bee already says where it is about six
+times a second, and the `pos` handler keeps each seat's previous pose and when
+it arrived, then hands both to `outingPose`. So every player in a round is
+judged from the same stream by the same code, and no one browser is the one
+that decides.
+
+**The line is judged, not the points.** A boosting bee covers nearly ten units
+between two poses and could step clean over the middle of a gate. `gateCrossed`
+tests the segment between the two poses against the gate's circle, so how often
+poses arrive stops mattering to whether a gate counts. Only the NEXT gate is
+credited, however many the line went through. A finish time is read off where
+on the line the gate was, so two racers a tenth of a second apart are not
+ordered by whose packet arrived first; finishes closer than 0.15 s are called
+level. A previous pose more than a second old is not joined to the next one: it
+is from before a sleeping tab, and the line between them is not a path anybody
+flew. Finding a hider is the same segment test in three dimensions, within six
+units.
+
+**Poses are still only claims.** The room does not check that a bee could have
+flown where it says it is. That is acceptable for exactly as long as a round is
+worth nothing, which is the rule in GAMEPLAN: no time is saved and nobody is
+ranked. Rewards would need real checks first.
+
+**The pose stream is the clock, and the alarm is not used.** A room with
+anybody in it hears about six poses a second from each of them, so the `pos`
+handler compares its own time against `outings.nextDeadline` and ticks. A bee
+flying a course alone therefore has its countdown end up to a sixth of a second
+late, and its clock starts from when the room says go, so it loses nothing. The Durable Object's one
+alarm belongs to the tables and is replaced every time one of them changes,
+which would move it off a five-second countdown the first time a Field Notes
+round was dealt.
+
+**A counting seeker is sent nothing.** A screen that merely does not draw the
+hiders is one browser console away from showing them. While the seeker counts,
+the room does not relay a hider's poses to a seeker, leaves them out of the
+welcome a seeker's second tab is sent, and never puts where a hider settled in
+the view at all. On the client, a hider is un-placed as well as hidden
+(`other-bees.tsx`): a bee that stayed placed eased from where it set off to
+where it hid when its poses came back, a streak across the park pointing at the
+hiding place.
+
+**When the count ends, the room says where each hider is, once.** Relaying
+their poses again is not enough. The seeker's screen threw the last one away
+when the count began, and a hider who hid and then looked at another tab never
+sends another: not drawn, "cold" everywhere, and unfindable for four minutes.
+So `OutingRoom.takeRevealed` hands the room every pair that has just stopped
+being blind, and the room sends the seeker that hider's latest pose, after the
+list that says the count is over, because a seeker's screen ignores a hider's
+pose until it has been told so.
+
+**Where a hider settled is noted late, and the tolerance is wide.** The spot is
+taken a second and a half into the seeking, because the last pose the room held
+when the count ended described a bee that had not yet been told to stop. A
+hider has moved when they are more than twenty units from it. Twenty and not
+three, because a pose is where the bee is DRAWN and a hider who lands on a
+flower is drawn easing onto a perch a dozen units away. The client is what
+actually holds a hider still; this only catches one that does not. A hider
+outside the hiding place when the count ends, or above its ceiling, is caught
+at once: without a ceiling the best hiding place in every round is the sky.
+
+**A hold cannot outlive its round.** `outingFlight` (in `party-store.ts`) is
+what the frame loop reads: `held`, `racing`, `hiding`, and the bees not to
+draw. It is written in exactly one place, `syncOutingFlight`, from the rounds
+and the connection together, on every change to either. A hold set by one
+message and cleared by another would be a hold a dropped connection leaves on
+for ever. Leaving is applied to this screen before the room answers, for the
+same reason, and stays applied: a list the room sent a moment before it heard
+you still has you in the round, so `withoutLeft` keeps a round you left off
+your screen until the room's own list agrees. When a hold begins the loop stops the bee dead once: zeroing the
+throttle alone left a butterfly coasting sixteen units past its start line.
+
+**A room that slept says so when it wakes.** Rounds live in memory, like
+tables. If every tab in a party is hidden at once the pose stream stops, the
+room hibernates, and the round is gone while its players still hold it.
+`ensureSeats` notices that it rebuilt seats from nothing and broadcasts the now
+empty lists, which loses the round and strands nobody. This is not covered by a
+test: hibernation cannot be forced under `wrangler dev`.
+
+**Every pollinator flies a race at the bee's speed**, and rain slows nobody,
+from the countdown to the finish. How quickly each turns and answers the stick
+is left alone. The Blue Slide does not catch a racer: one leg of the Frick loop
+passes eleven units from the top of it.
+
+**Courses are held against the real parks.** The room cannot load the park
+modules, so the gates are written out as numbers and `party-outings.spec.ts`
+checks every one against the real terrain and collision: inside the bounds,
+clear of anything solid, not on top of the next gate, room to fly under a
+bridge gate. Each sprint starts where you arrive, so somebody who has only just
+come in is already at the start. In Schenley that is thirty units west of the
+arrival point, which sits under the lip of the Panther Hollow Bridge.
+
+**Two gates of a course are lit, never the whole of it**: the one you are
+flying at and the one after. A race that is still gathering shows one more,
+green, at its start, to the whole room, which is how anybody finds it to join. They are strong colours and not the pale gold of a dance mark,
+because a gate is looked for against a noon sky, and each thins to nothing as
+the camera reaches it. A column you are standing inside is a milky wash over
+the whole view, and the start of a race is where everybody stands.
+
+**The client reads the round off the pose it just sent** (`outing-flight.ts`).
+It runs the room's own `gateCrossed` on the same two poses the room will judge,
+so the chime for a gate is instant and agrees with the room whenever both poses
+arrive as they left. It decides nothing: when one is lost or late and the room
+has not agreed within two seconds, the room's count is the count. The
+same tick works out what the room never says: which way the next gate is, and
+how warm a seeker is, as one of four words.
+
+**Leave is never refused.** Every other request for a round is on the moves
+budget, twelve in ten seconds. Leave is not, because a screen shows it as done
+the moment it is pressed: dropped by the budget, the player was out of the
+round on their own screen and in it on everybody else's. The client also says
+it again after a reconnect, for a Leave pressed just as the connection went.
+And a hold ends a ride on the Blue Slide, which otherwise carried a "held" bee
+ninety units and threw it off the bottom. Only the first of these three has a
+test.
+
+**One thing each, and several rounds at once.** A bee in a round is not also at
+a table, in either direction. Rounds are a list, as tables are, so one bee
+flying a course alone does not take the park's only race from the other nine.
+A dropped connection is out of the round, as it is out of its chair. A hider
+leaving during the count ends it at once if everybody still hiding has said
+they are hidden. A round
+that has been gathering for ten minutes with nobody starting it is cleared
+away, because its host has wandered off and its start column is a light left on
+over the park; somebody joining starts the ten minutes again.
+
+**The scene is clipped, not hidden.** The round card found this on a phone: a
+box with `overflow: hidden` can still be scrolled by anything that asks for a
+control to be brought into view, and a scrolled shell is the whole park shifted
+up the screen with a band of background under it. `.shell` is `overflow: clip`.
+`mobile.spec.ts` fails four times in six without it. A clipped box is not a
+scroll container, so the phone rule that stopped a drag chaining out of the
+park (`overscroll-behavior: none` on the shell) no longer means anything there,
+and the same rule is put on the page itself while the park is on it. That half
+is asserted as a computed style only: pull-to-refresh cannot be driven in an
+emulated phone, and it has not been tried on a real one.
+
+Tests: `party-outings.spec.ts` (the rules, and the courses against the parks),
+`party-outings-live.spec.ts` (the real room, with raw sockets and a browser),
+and one in `mobile.spec.ts`.
+
 ### Working one flower together
 
 Two or more bees landed on the same stalk play one board. Keyed by the scatter

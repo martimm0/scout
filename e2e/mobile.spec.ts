@@ -285,3 +285,98 @@ test.describe("the touch pad flies the bee", () => {
     await expect(page.getByLabel("Fly")).toBeVisible();
   });
 });
+
+test.describe("a round out in the park, on a phone", () => {
+  /** Whether a control is wholly on the screen, where a thumb can reach it. */
+  async function onScreen(page: Page, name: RegExp | string) {
+    const control = page.getByRole("button", { name }).first();
+
+    await control.scrollIntoViewIfNeeded();
+
+    const box = await control.boundingBox();
+    const view = page.viewportSize();
+
+    if (
+      !box ||
+      !view ||
+      box.x < 0 ||
+      box.y < 0 ||
+      box.x + box.width > view.width ||
+      box.y + box.height > view.height
+    ) {
+      return false;
+    }
+
+    // Inside the window is not the same as reachable: a button scrolled under
+    // the edge of its own panel has a box on the screen and nothing to press.
+    // So ask the page what is actually under the middle of it.
+    return control.evaluate((node, [x, y]) => {
+      const hit = document.elementFromPoint(x, y);
+
+      return Boolean(hit && (hit === node || node.contains(hit)));
+    }, [box.x + box.width / 2, box.y + box.height / 2] as const);
+  }
+
+  test("can be started, begun and left with a thumb", async ({ page }) => {
+    /**
+     * Races and hide and seek add five things to a panel that already had
+     * four, on a screen that is under four hundred pixels tall. Nothing about
+     * them needs a keyboard, which is only true if every button can be reached:
+     * a list that runs off the bottom of a phone is a list of things a phone
+     * cannot do.
+     */
+    test.setTimeout(180_000);
+
+    await signIn(page.context());
+    await resetProgress();
+    await page.addInitScript(() => window.localStorage.clear());
+    await page.goto(`/parties?debug=1&hour=13&month=${TEST_MONTH}&weather=clear`);
+    await page.getByRole("button", { name: /Join the Frick/ }).click();
+    await page.waitForURL(/\/play/);
+    await page.waitForTimeout(3000);
+    await dismissTutorial(page);
+    await page.waitForTimeout(1200);
+    await page.getByRole("button", { name: /^Games/ }).click();
+
+    // A drag that runs off the end of this list must not pull the page down
+    // and refresh you out of the party. The park's own box is clipped and can
+    // no longer say so for itself, so the page says it.
+    expect(
+      await page.evaluate(() => getComputedStyle(document.documentElement).overscrollBehaviorY),
+      "the page can be dragged out from under the park",
+    ).toBe("none");
+
+    for (const name of [
+      /Race: The creek sprint/,
+      /Race: Round the whole park/,
+      /Quick dash/,
+      /Hide and seek: I will seek/,
+      /Hide and seek: pick a seeker/,
+    ]) {
+      expect(await onScreen(page, name), `${name} cannot be reached on a phone`).toBe(true);
+    }
+
+    await page.getByRole("button", { name: /Quick dash/ }).click();
+
+    const card = page.getByRole("region", { name: "Race: Quick dash" });
+
+    await expect(card).toBeVisible();
+    expect(await onScreen(page, "Leave")).toBe(true);
+    expect(await onScreen(page, "Start the race")).toBe(true);
+
+    await card.getByRole("button", { name: "Start the race" }).click();
+    await expect(card.getByRole("timer")).toBeVisible();
+
+    // The card with the count on it is all on the screen, and so is the pad.
+    const box = await card.boundingBox();
+    const view = page.viewportSize()!;
+
+    expect(box!.y).toBeGreaterThanOrEqual(0);
+    expect(box!.y + box!.height).toBeLessThanOrEqual(view.height);
+    await expect(page.getByLabel("Fly")).toBeVisible();
+
+    await card.getByRole("button", { name: "Leave" }).click();
+    await expect(card).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Games/ })).toBeVisible();
+  });
+});

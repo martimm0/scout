@@ -5,6 +5,7 @@ import PartySocket from "partysocket";
 import {
   CHAT_TTL_MS,
   type ClientMessage,
+  type CourseId,
   type GameKind,
   type GardenPartyId,
   type Pose,
@@ -12,7 +13,8 @@ import {
 } from "@party/protocol";
 import { useGameStore } from "./game-store";
 import { countParty } from "./party-counters";
-import { partyPoses, usePartyStore } from "./party-store";
+import { withoutLeft } from "@party/games/outings";
+import { outingFlight, partyPoses, usePartyStore } from "./party-store";
 
 /**
  * The socket into a garden party, and the only file that knows there is one.
@@ -22,6 +24,8 @@ import { partyPoses, usePartyStore } from "./party-store";
  */
 
 let socket: PartySocket | null = null;
+/** Rounds this screen has left and the room has not yet agreed it has. */
+const leftOutings = new Set<string>();
 let expiryTimer: ReturnType<typeof setInterval> | null = null;
 
 /**
@@ -204,6 +208,20 @@ export async function joinParty(party: GardenPartyId): Promise<void> {
             pollinator: player.pollinator,
           })),
         );
+
+        /**
+         * Say again that you left, about any round the room has not yet
+         * agreed you left.
+         *
+         * A welcome in the middle of a party is a reconnect, and a Leave
+         * pressed just before the connection went may never have arrived. The
+         * round stays off this screen either way, so without this nothing
+         * would ever tell the room. Leaving a round you are not in is nothing.
+         */
+        for (const id of leftOutings) {
+          sendToParty({ t: "outing", do: "leave", id });
+        }
+
         return;
 
       case "join":
@@ -215,7 +233,12 @@ export async function joinParty(party: GardenPartyId): Promise<void> {
         return;
 
       case "pos":
-        partyPoses.set(message.sub, message.pose);
+        // The room does not send a hider's poses to whoever is counting. One
+        // that was already on its way when the count began is dropped here.
+        if (!outingFlight.unseen.has(message.sub)) {
+          partyPoses.set(message.sub, message.pose);
+        }
+
         return;
 
       case "tables":
@@ -224,6 +247,14 @@ export async function joinParty(party: GardenPartyId): Promise<void> {
 
       case "coop":
         state.setCoop(message.session);
+        return;
+
+      case "outings":
+        // With the rounds you have left already left. See `withoutLeft`.
+        state.setOutings(
+          withoutLeft(message.outings, state.you?.sub ?? "", leftOutings),
+          message.now,
+        );
         return;
 
       case "chat":
@@ -326,6 +357,8 @@ export async function joinParty(party: GardenPartyId): Promise<void> {
 
 export function leaveParty(resetStore = true) {
   attempt += 1;
+  // Round ids start again in a room that has slept, and in the next room.
+  leftOutings.clear();
 
   if (expiryTimer) {
     clearInterval(expiryTimer);
@@ -389,6 +422,54 @@ export function leaveTable(table: string) {
 
 export function beginTable(table: string) {
   sendToParty({ t: "begin", table });
+}
+
+/* Rounds out in the park. Asking, as with the tables: the room decides who is
+   in, when it starts, who passed which gate and who found whom. */
+
+export function openRace(course: CourseId) {
+  sendToParty({ t: "outing", do: "open", kind: "race", course });
+  countParty("games_played");
+}
+
+export function openHide(seeker: "me" | "anyone") {
+  sendToParty({ t: "outing", do: "open", kind: "hide", seeker });
+  countParty("games_played");
+}
+
+export function joinOuting(id: string) {
+  sendToParty({ t: "outing", do: "join", id });
+}
+
+export function beginOuting(id: string) {
+  sendToParty({ t: "outing", do: "begin", id });
+}
+
+/** "I am hidden." Every hider saying so ends the count early. */
+export function readyOuting(id: string) {
+  sendToParty({ t: "outing", do: "ready", id });
+}
+
+/**
+ * Leave a round, or press Done on a finished one.
+ *
+ * Taken off this screen at once, before the room answers. Leaving is the way
+ * out of being held at a start line or frozen in a bush, and a way out that
+ * waits on a connection is not one.
+ */
+export function leaveOuting(id: string) {
+  const state = usePartyStore.getState();
+  const you = state.you?.sub;
+
+  if (you) {
+    leftOutings.add(id);
+    state.setOutings(
+      withoutLeft(state.outings, you, leftOutings),
+      Date.now() + state.clockSkew,
+    );
+  }
+
+  sendToParty({ t: "outing", do: "leave", id });
 }
 
 /* Working a flower with whoever else is standing on it. */

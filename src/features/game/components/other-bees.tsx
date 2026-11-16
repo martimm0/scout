@@ -25,8 +25,9 @@ import { wind } from "../world/wind";
  * Movement is INTERPOLATED. At eight updates a second, snapping to each new
  * position looks like a slideshow; easing toward it looks like flight. The
  * cost is that a remote bee is a fraction of a second behind where it really
- * is, which nobody can perceive and which matters to nothing: no mechanic in
- * the game is decided by another player's exact position.
+ * is, which nobody can perceive. Nothing is DECIDED by where a bee is drawn:
+ * a race and a round of hide and seek are refereed by the room, from the poses
+ * themselves, and this drawing of them is only what you are shown.
  */
 
 const EASE = 6;
@@ -85,7 +86,25 @@ function RemoteBee({ sub, type }: { sub: string; type: string }) {
     const pose = partyPoses.get(sub);
     const node = group.current;
 
-    if (!pose || !node) {
+    if (!node) {
+      return;
+    }
+
+    /**
+     * No pose: not drawn, and not PLACED either.
+     *
+     * A pose goes missing in the middle of a party in one case, a hider while
+     * you are the one counting, whose pose the store throws away as the count
+     * begins. Un-placing is the half that matters then. A bee that stays
+     * placed keeps its old position, so when the count ends and the hider's
+     * poses come back it eases from where it set off to where it hid, in full
+     * view: a streak across the park that points straight at the hiding place.
+     * Un-placed, its first pose is a placement, and it is simply there.
+     */
+    if (!pose) {
+      node.visible = false;
+      placed.current = false;
+
       return;
     }
 

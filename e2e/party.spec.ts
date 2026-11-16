@@ -1,11 +1,10 @@
-import { readFileSync } from "node:fs";
-
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { encode } from "next-auth/jwt";
 
 import {
+  PARTY_HOST,
   dismissTutorial,
   nameThePlayer,
+  partyTicket,
   resetProgress,
   signIn,
 } from "./helpers";
@@ -32,7 +31,6 @@ import { voiceGainFor } from "../src/features/game/state/party-voice";
  * The party server runs alongside the app; see `playwright.config.ts`.
  */
 
-const PARTY_HOST = `127.0.0.1:${Number(process.env.PLAYWRIGHT_PORT ?? 3000) + 1}`;
 
 /**
  * Close a player down completely.
@@ -70,35 +68,6 @@ async function playerPage(browser: Browser, who: string): Promise<Page> {
   await resetProgress(`party-${who}`);
 
   return page;
-}
-
-/**
- * A party ticket for an arbitrary account, minted the way the game mints one.
- *
- * The route only ever issues a pass for whoever is signed in, which is the
- * point of it, so a test that needs eleven different players has to sign the
- * passes itself. Same secret, same salt: if either drifts from the app's, the
- * room refuses these and the tests fail loudly rather than testing a hole.
- */
-async function partyTicket(who: string) {
-  let secret = "scout-local-mode-no-signin-possible";
-
-  try {
-    const match = /^AUTH_SECRET=(.*)$/m.exec(readFileSync(".env.local", "utf8"));
-
-    if (match) {
-      secret = match[1].trim().replace(/^["']|["']$/g, "");
-    }
-  } catch {
-    // Local mode, where the placeholder above is what the app uses too.
-  }
-
-  return encode({
-    token: { sub: who, name: who },
-    secret,
-    salt: "scout-party-ticket",
-    maxAge: 300,
-  });
 }
 
 /** The room's own head-count, read from node rather than from a page. */
@@ -1703,6 +1672,15 @@ test.describe("a malformed message is dropped, not thrown", () => {
       '{"t":"move","move":null}',
       '{"t":"workOn","plant":null}',
       '{"t":"rtc","to":null,"signal":null}',
+      // A round out in the park, asked for every wrong way there is.
+      '{"t":"outing"}',
+      '{"t":"outing","do":null}',
+      '{"t":"outing","do":"open","kind":"race","course":"__proto__"}',
+      '{"t":"outing","do":"open","kind":"hide","seeker":7}',
+      '{"t":"outing","do":"join","id":{"toString":null}}',
+      '{"t":"outing","do":"begin","id":"o1"}',
+      '{"t":"outing","do":"ready","id":["o1"]}',
+      '{"t":"outing","do":"leave"}',
     ]) {
       rude.send(raw);
     }

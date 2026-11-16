@@ -1354,6 +1354,13 @@ door. The per-player view answers "is this person stuck"; the aggregate answers
 "is this plant findable". Medians rather than means, because one completionist
 drags a mean away from anybody's actual afternoon.
 
+**A round out in the park is stored nowhere.** A race or a round of hide and
+seek lives in the room's memory for as long as it lasts and a minute after, and
+then it is gone: no time, no finishing order and no record of who hid where
+reaches a database, the save or the admin view. `games_played` counts the
+button to open one being pressed, as it does for a table, and that total is all
+that is kept.
+
 Garden party numbers are **totals, never events**. The room stores nothing at
 all, and a row per join would be a record of who was in a room with whom and
 when, which is exactly what the room refuses to keep. A counter answers "is

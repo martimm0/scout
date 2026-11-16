@@ -12,9 +12,11 @@ import {
   GAME_SEATS,
   GARDEN_PARTIES,
   PARTY_CAP,
+  parkOf,
   type ClientMessage,
   type CoopView,
   type GameKind,
+  type GardenPartyId,
   type PartyPlayer,
   type Pose,
   type ServerMessage,
@@ -30,13 +32,15 @@ import {
   tableView,
   type Table,
 } from "./games/tables";
+import { OutingRoom } from "./games/outing-room";
 
 /**
  * A garden party: one park, up to ten players, nothing remembered.
  *
  * The server is a relay and a referee, and deliberately not a database. It
- * holds who is here and where they are flying, referees the seat cap, and
- * passes chat and WebRTC signaling through without reading them. It never
+ * holds who is here and where they are flying, referees the seat cap, the
+ * tables and the rounds played out in the park, and passes chat and WebRTC
+ * signaling through without reading them. It never
  * writes to storage: chat that is promised to vanish in sixty seconds must not
  * exist in a log somewhere, and a Durable Object that never touches storage
  * stays inside the free tier by construction.
@@ -48,6 +52,11 @@ import {
 type Seat = {
   player: PartyPlayer;
   pose: Pose | null;
+  /**
+   * When `pose` arrived, by the room's clock. With the pose before it, this is
+   * the line a bee flew and how long it took, which is what a race is judged on.
+   */
+  poseAt: number;
   /** Chat timestamps in the last few seconds, for the rate limit. */
   recentChat: number[];
   /** Board moves and votes, on their own limit so a game cannot silence chat. */
@@ -112,7 +121,18 @@ export class Garden extends Server<Env> {
   /** How long a finished Field Notes round stays on the board before it goes. */
   private static readonly FINISHED_FOR = 60_000;
 
+  /**
+   * Races and hide and seek. In memory like the tables, and refereed from the
+   * poses this room was already relaying.
+   */
+  outings = new OutingRoom(Garden.FINISHED_FOR);
+
+  /** The latest pose the room holds for anybody. What the outings judge by. */
+  private poseOf = (sub: string) => this.seats.get(sub)?.pose ?? null;
+
   private ensureSeats() {
+    const woke = this.seats.size === 0;
+
     for (const conn of this.getConnections<Attachment>()) {
       const state = conn.state;
 
@@ -124,10 +144,30 @@ export class Garden extends Server<Env> {
             pollinator: state.pollinator,
           },
           pose: null,
+          poseAt: 0,
           recentChat: [],
           recentMoves: [],
         });
       }
+    }
+
+    /**
+     * Seats rebuilt from nothing means the room slept with people in it, and
+     * everything it was refereeing went with its memory. That only happens when
+     * every tab in the party stopped sending poses at once, hidden windows for
+     * the most part, and those players come back holding a round that no longer
+     * exists. A racer in a countdown that will never end is held at the start
+     * for ever, and a hider is frozen in a bush.
+     *
+     * So say what is true now, which is that there is nothing on. A fresh room
+     * never gets here: its first connection has no attachment yet, and no seat
+     * is rebuilt from it.
+     */
+    if (woke && this.seats.size > 0) {
+      this.tables = [];
+      this.outings.clear();
+      this.tell({ t: "tables", tables: [] });
+      this.publishOutings();
     }
   }
 
@@ -170,6 +210,7 @@ export class Garden extends Server<Env> {
     this.seats.set(sub, {
       player,
       pose: this.seats.get(sub)?.pose ?? null,
+      poseAt: this.seats.get(sub)?.poseAt ?? 0,
       recentChat: [],
       recentMoves: [],
     });
@@ -179,7 +220,14 @@ export class Garden extends Server<Env> {
       you: player,
       players: [...this.seats.values()]
         .filter((seat) => seat.player.sub !== sub)
-        .map((seat) => ({ ...seat.player, pose: seat.pose })),
+        .map((seat) => ({
+          ...seat.player,
+          // A seeker who opens a second tab while counting must not be handed
+          // where everybody went. The live relay withholds it; so does this.
+          pose: this.outings.blindTo(seat.player.sub)?.has(sub)
+            ? null
+            : seat.pose,
+        })),
     });
 
     if (!returning) {
@@ -189,6 +237,11 @@ export class Garden extends Server<Env> {
     // Whatever is being played right now, so a joiner can walk up to a table
     // rather than only seeing games that start after they arrived.
     this.send(conn, { t: "tables", tables: this.tables.map(tableView) });
+    this.send(conn, {
+      t: "outings",
+      outings: this.outings.views(),
+      now: Date.now(),
+    });
   }
 
   onMessage(conn: Connection<Attachment>, raw: WSMessage) {
@@ -230,14 +283,57 @@ export class Garden extends Server<Env> {
           return;
         }
 
-        seat.pose = {
+        const now = Date.now();
+        const prev = seat.pose;
+        const prevAt = seat.poseAt;
+        const pose: Pose = {
           x: p.x,
           z: p.z,
           altitude: p.altitude,
           heading: p.heading,
           gesture: typeof p.gesture === "string" ? p.gesture : "none",
         };
-        this.tell({ t: "pos", sub, pose: seat.pose }, sub);
+
+        seat.pose = pose;
+        seat.poseAt = now;
+
+        /**
+         * The pose stream is also the outings' clock.
+         *
+         * A room with anybody in it hears about six of these a second from
+         * each of them, so "has a countdown run out" is asked here and not by
+         * an alarm. The
+         * room's one alarm belongs to the tables and is moved every time one of
+         * them changes, which would move it off a five-second countdown.
+         *
+         * Before the pose is judged, so that the pose which arrives as a race
+         * starts is a pose in a race that has started.
+         */
+        let changed =
+          now >= this.outings.nextDeadline &&
+          this.outings.tick(now, this.poseOf);
+
+        // Read after the tick: a count that has just ended blinds nobody.
+        const hidden = this.outings.blindTo(sub);
+        const raw = JSON.stringify({ t: "pos", sub, pose } satisfies ServerMessage);
+
+        for (const other of this.getConnections<Attachment>()) {
+          const to = other.state?.sub;
+
+          // Not to the sender, and not to a seeker who is still counting.
+          if (to !== sub && !(to && hidden?.has(to))) {
+            other.send(raw);
+          }
+        }
+
+        changed =
+          this.outings.onPose(sub, prev, prevAt, pose, now, this.poseOf) ||
+          changed;
+
+        if (changed) {
+          this.publishOutings();
+        }
+
         return;
       }
 
@@ -324,12 +420,9 @@ export class Garden extends Server<Env> {
         }
 
         // One table each. Somebody who keeps pressing the button would
-        // otherwise paper the lobby with empty games nobody can clear.
-        if (
-          this.tables.some(
-            (table) => !table.finished && table.seats.includes(sub),
-          )
-        ) {
+        // otherwise paper the lobby with empty games nobody can clear. And
+        // one THING each: a bee in a race is not also at a board.
+        if (this.atATable(sub) || this.outings.has(sub)) {
           return;
         }
 
@@ -348,11 +441,7 @@ export class Garden extends Server<Env> {
       case "sit": {
         // One table each, as with opening one. A second chair leaves a game
         // waiting on somebody whose screen only shows the first.
-        if (
-          this.tables.some(
-            (table) => !table.finished && table.seats.includes(sub),
-          )
-        ) {
+        if (this.atATable(sub) || this.outings.has(sub)) {
           return;
         }
 
@@ -448,6 +537,57 @@ export class Garden extends Server<Env> {
         return;
       }
 
+      /**
+       * A round out in the park: open one, join, begin, say you are hidden,
+       * leave. Everything else about a round, who passed which gate and who
+       * found whom, the room works out for itself from `pos`.
+       */
+      case "outing": {
+        const now = Date.now();
+        const asked = (message as { do?: unknown }).do;
+
+        /**
+         * On the moves budget. These are button presses, and twelve in ten
+         * seconds is more than anybody presses a button.
+         *
+         * Except Leave, which is never refused. It is the way out of being
+         * held at a start line, and a screen shows it as done the moment it is
+         * pressed: dropped here, the player was out of the round on their own
+         * screen and in it on everybody else's, a racer who would never finish
+         * and could start nothing new, with no button left to press about it.
+         * Leaving twice is leaving once, so there is nothing to protect.
+         */
+        if (asked !== "leave") {
+          seat.recentMoves = seat.recentMoves.filter((at) => now - at < 10_000);
+
+          if (seat.recentMoves.length >= 12) {
+            return;
+          }
+
+          seat.recentMoves.push(now);
+        }
+
+        // One thing each, the other way round: no races from a chair.
+        if ((asked === "open" || asked === "join") && this.atATable(sub)) {
+          return;
+        }
+
+        if (
+          this.outings.handle(
+            parkOf(this.name as GardenPartyId),
+            sub,
+            seat.player.name,
+            message,
+            now,
+            this.poseOf,
+          )
+        ) {
+          this.publishOutings();
+        }
+
+        return;
+      }
+
       case "rtc": {
         // Verbatim relay to one peer. The server does not read the payload;
         // the voices themselves never come through here at all.
@@ -495,6 +635,49 @@ export class Garden extends Server<Env> {
 
     if (this.tables.some((table, at) => table !== before[at])) {
       this.publishTables();
+    }
+
+    // And out of any round. A dropped connection is out of the race, as it is
+    // out of its chair: the room has no way to tell a tunnel from a goodbye.
+    if (this.outings.leave(sub, now)) {
+      this.publishOutings();
+    }
+  }
+
+  /** At a table whose game is not over. */
+  private atATable(sub: string) {
+    return this.tables.some(
+      (table) => !table.finished && table.seats.includes(sub),
+    );
+  }
+
+  /** Every round, to everybody. The whole list, as the tables are. */
+  private publishOutings() {
+    this.tell({
+      t: "outings",
+      outings: this.outings.views(),
+      now: Date.now(),
+    });
+
+    /**
+     * And, after it, where each hider is, to whoever may now look.
+     *
+     * AFTER the list, because a seeker's screen ignores a hider's pose until
+     * it has been told the count is over. See `OutingRoom.takeRevealed` for
+     * why the room cannot just wait for the hider's next pose.
+     */
+    for (const [subject, recipient] of this.outings.takeRevealed()) {
+      const pose = this.seats.get(subject)?.pose;
+
+      if (!pose) {
+        continue;
+      }
+
+      for (const conn of this.getConnections<Attachment>()) {
+        if (conn.state?.sub === recipient) {
+          this.send(conn, { t: "pos", sub: subject, pose });
+        }
+      }
     }
   }
 
@@ -608,7 +791,12 @@ export class Garden extends Server<Env> {
    * That does mean the presence traffic is load-bearing for the games. If poses
    * ever stop while somebody is still connected (a paused tab, a future idle
    * mode), tables have to be persisted or a Field Notes round will quietly
-   * disappear during its own writing phase.
+   * disappear during its own writing phase. `ensureSeats` covers the one case
+   * that does happen, every tab in the party hidden at once: the room wakes
+   * with nothing and says so, which loses the round and strands nobody.
+   *
+   * The rounds out in the park do not use this alarm at all. See the `pos`
+   * handler, where the pose stream is their clock.
    */
   onAlarm() {
     const now = Date.now();

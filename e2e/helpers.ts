@@ -45,7 +45,7 @@ export function readout(page: Page): Promise<Readout> {
   });
 }
 
-function position(state: Readout) {
+export function position(state: Readout) {
   const match = /x\s*(-?[\d.]+),\s*z\s*(-?[\d.]+)/.exec(state.Position ?? "");
 
   if (!match) {
@@ -56,7 +56,7 @@ function position(state: Readout) {
 }
 
 /** Heading in radians, normalised to (-π, π]. */
-function heading(state: Readout) {
+export function heading(state: Readout) {
   const degrees = Number.parseFloat(state.Heading ?? "0");
   let radians = (degrees * Math.PI) / 180;
 
@@ -751,4 +751,36 @@ export async function whole(page: Page) {
     timeout: 60_000,
   });
   await page.waitForTimeout(800);
+}
+
+/** Where the garden party room server is: the app's port, plus one. */
+export const PARTY_HOST = `127.0.0.1:${Number(process.env.PLAYWRIGHT_PORT ?? 3000) + 1}`;
+
+/**
+ * A party ticket for an arbitrary account, minted the way the game mints one.
+ *
+ * The route only ever issues a pass for whoever is signed in, which is the
+ * point of it, so a test that needs eleven different players has to sign the
+ * passes itself. Same secret, same salt: if either drifts from the app's, the
+ * room refuses these and the tests fail loudly rather than testing a hole.
+ */
+export async function partyTicket(who: string, name = who) {
+  let secret = "scout-local-mode-no-signin-possible";
+
+  try {
+    const match = /^AUTH_SECRET=(.*)$/m.exec(readFileSync(".env.local", "utf8"));
+
+    if (match) {
+      secret = match[1].trim().replace(/^["']|["']$/g, "");
+    }
+  } catch {
+    // Local mode, where the placeholder above is what the app uses too.
+  }
+
+  return encode({
+    token: { sub: who, name },
+    secret,
+    salt: "scout-party-ticket",
+    maxAge: 300,
+  });
 }

@@ -31,7 +31,8 @@ import { speciesFor } from "../models/pollinators";
 import { PollinatorModel } from "./pollinator-model";
 import { sendMark, sendPose } from "../state/party-client";
 import { updateVoiceDistances } from "../state/party-voice";
-import { usePartyStore } from "../state/party-store";
+import { outingFlight, usePartyStore } from "../state/party-store";
+import { outingTick } from "../state/outing-flight";
 import { parkOf } from "@party/protocol";
 import { PollinatorTrail } from "./pollinator-trail";
 import { PollinatorPreview } from "./pollinator-preview";
@@ -46,6 +47,7 @@ import { FieldNotes } from "./field-notes";
 import { FlowerVisitors } from "./flower-visitors";
 import { LandingMenu } from "./landing-menu";
 import { PatchMarks } from "./patch-marks";
+import { OutingMarks } from "./outing-marks";
 import { PanelPin } from "./panel-pin";
 import { RotateNotice } from "./rotate-notice";
 import { TouchControls } from "./touch-controls";
@@ -252,6 +254,12 @@ function danceMarksPatch() {
   const near = store.ui.nearby;
 
   if (near?.kind !== "plant" || near.x === undefined) {
+    return;
+  }
+
+  // A hider may still dance, and the dance must not stand a column of light
+  // 130 units tall over the flower they are hiding on.
+  if (outingFlight.hiding) {
     return;
   }
 
@@ -644,6 +652,8 @@ function ScoutScene({
   const cameraPullRef = useRef(0);
   const squashRef = useRef(0);
   const lastBumpRef = useRef(-10);
+  /** The last hold a round put on this bee. See `outingFlight.epoch`. */
+  const holdEpochRef = useRef(outingFlight.epoch);
   const wasBoostingRef = useRef(false);
   const shadowRef = useRef<Mesh>(null);
   /** The flower being stood on, and how settled onto it the bee is, 0 to 1. */
@@ -1110,7 +1120,55 @@ function ScoutScene({
       slide.cooldown = Math.max(0, slide.cooldown - delta);
     }
 
-    if (!paused && slide.ride && !slide.riding && slide.cooldown === 0) {
+    /**
+     * What a round out in the park is doing to this bee, read once a frame.
+     *
+     * Held is a racer waiting for "go", a seeker counting, or a hider who has
+     * hidden: it cannot fly or climb, and it can still turn and look. Racing is
+     * every pollinator at the bee's speed, so the race is flown and not chosen
+     * on the pollinator screen.
+     */
+    const outingHeld = outingFlight.held;
+    const outingRacing = outingFlight.racing;
+
+    if (holdEpochRef.current !== outingFlight.epoch) {
+      holdEpochRef.current = outingFlight.epoch;
+      // Stopped dead, once, as the hold begins. Zeroing the throttle alone
+      // leaves the bee coasting on what it had: a butterfly drifts sixteen
+      // units past a start line it is supposed to be held on.
+      velocity.set(0, 0, 0);
+      climbRef.current = 0;
+      scrollAltitudeRef.current = 0;
+
+      // Off the Blue Slide, if that is where the hold found them. The ride
+      // owns the bee for three and a half seconds and ends with a shove, and
+      // a seeker who is counting was carried ninety units down it and thrown
+      // off the bottom while "held".
+      if (slide.riding) {
+        slide.riding = false;
+        slide.cooldown = SLIDE_COOLDOWN;
+      }
+
+      // A racer standing on a flower when the countdown starts is in the air
+      // for it. Only off a plain landing, never out of a minigame or a quiz.
+      const ui = useGameStore.getState().ui;
+
+      if (outingRacing && ui.landedOn && !ui.minigamePlantId && !ui.quiz) {
+        useGameStore.getState().takeOff();
+      }
+    }
+
+    // The Blue Slide catches any bee that comes near the top of it and owns it
+    // for three and a half seconds, and one leg of the Frick loop passes eleven
+    // units away. Not during a race, and not out from under a hold.
+    if (
+      !paused &&
+      !outingRacing &&
+      !outingHeld &&
+      slide.ride &&
+      !slide.riding &&
+      slide.cooldown === 0
+    ) {
       const top = slide.ride.top;
       const caught =
         Math.hypot(
@@ -1155,8 +1213,9 @@ function ScoutScene({
     }
 
     const yaw = yawRef.current;
-    const throttle =
-      axis(keys, FLY_BACK, FLY_FORWARD) || virtualInput.throttle;
+    const throttle = outingHeld
+      ? 0
+      : axis(keys, FLY_BACK, FLY_FORWARD) || virtualInput.throttle;
 
     // Forward is wherever you are looking.
     forward.set(Math.sin(yaw), 0, Math.cos(yaw) * -1).normalize();
@@ -1173,15 +1232,18 @@ function ScoutScene({
       weather.falling === "rain" && !useGameStore.getState().wearingRaincoat
         ? 0.62
         : 1;
+    // In a race the moth is not half as fast again as the butterfly, and a
+    // bee without a coat is not slower than one with. How quickly each turns
+    // and answers the stick is left alone: that is what they feel like.
     const speed =
       BASE_SPEED *
-      flight.speed *
-      rainSlow *
+      (outingRacing ? 1 : flight.speed * rainSlow) *
       (isBoosting ? BOOST_MULTIPLIER : 1);
-    const altitudeInput =
-      axis(keys, DIVE, CLIMB) +
-      scrollAltitudeRef.current +
-      virtualInput.altitude;
+    const altitudeInput = outingHeld
+      ? 0
+      : axis(keys, DIVE, CLIMB) +
+        scrollAltitudeRef.current +
+        virtualInput.altitude;
 
     scrollAltitudeRef.current *= 0.82;
 
@@ -1751,6 +1813,15 @@ function ScoutScene({
         gesture: gestureRef.current.kind,
       });
 
+      // And read the round off the pose that was just sent: the gate it
+      // passed, which way the next one is, how warm a seeker is.
+      outingTick(
+        pollinator.position.x,
+        pollinator.position.z,
+        pollinator.position.y,
+        yawRef.current,
+      );
+
       /**
        * And set how loud everybody is, from how far away they are.
        *
@@ -1859,6 +1930,8 @@ function ScoutScene({
       />
       {/* Columns of light over patches somebody danced about. */}
       <PatchMarks />
+      {/* The gates of a race, and the ring round a hiding place. */}
+      <OutingMarks />
 
       {/* What is actually falling on Pittsburgh right now. */}
       <WeatherLayer weather={weather} />

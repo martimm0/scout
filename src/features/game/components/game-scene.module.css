@@ -3,6 +3,12 @@
   height: calc(100dvh - 73px);
   min-height: 560px;
   overflow: hidden;
+  /* Clipped, where the browser can, and not merely hidden. A hidden box can
+     still be scrolled by anything that asks for a control to be brought into
+     view, a focus or a tap on a button near the edge of a panel, and a scrolled
+     shell is the whole park and every panel on it shifted up the screen with a
+     band of bare background along the bottom. */
+  overflow: clip;
   background: #c7dfb2;
 
   /**
@@ -326,6 +332,15 @@
     min-height: 0;
     z-index: 30;
     /* No rubber-banding at the edges of a drag. */
+    overscroll-behavior: none;
+  }
+
+  /* And on the page itself, while the park is on it. The line above only
+     means anything on a box that scrolls, and the shell is clipped now and
+     does not: a drag that began on a panel went straight past it to the page,
+     which on a phone is a rubber band on one and pull-to-refresh on another,
+     and a refresh is being thrown out of the party. */
+  :global(html):has(.shell) {
     overscroll-behavior: none;
   }
 

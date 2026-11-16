@@ -34,7 +34,7 @@ export type Pose = {
   z: number;
   altitude: number;
   heading: number;
-  /** "none" | "greet" | "dance", mirrored so the gesture is visible to others. */
+  /** "none" | "greet" | "dance" | "celebrate", mirrored so others see it. */
   gesture: string;
 };
 
@@ -81,6 +81,112 @@ export type TableView = {
   ended?: "left";
   /** Who has left a finished game. Still in `seats`, so the result reads. */
   done?: string[];
+};
+
+/* ------------------------------------------------------------------ *
+ * Out in the park
+ * ------------------------------------------------------------------ */
+
+/**
+ * A round played by flying: a race through gates, or hide and seek.
+ *
+ * Called an outing so it is never confused with a table. A table is played on
+ * a board in a panel; an outing is played in the park, and the room referees
+ * it from the poses it was already relaying.
+ */
+export type OutingKind = "race" | "hide";
+
+/** The two authored courses in each park, and the one made up on the spot. */
+export type CourseId = "sprint" | "loop" | "dash";
+
+export type OutingPhase =
+  | "gathering"
+  /** Race: everybody held at the start, five seconds. */
+  | "countdown"
+  | "running"
+  /** Hide and seek: the seeker counts, the others hide. */
+  | "hiding"
+  | "seeking"
+  | "done";
+
+/**
+ * A column of light to fly through.
+ *
+ * A column and not a hoop: it is passed at any height, so a butterfly on a
+ * phone and a hoverfly on a mouse are asked for the same thing. `top` is the
+ * exception, for the two gates under a bridge, which only count below the deck.
+ */
+export type Gate = {
+  name: string;
+  x: number;
+  z: number;
+  radius: number;
+  top?: number;
+};
+
+export type RaceView = {
+  course: CourseId;
+  laps: number;
+  /** Where the round gathers. Joining means being here. */
+  start: Gate;
+  /** A dash's one gate, chosen when it begins. Courses keep theirs in data. */
+  target?: Gate;
+  /** Server time the hold was released, or 0 before it. */
+  startedAt: number;
+  /**
+   * Gates passed, counted across laps, and the time once all of them are.
+   * A racer who leaves is taken out of it.
+   */
+  progress: Record<string, { gates: number; finishedIn: number | null }>;
+};
+
+export type HideView = {
+  /** The host asked to be the seeker. Otherwise the room draws one. */
+  hostSeeks: boolean;
+  /** Which of the park's hiding places this round is in. -1 until it begins. */
+  area: number;
+  seekers: string[];
+  /** Those not yet found. */
+  hiders: string[];
+  /** Hiders who have said they are hidden; all of them ends the count early. */
+  ready: string[];
+  /**
+   * Everybody found so far, in the order it happened. Carries the name, so the
+   * result still reads after somebody has gone home.
+   */
+  found: {
+    sub: string;
+    name: string;
+    /** Who found them, or null when they gave themselves away. */
+    by: string | null;
+    /** Milliseconds into the seeking. */
+    at: number;
+    why: "found" | "moved" | "outside";
+  }[];
+};
+
+/**
+ * A round in progress, as everybody in the room sees it.
+ *
+ * It never says where a hider is. The room knows, because it referees from
+ * their poses, but the view is sent to seekers too.
+ */
+export type OutingView = {
+  id: string;
+  kind: OutingKind;
+  phase: OutingPhase;
+  /** In arrival order. The first is the host, who may begin it. */
+  members: { sub: string; name: string }[];
+  /** Server time this phase began. */
+  since: number;
+  /** Server time this phase runs out, or 0 for no clock. */
+  deadline: number;
+  /** Who has pressed Done on a finished round. Still in `members`. */
+  done: string[];
+  /** Why it ended, when it was not by everybody finishing or being found. */
+  ended?: "time" | "left";
+  race?: RaceView;
+  hide?: HideView;
 };
 
 /* ------------------------------------------------------------------ *
@@ -148,7 +254,18 @@ export type ClientMessage =
    * the worst a liar can do is send somebody to an empty patch of grass, which
    * is also the worst a mistaken bee can do.
    */
-  | { t: "mark"; species: string; commonName: string; x: number; z: number };
+  | { t: "mark"; species: string; commonName: string; x: number; z: number }
+  /**
+   * A round out in the park. One message with a verb, because the room hands
+   * the whole thing to the outings module, as it hands a move to a table.
+   *
+   * There is no message for passing a gate or finding somebody. The room works
+   * those out from `pos`, so every player is refereed from the same stream and
+   * nobody's client is the one that decides.
+   */
+  | { t: "outing"; do: "open"; kind: "race"; course: CourseId }
+  | { t: "outing"; do: "open"; kind: "hide"; seeker: "me" | "anyone" }
+  | { t: "outing"; do: "join" | "begin" | "ready" | "leave"; id: string };
 
 /** Server to client. */
 export type ServerMessage =
@@ -188,6 +305,15 @@ export type ServerMessage =
    * private thing between the bees standing on one stalk, not news for the room.
    */
   | { t: "coop"; session: CoopView }
+  /**
+   * Every round out in the park, whenever any of them changes. The whole list,
+   * for the reason `tables` is.
+   *
+   * `now` is the room's clock when it was sent. Deadlines are in server time,
+   * and a countdown drawn from a phone whose clock is a minute out would
+   * otherwise start at 65.
+   */
+  | { t: "outings"; outings: OutingView[]; now: number }
   /**
    * The room will not have this socket, and says why before closing.
    *

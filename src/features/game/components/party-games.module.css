@@ -335,6 +335,124 @@
   line-height: 1.4;
 }
 
+/* Out in the park: races, and hide and seek. */
+
+/* Nine things to start is more than the panel has room for on a short window,
+   so the list scrolls inside the panel and the panel stays where it is. */
+.body {
+  max-height: min(48vh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.groupLabel {
+  margin: 4px 0 -4px;
+  font-weight: 700;
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(30, 44, 26, 0.55);
+}
+
+.sit:disabled,
+.begin:disabled {
+  background: rgba(30, 44, 26, 0.28);
+  cursor: default;
+  filter: none;
+}
+
+/* The countdown, and a race's running time. Tabular, so the digits do not
+   shuffle sideways as they change. */
+.count,
+.clock {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.count {
+  font-size: 2.6rem;
+  text-align: center;
+  color: var(--primary);
+}
+
+.clock {
+  margin-bottom: 8px;
+  font-size: 1.15rem;
+}
+
+.scores li[data-you="true"] {
+  font-weight: 700;
+}
+
+/* How near the nearest hider is. A word, coloured, and nothing that points. */
+.warmth {
+  margin: 0 0 8px;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-weight: 750;
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+  color: #fffdf6;
+  background: #4f7fa6;
+}
+
+.warmth[data-warmth="cool"] {
+  background: #5b9a8b;
+}
+
+.warmth[data-warmth="warm"] {
+  background: #c9862b;
+}
+
+.warmth[data-warmth="hot"] {
+  background: #c44a2f;
+}
+
+/* Over the park while the seeker counts. It takes no clicks, so the panel and
+   everything else under it still work. */
+.veil {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(22, 32, 20, 0.62);
+  color: #fffdf6;
+  pointer-events: none;
+}
+
+.veilCount {
+  font-size: clamp(4rem, 18vh, 9rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.veilNote {
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* The field notes card owns the top left, so on a phone the games move up and
    narrow rather than sitting under a thumbstick. */
 @media (pointer: coarse) {
@@ -343,5 +461,33 @@
     left: 16px;
     bottom: 150px;
     width: min(260px, calc(100% - 32px));
+  }
+  /* A phone on its side is under three hundred pixels tall once the browser
+     has taken its share, and the panel starts a hundred and fifty up from the
+     bottom of it. Measured against the scene these sit in and not against the
+     window: the scene is the shorter of the two, and a card sized to the
+     window lost its own heading off the top of the screen. */
+  .lobby,
+  .board {
+    max-height: calc(100% - 166px);
+    overscroll-behavior: contain;
+  }
+
+  .lobby {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .body {
+    min-height: 0;
+    max-height: none;
+  }
+
+  .board {
+    overflow-y: auto;
+  }
+
+  .count {
+    font-size: 1.9rem;
   }
 }

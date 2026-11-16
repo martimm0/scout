@@ -26,7 +26,8 @@ tablet: same park, same save, same rules, a different pair of hands.
 - A flora that only opens after dark, and moths working it
 - Pollination minigames, and a flower that takes sets seed you can come back to
 - Garden parties: up to ten players in one park, with chat, proximity voice,
-  co-op pollination and four games to play with the people you are with
+  co-op pollination, four games to play at a table, and races and hide and seek
+  to play out in the park
 - Autosave progress
 - Journal, badges, and a sourced layer of connections between the species
 - Pocket: a fact a day about something you actually found, a companion that

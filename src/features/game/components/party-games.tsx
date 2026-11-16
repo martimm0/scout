@@ -21,6 +21,7 @@ import { tableIsOpen } from "@party/games/tables";
 import {
   GAME_NAMES,
   GAME_SEATS,
+  parkOf,
   type GameKind,
   type TableView,
 } from "@party/protocol";
@@ -31,16 +32,18 @@ import {
   sendMove,
   sitAtTable,
 } from "../state/party-client";
-import { usePartyStore } from "../state/party-store";
+import { outingOf, usePartyStore } from "../state/party-store";
+import { OutingCard, OutingOffers } from "./party-outings";
 import styles from "./party-games.module.css";
 
 /**
  * The games you can play with the people in the park.
  *
- * Four of them, several at once, and none of them worth anything to your field
- * notes: a garden party is a place to be with other people, and these are what
- * you do while you are there. Nothing here is ranked, saved, or counted towards
- * a badge, which is the standing rule about competition kept rather than bent.
+ * Four at a table and two out in the park, several at once, and none of them
+ * worth anything to your field notes: a garden party is a place to be with
+ * other people, and these are what you do while you are there. Nothing here is
+ * ranked, saved, or counted towards a badge. A race has a clock and a finishing
+ * order and that is as far as it goes: see `party-outings.tsx`.
  *
  * The room referees every move. This file asks and draws; it never decides. The
  * one place it uses the rules directly is to grey out moves that would be
@@ -62,11 +65,15 @@ export function PartyGames() {
   const status = usePartyStore((state) => state.status);
   const tables = usePartyStore((state) => state.tables);
   const you = usePartyStore((state) => state.you?.sub ?? "");
+  const party = usePartyStore((state) => state.party);
+  const outings = usePartyStore((state) => state.outings);
   const [open, setOpen] = useState(false);
 
-  if (status !== "in") {
+  if (status !== "in" || !party) {
     return null;
   }
+
+  const park = parkOf(party);
 
   /**
    * The table you are sitting at, finished or not.
@@ -87,6 +94,16 @@ export function PartyGames() {
     return <Board table={mine} you={you} />;
   }
 
+  // And in a round out in the park, the round is.
+  const outing = outingOf(outings, you);
+
+  if (outing) {
+    return <OutingCard outing={outing} park={park} you={you} />;
+  }
+
+  const going =
+    tables.length + outings.filter((round) => round.phase !== "done").length;
+
   return (
     <section aria-label="Party games" className={styles.lobby}>
       <button
@@ -97,7 +114,7 @@ export function PartyGames() {
       >
         <span className={styles.toggleLabel}>Games</span>
         <span className={styles.toggleCue}>
-          {tables.length > 0 ? `${tables.length} on` : open ? "Hide" : "Show"}
+          {going > 0 ? `${going} on` : open ? "Hide" : "Show"}
         </span>
       </button>
 
@@ -144,6 +161,8 @@ export function PartyGames() {
               </li>
             ))}
           </ul>
+
+          <OutingOffers park={park} />
         </div>
       ) : null}
     </section>
