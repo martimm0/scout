@@ -135,7 +135,8 @@ export type RaceView = {
   startedAt: number;
   /**
    * Gates passed, counted across laps, and the time once all of them are.
-   * A racer who leaves is taken out of it.
+   * A racer who leaves before they are home is taken out of it. One who is
+   * home keeps their time here, and is noted in the round's `done`.
    */
   progress: Record<string, { gates: number; finishedIn: number | null }>;
 };
@@ -159,6 +160,12 @@ export type HideView = {
     name: string;
     /** Who found them, or null when they gave themselves away. */
     by: string | null;
+    /**
+     * And what they are called, for the same reason `name` is here: the finder
+     * may have gone home. Optional because the room and the screens are put
+     * out separately, and a screen may be talking to a room from before this.
+     */
+    byName?: string | null;
     /** Milliseconds into the seeking. */
     at: number;
     why: "found" | "moved" | "outside";
@@ -181,7 +188,10 @@ export type OutingView = {
   since: number;
   /** Server time this phase runs out, or 0 for no clock. */
   deadline: number;
-  /** Who has pressed Done on a finished round. Still in `members`. */
+  /**
+   * Who has pressed Done on a finished round, or is home in a race that is
+   * still going and has put the card away. Still in `members`.
+   */
   done: string[];
   /** Why it ended, when it was not by everybody finishing or being found. */
   ended?: "time" | "left";

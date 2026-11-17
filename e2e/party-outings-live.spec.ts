@@ -3,6 +3,7 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 import {
   PARTY_HOST,
   dismissTutorial,
+  flyTo,
   heading,
   hold,
   nameThePlayer,
@@ -13,6 +14,8 @@ import {
   signIn,
 } from "./helpers";
 import { COURSES, raceGates } from "../party/games/courses";
+import { slideRide } from "../src/features/game/world/slide-ride";
+import { setActivePark } from "../src/features/game/world/terrain";
 import type { OutingView, Pose, TableView } from "../party/protocol";
 
 /**
@@ -507,7 +510,11 @@ test.describe("hide and seek, refereed by the room", () => {
 
       const id = ada.mine()!.id;
 
+      // One at a time. Two sockets that ask at once are answered in whichever
+      // order the room heard them, and the order they joined in is the order
+      // the hiders are listed in below.
       bo.send({ ...OUTING, do: "join", id });
+      await expect.poll(() => ada.mine()?.members.length).toBe(2);
       cy.send({ ...OUTING, do: "join", id });
       await expect.poll(() => ada.mine()?.members.length).toBe(3);
       ada.send({ ...OUTING, do: "begin", id });
@@ -858,6 +865,279 @@ test.describe("a race, in the hand", () => {
       await page.context().close();
     }
   });
+
+  /**
+   * A Leave that never reached the room, said again when the connection is
+   * back.
+   *
+   * The screen takes you out of a round the moment you press Leave. If that
+   * one frame is lost, on a connection that is dying without having closed,
+   * the room still has you in it: a racer who will never finish, on everybody
+   * else's screen, with no button left on yours to do anything about it. A
+   * connection that comes back before the room has noticed the old one go
+   * does not take you out either, because to the room you never left.
+   *
+   * Both halves are made to happen here. The Leave is dropped on its way out,
+   * and the old socket is kept from closing so the new one arrives beside it.
+   */
+  test("a Leave that was lost is said again when the connection comes back", async ({ browser }) => {
+    test.setTimeout(180_000);
+
+    const page = await playerPage(browser, "ghost");
+    const watcher = await rawBee("garden-frick", "ghost-watcher");
+
+    try {
+      watcher.hover(0, 0);
+      await intoParty(page, "Frick");
+
+      await page.getByRole("button", { name: /Race: The creek sprint/ }).click();
+
+      const card = page.getByRole("region", { name: "Race: The creek sprint" });
+
+      await expect(card).toContainText("At the start: Ghost");
+      await expect.poll(() => watcher.state.outings[0]?.members.length).toBe(1);
+
+      // The frame is lost on the way out.
+      await page.evaluate(() => {
+        const live = (
+          window as unknown as {
+            __scoutPartySocketForTest: { _ws: WebSocket };
+          }
+        ).__scoutPartySocketForTest._ws;
+        const send = live.send.bind(live);
+
+        live.send = (data: Parameters<WebSocket["send"]>[0]) => {
+          if (!String(data).includes('"leave"')) {
+            send(data);
+          }
+        };
+      });
+
+      await card.getByRole("button", { name: "Leave" }).click();
+      await expect(card).toHaveCount(0);
+
+      // Gone from the screen, and the room has heard nothing.
+      await page.waitForTimeout(1500);
+      expect(watcher.state.outings[0]?.members.map((member) => member.sub)).toEqual(["outing-ghost"]);
+
+      // The connection comes back, and the old one has not yet closed.
+      await page.evaluate(() => {
+        const socket = (
+          window as unknown as {
+            __scoutPartySocketForTest: { _ws: WebSocket; reconnect: () => void };
+          }
+        ).__scoutPartySocketForTest;
+
+        socket._ws.close = () => {};
+        socket.reconnect();
+      });
+
+      await expect
+        .poll(() => watcher.state.outings.length, { timeout: 20_000 })
+        .toBe(0);
+      // And the round did not come back onto the screen on the way.
+      await expect(card).toHaveCount(0);
+      await expect(page.getByRole("button", { name: /Quick dash/ })).toBeVisible();
+    } finally {
+      watcher.close();
+      await page.context().close();
+    }
+  });
+
+  /**
+   * A race begins without anybody who is not at its start, and that has to be
+   * said before it happens, to both of them.
+   *
+   * The card listed every member under "At the start" wherever they were, and
+   * told a joiner only that they were waiting. So a joiner who drifted forty
+   * units while they waited was dropped as the countdown began, their card gone
+   * without a word, and the host flew alone a race they had started for two.
+   */
+  test("says who has left the start, to the host and to the one who left", async ({ browser }) => {
+    test.setTimeout(240_000);
+
+    const start = COURSES.frick.sprint.start;
+    const page = await playerPage(browser, "starter");
+    const bo = await rawBee("garden-frick", "wander-bo");
+
+    try {
+      bo.hover(start.x, start.z);
+      await intoParty(page, "Frick");
+
+      await page.getByRole("button", { name: /Race: The creek sprint/ }).click();
+
+      const card = page.getByRole("region", { name: "Race: The creek sprint" });
+
+      await expect(card).toContainText("At the start: Starter");
+      await expect.poll(() => bo.state.outings[0]?.id).toBeTruthy();
+
+      const id = bo.state.outings[0].id;
+
+      bo.send({ ...OUTING, do: "join", id });
+      await expect(card).toContainText("At the start: Starter, wander-bo.");
+      await expect(card.locator("[data-outing='without']")).toHaveCount(0);
+
+      // Bo wanders off. The host is told, and told what starting now means.
+      bo.hover(start.x + 90, start.z);
+      await expect(card).toContainText("At the start: Starter. On the way: wander-bo.");
+      await expect(card.locator("[data-outing='without']")).toHaveText(
+        "Started now, it goes without wander-bo.",
+      );
+
+      // And back.
+      bo.hover(start.x, start.z);
+      await expect(card).toContainText("At the start: Starter, wander-bo.");
+      await expect(card.locator("[data-outing='without']")).toHaveCount(0);
+
+      // The other way round: the host goes, the race is Bo's, and the browser
+      // joins it as anybody would.
+      await card.getByRole("button", { name: "Leave" }).click();
+      await expect(card).toHaveCount(0);
+      await page.getByRole("button", { name: "Join" }).click();
+      await expect(card).toContainText("Waiting for wander-bo to start it.");
+      await expect(card.locator("[data-outing='away']")).toHaveCount(0);
+
+      // And wanders, as somebody waiting does.
+      let gone = 0;
+
+      for (let tries = 0; tries < 6 && gone < 45; tries += 1) {
+        await hold(page, "ArrowUp", 1500);
+
+        const here = await where(page);
+
+        gone = Math.hypot(here.x - start.x, here.z - start.z);
+
+        if (gone < 45) {
+          // Up against something. Turn and try another way.
+          await hold(page, "ArrowRight", 500);
+        }
+      }
+
+      expect(gone, "the joiner never got away from the start").toBeGreaterThan(45);
+      await expect(card.locator("[data-outing='away']")).toContainText("You have left the start");
+      await expect(card.locator("[data-outing='away']")).toContainText("or it goes without you");
+      await expect(card).toContainText("On the way: Starter.");
+
+      // It starts, and it does go without them: which they had been told.
+      bo.send({ ...OUTING, do: "begin", id });
+      await expect(card).toHaveCount(0);
+      expect(bo.mine()!.members.map((member) => member.sub)).toEqual([bo.who]);
+    } finally {
+      bo.close();
+      await page.context().close();
+    }
+  });
+
+  /**
+   * The whole of a round, with nobody in it but real players.
+   *
+   * Every other race here has a socket in it somewhere, saying it is wherever
+   * the test needs it to be. This one has two browsers and no sockets: one
+   * opens a dash, the other joins it from the lobby, both are held, one flies
+   * to wherever the room sent them by the columns alone, and both read the
+   * result. It is the only test in which a gate is passed by a bee that had to
+   * fly to it.
+   */
+  test("a dash between two real players is flown to the end and read by both", async ({ browser }) => {
+    test.setTimeout(300_000);
+
+    const dasher = await playerPage(browser, "dasher");
+    const waiter = await playerPage(browser, "waiter");
+    const thrown: string[] = [];
+
+    dasher.on("pageerror", (error) => thrown.push(`dasher: ${error.message}`));
+    waiter.on("pageerror", (error) => thrown.push(`waiter: ${error.message}`));
+
+    try {
+      await intoParty(dasher, "Highland");
+      await intoParty(waiter, "Highland");
+
+      await dasher.getByRole("button", { name: /Quick dash/ }).click();
+
+      const card = dasher.getByRole("region", { name: "Race: Quick dash" });
+
+      await expect(card).toContainText("At the start: Dasher");
+
+      // The other player finds it in the lobby and is let in from where they
+      // arrived, which is where the dash was opened.
+      await waiter.getByRole("button", { name: "Join" }).click();
+
+      const theirs = waiter.getByRole("region", { name: "Race: Quick dash" });
+
+      await expect(theirs).toContainText("Waiting for Dasher to start it.");
+      await expect(card).toContainText("At the start: Dasher, Waiter");
+
+      await card.getByRole("button", { name: "Start the race" }).click();
+
+      // Both held, on both screens, by the one countdown.
+      await expect(card.getByRole("timer")).toBeVisible();
+      await expect(theirs.getByRole("timer")).toBeVisible();
+      expect(await flown(waiter, "ArrowUp", 1200), "the one who joined flew during the countdown").toBeLessThan(1);
+
+      await expect(card.locator("[data-outing='progress']")).toContainText("gate 1 of 1", {
+        timeout: 15_000,
+      });
+      await expect(theirs.locator("[data-outing='progress']")).toContainText("gate 1 of 1");
+
+      // Where the room sent them, read off the one column that is lit, and
+      // the same column on both screens.
+      const lit = await litGates(dasher);
+
+      expect(lit, "a dash lights exactly its one landmark").toHaveLength(1);
+      expect(await litGates(waiter)).toEqual(lit);
+
+      const target = { x: lit![0][0], z: lit![0][1] };
+      const from = await where(dasher);
+
+      expect(
+        Math.hypot(target.x - from.x, target.z - from.z),
+        "a dash was sent somewhere near",
+      ).toBeGreaterThan(150);
+
+      expect(await flyTo(dasher, target), "the dasher never reached the landmark").toBe(true);
+
+      // Home, by the room's reckoning, on the screen of the one who flew it
+      // and on the screen of the one who did not.
+      await expect(card).toContainText(/You are home in \d+\.\d s\. Waiting for the others\./, {
+        timeout: 15_000,
+      });
+      await expect(theirs).toContainText(/1\. Dasher/);
+      await expect(theirs).toContainText("0 of 1 gates");
+      // Nothing left to fly at for the one who is home.
+      await expect.poll(() => litGates(dasher)).toEqual([]);
+
+      /**
+       * Home, and not waiting about. The button says Done, because the race
+       * is done for whoever is home, and pressing it keeps the time in the
+       * race: it used to say Leave and take the time with it, so that the
+       * next one in read "1." beside their own name.
+       */
+      await card.getByRole("button", { name: "Done" }).click();
+      await expect(card).toHaveCount(0);
+      // Free to start the next thing while the other is still out there.
+      await expect(dasher.getByRole("button", { name: /Quick dash/ })).toBeVisible();
+
+      await dasher.waitForTimeout(1500);
+      await expect(theirs).toContainText(/1\. Dasher/);
+      await expect(theirs).toContainText("0 of 1 gates");
+      // Still a race to the one in it, with the column still lit.
+      expect(await litGates(waiter)).toEqual(lit);
+
+      // The one still out there gives up, and nobody is left to read it to.
+      await theirs.getByRole("button", { name: "Leave" }).click();
+      await expect(theirs).toHaveCount(0);
+      await expect.poll(() => litGates(waiter)).toEqual([]);
+      // And nothing of it is left in either lobby.
+      await expect(waiter.getByRole("button", { name: /Quick dash/ })).toBeVisible();
+      await expect(waiter.getByText("under way")).toHaveCount(0);
+      await expect(dasher.getByText("under way")).toHaveCount(0);
+
+      expect(thrown, "something threw during the round").toEqual([]);
+    } finally {
+      await dasher.context().close();
+      await waiter.context().close();
+    }
+  });
 });
 
 test.describe("hide and seek, in the hand", () => {
@@ -1097,6 +1377,75 @@ test.describe("hide and seek, in the hand", () => {
 
       await expect(card).toContainText("Everybody found.", { timeout: 20_000 });
       expect(bo.mine()!.hide!.found[0]).toMatchObject({ sub: bo.who, by: "outing-seeker", why: "found" });
+    } finally {
+      bo.close();
+      await page.context().close();
+    }
+  });
+
+  /**
+   * The Blue Slide owns a bee for three and a half seconds and throws it off
+   * the bottom. A hold that only zeroes the stick does nothing about that: a
+   * seeker who started the count from the top of the slide was carried ninety
+   * units down it and shoved, while the card said they were held.
+   */
+  test("a hold takes a bee off the Blue Slide, and not down it", async ({ browser }) => {
+    test.setTimeout(300_000);
+
+    setActivePark("frick");
+
+    const top = slideRide()!.top;
+    const page = await playerPage(browser, "slider");
+    const bo = await rawBee("garden-frick", "slide-bo");
+
+    try {
+      bo.hover(-180, 155);
+      await intoParty(page, "Frick");
+
+      await page.getByRole("button", { name: /Hide and seek: I will seek/ }).click();
+
+      const card = page.getByRole("region", { name: "Hide and seek" });
+
+      await expect(card).toContainText("In it: Slider");
+      await expect.poll(() => bo.state.outings[0]?.id).toBeTruthy();
+      bo.send({ ...OUTING, do: "join", id: bo.state.outings[0].id });
+      await expect(card.getByRole("button", { name: "Start hiding" })).toBeEnabled();
+
+      // To the top of the slide and onto it, as `slide.spec.ts` does.
+      await flyTo(page, { x: top.x, z: top.z });
+
+      let caught = false;
+
+      for (let tries = 0; tries < 24 && !caught; tries += 1) {
+        const state = await readout(page);
+
+        caught =
+          state.Area === "Blue Slide Playground" &&
+          Number.parseFloat(state.Altitude ?? "999") < top.y + 6;
+
+        if (!caught) {
+          await hold(page, "KeyQ", 280);
+        }
+      }
+
+      expect(caught, "never caught the top of the slide").toBe(true);
+
+      // Riding. Start the count from here.
+      await card.getByRole("button", { name: "Start hiding" }).click();
+      await expect(page.getByText("Counting. No peeking.")).toBeVisible();
+
+      const held = await where(page);
+
+      // Longer than the whole ride, so one that was still running has run.
+      await page.waitForTimeout(4200);
+
+      const after = await where(page);
+
+      expect(
+        Math.hypot(after.x - held.x, after.z - held.z),
+        "a counting seeker was carried down the slide",
+      ).toBeLessThan(8);
+      expect(held.altitude - after.altitude, "a counting seeker slid downhill").toBeLessThan(8);
     } finally {
       bo.close();
       await page.context().close();

@@ -236,11 +236,46 @@ function atStart(at: Pose | null, start: Gate): boolean {
   return at !== null && Math.hypot(at.x - start.x, at.z - start.z) <= JOIN_RADIUS;
 }
 
+/**
+ * Who in a race is not at its start, and so would be left behind if it began
+ * this instant.
+ *
+ * The room asks this when the host presses Start, and the card asks it while
+ * everybody waits, with the same poses. It is one function so the two cannot
+ * disagree: a card that said "At the start: Ada, Bo" about a Bo who had
+ * drifted off was a race Ada started for two and flew alone, and a card that
+ * vanished from Bo's screen without a word.
+ */
+export function awayFromStart(
+  members: OutingView["members"],
+  start: Gate,
+  poseOf: PoseOf,
+): string[] {
+  return members
+    .filter((member) => !atStart(poseOf(member.sub), start))
+    .map((member) => member.sub);
+}
+
 export function insideArea(at: Spot, area: HideArea): boolean {
-  return (
-    Math.hypot(at.x - area.x, at.z - area.z) <= area.radius &&
-    at.altitude <= area.top
-  );
+  return whereInArea(at, area) === "inside";
+}
+
+/**
+ * Inside a hiding place, outside it, or over it and too high.
+ *
+ * Three answers and not two, for the hider's card. "Outside" comes with which
+ * way the hiding place is, and to a bee above the trees in the middle of the
+ * ring that was "0 ahead": the spot directly underneath them.
+ */
+export function whereInArea(
+  at: Spot,
+  area: HideArea,
+): "inside" | "above" | "outside" {
+  if (Math.hypot(at.x - area.x, at.z - area.z) > area.radius) {
+    return "outside";
+  }
+
+  return at.altitude <= area.top ? "inside" : "above";
 }
 
 /**
@@ -356,10 +391,17 @@ export function openHide(
   };
 }
 
-/** Whether somebody is in a round that is still going. */
+/**
+ * Whether somebody is in a round that is still going.
+ *
+ * Not somebody who is home in a race and has put the card away: their name and
+ * time stay in it for the others to read, and they are free to start something
+ * else. See `leaveOuting`.
+ */
 export function inOuting(outing: OutingView, who: string): boolean {
   return (
     outing.phase !== "done" &&
+    !outing.done.includes(who) &&
     outing.members.some((member) => member.sub === who)
   );
 }
@@ -423,8 +465,9 @@ export function beginOuting(
 
     // Anybody who joined and then wandered off is left behind, and not held
     // in mid-air somewhere across the park for a race they cannot be in.
-    const members = outing.members.filter((member) =>
-      atStart(poseOf(member.sub), race.start),
+    const away = awayFromStart(outing.members, race.start, poseOf);
+    const members = outing.members.filter(
+      (member) => !away.includes(member.sub),
     );
 
     let target: Gate | undefined;
@@ -520,6 +563,9 @@ function found(
           sub,
           name: nameOf(outing, sub),
           by,
+          // The name and not only who, as with the one found: a finder who
+          // goes home is out of `members`, and the row read "found by A bee".
+          byName: by === null ? null : nameOf(outing, by),
           at: Math.max(0, now - outing.since),
           why,
         },
@@ -749,7 +795,10 @@ export function outingTick(outing: Outing, now: number, poseOf: PoseOf): Outing 
  * Somebody left the room, or pressed Leave.
  *
  * A finished round keeps its members so the result still reads, and notes who
- * has pressed Done beside them, as a finished table does.
+ * has pressed Done beside them, as a finished table does. So does a racer who
+ * is home while the others are still flying: the race is over for them, and
+ * taking them out of it took their time with them, so that whoever came in
+ * next read "1." beside their own name in a race they had lost.
  */
 export function leaveOuting(outing: Outing, who: string, now: number): Outing {
   if (!outing.members.some((member) => member.sub === who)) {
@@ -762,6 +811,19 @@ export function leaveOuting(outing: Outing, who: string, now: number): Outing {
     return outing.members.every((member) => done.includes(member.sub))
       ? { ...outing, members: [], done: [] }
       : { ...outing, done };
+  }
+
+  // Home, and going. Noted as having read the result, which for them it is.
+  // Somebody is still out there or the race would be over, so there is always
+  // a member left who has not.
+  if (
+    outing.phase === "running" &&
+    outing.race &&
+    outing.race.progress[who]?.finishedIn != null
+  ) {
+    return outing.done.includes(who)
+      ? outing
+      : { ...outing, done: [...outing.done, who] };
   }
 
   const members = outing.members.filter((member) => member.sub !== who);
@@ -778,10 +840,18 @@ export function leaveOuting(outing: Outing, who: string, now: number): Outing {
 
     const racing = { ...next, race: { ...outing.race, progress } };
 
-    return outing.phase === "running" &&
-      Object.values(progress).every((entry) => entry.finishedIn !== null)
-      ? { ...racing, phase: "done", since: now, deadline: 0 }
-      : racing;
+    if (
+      outing.phase !== "running" ||
+      !Object.values(progress).every((entry) => entry.finishedIn !== null)
+    ) {
+      return racing;
+    }
+
+    // The last one still flying has given up, so it is over. If everybody who
+    // got home has already put it away, there is nobody to read it to.
+    return members.every((member) => outing.done.includes(member.sub))
+      ? { ...racing, members: [], done: [] }
+      : { ...racing, phase: "done", since: now, deadline: 0 };
   }
 
   if (outing.hide) {

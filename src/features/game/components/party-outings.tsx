@@ -242,6 +242,9 @@ export function OutingCard({
       ? Math.min(outing.deadline - outing.since, outing.deadline - now)
       : 0;
   const host = outing.members[0]?.sub === you;
+  // Home in a race the others are still flying. Going now keeps your time in
+  // it, so the button says what it does.
+  const home = outing.race?.progress[you]?.finishedIn != null;
 
   const hide = outing.hide;
   const seeker = hide?.seekers.includes(you) ?? false;
@@ -272,7 +275,7 @@ export function OutingCard({
             onClick={() => leaveOuting(outing.id)}
             type="button"
           >
-            {outing.phase === "done" ? "Done" : "Leave"}
+            {outing.phase === "done" || home ? "Done" : "Leave"}
           </button>
         </header>
 
@@ -335,12 +338,24 @@ function Race({
   const cue = sense.cue ? `${sense.cue.distance} ${WAYS[sense.cue.way]}` : null;
 
   if (outing.phase === "gathering") {
+    // Who is at the start and who has drifted off, by the rule the room will
+    // use when it begins: anybody not there is left behind. Said to both, so
+    // the host does not start a race for two and fly it alone, and the one who
+    // wandered is not dropped out of it without ever being told.
     const here = sense.atStart.includes(outing.id);
+    const there = outing.members.filter((member) => !sense.away.includes(member.sub));
+    const away = outing.members.filter((member) => sense.away.includes(member.sub));
+    const others = away.filter((member) => member.sub !== you);
+    const list = (members: OutingView["members"]) =>
+      members.map((member) => member.name).join(", ");
 
     return (
       <>
         <p className={styles.status}>
-          At the start: {outing.members.map((member) => member.name).join(", ")}.
+          {there.length > 0
+            ? `At the start: ${list(there)}.`
+            : "Nobody is at the start yet."}
+          {away.length > 0 ? ` On the way: ${list(away)}.` : ""}
           {race.course === "dash"
             ? " A dash to a landmark the room will pick."
             : ` ${race.laps} laps.`}
@@ -360,10 +375,21 @@ function Race({
                 Fly to the green column to start it{cue ? `: ${cue}` : ""}.
               </p>
             )}
+            {here && others.length > 0 ? (
+              <p className={styles.quiet} data-outing="without">
+                Started now, it goes without {list(others)}.
+              </p>
+            ) : null}
           </>
-        ) : (
+        ) : !sense.away.includes(you) ? (
           <p className={styles.quiet}>
             Waiting for {outing.members[0]?.name ?? "the host"} to start it.
+          </p>
+        ) : (
+          <p className={styles.quiet} data-outing="away">
+            You have left the start{cue ? `: ${cue}` : ""}. Be at the green
+            column when {outing.members[0]?.name ?? "the host"} starts it, or it
+            goes without you.
           </p>
         )}
       </>
@@ -543,7 +569,12 @@ function Hide({
           {ready ? "Hidden. Stay put. " : `Hide in ${area?.name}, inside the pink ring. `}
           <span role="timer">{clock(left)}</span> left.
         </p>
-        {sense.inArea === false ? (
+        {sense.high ? (
+          <p className={styles.quiet} data-outing="above">
+            You are over it and too high. Come down among the trees: up here
+            when the count ends is caught.
+          </p>
+        ) : sense.inArea === false ? (
           <p className={styles.quiet} data-outing="outside">
             You are outside it{cue ? `: ${cue}` : ""}. Outside when the count
             ends is caught.
@@ -570,7 +601,7 @@ function Hide({
           <span>{entry.name}</span>
           <span>
             {entry.why === "found"
-              ? `found by ${names(outing, entry.by ? [entry.by] : [])}, ${clock(entry.at)}`
+              ? `found by ${entry.byName ?? names(outing, entry.by ? [entry.by] : [])}, ${clock(entry.at)}`
               : entry.why === "moved"
                 ? "moved, and was seen"
                 : "was not in the hiding place"}

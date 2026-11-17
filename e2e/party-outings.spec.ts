@@ -15,7 +15,9 @@ import {
   TAG_GRACE_MS,
   beginOuting,
   blindPairs,
+  awayFromStart,
   gateCrossed,
+  inOuting,
   joinOuting,
   leaveOuting,
   openHide,
@@ -28,6 +30,7 @@ import {
   readyOuting,
   sameView,
   warmthBand,
+  whereInArea,
   withoutLeft,
   type Outing,
   type PoseOf,
@@ -455,6 +458,67 @@ test.describe("a race", () => {
     expect(left.race!.progress.bo).toBeUndefined();
   });
 
+  test("keeps the time of a racer who is home and goes, and lets them go", () => {
+    let race = running(["ada", "bo"]);
+
+    race = flyRound(race, "ada", 10_000).race;
+
+    const time = race.race!.progress.ada.finishedIn;
+
+    expect(time).not.toBeNull();
+    expect(inOuting(race, "ada")).toBe(true);
+
+    // Home, and tired of waiting for Bo. Her time was deleted with her, and
+    // Bo then finished first in a race he had lost by a lap.
+    const gone = leaveOuting(race, "ada", 30_000);
+
+    expect(gone.phase).toBe("running");
+    expect(gone.race!.progress.ada.finishedIn).toBe(time);
+    expect(gone.members.map((member) => member.sub)).toEqual(["ada", "bo"]);
+    expect(gone.done).toEqual(["ada"]);
+    // Not in it any more, as far as starting something else goes.
+    expect(inOuting(gone, "ada")).toBe(false);
+    expect(inOuting(gone, "bo")).toBe(true);
+    // Twice is once.
+    expect(leaveOuting(gone, "ada", 31_000)).toBe(gone);
+
+    const flown = flyRound(gone, "bo", 40_000);
+
+    expect(flown.race.phase).toBe("done");
+    expect(
+      raceStandings(flown.race.race!, flown.race.members).map((row) => [row.sub, row.place]),
+    ).toEqual([
+      ["ada", 1],
+      ["bo", 2],
+    ]);
+    // Bo is still reading it, and when he has, nobody is.
+    expect(outingIsStale(flown.race, flown.now, 60_000)).toBe(false);
+    expect(outingIsStale(leaveOuting(flown.race, "bo", flown.now), flown.now, 60_000)).toBe(true);
+
+    // And if Bo gives up instead, there is nobody left to read a result.
+    expect(outingIsStale(leaveOuting(gone, "bo", 50_000), 50_000, 60_000)).toBe(true);
+  });
+
+  test("says who would be left behind, by the rule that leaves them", () => {
+    const start = COURSES.frick.sprint.start;
+    const here = at(start.x, start.z);
+    let race = joinOuting(sprint(), "bo", "Bo", here);
+
+    race = joinOuting(race, "cy", "Cy", here);
+
+    const where = everybody({
+      ada: here,
+      bo: at(start.x + JOIN_RADIUS + 1, start.z),
+      // Cy joined and has not been heard from since.
+      cy: null,
+    });
+
+    expect(awayFromStart(race.members, race.race!.start, where)).toEqual(["bo", "cy"]);
+    expect(awayFromStart(race.members, race.race!.start, everybody({ ada: here, bo: here, cy: here }))).toEqual([]);
+    // The same answer the room gives when it begins.
+    expect(beginOuting(race, "ada", 2000, where).members.map((member) => member.sub)).toEqual(["ada"]);
+  });
+
   test("passes to the next bee when its host leaves before it starts", () => {
     const start = COURSES.frick.sprint.start;
     const here = at(start.x, start.z);
@@ -691,7 +755,7 @@ test.describe("hide and seek", () => {
     expect(seeking.hide!.hiders).toEqual(["bo"]);
     expect(seeking.hide!.seekers).toEqual(["ada", "cy"]);
     expect(seeking.hide!.found).toEqual([
-      { sub: "cy", name: "cy", by: null, at: 0, why: "outside" },
+      { sub: "cy", name: "cy", by: null, byName: null, at: 0, why: "outside" },
     ]);
   });
 
@@ -732,7 +796,7 @@ test.describe("hide and seek", () => {
     expect(close.hide!.hiders).toEqual(["cy"]);
     expect(close.hide!.seekers).toEqual(["ada", "bo"]);
     expect(close.hide!.found).toEqual([
-      { sub: "bo", name: "bo", by: "ada", at: 5000, why: "found" },
+      { sub: "bo", name: "bo", by: "ada", byName: "Ada", at: 5000, why: "found" },
     ]);
     expect(close.phase).toBe("seeking");
   });
@@ -789,9 +853,33 @@ test.describe("hide and seek", () => {
     const moved = outingPose(settled, "bo", null, 0, hidden(25), settled.since + 9000, where);
 
     expect(moved.hide!.found).toEqual([
-      { sub: "bo", name: "bo", by: null, at: 9000, why: "moved" },
+      { sub: "bo", name: "bo", by: null, byName: null, at: 9000, why: "moved" },
     ]);
     expect(moved.hide!.seekers).toEqual(["ada", "bo"]);
+  });
+
+  test("still says who found somebody after the finder has gone home", () => {
+    const where = everybody({ bo: hidden(0), cy: hidden(40) });
+    const seeking = outingTick(hiding(), 2000 + HIDING_MS, where);
+    const now = seeking.since + 5000;
+    const found = outingPose(seeking, "ada", null, 0, hidden(1), now, where);
+    // Ada found Bo and left. Bo is a seeker now, so the round goes on, and
+    // his row read "found by A bee" to the end of it.
+    const left = leaveOuting(found, "ada", now + 1000);
+
+    expect(left.phase).toBe("seeking");
+    expect(left.members.map((member) => member.sub)).toEqual(["bo", "cy"]);
+    expect(left.hide!.found[0]).toMatchObject({ sub: "bo", by: "ada", byName: "Ada" });
+  });
+
+  test("tells a hider who is too high that they are too high, and not that they are outside", () => {
+    expect(whereInArea(hidden(0), AREA)).toBe("inside");
+    expect(whereInArea(hidden(AREA.radius + 5), AREA)).toBe("outside");
+    // Over the middle of it and above the trees: the hint used to be
+    // "outside it: 0 ahead", pointing at the spot directly underneath.
+    expect(whereInArea({ ...hidden(0), altitude: AREA.top + 5 }, AREA)).toBe("above");
+    // Too high and outside it is outside it: that is the thing to fix first.
+    expect(whereInArea({ ...hidden(AREA.radius + 5), altitude: AREA.top + 5 }, AREA)).toBe("outside");
   });
 
   test("is over when the last hider is found, and they are the last name on the list", () => {

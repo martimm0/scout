@@ -145,6 +145,13 @@ export type OutingSense = {
   warmth: Warmth | null;
   /** Hiding: whether you are inside the hiding place. */
   inArea: boolean | null;
+  /** Hiding: over the hiding place and too high to be in it. */
+  high: boolean;
+  /**
+   * A race that is gathering: who in it is not at the start, by the rule the
+   * room uses to leave them behind when it begins.
+   */
+  away: string[];
 };
 
 export const NO_SENSE: OutingSense = {
@@ -153,6 +160,8 @@ export const NO_SENSE: OutingSense = {
   cue: null,
   warmth: null,
   inArea: null,
+  high: false,
+  away: [],
 };
 
 /**

@@ -1511,18 +1511,54 @@ the moment it is pressed: dropped by the budget, the player was out of the
 round on their own screen and in it on everybody else's. The client also says
 it again after a reconnect, for a Leave pressed just as the connection went.
 And a hold ends a ride on the Blue Slide, which otherwise carried a "held" bee
-ninety units and threw it off the bottom. Only the first of these three has a
-test.
+ninety units and threw it off the bottom. Each of the three has a test in
+`party-outings-live.spec.ts`. The one for the lost Leave drops the frame on its
+way out and keeps the old socket from closing, so the new connection arrives
+beside it: without the second saying, the round keeps a member who is gone.
 
 **One thing each, and several rounds at once.** A bee in a round is not also at
 a table, in either direction. Rounds are a list, as tables are, so one bee
 flying a course alone does not take the park's only race from the other nine.
-A dropped connection is out of the round, as it is out of its chair. A hider
+A dropped connection is out of the round, as it is out of its chair. One that
+comes back before the room has noticed the old one go was never out: the room
+keeps a seat while any connection for the account is open, so the round is
+still theirs when the welcome arrives. A hider
 leaving during the count ends it at once if everybody still hiding has said
 they are hidden. A round
 that has been gathering for ten minutes with nobody starting it is cleared
 away, because its host has wandered off and its start column is a light left on
 over the park; somebody joining starts the ten minutes again.
+
+**The card says what the room is about to do, in the room's own words.** Four
+things it got wrong were found by following each round from the button to the
+result, and all four are the card and the room disagreeing:
+
+- A race begins without anybody who is not at its start, and the card listed
+  every member under "At the start" wherever they were. A joiner who drifted
+  forty units while they waited was dropped as the countdown began, with no
+  word on either screen. `awayFromStart` is now the one function the room
+  asks when Start is pressed and the card asks while everybody waits: the host
+  reads "On the way" and "Started now, it goes without" them, and the one who
+  wandered is told to be back at the green column.
+- A racer who was home could only put the card away with Leave, and leaving
+  took them out of the race, time and all, so the next one in read "1." beside
+  their own name. Somebody who is home and goes is now kept in `members` and
+  noted in `done`, as on a finished round: the time stays, the button says
+  Done, and `inOuting` no longer counts them, so they can start something else.
+  If the last racer still flying then gives up, nobody is left to read the
+  result and the round is cleared.
+- "Found by" looked the finder up in `members`, and a seeker who found one
+  hider and went home was "A bee" for the rest of the round. A find carries the
+  finder's name (`byName`), as it already carried the name of the one found.
+  The field is optional on the wire, because the room and the screens are put
+  out separately.
+- A hider over the hiding place and above its ceiling was told they were
+  outside it and pointed at the spot directly underneath: "0 ahead".
+  `whereInArea` gives three answers, and the card tells "above" to come down.
+
+The first two have a browser test each as well as the rules; the last two are
+held by the rules alone, and the lines of the card that print them are not
+driven by a test.
 
 **The scene is clipped, not hidden.** The round card found this on a phone: a
 box with `overflow: hidden` can still be scrolled by anything that asks for a
@@ -1536,8 +1572,9 @@ is asserted as a computed style only: pull-to-refresh cannot be driven in an
 emulated phone, and it has not been tried on a real one.
 
 Tests: `party-outings.spec.ts` (the rules, and the courses against the parks),
-`party-outings-live.spec.ts` (the real room, with raw sockets and a browser),
-and one in `mobile.spec.ts`.
+`party-outings-live.spec.ts` (the real room, with raw sockets and a browser,
+and one dash flown from open to result by two browsers and no sockets), and
+one in `mobile.spec.ts`.
 
 ### Working one flower together
 

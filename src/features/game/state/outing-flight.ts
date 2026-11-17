@@ -4,9 +4,10 @@ import { COURSES, raceGates } from "@party/games/courses";
 import {
   JOIN_RADIUS,
   STALE_POSE_MS,
+  awayFromStart,
   gateCrossed,
-  insideArea,
   warmthBand,
+  whereInArea,
 } from "@party/games/outings";
 import { parkOf, type Gate } from "@party/protocol";
 
@@ -72,6 +73,8 @@ function same(a: OutingSense, b: OutingSense) {
     a.gates === b.gates &&
     a.warmth === b.warmth &&
     a.inArea === b.inArea &&
+    a.high === b.high &&
+    a.away.join() === b.away.join() &&
     a.cue?.way === b.cue?.way &&
     a.cue?.distance === b.cue?.distance &&
     a.atStart.join() === b.atStart.join()
@@ -120,14 +123,26 @@ export function outingTick(
     cue: null,
     warmth: null,
     inArea: null,
+    high: false,
+    away: [],
   };
 
   if (mine?.race && you) {
     const entry = mine.race.progress[you];
     const lap = raceGates(park, mine.race);
 
-    if (mine.phase === "gathering" && !sense.atStart.includes(mine.id)) {
-      sense.cue = cueTo(mine.race.start, here, heading);
+    if (mine.phase === "gathering") {
+      // Asked the way the room will ask it when the host presses Start, of
+      // the poses the room has: yours is the one just sent.
+      sense.away = awayFromStart(mine.members, mine.race.start, (sub) =>
+        sub === you
+          ? { ...here, heading, gesture: "none" }
+          : (partyPoses.get(sub) ?? null),
+      );
+
+      if (sense.away.includes(you)) {
+        sense.cue = cueTo(mine.race.start, here, heading);
+      }
     }
 
     if (entry && lap.length > 0) {
@@ -167,10 +182,14 @@ export function outingTick(
     const area = COURSES[park].hide[mine.hide.area];
 
     if (mine.hide.hiders.includes(you)) {
-      sense.inArea = insideArea(here, area);
+      const placed = whereInArea(here, area);
 
-      // Only while there is still time to get there.
-      if (mine.phase === "hiding" && !sense.inArea) {
+      sense.inArea = placed === "inside";
+      sense.high = placed === "above";
+
+      // Only while there is still time to get there, and only when there is
+      // somewhere to point: over the middle of it, the way in is down.
+      if (mine.phase === "hiding" && placed === "outside") {
         sense.cue = cueTo(area, here, heading);
       }
     } else if (mine.phase === "seeking" && mine.hide.seekers.includes(you)) {
