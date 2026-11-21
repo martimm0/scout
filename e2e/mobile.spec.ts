@@ -346,6 +346,58 @@ test.describe("a round out in the park, on a phone", () => {
       "the page can be dragged out from under the park",
     ).toBe("none");
 
+    /**
+     * And the list is dragged with a thumb, where it is longer than its box.
+     *
+     * The loop below brings each button into view by script before it asks
+     * whether the button can be pressed, which is not something a thumb can
+     * do. A list that scripts can scroll and people cannot looks exactly the
+     * same to it: that is how the desktop's wheel went unnoticed. So the drag
+     * is made here as a real touch, by the browser, and the list has to move.
+     */
+    const list = await page
+      .getByRole("button", { name: /Hide and seek: pick a seeker/ })
+      .evaluate((button) => {
+        let box: HTMLElement | null = button.parentElement;
+
+        while (box && !/(auto|scroll)/.test(getComputedStyle(box).overflowY)) {
+          box = box.parentElement;
+        }
+
+        const rect = box!.getBoundingClientRect();
+
+        box!.setAttribute("data-test-list", "");
+
+        return {
+          x: Math.round(rect.left + rect.width / 2),
+          y: Math.round(rect.top + rect.height / 2),
+          overflows: box!.scrollHeight - box!.clientHeight,
+        };
+      });
+
+    if (test.info().project.name === "phone") {
+      expect(list.overflows, "the list fits on a phone now, so the drag below is about nothing").toBeGreaterThan(40);
+    }
+
+    if (list.overflows > 40) {
+      const session = await page.context().newCDPSession(page);
+
+      await session.send("Input.synthesizeScrollGesture", {
+        x: list.x,
+        y: list.y,
+        yDistance: -Math.min(list.overflows, 120),
+        gestureSourceType: "touch",
+        speed: 400,
+      });
+
+      expect(
+        await page.locator("[data-test-list]").evaluate((box) => box.scrollTop),
+        "a thumb dragged up the list and the list did not move",
+      ).toBeGreaterThan(30);
+      // And the park under it did not go anywhere.
+      expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    }
+
     for (const name of [
       /Race: The creek sprint/,
       /Race: Round the whole park/,

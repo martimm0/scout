@@ -1556,9 +1556,36 @@ result, and all four are the card and the room disagreeing:
   outside it and pointed at the spot directly underneath: "0 ahead".
   `whereInArea` gives three answers, and the card tells "above" to come down.
 
-The first two have a browser test each as well as the rules; the last two are
-held by the rules alone, and the lines of the card that print them are not
-driven by a test.
+Each has a browser test as well as the rules.
+
+**A wheel over a list is for the list.** The park takes the wheel for climbing
+and diving, on a listener on the window, and it took a wheel turned over a
+panel as well: the bee climbed and the panel stayed where it was. Nothing
+noticed while no panel was longer than its box. The Games list is, on anything
+the size of a laptop, and the rounds out in the park are at the bottom of it,
+so the buttons for a race and for hide and seek could be reached by nobody who
+did not think to press Tab. `scrollerUnder` now asks whether the wheel is over
+something that scrolls by itself, and if it is the list gets the wheel and the
+bee does not. At the end of the list the wheel is swallowed, or it would carry
+on into the page and pull the park up off the screen.
+
+Every test had pressed those buttons through Playwright, which scrolls a button
+into view before it clicks it, so none of them could have seen this. The one
+that does (`the wheel scrolls the list`) turns the wheel and clicks where the
+button actually is, and the phone test now drags the list with a real touch
+before it asks whether anything on it can be pressed.
+
+**The room is also played by nobody in particular.** One test in
+`party-outings.spec.ts` has six players do whatever they like for three
+hundred steps, four hundred times over from fixed seeds: open, join, begin,
+say they are hidden, leave, drop out, fly at gates and hiding places and each
+other, and let time pass. After every step it asks whether the room still
+makes sense (nobody in two rounds, the seekers and hiders are the members once
+each, a finish once given is kept, a counting seeker is blind to every hider,
+the room's next deadline is no later than any round's), and at the end that
+twenty minutes of nothing but a bystander's poses leaves no round on the list.
+Its first run found a hider who had been found still listed as "ready", which
+no screen reads and is now taken off the list with them.
 
 **The scene is clipped, not hidden.** The round card found this on a phone: a
 box with `overflow: hidden` can still be scrolled by anything that asks for a
@@ -1571,10 +1598,11 @@ and the same rule is put on the page itself while the park is on it. That half
 is asserted as a computed style only: pull-to-refresh cannot be driven in an
 emulated phone, and it has not been tried on a real one.
 
-Tests: `party-outings.spec.ts` (the rules, and the courses against the parks),
-`party-outings-live.spec.ts` (the real room, with raw sockets and a browser,
-and one dash flown from open to result by two browsers and no sockets), and
-one in `mobile.spec.ts`.
+Tests: `party-outings.spec.ts` (the rules, the courses against the parks, and
+the room under whatever anybody does), `party-outings-live.spec.ts` (the real
+room, with raw sockets and a browser, one dash flown from open to result by two
+browsers and no sockets, and a bee flown under the Panther Hollow Bridge for
+the gate that only counts from under the deck), and one in `mobile.spec.ts`.
 
 ### Working one flower together
 

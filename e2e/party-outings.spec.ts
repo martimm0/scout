@@ -1158,6 +1158,340 @@ test.describe("the room's list of rounds", () => {
   });
 });
 
+/**
+ * The room, played by nobody in particular.
+ *
+ * Every test above is a story somebody thought of. This is the ones nobody
+ * did: six players pressing whatever they like in whatever order, flying to
+ * gates and hiding places and each other, leaving, dropping out and letting
+ * time pass, and after every single thing that happens the room is asked
+ * whether it still makes sense. The seed is fixed, so a failure is the same
+ * failure every time, and the message says which run and which step.
+ */
+test.describe("the room, under whatever anybody does", () => {
+  /** A small seeded generator, so a run can be had again. */
+  function seeded(seed: number) {
+    let state = seed >>> 0;
+
+    return () => {
+      state = (state + 0x6d2b79f5) >>> 0;
+
+      let mixed = state;
+
+      mixed = Math.imul(mixed ^ (mixed >>> 15), mixed | 1);
+      mixed ^= mixed + Math.imul(mixed ^ (mixed >>> 7), mixed | 61);
+
+      return ((mixed ^ (mixed >>> 14)) >>> 0) / 4_294_967_296;
+    };
+  }
+
+  const WHO = ["ada", "bo", "cy", "dee", "eli", "fay"];
+  const FINISHED_FOR = 60_000;
+
+  /**
+   * Plain throws, and not `expect`. This is asked half a million times in one
+   * test, and an `expect` that passes still costs a matcher and a stack: with
+   * them the test ran for minutes without finishing.
+   */
+  function must(holds: unknown, say: () => string) {
+    if (!holds) {
+      throw new Error(say());
+    }
+  }
+
+  const sorted = (subs: string[]) => [...subs].sort().join();
+
+  /** Everything that has to be true of a room, whatever has happened in it. */
+  function sound(room: OutingRoom, kept: Map<string, number>, say: string) {
+    const busy = new Set<string>();
+    let blind = 0;
+
+    for (const outing of room.list) {
+      const tag = () => `${say}, ${outing.id} (${outing.kind}, ${outing.phase})`;
+      const subs = outing.members.map((member) => member.sub);
+
+      must(subs.length > 0, () => `${tag()}: a round with nobody in it was kept`);
+      must(new Set(subs).size === subs.length, () => `${tag()}: somebody is in it twice`);
+      must(
+        outing.done.every((sub) => subs.includes(sub)),
+        () => `${tag()}: Done was pressed by somebody who is not in it`,
+      );
+
+      for (const sub of subs) {
+        if (inOuting(outing, sub)) {
+          must(!busy.has(sub), () => `${tag()}: ${sub} is in two rounds at once`);
+          busy.add(sub);
+        }
+      }
+
+      if (outing.race) {
+        const race = outing.race;
+        const entries = Object.entries(race.progress);
+
+        if (outing.phase !== "gathering") {
+          must(
+            sorted(entries.map(([sub]) => sub)) === sorted(subs),
+            () => `${tag()}: the racers are not the members`,
+          );
+        }
+
+        for (const [sub, entry] of entries) {
+          const key = `${outing.id}/${sub}`;
+
+          if (entry.finishedIn !== null) {
+            must(
+              Number.isFinite(entry.finishedIn) && entry.finishedIn >= 0,
+              () => `${tag()}: ${sub} finished in ${entry.finishedIn}`,
+            );
+            // A time, once given, is that racer's for as long as the round
+            // is on the list.
+            must(
+              (kept.get(key) ?? entry.finishedIn) === entry.finishedIn,
+              () => `${tag()}: ${sub}'s time changed`,
+            );
+            kept.set(key, entry.finishedIn);
+          } else {
+            must(!kept.has(key), () => `${tag()}: ${sub} was home and is not any more`);
+          }
+        }
+
+        for (const key of kept.keys()) {
+          const [id, sub] = key.split("/");
+
+          must(
+            id !== outing.id || race.progress[sub],
+            () => `${tag()}: ${sub}'s finish was taken out`,
+          );
+        }
+
+        if (outing.phase === "running") {
+          must(
+            entries.some(([, entry]) => entry.finishedIn === null),
+            () => `${tag()}: everybody is home and the race is still running`,
+          );
+          must(
+            outing.done.every((sub) => race.progress[sub]?.finishedIn != null),
+            () => `${tag()}: somebody still flying is marked as done with it`,
+          );
+        } else if (outing.phase !== "done") {
+          must(outing.done.length === 0, () => `${tag()}: Done pressed before there was a result`);
+        }
+      }
+
+      if (outing.hide && (outing.phase === "hiding" || outing.phase === "seeking")) {
+        const { seekers, hiders, ready } = outing.hide;
+
+        must(seekers.length > 0, () => `${tag()}: nobody is seeking`);
+        must(hiders.length > 0, () => `${tag()}: nobody is hiding`);
+        must(
+          sorted([...seekers, ...hiders]) === sorted(subs),
+          () => `${tag()}: the seekers and hiders are not the members, once each`,
+        );
+        must(ready.every((sub) => hiders.includes(sub)), () => `${tag()}: ready, and not hiding`);
+        must(outing.done.length === 0, () => `${tag()}: Done pressed before there was a result`);
+
+        if (outing.phase === "hiding") {
+          blind += seekers.length * hiders.length;
+
+          for (const hider of hiders) {
+            for (const seeker of seekers) {
+              must(
+                room.blindTo(hider)?.has(seeker),
+                () => `${tag()}: ${seeker} is counting and can be sent where ${hider} is`,
+              );
+            }
+          }
+        }
+      }
+
+      for (const entry of outing.hide?.found ?? []) {
+        must(entry.at >= 0, () => `${tag()}: ${entry.sub} was found before the seeking began`);
+        must(
+          entry.why !== "found" || typeof entry.byName === "string",
+          () => `${tag()}: ${entry.sub} was found by nobody`,
+        );
+      }
+
+      if (outing.phase === "gathering" || outing.phase === "done") {
+        must(Number.isFinite(room.nextDeadline), () => `${tag()}: nothing will ever clear it away`);
+      } else {
+        must(outing.deadline > 0, () => `${tag()}: a phase with no end`);
+        must(
+          room.nextDeadline <= outing.deadline,
+          () => `${tag()}: the room will sleep through its deadline`,
+        );
+      }
+    }
+
+    // And nobody is kept from seeing anybody except by a count in progress.
+    let pairs = 0;
+
+    for (const sub of WHO) {
+      pairs += room.blindTo(sub)?.size ?? 0;
+    }
+
+    must(pairs === blind, () => `${say}: ${pairs} hidden from view with ${blind} counted for`);
+    // What everybody is sent can always be sent.
+    JSON.stringify(room.views());
+  }
+
+  test("still makes sense after every step, and is empty in the end", () => {
+    test.setTimeout(120_000);
+
+    for (let run = 0; run < 400; run += 1) {
+      const pick = seeded(run + 1);
+      const among = <T,>(list: readonly T[]) => list[Math.floor(pick() * list.length)];
+      const park = among(["frick", "schenley", "highland"] as ParkId[]);
+      const room = new OutingRoom(FINISHED_FOR);
+      const poses = new Map<string, Pose>();
+      const heard = new Map<string, number>();
+      const kept = new Map<string, number>();
+      const poseOf: PoseOf = (sub) => poses.get(sub) ?? null;
+      let now = 1_000_000;
+
+      /** A pose arrives, exactly as the room's `pos` handler takes one. */
+      const fly = (sub: string, pose: Pose) => {
+        const prev = poses.get(sub) ?? null;
+        const prevAt = heard.get(sub) ?? 0;
+
+        poses.set(sub, pose);
+        heard.set(sub, now);
+
+        if (now >= room.nextDeadline) {
+          room.tick(now, poseOf);
+        }
+
+        room.onPose(sub, prev, prevAt, pose, now, poseOf);
+      };
+
+      /** Somewhere worth being: a gate, a start, a hiding place, another bee. */
+      const somewhere = (): Pose => {
+        const course = COURSES[park];
+        const kind = pick();
+
+        if (kind < 0.35) {
+          const gate = among([...course.sprint.gates, ...course.loop.gates, ...course.dash, course.sprint.start]);
+
+          return at(gate.x, gate.z, pick() < 0.8 ? 40 : 200);
+        }
+
+        if (kind < 0.6) {
+          const area = among(course.hide);
+
+          return at(area.x + (pick() - 0.5) * 60, area.z + (pick() - 0.5) * 60, pick() < 0.85 ? 30 : area.top + 20);
+        }
+
+        if (kind < 0.85 && poses.size > 0) {
+          const other = among([...poses.values()]);
+
+          return at(other.x + (pick() - 0.5) * 6, other.z + (pick() - 0.5) * 6, other.altitude);
+        }
+
+        return at((pick() - 0.5) * 500, (pick() - 0.5) * 500, 20 + pick() * 200);
+      };
+
+      /**
+       * Where this bee would go if it were trying: to the start of a race it
+       * could join, through its next gate, into the hiding place, at a hider.
+       * Wandering alone hardly ever finishes a sixteen-gate race or finds
+       * anybody, and those are the states worth being in.
+       */
+      const purpose = (sub: string): Pose | null => {
+        const mine = room.list.find((outing) => inOuting(outing, sub));
+
+        if (!mine) {
+          const open = room.list.find((outing) => outing.phase === "gathering" && outing.race);
+
+          return open?.race ? at(open.race.start.x, open.race.start.z) : null;
+        }
+
+        if (mine.race) {
+          const entry = mine.race.progress[sub];
+          const gates = raceGates(park, mine.race);
+
+          if (mine.phase !== "running" || !entry || gates.length === 0) {
+            return at(mine.race.start.x, mine.race.start.z);
+          }
+
+          const next = gates[entry.gates % gates.length];
+
+          return at(next.x, next.z, next.top === undefined ? 60 : next.top - 10);
+        }
+
+        if (mine.hide && mine.hide.area >= 0) {
+          const area = COURSES[park].hide[mine.hide.area];
+
+          if (mine.hide.hiders.includes(sub)) {
+            return at(area.x + (pick() - 0.5) * 30, area.z + (pick() - 0.5) * 30, 30);
+          }
+
+          const hider = poses.get(among(mine.hide.hiders));
+
+          return mine.phase === "seeking" && hider ? { ...hider } : null;
+        }
+
+        return null;
+      };
+
+      for (let step = 0; step < 300; step += 1) {
+        const sub = among(WHO);
+        const id = room.list.length > 0 ? among(room.list).id : "o0";
+        const roll = pick();
+        const ask = (message: Record<string, unknown>) =>
+          room.handle(park, sub, sub, { t: "outing", ...message }, now, poseOf, pick);
+
+        if (roll < 0.08) {
+          ask({ do: "open", kind: "race", course: among(["sprint", "loop", "dash"]) });
+        } else if (roll < 0.13) {
+          ask({ do: "open", kind: "hide", seeker: among(["me", "anyone"]) });
+        } else if (roll < 0.25) {
+          ask({ do: "join", id });
+        } else if (roll < 0.33) {
+          ask({ do: "begin", id });
+        } else if (roll < 0.4) {
+          ask({ do: "ready", id });
+        } else if (roll < 0.43) {
+          ask({ do: "leave", id });
+        } else if (roll < 0.44) {
+          // The connection went.
+          room.leave(sub, now);
+          poses.delete(sub);
+        } else if (roll < 0.94) {
+          fly(sub, (pick() < 0.6 ? purpose(sub) : null) ?? somewhere());
+        } else {
+          now += Math.floor(pick() * (pick() < 0.2 ? 200_000 : 8_000));
+        }
+
+        now += Math.floor(pick() * 400);
+        sound(room, kept, `run ${run + 1}, step ${step}`);
+      }
+
+      // Everybody stops, except one bee who is in nothing and only flies
+      // about, which is all the clock the room has. Twenty minutes later
+      // there is nothing left: no race still running, no count still going.
+      for (const outing of room.list) {
+        for (const member of outing.members) {
+          if (member.sub === "ada") {
+            room.leave("ada", now);
+          }
+        }
+      }
+
+      for (let passed = 0; passed < 20 * 60; passed += 5) {
+        now += 5000;
+        fly("ada", at(0, 0, 250));
+        sound(room, kept, `run ${run + 1}, winding down`);
+      }
+
+      expect(
+        room.list.map((outing) => `${outing.id} ${outing.kind} ${outing.phase}`),
+        `run ${run + 1}: something was still on twenty minutes after everybody stopped`,
+      ).toEqual([]);
+      expect(room.nextDeadline, `run ${run + 1}: a deadline with nothing to end`).toBe(Infinity);
+    }
+  });
+});
+
 test.describe("the courses, held against the real parks", () => {
   test.afterAll(() => setActivePark("frick"));
 

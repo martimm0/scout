@@ -309,6 +309,29 @@ export function inputSuspended(ui: {
  * holding a key down, clicking into the chat, and having the release swallowed
  * so the bee flies on forever.
  */
+/**
+ * The nearest thing under the pointer that scrolls by itself and has somewhere
+ * to scroll to, or null over the park. With the pointer locked for flying the
+ * event's target is the canvas, which is the park.
+ */
+function scrollerUnder(target: EventTarget | null): Element | null {
+  for (
+    let node = target instanceof Element ? target : null;
+    node && node !== document.body;
+    node = node.parentElement
+  ) {
+    if (node.scrollHeight > node.clientHeight + 1) {
+      const overflow = getComputedStyle(node).overflowY;
+
+      if (overflow === "auto" || overflow === "scroll") {
+        return node;
+      }
+    }
+  }
+
+  return null;
+}
+
 export function keyboardIsTaken() {
   return (
     inputSuspended(useGameStore.getState().ui) ||
@@ -1007,6 +1030,34 @@ function ScoutScene({
       // Registered passive:false, so this preventDefault stops the page
       // scrolling. A popover taller than the viewport could not be scrolled.
       if (keyboardIsTaken()) {
+        return;
+      }
+
+      /**
+       * A wheel over a list is for the list.
+       *
+       * This listens on the window, so it heard a wheel turned over a panel
+       * as well as one turned over the park, and it took both: the bee
+       * climbed and the panel stayed where it was. That went unnoticed while
+       * no panel was longer than its box. The Games list is, on anything the
+       * size of a laptop, and the rounds out in the park are at the bottom of
+       * it, where a mouse could not get.
+       *
+       * At the end of the list the wheel is swallowed and not passed on, or
+       * it would carry on into the page and pull the park up off the screen.
+       */
+      const list = scrollerUnder(event.target);
+
+      if (list) {
+        const room =
+          event.deltaY > 0
+            ? list.scrollHeight - list.clientHeight - list.scrollTop
+            : list.scrollTop;
+
+        if (room < 1) {
+          event.preventDefault();
+        }
+
         return;
       }
 

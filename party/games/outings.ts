@@ -556,6 +556,8 @@ function found(
     hide: {
       ...hide,
       hiders,
+      // "Hidden" is said by hiders, and this one is not one any more.
+      ready: hide.ready.filter((hider) => hider !== sub),
       seekers: [...hide.seekers, sub],
       found: [
         ...hide.found,

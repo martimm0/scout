@@ -703,6 +703,100 @@ const NEAR = COURSES.highland.hide[2];
  */
 const unhurried = () => new Promise((resolve) => setTimeout(resolve, 2700));
 
+test.describe("the Games panel, with a mouse", () => {
+  /**
+   * The list of things to start is longer than the panel that holds it, on
+   * anything the size of a laptop, and the rounds out in the park are at the
+   * bottom of it. The panel scrolls. But the park takes the wheel for climbing
+   * and diving, from anywhere on the page, so a wheel over the panel moved the
+   * bee and left the list where it was: the buttons for a race and for hide
+   * and seek could be seen by nobody who did not think to press Tab.
+   *
+   * Every other test here presses those buttons through Playwright, which
+   * scrolls a button into view before it clicks it, and so never noticed.
+   * This one uses the wheel, and clicks where the button actually is.
+   */
+  test("the wheel scrolls the list, to the rounds at the bottom of it, and does not fly the bee", async ({ browser }) => {
+    test.setTimeout(180_000);
+
+    const page = await playerPage(browser, "wheeler");
+
+    try {
+      await intoParty(page, "Frick");
+
+      const last = page.getByRole("button", { name: /Hide and seek: pick a seeker/ });
+
+      /** The list's own scrolling box, and where the last button is in it. */
+      const measure = () =>
+        last.evaluate((button) => {
+          let box: HTMLElement | null = button.parentElement;
+
+          while (box && !/(auto|scroll)/.test(getComputedStyle(box).overflowY)) {
+            box = box.parentElement;
+          }
+
+          const list = box!.getBoundingClientRect();
+          const mine = button.getBoundingClientRect();
+
+          return {
+            x: list.left + list.width / 2,
+            y: list.top + list.height / 2,
+            scrolled: box!.scrollTop,
+            overflows: box!.scrollHeight - box!.clientHeight,
+            // To the pixel: boxes are measured in fractions of one.
+            inView: mine.top >= list.top - 1 && mine.bottom <= list.bottom + 1,
+            button: { x: mine.left + mine.width / 2, y: mine.top + mine.height / 2 },
+            page: window.scrollY,
+          };
+        });
+
+      const before = await measure();
+
+      expect(before.overflows, "the list fits now, so this test is about nothing").toBeGreaterThan(40);
+      expect(before.inView, "the last button was in view without scrolling").toBe(false);
+
+      const height = (await where(page)).altitude;
+
+      await page.mouse.move(before.x, before.y);
+
+      for (let turn = 0; turn < 8; turn += 1) {
+        await page.mouse.wheel(0, 200);
+        await page.waitForTimeout(120);
+      }
+
+      const after = await measure();
+
+      expect(after.scrolled, "the wheel did not scroll the list").toBeGreaterThan(40);
+      expect(after.inView, "the rounds at the bottom of the list were never reached").toBe(true);
+      // The page under the park did not go anywhere, at the end of the list
+      // or before it.
+      expect(after.page).toBe(0);
+      await page.waitForTimeout(600);
+      expect(
+        Math.abs((await where(page)).altitude - height),
+        "scrolling the list flew the bee",
+      ).toBeLessThan(1.5);
+
+      // And the button is where it looks to be: pressed with the mouse.
+      await page.mouse.click(after.button.x, after.button.y);
+      await expect(page.getByRole("region", { name: "Hide and seek" })).toContainText("In it: Wheeler");
+
+      // Over the park the wheel is still the wheel: up is up.
+      await page.mouse.move(640, 300);
+
+      for (let turn = 0; turn < 6; turn += 1) {
+        await page.mouse.wheel(0, -200);
+        await page.waitForTimeout(120);
+      }
+
+      await page.waitForTimeout(600);
+      expect((await where(page)).altitude - height, "the wheel no longer climbs").toBeGreaterThan(3);
+    } finally {
+      await page.context().close();
+    }
+  });
+});
+
 test.describe("a race, in the hand", () => {
   test("holds you at the start until the room says go, and lights the way", async ({ browser }) => {
     test.setTimeout(180_000);
@@ -940,6 +1034,71 @@ test.describe("a race, in the hand", () => {
       await expect(page.getByRole("button", { name: /Quick dash/ })).toBeVisible();
     } finally {
       watcher.close();
+      await page.context().close();
+    }
+  });
+
+  /**
+   * A gate with a ceiling, flown by a bee that has to get under it.
+   *
+   * Two gates in the game only count from under a bridge deck. The rules are
+   * held against the park's geometry in `party-outings.spec.ts`, and a socket
+   * can say it is under anything. What neither shows is that a bee can be
+   * flown there: that there is air under the deck at a height the flight
+   * floor allows, and that the height on the card is the height the room
+   * judges by. If it could not, the course would have a gate nobody can pass
+   * and a race nobody can finish.
+   */
+  test("a gate under a bridge is passed by a bee that flies under the deck", async ({ browser }) => {
+    test.setTimeout(300_000);
+
+    const page = await playerPage(browser, "under");
+    const course = COURSES.schenley.sprint;
+    const [stones, bridge] = course.gates;
+
+    expect(bridge.top, "this test is about the gate with a ceiling").toBeDefined();
+
+    try {
+      await intoParty(page, "Schenley");
+      await page.getByRole("button", { name: new RegExp(`Race: ${course.name}`) }).click();
+
+      const card = page.getByRole("region", { name: `Race: ${course.name}` });
+      const begin = card.getByRole("button", { name: "Start the race" });
+
+      // The start is thirty units from where you arrive: inside its reach.
+      await expect(begin).toBeEnabled();
+      await begin.click();
+
+      const progress = card.locator("[data-outing='progress']");
+
+      await expect(progress).toContainText("gate 1 of 7", { timeout: 15_000 });
+
+      // The first gate has no ceiling, and is flown over the trees.
+      await flyTo(page, stones);
+      await expect(progress).toContainText("gate 2 of 7");
+
+      // Down to under the deck, and along the hollow to the bridge.
+      const ceiling = bridge.top! - 6;
+      let reached = false;
+
+      for (let step = 0; step < 40 && !reached; step += 1) {
+        const here = await where(page);
+        const distance = Math.hypot(bridge.x - here.x, bridge.z - here.z);
+
+        if (distance < 8) {
+          reached = true;
+        } else if (here.altitude > ceiling) {
+          await hold(page, "KeyQ", Math.min(2500, ((here.altitude - ceiling + 4) / 17) * 1000));
+        } else {
+          await face(page, bridge);
+          await hold(page, "ArrowUp", Math.max(200, (Math.min(distance * 0.7, 40) / 26) * 1000));
+        }
+      }
+
+      expect(reached, "the bee never got under the bridge").toBe(true);
+      expect((await where(page)).altitude, "the bee was not under the deck").toBeLessThan(bridge.top!);
+      await expect(progress).toContainText("gate 3 of 7");
+    } finally {
       await page.context().close();
     }
   });
@@ -1223,6 +1382,24 @@ test.describe("hide and seek, in the hand", () => {
       await face(page, NEAR);
       await hold(page, "ArrowUp", 1700);
       await expect(card.locator("[data-outing='outside']")).toHaveCount(0);
+      await expect(card.getByRole("button", { name: "I am hidden" })).toBeEnabled();
+
+      /**
+       * Up over the trees, still inside the ring. The sky is not a hiding
+       * place, and the card has to say THAT: it used to say "outside it: 0
+       * ahead", which is the spot directly underneath, and nothing about
+       * height at all.
+       */
+      const low = await where(page);
+
+      await hold(page, "KeyE", ((NEAR.top + 6 - low.altitude) / 17) * 1000 + 500);
+      await expect(card.locator("[data-outing='above']")).toContainText("too high");
+      await expect(card.locator("[data-outing='outside']")).toHaveCount(0);
+      await expect(card.getByRole("button", { name: "I am hidden" })).toBeDisabled();
+
+      // And back down among them.
+      await hold(page, "KeyQ", (((await where(page)).altitude - low.altitude) / 17) * 1000 + 300);
+      await expect(card.locator("[data-outing='above']")).toHaveCount(0);
 
       await card.getByRole("button", { name: "I am hidden" }).click();
       await expect(card).toContainText("Hidden.");
@@ -1379,6 +1556,77 @@ test.describe("hide and seek, in the hand", () => {
       expect(bo.mine()!.hide!.found[0]).toMatchObject({ sub: bo.who, by: "outing-seeker", why: "found" });
     } finally {
       bo.close();
+      await page.context().close();
+    }
+  });
+
+  /**
+   * Who found whom, read after the finder has gone home.
+   *
+   * The row looked the finder up among the members, and a seeker who found
+   * one hider and left was "A bee" on every card for the rest of the round.
+   * The browser here does nothing at all: it joins, never goes to the hiding
+   * place, is caught when the count ends, and is a seeker from then on, which
+   * is somebody still in the round to read the card to.
+   */
+  test("the card still says who found somebody after the finder has gone", async ({ browser }) => {
+    test.setTimeout(240_000);
+
+    const page = await playerPage(browser, "reader");
+    const ada = await rawBee("garden-schenley", "finder-ada");
+    const bo = await rawBee("garden-schenley", "found-bo");
+    const cy = await rawBee("garden-schenley", "hidden-cy");
+
+    try {
+      ada.hover(-150, 30);
+      bo.hover(-150, 34);
+      cy.hover(-150, 38);
+      await intoParty(page, "Schenley");
+
+      ada.send({ ...OUTING, do: "open", kind: "hide", seeker: "me" });
+      await expect.poll(() => ada.mine()?.id).toBeTruthy();
+
+      const id = ada.mine()!.id;
+
+      bo.send({ ...OUTING, do: "join", id });
+      await expect.poll(() => ada.mine()?.members.length).toBe(2);
+      cy.send({ ...OUTING, do: "join", id });
+      await expect.poll(() => ada.mine()?.members.length).toBe(3);
+      await page.getByRole("button", { name: "Join", exact: true }).click();
+      await expect.poll(() => ada.mine()?.members.length).toBe(4);
+      ada.send({ ...OUTING, do: "begin", id });
+      await expect.poll(() => ada.mine()?.phase).toBe("hiding");
+
+      const area = COURSES.schenley.hide[ada.mine()!.hide!.area];
+      const low = area.top - 40;
+
+      bo.hover(area.x - 30, area.z, low);
+      cy.hover(area.x + 30, area.z, low);
+
+      // The browser never says it is hidden, so the count runs its length.
+      await expect.poll(() => ada.mine()?.phase, { timeout: 45_000 }).toBe("seeking");
+
+      const card = page.getByRole("region", { name: "Hide and seek" });
+
+      // Caught where it stood, and so one of the seekers.
+      await expect(card).toContainText("was not in the hiding place");
+
+      ada.hover(area.x - 30 + 2, area.z, low);
+      await expect.poll(() => ada.mine()?.hide?.found.length).toBe(2);
+      await expect(card).toContainText("found by finder-ada");
+
+      // The finder goes home. The round goes on: Cy is still out there.
+      ada.send({ ...OUTING, do: "leave", id });
+      await expect.poll(() => bo.mine()?.members.length).toBe(3);
+      expect(bo.mine()!.phase).toBe("seeking");
+
+      await expect(card).toContainText("1 still hidden");
+      await expect(card).toContainText("found by finder-ada");
+      await expect(card).not.toContainText("A bee");
+    } finally {
+      ada.close();
+      bo.close();
+      cy.close();
       await page.context().close();
     }
   });
