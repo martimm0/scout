@@ -352,6 +352,122 @@ test.describe("a race, refereed by the room", () => {
   });
 });
 
+/**
+ * A room nobody has spoken to for a few seconds is put to sleep, and wakes
+ * with nothing in memory: no seats, no tables, no rounds. The sockets stay
+ * open the whole time. That takes every tab in the party going quiet at once,
+ * hidden windows for the most part, and those players come back holding a
+ * round that no longer exists: a count that will never end.
+ *
+ * `wrangler dev` does this for real, about ten seconds after the last
+ * message, so these wait fifteen and then say one thing.
+ */
+const ASLEEP = 15_000;
+
+test.describe("a room that slept", () => {
+  test("says there is nothing on when it wakes, to everybody still holding a round", async () => {
+    test.setTimeout(120_000);
+
+    const start = COURSES.highland.sprint.start;
+    const ada = await rawBee("garden-highland", "sleep-ada");
+    const bo = await rawBee("garden-highland", "sleep-bo");
+
+    try {
+      ada.hover(start.x, start.z);
+      bo.hover(start.x + 3, start.z);
+      ada.send({ ...OUTING, do: "open", kind: "race", course: "sprint" });
+      await expect.poll(() => ada.mine()?.id).toBeTruthy();
+
+      const id = ada.mine()!.id;
+
+      bo.send({ ...OUTING, do: "join", id });
+      await expect.poll(() => ada.mine()?.members.length).toBe(2);
+      ada.send({ ...OUTING, do: "begin", id });
+      await expect.poll(() => bo.mine()?.phase).toBe("countdown");
+
+      // Both tabs go behind something else. Nobody says anything.
+      ada.still();
+      bo.still();
+      await new Promise((resolve) => setTimeout(resolve, ASLEEP));
+
+      // Held at a start line, as far as either of them has been told.
+      expect(ada.mine()?.phase).toBe("countdown");
+      expect(bo.mine()?.phase).toBe("countdown");
+
+      // One of them comes back.
+      bo.say(start.x + 3, start.z);
+
+      await expect.poll(() => bo.state.outings.length).toBe(0);
+      // And the one who has not come back is told too.
+      await expect.poll(() => ada.state.outings.length).toBe(0);
+
+      // The room is a room again: the next race is opened, joined and begun.
+      ada.hover(start.x, start.z);
+      bo.hover(start.x + 3, start.z);
+      ada.send({ ...OUTING, do: "open", kind: "race", course: "dash" });
+      await expect.poll(() => ada.mine()?.id).toBeTruthy();
+      bo.send({ ...OUTING, do: "join", id: ada.mine()!.id });
+      await expect.poll(() => ada.mine()?.members.length).toBe(2);
+      ada.send({ ...OUTING, do: "begin", id: ada.mine()!.id });
+      await expect.poll(() => bo.mine()?.phase, { timeout: 15_000 }).toBe("running");
+    } finally {
+      ada.close();
+      bo.close();
+    }
+  });
+
+  test("lets go of a seeker who was counting when it went to sleep", async ({ browser }) => {
+    test.setTimeout(180_000);
+
+    const page = await playerPage(browser, "sleeper");
+    const bo = await rawBee("garden-schenley", "sleep-hider");
+
+    try {
+      bo.hover(-150, 30);
+      await intoParty(page, "Schenley");
+
+      await page.getByRole("button", { name: /Hide and seek: I will seek/ }).click();
+
+      const card = page.getByRole("region", { name: "Hide and seek" });
+
+      await expect(card).toContainText("In it: Sleeper");
+      await expect.poll(() => bo.state.outings[0]?.id).toBeTruthy();
+      bo.send({ ...OUTING, do: "join", id: bo.state.outings[0].id });
+      await card.getByRole("button", { name: "Start hiding" }).click();
+      await expect(page.getByText("Counting. No peeking.")).toBeVisible();
+
+      // The hider's tab goes quiet, and so does this one: a hidden window
+      // draws no frames, and a bee that is not drawn sends no poses. The
+      // socket stays open and still hears.
+      bo.still();
+      await page.evaluate(() => {
+        const live = (
+          window as unknown as { __scoutPartySocketForTest: { _ws: WebSocket } }
+        ).__scoutPartySocketForTest._ws;
+
+        live.send = () => {};
+      });
+      await page.waitForTimeout(ASLEEP);
+
+      // Still counting, as far as this screen has been told, and held.
+      await expect(page.getByText("Counting. No peeking.")).toBeVisible();
+
+      // The hider comes back, to a room that remembers nothing.
+      bo.say(-150, 30);
+
+      await expect(page.getByText("Counting. No peeking.")).toHaveCount(0);
+      await expect(card).toHaveCount(0);
+      await expect
+        .poll(() => flown(page, "ArrowUp", 1200), { timeout: 20_000 })
+        .toBeGreaterThan(10);
+      await expect(page.getByRole("button", { name: /Quick dash/ })).toBeVisible();
+    } finally {
+      bo.close();
+      await page.context().close();
+    }
+  });
+});
+
 test.describe("leaving a round", () => {
   test("is never refused, however many buttons you have pressed", async () => {
     /**

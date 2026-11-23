@@ -1474,8 +1474,13 @@ throttle alone left a butterfly coasting sixteen units past its start line.
 tables. If every tab in a party is hidden at once the pose stream stops, the
 room hibernates, and the round is gone while its players still hold it.
 `ensureSeats` notices that it rebuilt seats from nothing and broadcasts the now
-empty lists, which loses the round and strands nobody. This is not covered by a
-test: hibernation cannot be forced under `wrangler dev`.
+empty lists, which loses the round and strands nobody. `wrangler dev` puts a
+room to sleep for real about ten seconds after its last message, sockets left
+open, so this is tested as it happens: two players held in a countdown go
+quiet for fifteen seconds, one comes back, and both are told there is nothing
+on; and a browser that was counting as the seeker has its veil lifted and its
+bee let go. Both fail without the broadcast. (This paragraph used to say it
+could not be tested. Nobody had tried going quiet.)
 
 **Every pollinator flies a race at the bee's speed**, and rain slows nobody,
 from the countdown to the finish. How quickly each turns and answers the stick
